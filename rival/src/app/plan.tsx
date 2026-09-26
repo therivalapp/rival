@@ -345,14 +345,14 @@ export default function PlanScreen() {
                 <>
                   <Text style={rm.label}>Activities</Text>
                   <View style={[styles.stepperRow, ms.stepper]}>
-                    <TouchableOpacity style={[styles.stepperBtn, ms.stepperBtn]} onPress={() => setSessions((n) => Math.max(1, n - 1))} accessibilityLabel="Fewer sessions">
+                    <TouchableOpacity style={[styles.stepperBtn, ms.stepperBtn]} onPress={() => setSessions((n) => Math.max(1, n - 1))} accessibilityLabel="Fewer activities">
                       <Text style={styles.stepperBtnText}>−</Text>
                     </TouchableOpacity>
                     <View style={styles.stepperValueBlock}>
                       <Text style={ms.stepperValue}>{sessions}</Text>
                       <Text style={rm.hint}>{sessions === 1 ? 'session' : 'sessions'} · {sessions * SESSION_MINUTES} min</Text>
                     </View>
-                    <TouchableOpacity style={[styles.stepperBtn, ms.stepperBtn]} onPress={() => setSessions((n) => n + 1)} accessibilityLabel="More sessions">
+                    <TouchableOpacity style={[styles.stepperBtn, ms.stepperBtn]} onPress={() => setSessions((n) => n + 1)} accessibilityLabel="More activities">
                       <Text style={styles.stepperBtnText}>+</Text>
                     </TouchableOpacity>
                   </View>

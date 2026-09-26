@@ -128,7 +128,7 @@ export const QUOTES: Quote[] = [
   { text: "Fuel arrives before performance does.", category: 'nutrition', tone: 'balanced' },
   { text: "Hydration is a variable, not an afterthought.", category: 'nutrition', tone: 'balanced' },
   { text: "Recovery starts on your plate, not just in your bed.", category: 'nutrition', tone: 'balanced' },
-  { text: "Your next meal is part of your next session.", category: 'nutrition', tone: 'balanced' },
+  { text: "Your next meal is part of your next activity.", category: 'nutrition', tone: 'balanced' },
   { text: "Nutrition doesn't need to be complicated to matter.", category: 'nutrition', tone: 'balanced' },
   { text: "The body performs on what it's given, not what it's owed.", category: 'nutrition', tone: 'balanced' },
   { text: "Under-fueling isn't discipline. It's sabotage.", category: 'nutrition', tone: 'blunt' },

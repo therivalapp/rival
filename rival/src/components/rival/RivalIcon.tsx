@@ -66,6 +66,10 @@ const ICONS = {
   // above, which is the filled glyph other screens already depend on.
   notificationsOutline: 'notifications-none',
   settings: 'settings',
+  tune: 'tune',
+  download: 'file-download',
+  mail: 'mail-outline',
+  notificationsOff: 'notifications-off',
   logout: 'logout',
   delete: 'delete-outline',
   link: 'link',

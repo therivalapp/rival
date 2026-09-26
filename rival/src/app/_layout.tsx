@@ -1,3 +1,4 @@
+import { invalidateActivityCache } from '../lib/fetchAllActivities';
 // The Manrope webfont lives here. It used to be imported only by
 // constants/theme.ts, a starter-template module whose consumers were deleted --
 // which silently dropped the stylesheet from the build entirely and fell every
@@ -82,7 +83,7 @@ export default function RootLayout() {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
         },
-      }).catch(() => {});
+      }).then((r) => { if (r.ok) invalidateActivityCache(); }).catch(() => {});
     }
 
     // A few seconds after opening, not during: the sync is a background

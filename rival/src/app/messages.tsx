@@ -1,3 +1,4 @@
+import { getMyTeamRows } from '../lib/myTeams';
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, Image, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,28 +48,30 @@ type ThreadRow = {
   unread: boolean;
 };
 
+// The list as last shown, so coming back to Chat draws it at once and then
+// refreshes, instead of starting from "Loading" every visit.
+let lastThreads: { userId: string; rows: ThreadRow[] } | null = null;
+
 export default function MessagesScreen() {
-  const [threads, setThreads] = useState<ThreadRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [threads, setThreads] = useState<ThreadRow[]>(() => lastThreads?.rows ?? []);
+  const [loading, setLoading] = useState(() => !lastThreads);
 
   const load = useCallback(async () => {
     const { data: { user } } = await getAuthUser();
     if (!user) { setLoading(false); return; }
+    if (lastThreads && lastThreads.userId !== user.id) { lastThreads = null; setThreads([]); }
 
-    const { data: memberships } = await supabase
-      .from('league_members')
-      .select('league_id')
-      .eq('user_id', user.id)
-      .eq('status', 'active');
-    const leagueIds = (memberships ?? []).map((m) => m.league_id);
+    const teamRows = await getMyTeamRows(user.id).catch(() => []);
+    const leagueIds = teamRows.map((m) => m.league_id);
     if (leagueIds.length === 0) {
       setThreads([]);
+      lastThreads = { userId: user.id, rows: [] };
       setLoading(false);
       return;
     }
 
-    const [{ data: leagues }, lastByLeague, unread] = await Promise.all([
-      supabase.from('leagues').select('id, name, logo_url').in('id', leagueIds),
+    const leagues = teamRows.map((r) => r.leagues).filter(Boolean) as Array<{ id: string; name: string; logo_url: string | null }>;
+    const [lastByLeague, unread] = await Promise.all([
       // Just the newest message per team, not every message ever sent.
       latestMessageByLeague<{ league_id: string; user_id: string; body: string; created_at: string }>(leagueIds, 'league_id, user_id, body, created_at'),
       // Shared with the Chat tab's badge — a badge reading "2" over a list
@@ -77,7 +80,7 @@ export default function MessagesScreen() {
     ]);
 
 
-    const rows: ThreadRow[] = (leagues ?? [])
+    const rows: ThreadRow[] = leagues
       .map((l) => {
         const last = lastByLeague.get(l.id);
         const isUnread = unread.byLeague[l.id] ?? false;
@@ -99,6 +102,7 @@ export default function MessagesScreen() {
       });
 
     setThreads(rows);
+    lastThreads = { userId: user.id, rows };
     setLoading(false);
   }, []);
 
@@ -110,10 +114,27 @@ export default function MessagesScreen() {
   return (
     <View style={{ flex: 1 }}>
       <View style={[styles.mBgFixed, mob && ms.bg]} />
+      {mob && <Image source={SMOKE} style={ms.smoke} resizeMode="cover" />}
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <RivalTopNav active="chat" />
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={[styles.title, mob && ms.title]}>Messages</Text>
+          <View style={mob && ms.head}>
+            <Text style={[styles.title, mob && ms.title]}>Messages</Text>
+            {mob && !loading && threads.length > 0 && (
+              <View style={ms.kicker}>
+                <View style={[ms.rule, ms.ruleLeft]} />
+                <Text style={ms.kickerText}>
+                  {(() => {
+                    const unreadCount = threads.filter((t) => t.unread).length;
+                    return unreadCount > 0
+                      ? `${unreadCount} unread · ${threads.length} ${threads.length === 1 ? 'team' : 'teams'}`
+                      : `No unread · ${threads.length} ${threads.length === 1 ? 'team' : 'teams'}`;
+                  })()}
+                </Text>
+                <View style={[ms.rule, ms.ruleRight]} />
+              </View>
+            )}
+          </View>
 
           {loading ? (
             <Text style={styles.stateText}>Loading…</Text>
@@ -131,17 +152,17 @@ export default function MessagesScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.list}>
-              {threads.map((t) => {
+            <View style={[styles.list, mob && ms.list]}>
+              {threads.map((t, i) => {
                 const tint = tintFor(t.name);
                 return (
                   <TouchableOpacity
                     key={t.leagueId}
-                    style={[styles.row, mob && ms.row]}
+                    style={[styles.row, mob && ms.row, mob && t.unread && ms.rowUnread, mob && rowIn(i)]}
                     onPress={() => router.push({ pathname: '/chat', params: { id: t.leagueId } })}
                   >
                     {t.logoUrl ? (
-                      <Image source={{ uri: t.logoUrl }} style={[styles.avatar, mob && ms.crest]} />
+                      <Image source={{ uri: t.logoUrl }} style={[styles.avatar, mob && ms.crest, mob && t.unread && ms.crestUnread]} />
                     ) : (
                       <View style={[styles.avatarFallback, { backgroundColor: tint.bg }]}>
                         <Text style={[styles.avatarInitial, { color: tint.color }]}>{t.name[0]?.toUpperCase()}</Text>
@@ -158,7 +179,7 @@ export default function MessagesScreen() {
                         {t.lastBody ? `${t.lastIsMine ? 'You: ' : ''}${t.lastBody}` : 'No messages yet.'}
                       </Text>
                     </View>
-                    {t.unread && <View style={styles.unreadDot} />}
+                    {t.unread && <View style={[styles.unreadDot, mob && ms.unreadDot]} />}
                   </TouchableOpacity>
                 );
               })}
@@ -203,12 +224,61 @@ const styles = StyleSheet.create({
   emptyBtnText: { fontSize: 13, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 });
 
+const SMOKE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
+
+// Rows ease in one after another when the list appears (web; the keyframe is
+// in global.css). Skipped for anyone who has asked for reduced motion.
+function rowIn(i: number): any {
+  if (Platform.OS !== 'web') return null;
+  return {
+    animationName: 'rivalRowIn',
+    animationDuration: '420ms',
+    animationDelay: `${Math.min(i, 8) * 45}ms`,
+    animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.3, 1)',
+    animationFillMode: 'both',
+  };
+}
+
 // Phone only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
-  bg: { backgroundColor: RivalWarm.page },
-  title: { fontSize: 26, lineHeight: 32 },
-  row: { borderBottomColor: RivalWarm.hairline },
+  bg: {
+    backgroundColor: RivalWarm.page,
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'radial-gradient(ellipse 120% 55% at 100% 0%, rgba(217,119,87,0.14) 0%, rgba(17,14,12,0) 60%), radial-gradient(ellipse 90% 45% at 0% 100%, rgba(255,181,158,0.06) 0%, rgba(17,14,12,0) 60%)' } as any)
+      : {}),
+  },
+  // The same smoke as Home's Weekly Leader, faint, behind the heading only.
+  smoke: {
+    position: 'absolute', top: -60, left: 0, right: 0, height: 320, width: '100%', opacity: 0.16, pointerEvents: 'none',
+    ...(Platform.OS === 'web'
+      ? ({ maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)' } as any)
+      : {}),
+  },
+  head: { alignItems: 'center', gap: 8, marginBottom: 4 },
+  title: { fontSize: 30, lineHeight: 36, textAlign: 'center' },
+  kicker: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  kickerText: { fontSize: 11, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: 'rgba(255,181,158,0.8)' },
+  rule: { width: 36, height: 1 },
+  ruleLeft: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,181,158,0.55))' } as any) : { backgroundColor: 'rgba(255,181,158,0.4)' },
+  ruleRight: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55), transparent)' } as any) : { backgroundColor: 'rgba(255,181,158,0.4)' },
+  list: { gap: 10 },
+  row: {
+    borderWidth: 1, borderBottomWidth: 1, borderColor: RivalWarm.cardBorder, borderBottomColor: RivalWarm.cardBorder, backgroundColor: RivalWarm.card,
+    borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12,
+  },
+  // Unread: the card lifts a little — a salmon edge and a faint warm wash.
+  rowUnread: {
+    borderColor: 'rgba(255,181,158,0.35)', borderBottomColor: 'rgba(255,181,158,0.35)',
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'linear-gradient(100deg, rgba(217,119,87,0.12) 0%, rgba(29,23,20,0) 60%)', boxShadow: '0 0 18px rgba(217,119,87,0.12)' } as any)
+      : {}),
+  },
   crest: { borderWidth: 1, borderColor: RivalWarm.cardBorder },
+  crestUnread: { borderColor: 'rgba(255,181,158,0.6)' },
+  unreadDot: {
+    width: 10, height: 10, borderRadius: 5,
+    ...(Platform.OS === 'web' ? ({ boxShadow: '0 0 8px rgba(217,119,87,0.8)' } as any) : {}),
+  },
   rowName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 17 },
   empty: { alignItems: 'center', paddingVertical: 28 },
   emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20 },

@@ -1,3 +1,5 @@
+import { getMyTeamRows } from '../lib/myTeams';
+import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation } from '../lib/units';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
@@ -20,6 +22,8 @@ import { computeGoalProgress, goalUnit, GoalRow } from '../lib/goalProgress';
 // to metres at display time only, for these activity types only.
 const METERS_SPORTS = new Set(['Swim', 'Rowing']);
 import { formatTeamName, formatRaceName } from '../lib/identity';
+import { LaurelWreath } from '../components/rival/LaurelWreath';
+import { useSnapState } from '../lib/snapState';
 import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, type RivalIconName } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalFontFamily, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
@@ -110,17 +114,17 @@ const PODIUM_RANK_STYLE = [
   {
     gradFrom: 'rgba(255,215,0,0.4)', gradTo: 'rgba(180,140,10,0.1)', glow: 'rgba(255,215,0,0.28)', glowRadius: 10,
     avatarGlow: 'rgba(255,215,0,0.25)', avatarGlowRadius: 7,
-    tint: '#FFD700', ptsColor: '#FFD700', ptsTint: 'rgba(255,215,0,0.7)', minH: 119, maxH: 161, avatarSize: 58, nameSize: 11, nameLetterSpacing: 1.5, ptsSize: 31, padTop: 29, padBottom: 20,
+    tint: '#FFD700', ptsColor: '#FFD700', ptsTint: 'rgba(255,215,0,0.7)', minH: 119, maxH: 161, avatarSize: 64, nameSize: 11, nameLetterSpacing: 1.5, ptsSize: 31, padTop: 29, padBottom: 20,
   },
   {
     gradFrom: 'rgba(150,130,110,0.32)', gradTo: 'rgba(60,50,45,0.08)', glow: 'rgba(180,150,120,0.18)', glowRadius: 7,
     avatarGlow: 'rgba(255,181,158,0.3)', avatarGlowRadius: 5,
-    tint: RivalColors.accentText, ptsColor: '#FFFFFF', ptsTint: 'rgba(255,181,158,0.7)', minH: 81, maxH: 111, avatarSize: 41, nameSize: 10, nameLetterSpacing: 1.5, ptsSize: 20, padTop: 26, padBottom: 14,
+    tint: RivalColors.accentText, ptsColor: '#FFFFFF', ptsTint: 'rgba(255,181,158,0.7)', minH: 81, maxH: 111, avatarSize: 51, nameSize: 10, nameLetterSpacing: 1.5, ptsSize: 20, padTop: 26, padBottom: 14,
   },
   {
     gradFrom: 'rgba(94,218,199,0.25)', gradTo: 'rgba(0,80,71,0.05)', glow: 'rgba(217,119,87,0.15)', glowRadius: 7,
     avatarGlow: 'rgba(94,218,199,0.15)', avatarGlowRadius: 5,
-    tint: RivalColors.tertiary, ptsColor: '#FFFFFF', ptsTint: 'rgba(94,218,199,0.6)', minH: 66, maxH: 91, avatarSize: 41, nameSize: 10, nameLetterSpacing: 1.5, ptsSize: 20, padTop: 26, padBottom: 14,
+    tint: RivalColors.tertiary, ptsColor: '#FFFFFF', ptsTint: 'rgba(94,218,199,0.6)', minH: 66, maxH: 91, avatarSize: 51, nameSize: 10, nameLetterSpacing: 1.5, ptsSize: 20, padTop: 26, padBottom: 14,
   },
 ] as const;
 // Sloped-top-edge fraction pairs [topLeft, topRight] per column position
@@ -141,6 +145,75 @@ const PODIUM_LENS_CLIP =
 const PODIUM_MOTION = Platform.OS === 'web' && typeof window !== 'undefined'
   && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const RISE_DELAY_MS: Record<0 | 1 | 2, number> = { 0: 420, 1: 260, 2: 100 };
+
+// Sparkles that rise out of the top of the leader's pillar and fade — only
+// ever on first place. Fixed positions and timings (not random) so the effect
+// is identical on every render and never clumps. Web only, like the rest of
+// the podium motion; hidden for reduced motion in global.css.
+const SPARKS: { left: string; delay: number; dur: number; size: number; star: boolean; dir: 'L' | 'R' }[] = [
+  { left: '16%', delay: 0.0, dur: 2.8, size: 4, star: false, dir: 'L' },
+  { left: '30%', delay: 1.1, dur: 3.2, size: 12, star: true, dir: 'L' },
+  { left: '46%', delay: 0.5, dur: 2.6, size: 4, star: false, dir: 'R' },
+  { left: '58%', delay: 2.0, dur: 3.0, size: 10, star: true, dir: 'L' },
+  { left: '70%', delay: 1.6, dur: 3.4, size: 12, star: true, dir: 'R' },
+  { left: '82%', delay: 0.9, dur: 2.9, size: 4, star: false, dir: 'R' },
+  { left: '24%', delay: 2.4, dur: 3.1, size: 3, star: false, dir: 'L' },
+  { left: '64%', delay: 2.8, dur: 2.7, size: 3, star: false, dir: 'R' },
+  { left: '40%', delay: 3.3, dur: 3.3, size: 9, star: true, dir: 'R' },
+];
+
+// Where the sparkles start: the top face of the pillar, or its foot, rising up
+// the whole face. Set from the podium workbench, 2026-09-26.
+const SPARK_ORIGIN: 'top' | 'base' = 'top';
+// Below 1 slows the whole effect: longer rise, sparkles spaced further apart.
+const SPARK_SPEED = 0.6;
+
+function PodiumSparkles({ slope, height }: { slope: [number, number]; height: number }) {
+  if (!PODIUM_MOTION) return null;
+  const base = SPARK_ORIGIN === 'base';
+  // From the top, each sparkle is born on the pillar's 3D top face itself:
+  // part way across it and part way back, following its slant, so they rise
+  // out of the surface rather than appearing in the air above it.
+  const [tl, tr] = slope;
+  const xr = 100 - PILLAR_SIDE;
+  const onTop = (i: number, leftPct: number) => {
+    const fx = (leftPct / 100) * xr;
+    const back = 0.25 + (i % 3) * 0.25; // how far back across the top face
+    return { x: fx + back * PILLAR_SIDE, y: tl * height + (tr - tl) * height * (fx / 100) + (1 - back) * PILLAR_DEPTH };
+  };
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: base ? `${PILLAR_SIDE}%` : 0, ...(base ? { bottom: 2 } : { top: 0 }), height: 0 } as any}>
+      {SPARKS.map((sp, i) => {
+        const at = base ? null : onTop(i, parseFloat(sp.left));
+        return (
+        <View
+          key={i}
+          style={{
+            position: 'absolute', left: (at ? `${at.x}%` : sp.left) as any, top: at ? at.y : 0,
+            width: sp.size, height: sp.size, marginLeft: -sp.size / 2, marginTop: at ? -sp.size / 2 : 0,
+            animationName: `rivalSparkRise${base ? 'Base' : ''}${sp.dir}`,
+            // Further to travel from the foot, so a little slower.
+            animationDuration: `${((base ? sp.dur * 1.6 : sp.dur) / SPARK_SPEED).toFixed(2)}s`,
+            // Held back until the pillar has risen and the avatar settled.
+            animationDelay: `${(1.6 + sp.delay / SPARK_SPEED).toFixed(2)}s`,
+            animationIterationCount: 'infinite',
+            animationTimingFunction: 'ease-out',
+            animationFillMode: 'both',
+          } as any}
+        >
+          {sp.star ? (
+            <Svg width={sp.size} height={sp.size} viewBox="0 0 10 10" style={{ filter: 'drop-shadow(0 0 3px rgba(255,215,0,0.9))' } as any}>
+              <Polygon points="5,0 6,4 10,5 6,6 5,10 4,6 0,5 4,4" fill="#FFF3C4" />
+            </Svg>
+          ) : (
+            <View style={{ width: sp.size, height: sp.size, borderRadius: sp.size, backgroundColor: '#FFF6CF', boxShadow: '0 0 6px 2px rgba(255,215,0,0.7)' } as any} />
+          )}
+        </View>
+        );
+      })}
+    </View>
+  );
+}
 
 function podiumRise(effRank: 0 | 1 | 2): any {
   if (!PODIUM_MOTION) return null;
@@ -179,12 +252,40 @@ function podiumSheen(effRank: 0 | 1 | 2): any {
   };
 }
 
-const CROWN_DRIFT: any = PODIUM_MOTION ? {
-  animationName: 'rivalCrownDrift',
+// A soft gold halo that breathes behind the leader's picture (web only).
+const LEADER_HALO: any = PODIUM_MOTION ? {
+  animationName: 'rivalHaloPulse',
   animationDuration: '3200ms',
   animationIterationCount: 'infinite',
   animationTimingFunction: 'ease-in-out',
 } : null;
+
+// '#rrggbb' → 'rgba(r,g,b,a)'.
+function hexAlpha(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// A picture-less avatar: the rank colour glowing up from the lower left of a
+// deep warm disc, and the initial set in the serif italic like the scores.
+function initialBackdrop(tint: string): any {
+  return Platform.OS === 'web'
+    ? { backgroundImage: `radial-gradient(circle at 30% 22%, ${hexAlpha(tint, 0.34)} 0%, ${hexAlpha(tint, 0.1)} 45%, rgba(0,0,0,0) 72%), linear-gradient(160deg, #3a2f29 0%, #1c1613 100%)` }
+    : { backgroundColor: '#2a221e' };
+}
+function initialGlow(tint: string): any {
+  return Platform.OS === 'web' ? { textShadow: `0 0 10px ${hexAlpha(tint, 0.55)}` } : null;
+}
+
+// The picture's ring: a thin metallic band in the rank colour, catching light
+// at two points. Drawn as a gradient behind a 1px inset (web); a plain ring on
+// native.
+const AVATAR_RING = 1;
+function avatarRing(tint: string): any {
+  return Platform.OS === 'web'
+    ? { backgroundImage: `conic-gradient(from 210deg, ${tint}, #fff8e0, ${hexAlpha(tint, 0.5)}, ${tint}, #fff8e0, ${tint})` }
+    : { backgroundColor: tint };
+}
 
 // The pillar as a solid block: a front face, a lit top face and a shaded right
 // side, drawn in the pillar's 0–100 wide viewBox. DEPTH is in pixels (the y
@@ -289,11 +390,18 @@ function formatRaceDateShort(dateStr: string): string {
 // Today card's title leads with the actual target instead (e.g. "100 km
 // Run"), goalProgress.ts's goalTitle() stays as-is for goals.tsx's own list
 // (badge + label already covers the type there, so it doesn't need this).
+// A goal's number in the units chosen in Profile (goals are stored metric).
+function shownGoal(type: 'distance' | 'elevation' | 'gym_sessions', v: number): { value: number; unit: string } {
+  if (type === 'distance') return { value: Math.round(toDisplayDistance(v) * 10) / 10, unit: distanceUnit() };
+  if (type === 'elevation') return { value: Math.round(toDisplayElevation(v)), unit: elevationUnit() };
+  return { value: v, unit: goalUnit(type) };
+}
+
 function featuredGoalTitle(goal: { goal_type: 'distance' | 'elevation' | 'gym_sessions'; activity_filter: string | null; target_value: number }): string {
-  if (goal.goal_type === 'gym_sessions') return `Gym Sessions • ${goal.target_value}`;
-  const unit = goalUnit(goal.goal_type);
+  if (goal.goal_type === 'gym_sessions') return `Gym activities • ${goal.target_value}`;
   const activity = goal.activity_filter ?? 'All Activities';
-  return `${activity} • ${goal.target_value} ${unit}`;
+  const shown = shownGoal(goal.goal_type, goal.target_value);
+  return `${activity} • ${shown.value} ${shown.unit}`;
 }
 
 // Staged copy by raw progress (not time-based pace — see the "single 80km
@@ -389,13 +497,17 @@ function nextMilestone(km: number, activities: number, elevM: number, seasonEffo
     const next = (Math.floor(value / size) + 1) * size;
     return { next, pct: (value - (next - size)) / size, left: next - value };
   };
-  const d = step(km, km < 100 ? 25 : 100);
+  // Milestones fall on round numbers in whichever units are chosen.
+  const dist = Math.round(toDisplayDistance(km));
+  const climb = Math.round(toDisplayElevation(elevM));
+  const du = distanceUnit(), eu = elevationUnit();
+  const d = step(dist, dist < 100 ? 25 : 100);
   const a = step(activities, activities < 100 ? 10 : 50);
-  const e = step(elevM, elevM < 10000 ? 1000 : 5000);
+  const e = eu === 'ft' ? step(climb, climb < 30000 ? 3000 : 15000) : step(climb, climb < 10000 ? 1000 : 5000);
   const candidates: Milestone[] = [
-    { title: `${d.next.toLocaleString()} km lifetime`, toGo: `${d.left.toLocaleString()} km to go`, pct: d.pct },
+    { title: `${d.next.toLocaleString()} ${du} lifetime`, toGo: `${d.left.toLocaleString()} ${du} to go`, pct: d.pct },
     { title: `${a.next.toLocaleString()} activities`, toGo: `${a.left.toLocaleString()} to go`, pct: a.pct },
-    { title: `${e.next.toLocaleString()} m climbed`, toGo: `${e.left.toLocaleString()} m to go`, pct: e.pct },
+    { title: `${e.next.toLocaleString()} ${eu} climbed`, toGo: `${e.left.toLocaleString()} ${eu} to go`, pct: e.pct },
   ];
   // Recognition from other people is a milestone too — only once someone has
   // given some, so a new account isn't pointed at a number it can't move.
@@ -589,7 +701,6 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                           // avatar (not in normal flow, doesn't push it down)
                           // — same ~0.44x-of-avatar-size ratio as the mockup's
                           // 30px-above-a-68px-avatar spacing, scaled to ours.
-                          const crownOffset = Math.round(rankStyle.avatarSize * 0.44);
                           // padTop is tuned for this rank's mockup-reference height, but a
                           // real-data pillar can end up much shorter (e.g. a 3rd-place entry
                           // far behind 1st) — clamp it so the name+points+"pts" stack always
@@ -617,39 +728,67 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                           const effPadBottom = Math.max(8, Math.min(rankStyle.padBottom, pillarHeight - effPadTop - MIN_CONTENT_H));
                           return (
                             <View key={entry.userId} style={[styles.mPodiumColumn, sparse && styles.mPodiumColumnSparse]}>
+                              {/* The leader's glow is its own layer beneath the picture's
+                                  wrapper, not inside it: inside a filtered, animated
+                                  wrapper Safari drew it over the photo. */}
+                              {effRank === 0 && Platform.OS === 'web' && (
+                                <View
+                                  pointerEvents="none"
+                                  style={[
+                                    styles.mPodiumHalo,
+                                    {
+                                      top: rankStyle.avatarSize / 2,
+                                      width: rankStyle.avatarSize * 1.9, height: rankStyle.avatarSize * 1.9,
+                                      marginLeft: -rankStyle.avatarSize * 0.95, marginTop: -rankStyle.avatarSize * 0.95,
+                                      borderRadius: rankStyle.avatarSize,
+                                      zIndex: 0,
+                                    },
+                                    LEADER_HALO,
+                                  ]}
+                                />
+                              )}
                               <View
                                 style={[
-                                  { position: 'relative' },
+                                  // Above the pillar, so the leader's sparkles pass behind the picture.
+                                  { position: 'relative', zIndex: 2 },
                                   Platform.OS === 'web' ? ({ filter: `drop-shadow(0 0 ${rankStyle.avatarGlowRadius}px ${rankStyle.avatarGlow})` } as any) : null,
                                   podiumSettle(effRank),
                                 ]}
                               >
-                                {effRank === 0 && (
-                                  <View style={[styles.mPodiumCrownWrap, { top: -crownOffset }, CROWN_DRIFT]}>
-                                    <RivalIcon name="crown" size={24} color="#FFD700" />
-                                  </View>
-                                )}
+                                {effRank === 0 && <LaurelWreath avatarSize={rankStyle.avatarSize} />}
                                 <View
                                   style={[
-                                    styles.mPodiumAvatar,
                                     {
                                       width: rankStyle.avatarSize, height: rankStyle.avatarSize, borderRadius: rankStyle.avatarSize / 2,
-                                      borderColor: rankStyle.tint,
-                                      transform: [{ rotate: colIdx === 0 ? '-6deg' : colIdx === 2 ? '6deg' : '0deg' }],
-                                      overflow: 'hidden',
+                                      padding: AVATAR_RING,
+                                      // Above the glow behind it — an animated layer can
+                                      // otherwise be drawn on top in some browsers.
+                                      position: 'relative', zIndex: 2,
+                                      transform: [{ rotate: colIdx === 0 ? '-7deg' : colIdx === 2 ? '7deg' : '0deg' }],
                                     },
+                                    avatarRing(rankStyle.tint),
                                   ]}
                                 >
-                                  {entry.avatarUrl ? (
-                                    <Image
-                                      source={{ uri: entry.avatarUrl }}
-                                      style={{ width: rankStyle.avatarSize, height: rankStyle.avatarSize, borderRadius: rankStyle.avatarSize / 2 }}
-                                    />
-                                  ) : (
-                                    <Text style={{ fontFamily: RivalFontFamily, color: rankStyle.tint, fontWeight: '800', fontSize: rankStyle.avatarSize * 0.32 }}>
-                                      {(entry.name[0] || '?').toUpperCase()}
-                                    </Text>
-                                  )}
+                                  <View
+                                    style={[
+                                      styles.mPodiumAvatar,
+                                      { flex: 1, borderRadius: rankStyle.avatarSize / 2, overflow: 'hidden' },
+                                      // No photo: a warm glow of the rank colour, lit from
+                                      // the top left, instead of a flat grey disc.
+                                      !entry.avatarUrl && initialBackdrop(rankStyle.tint),
+                                    ]}
+                                  >
+                                    {entry.avatarUrl ? (
+                                      <Image
+                                        source={{ uri: entry.avatarUrl }}
+                                        style={{ width: rankStyle.avatarSize - AVATAR_RING * 2, height: rankStyle.avatarSize - AVATAR_RING * 2, borderRadius: rankStyle.avatarSize / 2 }}
+                                      />
+                                    ) : (
+                                      <Text style={[styles.mPodiumInitial, { color: rankStyle.tint, fontSize: rankStyle.avatarSize * 0.46, lineHeight: rankStyle.avatarSize * 0.56 }, initialGlow(rankStyle.tint)]}>
+                                        {(entry.name[0] || '?').toUpperCase()}
+                                      </Text>
+                                    )}
+                                  </View>
                                 </View>
                               </View>
                               <View
@@ -710,6 +849,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                                     vectorEffect="non-scaling-stroke"
                                   />
                                 </Svg>
+                                {/* The sweep of light crosses every pillar, one after another. */}
                                 {PODIUM_MOTION && (
                                   <View
                                     pointerEvents="none"
@@ -718,7 +858,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                                       { clipPath: faces.frontClip } as any,
                                     ]}
                                   >
-                                    <View style={[styles.mPodiumSheen, { opacity: effRank === 0 ? 1 : 0.6 }, podiumSheen(effRank)]} />
+                                    <View style={[styles.mPodiumSheen, podiumSheen(effRank)]} />
                                   </View>
                                 )}
                                 <View style={{ flex: 1, alignItems: 'center', paddingTop: effPadTop, paddingBottom: effPadBottom, marginRight: `${PILLAR_SIDE}%` }}>
@@ -728,6 +868,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                                   <Text style={[styles.mPodiumPoints, { fontSize: rankStyle.ptsSize, lineHeight: Math.round(rankStyle.ptsSize * 1.15), color: rankStyle.ptsColor }]}>{entry.points}</Text>
                                   <Text style={{ fontSize: 10, lineHeight: 12, color: rankStyle.ptsTint, fontWeight: '500', flexShrink: 0 }}>Effort</Text>
                                 </View>
+                                {effRank === 0 && <PodiumSparkles slope={shardSlope} height={pillarHeight} />}
                               </View>
                             </View>
                           );
@@ -737,12 +878,9 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
 
                       {(() => {
                         const story = selfIndex !== -1 ? weeklyRankStory(standings, selfIndex) : null;
-                        // Gold when you hold the top spot (it matches the
-                        // leader's gold pillar above), salmon when you're
-                        // chasing — the colour carries the story as much as
-                        // the words do.
-                        const leading = selfIndex === 0;
-                        const numberStyle = [styles.mStatusNumber, { color: leading ? RivalColors.accentGold : RivalColors.accentText }];
+                        // The gap is always salmon, leading or chasing (Ricky,
+                        // 2026-09-26).
+                        const numberStyle = [styles.mStatusNumber, { color: RivalColors.accentText }];
                         return (
                           // No capsule: a grey bordered box read as a generic
                           // UI chip bolted onto the podium. This is a headline
@@ -784,43 +922,43 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
 }
 
 export default function HomeScreen() {
-  const [stravaConnected, setStravaConnected] = useState(true);
-  const [leagues, setLeagues] = useState<League[]>([]);
+  const [stravaConnected, setStravaConnected] = useSnapState('home.stravaConnected', true);
+  const [leagues, setLeagues] = useSnapState<League[]>('home.leagues', []);
   // Populated by loadAll() below from real account data.
   // One entry per team the user belongs to (mobile Weekly Leader card swipes
   // across all of them); `weeklyLeader` below stays the most-active team's
   // data, same as before this became a list, so every other reader of it
   // (desktop Focus card, Momentum status line) is unaffected.
-  const [weeklyLeaders, setWeeklyLeaders] = useState<WeeklyLeader[]>([]);
+  const [weeklyLeaders, setWeeklyLeaders] = useSnapState<WeeklyLeader[]>('home.weeklyLeaders', []);
   const [leaderCardIndex, setLeaderCardIndex] = useState(0);
   const leaderScrollRef = useRef<ScrollView>(null);
   const weeklyLeader = weeklyLeaders[0] ?? null;
-  const [momentumTrainers, setMomentumTrainers] = useState<MomentumTrainers | null>(null);
-  const [nextRace, setNextRace] = useState<NextRace>(null);
-  const [totalDistanceKm, setTotalDistanceKm] = useState(0);
-  const [totalElevationM, setTotalElevationM] = useState(0);
-  const [totalTimeMinutes, setTotalTimeMinutes] = useState(0);
+  const [momentumTrainers, setMomentumTrainers] = useSnapState<MomentumTrainers | null>('home.momentumTrainers', null);
+  const [nextRace, setNextRace] = useSnapState<NextRace>('home.nextRace', null);
+  const [totalDistanceKm, setTotalDistanceKm] = useSnapState('home.totalDistanceKm', 0);
+  const [totalElevationM, setTotalElevationM] = useSnapState('home.totalElevationM', 0);
+  const [totalTimeMinutes, setTotalTimeMinutes] = useSnapState('home.totalTimeMinutes', 0);
   // Lifetime effort/activity counts — kept separate from totalXp (season-
   // scoped, drives getLevel()) so the LEGACY card's four numbers are all the
   // same timeframe without changing what powers the user's rank.
-  const [lifetimeXp, setLifetimeXp] = useState(0);
-  const [lifetimeActivityCount, setLifetimeActivityCount] = useState(0);
-  const [weeklyStreak, setWeeklyStreak] = useState(0);
+  const [lifetimeXp, setLifetimeXp] = useSnapState('home.lifetimeXp', 0);
+  const [lifetimeActivityCount, setLifetimeActivityCount] = useSnapState('home.lifetimeActivityCount', 0);
+  const [weeklyStreak, setWeeklyStreak] = useSnapState('home.weeklyStreak', 0);
   // Today-only Effort — new, mobile Legacy section's "Effort today" stat.
   // Derived from the same `activities` array loadAll() already fetches, not
   // a new query.
-  const [todayEffort, setTodayEffort] = useState(0);
-  const [rankName, setRankName] = useState<string | null>(null);
+  const [todayEffort, setTodayEffort] = useSnapState('home.todayEffort', 0);
+  const [rankName, setRankName] = useSnapState<string | null>('home.rankName', null);
   // Legacy: what moved this week, the most recent session, and this season's
   // Effort (for the rank milestone) — all from the activities already loaded.
-  const [legacyWeek, setLegacyWeek] = useState({ effort: 0, count: 0, km: 0, elevM: 0 });
-  const [lastActivity, setLastActivity] = useState<{ type: string | null; startedAt: string } | null>(null);
-  const [seasonEffortTotal, setSeasonEffortTotal] = useState(0);
+  const [legacyWeek, setLegacyWeek] = useSnapState('home.legacyWeek', { effort: 0, count: 0, km: 0, elevM: 0 });
+  const [lastActivity, setLastActivity] = useSnapState<{ type: string | null; startedAt: string } | null>('home.lastActivity', null);
+  const [seasonEffortTotal, setSeasonEffortTotal] = useSnapState('home.seasonEffortTotal', 0);
   // Lifetime recognition received — Legacy's Impact page and a milestone.
-  const [respectReceived, setRespectReceived] = useState(0);
-  const [impact, setImpact] = useState({ respect: 0, inspired: 0, people: 0 });
+  const [respectReceived, setRespectReceived] = useSnapState('home.respectReceived', 0);
+  const [impact, setImpact] = useSnapState('home.impact', { respect: 0, inspired: 0, people: 0 });
   // The same totals for this week alone — the Impact page's "+N this week".
-  const [impactWeek, setImpactWeek] = useState({ respect: 0, inspired: 0, people: 0 });
+  const [impactWeek, setImpactWeek] = useSnapState('home.impactWeek', { respect: 0, inspired: 0, people: 0 });
   const hasImpact = impact.respect + impact.inspired > 0;
   const [legacyBoxWidth, setLegacyBoxWidth] = useState(0);
   const [legacyPage, setLegacyPage] = useState(0);
@@ -829,18 +967,18 @@ export default function HomeScreen() {
   const [heroPage, setHeroPage] = useState(0);
   const heroScrollRef = useRef<ScrollView>(null);
   const legacyScrollRef = useRef<ScrollView>(null);
-  const [featuredGoal, setFeaturedGoal] = useState<FeaturedGoal | null>(null);
+  const [featuredGoal, setFeaturedGoal] = useSnapState<FeaturedGoal | null>('home.featuredGoal', null);
   // False until the first load finishes. Every figure above starts empty, not
   // with example numbers, and the phone layout shows a skeleton until then —
   // so nobody ever sees placeholder figures that look like someone's real data.
   // Later reloads (returning to the tab, pull to refresh) keep the last data up.
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useSnapState('home.loaded', false);
   const [goalsCardHovered, setGoalsCardHovered] = useState(false);
   const [leaderCardHovered, setLeaderCardHovered] = useState(false);
   const [momentumCardHovered, setMomentumCardHovered] = useState(false);
   const [statsCardHovered, setStatsCardHovered] = useState(false);
   const [addActivityHovered, setAddActivityHovered] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useSnapState<string | null>('home.avatarUrl', null);
 
   useFocusEffect(useCallback(() => {
     loadAll();
@@ -880,9 +1018,7 @@ export default function HomeScreen() {
     // teams, so they start the moment that arrives, alongside the person's
     // own history rather than after it. Promise.resolve runs the query once —
     // a query builder is a thenable that runs again on every .then.
-    const leaguesP = Promise.resolve(
-      supabase.from('league_members').select('league_id, leagues(id, name, invite_code, logo_url)').eq('user_id', uId).eq('status', 'active'),
-    );
+    const leaguesP = getMyTeamRows(uId).then((data) => ({ data }), () => ({ data: [] as any[] }));
     const teamsDone = leaguesP.then((res) => loadTeams(uId, res.data ?? [])).catch(() => {});
 
     const [stravaRes, activitiesRes, leaguesRes, raceRes, userProfileRes, goalsRes] = await Promise.all([
@@ -979,9 +1115,9 @@ export default function HomeScreen() {
         id: top.goal.id,
         title: featuredGoalTitle(top.goal),
         activityLabel: top.goal.goal_type === 'gym_sessions' ? 'Gym activities' : (top.goal.activity_filter ?? 'All Activities'),
-        progress: useMeters ? Math.round(top.progress * 1000) : top.progress,
-        target: useMeters ? Math.round(top.goal.target_value * 1000) : top.goal.target_value,
-        unit: useMeters ? 'm' : unit,
+        progress: useMeters ? Math.round(top.progress * 1000) : shownGoal(top.goal.goal_type, top.progress).value,
+        target: useMeters ? Math.round(top.goal.target_value * 1000) : shownGoal(top.goal.goal_type, top.goal.target_value).value,
+        unit: useMeters ? 'm' : shownGoal(top.goal.goal_type, 0).unit,
         pct: top.pct,
         daysLeft: Math.max(0, Math.ceil((top.endMs - now.getTime()) / (1000 * 60 * 60 * 24))),
       });
@@ -1031,14 +1167,20 @@ export default function HomeScreen() {
       // come from one request: the week always contains today (weeks start
       // on Monday), so today's activities are the tail of the week's.
       const weekStart = getMondayOfWeek(new Date());
-      const { data: weekActivities } = allMemberIds.length > 0
-        ? await supabase
-            .from('activities')
-            .select('user_id, started_at, effort_score')
-            .in('user_id', allMemberIds)
-            .gte('started_at', weekStart.toISOString())
-            .order('started_at', { ascending: false })
-        : { data: [] as any[] };
+      // Every teammate's name and picture alongside the week's activities, not
+      // after them: waiting to learn who ranked before asking for names cost a
+      // whole extra round trip, and teams are small enough to ask for everyone.
+      const [{ data: weekActivities }, { data: memberProfiles }] = allMemberIds.length > 0
+        ? await Promise.all([
+            Promise.resolve(supabase
+              .from('activities')
+              .select('user_id, started_at, effort_score')
+              .in('user_id', allMemberIds)
+              .gte('started_at', weekStart.toISOString())
+              .order('started_at', { ascending: false })),
+            Promise.resolve(supabase.from('users').select('id, display_name, avatar_url').in('id', allMemberIds)),
+          ])
+        : [{ data: [] as any[] }, { data: [] as any[] }];
       const recentActivities = (weekActivities || []).filter((a: any) => new Date(a.started_at) >= startOfToday);
 
       const leagueListWithCounts = leagueList.map((l: League) => {
@@ -1111,14 +1253,7 @@ export default function HomeScreen() {
         // One profile request for everyone Home names: today's trainers
         // (Momentum) and everyone on a podium.
         const profileById: Record<string, any> = {};
-        const namedIds = [...new Set([...trainerIds, ...everyRankedId])];
-        if (namedIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('users')
-            .select('id, display_name, avatar_url')
-            .in('id', namedIds);
-          (profiles || []).forEach((p: any) => { profileById[p.id] = p; });
-        }
+        (memberProfiles || []).forEach((p: any) => { profileById[p.id] = p; });
         setMomentumTrainers(trainerIds.length > 0
           ? { leagueId: hotLeague.id, names: trainerIds.map((id) => firstNameOnly(profileById[id])), totalCount: trainerIds.length, selfTrained }
           : null);
@@ -1588,8 +1723,8 @@ export default function HomeScreen() {
                       </View>
                       <View style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}>
                         <RivalIcon name="distance" size={16} color={RivalColors.accentFill} />
-                        <Text style={styles.mLegacyStatValue}>{totalDistanceKm.toLocaleString()} <Text style={styles.mLegacyStatUnit}>km</Text></Text>
-                        {legacyWeek.count > 0 && <Text style={styles.mLegacyStatGain}>{`+${legacyWeek.km.toLocaleString()} km`}</Text>}
+                        <Text style={styles.mLegacyStatValue}>{distanceNumber(totalDistanceKm)} <Text style={styles.mLegacyStatUnit}>{distanceUnit()}</Text></Text>
+                        {legacyWeek.count > 0 && <Text style={styles.mLegacyStatGain}>{`+${formatDistanceWhole(legacyWeek.km)}`}</Text>}
                         <Text style={styles.mLegacyStatLabel}>Distance</Text>
                       </View>
                       <View style={styles.mLegacyStatCell}>
@@ -2585,7 +2720,7 @@ const styles = StyleSheet.create({
           // edge (rather than a straight two-stop fade) reads as a glow
           // with real depth instead of a flat disc dimming outward.
           backgroundImage:
-            'radial-gradient(ellipse 70% 130% at 50% 0%, rgba(255,232,150,0.65) 0%, rgba(255,232,150,0.65) 22%, rgba(255,232,150,0.55) 40%, rgba(255,232,150,0.33) 58%, rgba(255,232,150,0.13) 75%, rgba(255,232,150,0) 100%)',
+            'radial-gradient(ellipse 70% 130% at 50% 0%, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.65) 22%, rgba(255,255,255,0.55) 40%, rgba(255,255,255,0.33) 58%, rgba(255,255,255,0.13) 75%, rgba(255,255,255,0) 100%)',
           clipPath: PODIUM_LENS_CLIP,
           // clip-path always cuts a hard edge, no matter how faded the color
           // is right at the boundary — blur feathers that edge into a soft
@@ -2668,7 +2803,14 @@ const styles = StyleSheet.create({
   // Without resetting it to 'auto' here, that inherited 0% survived the style
   // merge and silently zeroed this column's width regardless of `width: 110`.
   mPodiumColumnSparse: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: 82 },
-  mPodiumAvatar: { borderWidth: 2, backgroundColor: '#332e2a', alignItems: 'center', justifyContent: 'center' },
+  mPodiumAvatar: { backgroundColor: '#332e2a', alignItems: 'center', justifyContent: 'center' },
+  mPodiumInitial: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', textAlign: 'center', marginTop: 2 },
+  mPodiumHalo: {
+    position: 'absolute', left: '50%', top: '50%',
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'radial-gradient(circle, rgba(255,215,0,0.35) 0%, rgba(255,215,0,0.12) 40%, rgba(255,215,0,0) 70%)' } as any)
+      : {}),
+  },
   // Floats above the avatar without pushing it down — same technique as the
   // mockup's absolutely-positioned crown (`top` offset set inline per avatar size).
   mPodiumSheenClip: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' },
@@ -2678,7 +2820,6 @@ const styles = StyleSheet.create({
       ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%)' } as any)
       : {}),
   },
-  mPodiumCrownWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   // flexShrink:0 matters here — a flex child with overflow:hidden (which
   // numberOfLines={1} sets under the hood) defaults to a min-height of 0 in
   // CSS flexbox, so a tight column was squeezing this text well below its

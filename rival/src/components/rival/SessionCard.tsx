@@ -60,7 +60,7 @@ export function SessionCard({
 
         <View style={[styles.sessionInfo, c?.sessionInfo]}>
           <Text style={[styles.sessionKicker, c?.sessionKicker, past && styles.sessionKickerPast]}>
-            {(session.activity_type ?? 'Session').toUpperCase()}
+            {(session.activity_type ?? 'Activity').toUpperCase()}
             {past && <Text style={styles.sessionDone}>  ·  COMPLETED</Text>}
           </Text>
           {!!session.scheduled_at && (

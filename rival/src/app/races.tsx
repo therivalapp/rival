@@ -1,3 +1,4 @@
+import { getMyTeamIds } from '../lib/myTeams';
 import { useState, useCallback } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, Linking, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -243,9 +244,7 @@ export default function RacesScreen() {
     const today = todayLocalStr();
 
     // Get league mates
-    const { data: membershipData } = await supabase
-      .from('league_members').select('league_id').eq('user_id', user.id).eq('status', 'active');
-    const leagueIds = (membershipData || []).map((m: any) => m.league_id);
+    const leagueIds = await getMyTeamIds(user.id).catch(() => [] as string[]);
 
     // "friendIds" is historical naming — this has always been TEAMMATES,
     // read straight off league_members. Only the tab label said "Friends".

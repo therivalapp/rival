@@ -1,4 +1,6 @@
+import { getMyTeamIds } from './myTeams';
 import { supabase, getAuthUser } from './supabase';
+import { getPrefs, onPrefsChanged } from './prefs';
 
 // How many of your teams have chat you haven't read.
 //
@@ -30,6 +32,7 @@ let cache: { at: number; result: UnreadResult } | null = null;
 export function invalidateUnreadChats() {
   cache = null;
 }
+onPrefsChanged(() => { cache = null; });
 
 // The newest text message in each team, one small request per team, side by
 // side. Each is a single row read straight off the (league_id, created_at)
@@ -58,13 +61,7 @@ export async function getUnreadChats(force = false): Promise<UnreadResult> {
   const { data: { user } } = await getAuthUser();
   if (!user) return EMPTY;
 
-  const { data: memberships } = await supabase
-    .from('league_members')
-    .select('league_id')
-    .eq('user_id', user.id)
-    .eq('status', 'active');
-
-  const leagueIds = (memberships ?? []).map((m: any) => m.league_id);
+  const leagueIds = await getMyTeamIds(user.id).catch(() => [] as string[]);
   if (leagueIds.length === 0) return EMPTY;
 
   const [lastByLeague, { data: reads }] = await Promise.all([
@@ -86,7 +83,9 @@ export async function getUnreadChats(force = false): Promise<UnreadResult> {
     // Your own message must never mark a thread unread. Without this the badge
     // lights up the moment YOU post — telling you that you have something to
     // read, about something you just wrote.
+    // A muted team's chat never counts as unread (Profile → Notifications).
     const unread = !!last
+      && !getPrefs().mutedTeams.includes(leagueId)
       && last.user_id !== user.id
       && (!lastReadAt || new Date(last.created_at) > new Date(lastReadAt));
     byLeague[leagueId] = unread;

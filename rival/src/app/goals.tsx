@@ -1,3 +1,5 @@
+import { useSnapState } from '../lib/snapState';
+import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
 import { useState, useCallback } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,14 +31,25 @@ const GOAL_LABELS: Record<string, string> = {
   gym_sessions: 'Gym activities',
 };
 
-const GOAL_UNITS: Record<string, string> = {
+const GOAL_UNITS_METRIC: Record<string, string> = {
   distance: 'km',
   elevation: 'm',
   gym_sessions: 'activities',
 };
+// Read at render time, so a change of units in Profile shows straight away.
+const GOAL_UNITS = new Proxy(GOAL_UNITS_METRIC, {
+  get: (t, k: string) => (k === 'distance' ? distanceUnit() : k === 'elevation' ? elevationUnit() : t[k]),
+}) as Record<string, string>;
+
+function toShownGoal(type: string, v: number): number {
+  return type === 'distance' ? toDisplayDistance(v) : type === 'elevation' ? toDisplayElevation(v) : v;
+}
+function fromShownGoal(type: string, v: number): number {
+  return type === 'distance' ? fromDisplayDistance(v) : type === 'elevation' ? fromDisplayElevation(v) : v;
+}
 
 const GOAL_ABBR: Record<string, string> = {
-  distance: 'KM',
+  distance: 'DIST',
   elevation: 'ELEV',
   gym_sessions: 'GYM',
 };
@@ -216,10 +229,10 @@ function ProgressBar({
 }
 
 export default function GoalsScreen() {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [goals, setGoals] = useSnapState<Goal[]>('goals.goals', []);
+  const [loading, setLoading] = useSnapState('goals.loading', true);
   const [showAdd, setShowAdd] = useState(false);
-  const [userId, setUserId] = useState('');
+  const [userId, setUserId] = useSnapState('goals.userId', '');
 
   const [goalType, setGoalType] = useState<'distance' | 'elevation' | 'gym_sessions'>('distance');
   const [targetValue, setTargetValue] = useState('');
@@ -257,10 +270,13 @@ export default function GoalsScreen() {
 
     if (!goalsData) { setLoading(false); return; }
 
-    const goalsWithProgress = goalsData.map((goal: any) => ({
-      ...goal,
-      progress: computeGoalProgress(goal, activities || []),
-    }));
+    // Shown in the units chosen in Profile. Stored targets stay metric;
+    // storedTarget keeps the original for anything written back.
+    const goalsWithProgress = goalsData.map((goal: any) => {
+      const progress = computeGoalProgress(goal, activities || []);
+      const conv = (v: number) => Math.round(toShownGoal(goal.goal_type, v) * 10) / 10;
+      return { ...goal, storedTarget: goal.target_value, target_value: conv(goal.target_value), progress: conv(progress) };
+    });
 
     setGoals(goalsWithProgress);
     setLoading(false);
@@ -330,7 +346,7 @@ export default function GoalsScreen() {
 
     const fields = {
       goal_type: goalType,
-      target_value: parseFloat(targetValue),
+      target_value: fromShownGoal(goalType, parseFloat(targetValue)),
       period_type: periodType,
       activity_filter: goalType === 'gym_sessions' ? null : activityFilter,
     };
@@ -419,7 +435,7 @@ export default function GoalsScreen() {
     const { error: insErr } = await supabase.from('goals').insert({
       user_id: userId,
       goal_type: goal.goal_type,
-      target_value: goal.target_value,
+      target_value: (goal as any).storedTarget ?? goal.target_value,
       period_type: goal.period_type,
       start_date: dateToLocalStr(start),
       end_date: dateToLocalStr(end),

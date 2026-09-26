@@ -1,3 +1,5 @@
+import { useSnapState } from '../lib/snapState';
+import { formatActivityDistance } from '../lib/units';
 // Real Team Hub — exact visual port of the "Team Hub v3" mockup Ricky
 // reviewed and signed off on, wired to live Supabase data.
 // This is now the real destination when tapping a team from team-feed.tsx
@@ -71,9 +73,7 @@ const HERO_PHOTO = require('../../assets/images/backgrounds/optimized/coastal-hi
 // my-activities.tsx's formatDistance/METERS_SPORTS.
 const METERS_SPORTS = new Set(['Swim', 'Rowing']);
 function formatDistance(meters: number | null | undefined, activityType?: string | null): string | null {
-  if (!meters || meters < 1) return null;
-  if (activityType && METERS_SPORTS.has(activityType)) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
+  return formatActivityDistance(meters, activityType);
 }
 
 type StandingsFilter = 'all' | 'run' | 'ride' | 'swim' | 'strength';
@@ -240,18 +240,20 @@ type SessionRow = {
 
 export default function TeamHub() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  // The data below is remembered per team (lib/snapState.ts), so returning to
+  // a team draws its last state at once and refreshes behind it.
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
-  const [league, setLeague] = useState<League | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [currentUserId, setCurrentUserId] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [goalProgress, setGoalProgress] = useState(0);
-  const [goalActivitiesRaw, setGoalActivitiesRaw] = useState<GoalActivityRow[]>([]);
-  const [weeklyActivitiesRaw, setWeeklyActivitiesRaw] = useState<GoalActivityRow[]>([]);
+  const [league, setLeague] = useSnapState<League | null>(`hub.${id}.league`, null);
+  const [members, setMembers] = useSnapState<Member[]>(`hub.${id}.members`, []);
+  const [currentUserId, setCurrentUserId] = useSnapState(`hub.${id}.currentUserId`, '');
+  const [isAdmin, setIsAdmin] = useSnapState(`hub.${id}.isAdmin`, false);
+  const [loading, setLoading] = useSnapState(`hub.${id}.loading`, true);
+  const [goalProgress, setGoalProgress] = useSnapState(`hub.${id}.goalProgress`, 0);
+  const [goalActivitiesRaw, setGoalActivitiesRaw] = useSnapState<GoalActivityRow[]>(`hub.${id}.goalActivitiesRaw`, []);
+  const [weeklyActivitiesRaw, setWeeklyActivitiesRaw] = useSnapState<GoalActivityRow[]>(`hub.${id}.weeklyActivitiesRaw`, []);
   const [standingsFilter, setStandingsFilter] = useState<StandingsFilter>('all');
   const [noGoalPeriod, setNoGoalPeriod] = useState<'week' | 'alltime'>('week');
-  const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
+  const [boardPosts, setBoardPosts] = useSnapState<BoardPost[]>(`hub.${id}.boardPosts`, []);
   const [boardComposeOpen, setBoardComposeOpen] = useState(false);
   const [boardTitleDraft, setBoardTitleDraft] = useState('');
   // The note open in the full-size viewer, and its edit state. Notes open on
@@ -267,16 +269,16 @@ export default function TeamHub() {
   const [boardBodyDraft, setBoardBodyDraft] = useState('');
   const [postingBoard, setPostingBoard] = useState(false);
   const [boardError, setBoardError] = useState('');
-  const [boardReactionsMap, setBoardReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>({});
-  const [boardCommentsMap, setBoardCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>({});
+  const [boardReactionsMap, setBoardReactionsMap] = useSnapState<Record<string, Array<{ user_id: string; emoji: string }>>>(`hub.${id}.boardReactionsMap`, {});
+  const [boardCommentsMap, setBoardCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(`hub.${id}.boardCommentsMap`, {});
   const [boardCommentDrafts, setBoardCommentDrafts] = useState<Record<string, string>>({});
   const [expandedBoardComments, setExpandedBoardComments] = useState<Set<string>>(new Set());
-  const [recentActivity, setRecentActivity] = useState<ActivityRow[]>([]);
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [sessionRsvps, setSessionRsvps] = useState<Record<string, string[]>>({});
+  const [recentActivity, setRecentActivity] = useSnapState<ActivityRow[]>(`hub.${id}.recentActivity`, []);
+  const [sessions, setSessions] = useSnapState<SessionRow[]>(`hub.${id}.sessions`, []);
+  const [sessionRsvps, setSessionRsvps] = useSnapState<Record<string, string[]>>(`hub.${id}.sessionRsvps`, {});
   // Every session ever planned, not just the three shown — so "See all" can
   // appear when there's history to see even though nothing is coming up.
-  const [sessionTotal, setSessionTotal] = useState(0);
+  const [sessionTotal, setSessionTotal] = useSnapState(`hub.${id}.sessionTotal`, 0);
   const [planning, setPlanning] = useState(false);
   // Members tab: who you've encouraged today, and who an Encourage / Challenge
   // sheet is open for. Challenges tab reloads when a challenge is sent from
@@ -298,9 +300,9 @@ export default function TeamHub() {
     setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1600);
   }
   const [editingSession, setEditingSession] = useState<EditableSession | null>(null);
-  const [feedActivity, setFeedActivity] = useState<ActivityRow[]>([]);
-  const [reactionsMap, setReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>({});
-  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>({});
+  const [feedActivity, setFeedActivity] = useSnapState<ActivityRow[]>(`hub.${id}.feedActivity`, []);
+  const [reactionsMap, setReactionsMap] = useSnapState<Record<string, Array<{ user_id: string; emoji: string }>>>(`hub.${id}.reactionsMap`, {});
+  const [commentsMap, setCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(`hub.${id}.commentsMap`, {});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 
@@ -1677,13 +1679,13 @@ function ActivityPostCard({
 
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
-          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentGold }]}>Respect</Text>
+          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentText : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentText }]}>Respect</Text>
           <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive]}>{respectCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
-          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.accentGold }]}>Inspired</Text>
+          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.rankAnchors.unrivaled : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.rankAnchors.unrivaled }]}>Inspired</Text>
           <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive]}>{inspiredCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>

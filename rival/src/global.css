@@ -49,9 +49,44 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   22% { transform: translateX(360%) skewX(-18deg); }
   100% { transform: translateX(360%) skewX(-18deg); }
 }
-@keyframes rivalCrownDrift {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+/* Sparkles rising out of the top face of the leader's podium pillar, bright
+   from the moment they appear so they're seen leaving the surface. Two drifts so
+   they don't all rise in a straight line. */
+@keyframes rivalSparkRiseL {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  3% { opacity: 1; }
+  70% { opacity: 0.9; }
+  100% { transform: translate(-12px, -215px) scale(1); opacity: 0; }
+}
+@keyframes rivalSparkRiseR {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  3% { opacity: 1; }
+  70% { opacity: 0.9; }
+  100% { transform: translate(12px, -204px) scale(1); opacity: 0; }
+}
+/* The halo behind the leader's picture. */
+@keyframes rivalHaloPulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+/* The same sparkles starting at the foot of the pillar, rising up its face
+   and out past the top. */
+@keyframes rivalSparkRiseBaseL {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  8% { opacity: 0.9; }
+  75% { opacity: 0.85; }
+  100% { transform: translate(-12px, -215px) scale(1); opacity: 0; }
+}
+@keyframes rivalSparkRiseBaseR {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  8% { opacity: 0.9; }
+  75% { opacity: 0.85; }
+  100% { transform: translate(12px, -205px) scale(1); opacity: 0; }
+}
+/* Chat list rows easing in. */
+@keyframes rivalRowIn {
+  0% { transform: translateY(8px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
 }
 /* The notifications dropdown under the bell. */
 @keyframes rivalMenuIn {
@@ -59,5 +94,6 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  [style*="rivalPodium"], [style*="rivalCrown"], [style*="rivalMenuIn"] { animation: none !important; }
+  [style*="rivalPodium"], [style*="rivalMenuIn"], [style*="rivalHalo"], [style*="rivalRowIn"] { animation: none !important; }
+  [style*="rivalSpark"] { display: none !important; }
 }

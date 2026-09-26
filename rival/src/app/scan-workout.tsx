@@ -1,3 +1,4 @@
+import { defaultActivityName } from '../lib/activityName';
 import { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
@@ -565,10 +566,7 @@ export default function ScanWorkoutScreen() {
   }
 
   async function saveWorkout() {
-    if (!extractedWorkout || !workoutName?.trim()) {
-      setFieldError({ field: 'name', message: 'Enter a workout name.' });
-      return;
-    }
+    if (!extractedWorkout) return;
 
     setLoading(true);
     setFieldError(null);
@@ -594,6 +592,7 @@ export default function ScanWorkoutScreen() {
       const [y, m, d] = isoDate.split('-').map(Number);
       const reference = editOriginalStartedAt ? new Date(editOriginalStartedAt) : new Date();
       const startedAt = new Date(y, m - 1, d, reference.getHours(), reference.getMinutes(), reference.getSeconds());
+      const name = workoutName.trim() || defaultActivityName(extractedWorkout.workoutType, reference);
 
       const exercisesPayload = extractedWorkout.exercises.length > 0
         ? extractedWorkout.exercises.map((ex, i) => liftTags[i] ? { ...ex, prLift: liftTags[i] } : ex)
@@ -603,7 +602,7 @@ export default function ScanWorkoutScreen() {
 
       const activityPayload = {
         user_id: user.id,
-        name: workoutName,
+        name,
         activity_type: extractedWorkout.workoutType,
         distance_meters: extractedWorkout.distance ? extractedWorkout.distance * 1000 : 0,
         duration_seconds: extractedWorkout.duration,
@@ -714,7 +713,7 @@ export default function ScanWorkoutScreen() {
         if (coverErr) setGeneralError(`Workout saved, but the cover photo didn't set: ${coverErr.message}`);
       }
 
-      setSuccessMsg(`${workoutName} saved with ${Math.round(effortScore)} Effort!`);
+      setSuccessMsg(`${name} saved with ${Math.round(effortScore)} Effort.`);
       setSavedActivityId(activityId);
       setSavedHasPhoto(!!firstPhotoUrl);
       // Check milestones fire-and-forget
@@ -1165,7 +1164,7 @@ export default function ScanWorkoutScreen() {
                     style={st.nameInput}
                     value={workoutName}
                     onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
-                    placeholder="CrossFit Comp, Mountain Run"
+                    placeholder={extractedWorkout ? defaultActivityName(extractedWorkout.workoutType, editOriginalStartedAt ? new Date(editOriginalStartedAt) : new Date()) : 'Morning Run'}
                     placeholderTextColor={RivalColors.textSecondary}
                   />
                   {fieldError?.field === 'name' && <Text style={st.fieldError}>{em('⚠️ ')}{fieldError.message}</Text>}

@@ -1916,7 +1916,7 @@ export default function LeagueScreen() {
             style={[styles.tabSwitchBtn, activeTab === 'sessions' && styles.tabSwitchBtnActive]}
             onPress={() => setActiveTab('sessions')}
           >
-            <Text style={[styles.tabSwitchText, activeTab === 'sessions' && styles.tabSwitchTextActive]}>📅 Sessions</Text>
+            <Text style={[styles.tabSwitchText, activeTab === 'sessions' && styles.tabSwitchTextActive]}>📅 Activities</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tabSwitchBtn, activeTab === 'challenges' && styles.tabSwitchBtnActive]}
@@ -1965,7 +1965,7 @@ export default function LeagueScreen() {
               <Text style={[styles.sideNavText, activeTab === 'feed' && styles.sideNavTextActive]}>Team Feed</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.sideNavItem, activeTab === 'sessions' && styles.sideNavItemActive]} onPress={() => setActiveTab('sessions')}>
-              <Text style={[styles.sideNavText, activeTab === 'sessions' && styles.sideNavTextActive]}>Sessions</Text>
+              <Text style={[styles.sideNavText, activeTab === 'sessions' && styles.sideNavTextActive]}>Activities</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.sideNavItem, activeTab === 'challenges' && styles.sideNavItemActive]} onPress={() => setActiveTab('challenges')}>
               <Text style={[styles.sideNavText, activeTab === 'challenges' && styles.sideNavTextActive]}>Challenges</Text>
@@ -1998,7 +1998,7 @@ export default function LeagueScreen() {
         {wide && (
           <View style={styles.centerHeader}>
             <Text style={styles.centerTitle}>
-              {activeTab === 'feed' ? 'Team Feed' : activeTab === 'sessions' ? 'Sessions' : 'Challenges'}
+              {activeTab === 'feed' ? 'Team Feed' : activeTab === 'sessions' ? 'Activities' : 'Challenges'}
             </Text>
             <Text style={styles.centerSub}>{formatTeamName(league.name)} · {members.length} {members.length === 1 ? 'member' : 'members'}</Text>
           </View>
@@ -2204,7 +2204,7 @@ export default function LeagueScreen() {
                   <TextInput style={styles.composerInput} value={sessionLocation} onChangeText={setSessionLocation} placeholder="e.g. Coastal Track car park, Mission Bay" placeholderTextColor="#555" />
                   <Text style={styles.composerHint}>Tappable in Maps — include the suburb/city so it finds the right spot.</Text>
                   <TouchableOpacity style={styles.postSessionBtn} onPress={async () => { await postSession(); loadSessions(); }} disabled={postingSession}>
-                    <Text style={styles.postSessionBtnText}>{postingSession ? 'Posting…' : 'Post session'}</Text>
+                    <Text style={styles.postSessionBtnText}>{postingSession ? 'Posting…' : 'Post activity'}</Text>
                   </TouchableOpacity>
                 </View>
               )}

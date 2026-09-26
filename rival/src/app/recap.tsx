@@ -1,3 +1,4 @@
+import { distanceNumber, distanceUnit, elevationNumber, elevationUnit } from '../lib/units';
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
@@ -127,7 +128,7 @@ export default function RecapScreen() {
                 <Text style={[styles.statValue, m && ms.serifNum]}>{recap.total_workouts}</Text>
                 <Text style={styles.statLabel}>Workouts</Text>
                 {recap.prev_total_workouts !== null && (
-                  <Text style={styles.statTrend}>{formatTrend(recap.total_workouts, recap.prev_total_workouts, 'sessions')}</Text>
+                  <Text style={styles.statTrend}>{formatTrend(recap.total_workouts, recap.prev_total_workouts, 'activities')}</Text>
                 )}
               </View>
               <View style={[styles.statCard, m && ms.card]}>
@@ -136,14 +137,14 @@ export default function RecapScreen() {
               </View>
               {recap.total_distance_km > 0 && (
                 <View style={[styles.statCard, m && ms.card]}>
-                  <Text style={[styles.statValue, m && ms.serifNum, !m && { color: '#4FC3F7' }]}>{recap.total_distance_km.toLocaleString()}</Text>
-                  <Text style={styles.statLabel}>km covered</Text>
+                  <Text style={[styles.statValue, m && ms.serifNum, !m && { color: '#4FC3F7' }]}>{distanceNumber(recap.total_distance_km)}</Text>
+                  <Text style={styles.statLabel}>{distanceUnit()} covered</Text>
                 </View>
               )}
               {recap.total_elevation_m > 0 && (
                 <View style={[styles.statCard, m && ms.card]}>
-                  <Text style={[styles.statValue, m && ms.serifNum, !m && { color: '#AB47BC' }]}>{recap.total_elevation_m.toLocaleString()}</Text>
-                  <Text style={styles.statLabel}>m climbed</Text>
+                  <Text style={[styles.statValue, m && ms.serifNum, !m && { color: '#AB47BC' }]}>{elevationNumber(recap.total_elevation_m)}</Text>
+                  <Text style={styles.statLabel}>{elevationUnit()} climbed</Text>
                 </View>
               )}
             </View>

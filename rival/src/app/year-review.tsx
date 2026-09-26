@@ -1,3 +1,4 @@
+import { formatDistance, formatDistanceWhole, formatElevation } from '../lib/units';
 import { useEffect, useState } from 'react';
 import { Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -65,7 +66,7 @@ export default function YearReviewScreen() {
       `${review.effort.toLocaleString()} Effort`,
       `${review.count.toLocaleString()} ${review.count === 1 ? 'activity' : 'activities'}`,
       formatMinutes(review.minutes),
-      review.km > 0 ? `${review.km.toLocaleString()} km` : null,
+      review.km > 0 ? formatDistanceWhole(review.km) : null,
       impact && impact.respect > 0 ? `${impact.respect.toLocaleString()} Respect` : null,
     ].filter(Boolean);
     const message = `${isCurrent ? `My ${year} so far` : `My ${year}`} on RIVAL: ${parts.join(' · ')}`;
@@ -89,8 +90,8 @@ export default function YearReviewScreen() {
     { icon: 'workout', value: review.count.toLocaleString(), label: review.count === 1 ? 'Activity' : 'Activities' },
     { icon: 'timer', value: formatMinutes(review.minutes), label: 'Time trained' },
     { icon: 'calendar', value: review.activeDays.toLocaleString(), label: 'Active days' },
-    review.km > 0 ? { icon: 'distance', value: `${review.km.toLocaleString()} km`, label: 'Distance' } : null,
-    review.elevM > 0 ? { icon: 'elevation', value: `${review.elevM.toLocaleString()} m`, label: 'Elevation' } : null,
+    review.km > 0 ? { icon: 'distance', value: formatDistanceWhole(review.km), label: 'Distance' } : null,
+    review.elevM > 0 ? { icon: 'elevation', value: formatElevation(review.elevM), label: 'Elevation' } : null,
     review.longestWeekStreak > 0
       ? { icon: 'fire', value: `${review.longestWeekStreak} ${review.longestWeekStreak === 1 ? 'week' : 'weeks'}`, label: 'Longest streak' }
       : null,
@@ -188,7 +189,7 @@ export default function YearReviewScreen() {
                     <Highlight
                       icon="distance"
                       title="Farthest"
-                      value={`${review.farthest.km.toLocaleString()} km`}
+                      value={formatDistance(review.farthest.km)}
                       note={`${activityDisplayName(review.farthest.type)} · ${shortDate(review.farthest.date)}`}
                     />
                   )}
@@ -201,7 +202,7 @@ export default function YearReviewScreen() {
                       <RivalIcon name={activityIconName(b.type)} size={18} color={RivalColors.accentFill} />
                       <Text style={s.typeName} numberOfLines={1}>{activityDisplayName(b.type)}</Text>
                       <Text style={s.typeMeta}>
-                        {b.count.toLocaleString()} {b.count === 1 ? 'activity' : 'activities'} · {b.km > 0 ? `${b.km.toLocaleString()} km` : formatMinutes(b.minutes)}
+                        {b.count.toLocaleString()} {b.count === 1 ? 'activity' : 'activities'} · {b.km > 0 ? formatDistanceWhole(b.km) : formatMinutes(b.minutes)}
                       </Text>
                     </View>
                   ))}

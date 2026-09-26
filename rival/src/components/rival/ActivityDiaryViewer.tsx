@@ -1,3 +1,5 @@
+import { formatActivityDistance, formatElevation } from '../../lib/units';
+import { defaultActivityName } from '../../lib/activityName';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
@@ -54,8 +56,7 @@ function formatViewerDate(dateStr: string): string {
 const METERS_SPORTS = new Set(['Swim', 'Rowing']);
 function formatDistance(meters: number, activityType?: string): string | null {
   if (!meters || meters < 100) return null;
-  if (activityType && METERS_SPORTS.has(activityType)) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
+  return formatActivityDistance(meters, activityType);
 }
 
 function dayKey(dateStr: string): string {
@@ -181,7 +182,7 @@ export function ActivityDiaryViewer({
     if (!activity || saving) return;
     setSaving(true);
     const patch: Record<string, unknown> = {
-      name: name.trim() || null,
+      name: name.trim() || defaultActivityName(activity.activity_type, new Date(activity.started_at)),
       location: location.trim() || null,
       notes: notes.trim() || null,
     };
@@ -285,7 +286,7 @@ export function ActivityDiaryViewer({
   const ringColor = badgeKind === 'pb' ? RivalColors.rankAnchors.unrivaled : badgeKind === 'race' ? '#ff5c5c' : 'transparent';
   const distance = formatDistance(activity.distance_meters, activity.activity_type);
   const duration = activity.duration_seconds > 0 ? formatDurationClock(activity.duration_seconds) : null;
-  const elevation = (activity.elevation_meters || 0) > 0 ? `↑ ${Math.round(activity.elevation_meters!)} m` : null;
+  const elevation = (activity.elevation_meters || 0) > 0 ? `↑ ${formatElevation(activity.elevation_meters!)}` : null;
 
   return (
     <Animated.View style={[styles.overlay, { transform: [{ translateY: dragY }] }]}>
@@ -444,7 +445,7 @@ export function ActivityDiaryViewer({
             style={styles.nameInput}
             value={name}
             onChangeText={(v) => edit('name', v)}
-            placeholder="Name this activity…"
+            placeholder={defaultActivityName(activity.activity_type, new Date(activity.started_at))}
             placeholderTextColor="rgba(255,255,255,0.3)"
           />
           {/* Same fade-at-the-tips underline treatment as the Month calendar's

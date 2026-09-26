@@ -1,3 +1,4 @@
+import { useSnapState } from '../lib/snapState';
 import { useCallback, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,8 +23,8 @@ import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalTyp
 // go hunting after is just a reminder that you have work to do.
 
 export default function InboxScreen() {
-  const [items, setItems] = useState<InboxItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useSnapState<InboxItem[]>('inbox.items', []);
+  const [loading, setLoading] = useSnapState('inbox.loading', true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorFor, setErrorFor] = useState<Record<string, string>>({});
 

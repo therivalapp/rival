@@ -1,5 +1,6 @@
+import { invalidateActivityCache } from '../lib/fetchAllActivities';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { Animated, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -7,9 +8,25 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { notify } from '../lib/notify';
 import { connectStrava, runFullStravaImport } from '../lib/strava';
 import { getQuote, QuoteTone } from '../lib/quotes';
+import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
+import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+
+const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
+  { value: 'metric', label: 'Metric', sub: 'Kilometres, metres and kilograms.' },
+  { value: 'imperial', label: 'Imperial', sub: 'Miles, feet and pounds.' },
+];
+
+// Informational notifications a person can switch off. Questions that need an
+// answer are always shown, so nobody is left waiting on a reply.
+const NOTIFY_OPTIONS: Array<{ key: NotifyKey; label: string; sub: string }> = [
+  { key: 'reaction', label: 'Respect and Inspired', sub: 'When someone recognises an activity.' },
+  { key: 'comment', label: 'Comments', sub: 'When someone comments on an activity.' },
+  { key: 'tag_accepted', label: 'Training partners', sub: 'When someone confirms they trained with you.' },
+  { key: 'team_joined', label: 'Team updates', sub: 'When a request to join a team is approved.' },
+];
 
 const QUOTE_TONES: Array<{ value: QuoteTone; label: string; sub: string }> = [
   { value: 'blunt', label: 'Blunt', sub: 'Hard truths, no cushioning.' },
@@ -17,9 +34,10 @@ const QUOTE_TONES: Array<{ value: QuoteTone; label: string; sub: string }> = [
   { value: 'encouraging', label: 'Encouraging', sub: 'Warm, patient, always in your corner.' },
 ];
 
-type TabId = 'personal' | 'apps' | 'notifications' | 'account';
+type TabId = 'personal' | 'preferences' | 'apps' | 'notifications' | 'account';
 const TABS: Array<{ id: TabId; label: string; icon: RivalIconName }> = [
   { id: 'personal', label: 'Personal Info', icon: 'person' },
+  { id: 'preferences', label: 'Preferences', icon: 'tune' },
   { id: 'apps', label: 'Connected Apps', icon: 'link' },
   { id: 'notifications', label: 'Notifications', icon: 'notifications' },
   { id: 'account', label: 'Account', icon: 'settings' },
@@ -93,6 +111,19 @@ export default function ProfileScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const prefs = usePrefs();
+  const [prefError, setPrefError] = useState<string | null>(null);
+  const [myTeams, setMyTeams] = useState<Array<{ id: string; name: string }>>([]);
+  // Account changes
+  const [newEmail, setNewEmail] = useState('');
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
 
   useEffect(() => {
@@ -112,10 +143,19 @@ export default function ProfileScreen() {
       setMemberSince(d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
     }
 
-    const [userRes, stravaRes] = await Promise.all([
+    const [userRes, stravaRes, memberRes] = await Promise.all([
       supabase.from('users').select('display_name, is_admin, avatar_url, bio, quote_tone').eq('id', user.id).single(),
       supabase.from('fitness_connections').select('athlete_firstname, athlete_lastname').eq('user_id', user.id).eq('provider', 'strava').maybeSingle(),
+      supabase.from('league_members').select('league_id').eq('user_id', user.id).eq('status', 'active'),
     ]);
+    const teamIds = (memberRes.data ?? []).map((m: any) => m.league_id);
+    if (teamIds.length) {
+      supabase.from('leagues').select('id, name').in('id', teamIds).then(({ data }) => {
+        setMyTeams(((data ?? []) as Array<{ id: string; name: string }>).sort((a, b) => a.name.localeCompare(b.name)));
+      });
+    } else {
+      setMyTeams([]);
+    }
 
     const name = userRes.data?.display_name || user.user_metadata?.display_name || '';
     setDisplayName(name);
@@ -178,6 +218,60 @@ export default function ProfileScreen() {
     setQuoteTone(tone);
     setQuotePreview(getQuote(tone).text);
     setSavingTone(false);
+  }
+
+  async function savePref(patch: Parameters<typeof updatePrefs>[0]) {
+    setPrefError(null);
+    const res = await updatePrefs(patch);
+    if (!res.ok) setPrefError(`The change was not saved: ${res.error}`);
+  }
+
+  async function changeEmail() {
+    const next = newEmail.trim().toLowerCase();
+    setEmailMsg(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { setEmailMsg({ ok: false, text: 'Enter a valid email address.' }); return; }
+    if (next === email.toLowerCase()) { setEmailMsg({ ok: false, text: 'That is already the email on this account.' }); return; }
+    setSavingEmail(true);
+    const { error } = await supabase.auth.updateUser({ email: next });
+    setSavingEmail(false);
+    if (error) { setEmailMsg({ ok: false, text: error.message }); return; }
+    setNewEmail('');
+    setEmailMsg({ ok: true, text: `A confirmation link has been sent. The email changes once the link in that message is opened.` });
+  }
+
+  async function changePassword() {
+    setPasswordMsg(null);
+    if (newPassword.length < 8) { setPasswordMsg({ ok: false, text: 'Use at least 8 characters.' }); return; }
+    if (newPassword !== confirmPassword) { setPasswordMsg({ ok: false, text: 'The two passwords do not match.' }); return; }
+    setSavingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPassword(false);
+    if (error) { setPasswordMsg({ ok: false, text: error.message }); return; }
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordMsg({ ok: true, text: 'Password updated.' });
+  }
+
+  async function downloadData() {
+    setExportMsg(null);
+    setExporting(true);
+    try {
+      const { data: { user } } = await getAuthUser();
+      if (!user) return;
+      const { json, problems } = await buildDataExport(user.id, user.email ?? null);
+      const date = new Date().toISOString().slice(0, 10);
+      if (!saveJsonFile(json, `rival-data-${date}.json`)) {
+        setExportMsg({ ok: false, text: 'Downloading is only available in the web app for now.' });
+        return;
+      }
+      setExportMsg(problems.length
+        ? { ok: false, text: `Downloaded, but ${problems.length} section${problems.length === 1 ? '' : 's'} could not be read. The file lists which.` }
+        : { ok: true, text: 'Downloaded.' });
+    } catch (e: any) {
+      setExportMsg({ ok: false, text: `The download could not be prepared: ${e?.message ?? 'unknown error'}` });
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function uploadAvatar() {
@@ -303,6 +397,7 @@ export default function ProfileScreen() {
         // which read as sync doing something it wasn't.
         notify('Up to date', "You're already synced with Strava — nothing new to pull in.");
       } else {
+        invalidateActivityCache();
         notify('Synced', `${data.inserted} new activit${data.inserted === 1 ? 'y' : 'ies'} imported.`);
       }
     } catch {
@@ -476,29 +571,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Daily quote tone */}
-      <View style={styles.subSection}>
-        <Text style={styles.subSectionTitle}>DAILY MOTIVATION TONE</Text>
-        {QUOTE_TONES.map((opt) => {
-          const selected = quoteTone === opt.value;
-          return (
-            <TouchableOpacity
-              key={opt.value}
-              style={[styles.optionRow, selected && styles.optionRowActive]}
-              onPress={() => updateQuoteTone(opt.value)}
-              disabled={savingTone}
-            >
-              <View style={styles.optionTextWrap}>
-                <Text style={[styles.optionLabel, selected && { color: RivalColors.accentText }]}>{opt.label}</Text>
-                <Text style={styles.optionSample}>{opt.sub}</Text>
-              </View>
-              <Text style={[styles.optionCheck, selected && { color: RivalColors.accentText }]}>{selected ? '●' : '○'}</Text>
-            </TouchableOpacity>
-          );
-        })}
-        {quotePreview && <Text style={styles.quotePreview}>"{quotePreview}"</Text>}
-      </View>
-
       {/* Link to stats */}
       <TouchableOpacity style={styles.statsLink} onPress={() => router.push('/stats')}>
         <RivalIcon name="stats" size={16} color={RivalColors.textPrimary} />
@@ -514,6 +586,67 @@ export default function ProfileScreen() {
         <Text style={styles.statsLinkText}>View Personal Bests</Text>
         <Text style={styles.statsLinkArrow}>→</Text>
       </TouchableOpacity>
+    </RivalCard>
+  );
+
+  const optionRows = <T extends string>(options: Array<{ value: T; label: string; sub: string }>, selectedValue: T, onPick: (v: T) => void, disabled?: boolean) =>
+    options.map((opt) => {
+      const selected = selectedValue === opt.value;
+      return (
+        <TouchableOpacity
+          key={opt.value}
+          style={[styles.optionRow, selected && styles.optionRowActive]}
+          onPress={() => onPick(opt.value)}
+          disabled={disabled}
+          accessibilityRole="radio"
+          accessibilityState={{ selected }}
+        >
+          <View style={styles.optionTextWrap}>
+            <Text style={[styles.optionLabel, selected && { color: RivalColors.accentText }]}>{opt.label}</Text>
+            <Text style={styles.optionSample}>{opt.sub}</Text>
+          </View>
+          <Text style={[styles.optionCheck, selected && { color: RivalColors.accentText }]}>{selected ? '●' : '○'}</Text>
+        </TouchableOpacity>
+      );
+    });
+
+  const switchRow = (key: string, label: string, sub: string, value: boolean, onChange: (v: boolean) => void) => (
+    <View key={key} style={styles.switchRow}>
+      <View style={styles.optionTextWrap}>
+        <Text style={styles.optionLabel}>{label}</Text>
+        <Text style={styles.optionSample}>{sub}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: RivalColors.surfaceContainerHigh, true: RivalColors.accentFill }}
+        thumbColor="#ffffff"
+        {...(Platform.OS === 'web' ? ({ activeThumbColor: '#ffffff' } as any) : {})}
+      />
+    </View>
+  );
+
+  const preferencesPanel = (
+    <RivalCard glass style={styles.panel}>
+      {wide && <Text style={styles.panelTitle}>Preferences</Text>}
+
+      <View style={styles.subSectionFirst}>
+        <Text style={styles.subSectionTitle}>UNITS</Text>
+        {optionRows(UNIT_OPTIONS, prefs.units, (v) => savePref({ units: v }))}
+      </View>
+
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>DAILY QUOTE</Text>
+        {switchRow('quote', 'Show a quote each day', 'A short line when RIVAL is first opened each day.', prefs.dailyQuote, (v) => savePref({ dailyQuote: v }))}
+        {prefs.dailyQuote && (
+          <>
+            <Text style={[styles.subSectionTitle, styles.subSectionTitleInner]}>TONE</Text>
+            {optionRows(QUOTE_TONES, quoteTone, updateQuoteTone, savingTone)}
+            {quotePreview && <Text style={styles.quotePreview}>"{quotePreview}"</Text>}
+          </>
+        )}
+      </View>
+      {prefError && <Text style={styles.errorText}>{prefError}</Text>}
     </RivalCard>
   );
 
@@ -604,16 +737,30 @@ export default function ProfileScreen() {
   const notificationsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Notifications</Text>}
-      <Text style={styles.panelSub}>Choose which notifications RIVAL sends.</Text>
-      <View style={styles.comingSoonBox}>
-        <RivalIcon name="notifications" size={40} color={RivalColors.textSecondary} />
-        <Text style={styles.comingSoonTitle}>Coming soon</Text>
-        <Text style={styles.comingSoonText}>
-          Fine-grained notification controls are on the way. For now, RIVAL only
-          notifies you about the things that matter — milestones and encouragement
-          from your teams.
-        </Text>
+      <Text style={styles.panelSub}>Choose what appears under the bell. Requests that need an answer, such as join requests and training partner confirmations, always appear.</Text>
+
+      <View style={styles.subSectionFirst}>
+        {NOTIFY_OPTIONS.map((o) => switchRow(o.key, o.label, o.sub, prefs.notify[o.key], (v) => savePref({ notify: { ...prefs.notify, [o.key]: v } })))}
       </View>
+
+      {myTeams.length > 0 && (
+        <View style={styles.subSection}>
+          <Text style={styles.subSectionTitle}>MUTED TEAMS</Text>
+          <Text style={styles.optionSample}>A muted team sends nothing to the bell and its chat stops counting as unread. You stay a member.</Text>
+          {myTeams.map((t) => {
+            const muted = prefs.mutedTeams.includes(t.id);
+            return switchRow(
+              t.id,
+              t.name,
+              muted ? 'Muted' : 'Notifications on',
+              muted,
+              (v) => savePref({ mutedTeams: v ? [...prefs.mutedTeams, t.id] : prefs.mutedTeams.filter((id) => id !== t.id) }),
+            );
+          })}
+        </View>
+      )}
+      {prefError && <Text style={styles.errorText}>{prefError}</Text>}
+      <Text style={styles.footNote}>Alerts on the phone itself are not available yet. They will follow these settings when they are.</Text>
     </RivalCard>
   );
 
@@ -624,6 +771,58 @@ export default function ProfileScreen() {
       <View style={styles.accountMetaRow}>
         <Text style={styles.accountMetaLabel}>Member since</Text>
         <Text style={styles.accountMetaValue}>{memberSince || '—'}</Text>
+      </View>
+
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>EMAIL</Text>
+        <Text style={styles.optionSample}>Currently {email || 'not set'}.</Text>
+        <View style={styles.editRow}>
+          <TextInput
+            style={styles.input}
+            value={newEmail}
+            onChangeText={(v) => { setNewEmail(v); setEmailMsg(null); }}
+            placeholder="New email address"
+            placeholderTextColor={RivalColors.textSecondary}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+          <TouchableOpacity style={styles.saveChip} onPress={changeEmail} disabled={savingEmail || !newEmail.trim()}>
+            <Text style={styles.saveChipText}>{savingEmail ? '…' : 'Change'}</Text>
+          </TouchableOpacity>
+        </View>
+        {emailMsg && <Text style={emailMsg.ok ? styles.okText : styles.errorText}>{emailMsg.text}</Text>}
+      </View>
+
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>PASSWORD</Text>
+        <TextInput
+          style={[styles.input, styles.inputStacked]}
+          value={newPassword}
+          onChangeText={(v) => { setNewPassword(v); setPasswordMsg(null); }}
+          placeholder="New password"
+          placeholderTextColor={RivalColors.textSecondary}
+          secureTextEntry
+          autoComplete="new-password"
+        />
+        <TextInput
+          style={[styles.input, styles.inputStacked]}
+          value={confirmPassword}
+          onChangeText={(v) => { setConfirmPassword(v); setPasswordMsg(null); }}
+          placeholder="Confirm new password"
+          placeholderTextColor={RivalColors.textSecondary}
+          secureTextEntry
+          autoComplete="new-password"
+        />
+        <RivalButton label={savingPassword ? 'Updating…' : 'Update password'} onPress={changePassword} disabled={savingPassword || !newPassword} variant="secondary" style={styles.actionBtn} />
+        {passwordMsg && <Text style={passwordMsg.ok ? styles.okText : styles.errorText}>{passwordMsg.text}</Text>}
+      </View>
+
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>YOUR DATA</Text>
+        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, goals, races, teams, messages and recognition, as one file.</Text>
+        <RivalButton label={exporting ? 'Preparing…' : 'Download my data'} onPress={downloadData} disabled={exporting} variant="secondary" style={styles.actionBtn} />
+        {exportMsg && <Text style={exportMsg.ok ? styles.okText : styles.errorText}>{exportMsg.text}</Text>}
       </View>
 
       {isAdmin && (
@@ -642,6 +841,7 @@ export default function ProfileScreen() {
 
   const panelFor: Record<TabId, React.ReactNode> = {
     personal: personalPanel,
+    preferences: preferencesPanel,
     apps: appsPanel,
     notifications: notificationsPanel,
     account: accountPanel,
@@ -796,7 +996,7 @@ const styles = StyleSheet.create({
   saveChip: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RivalRadius.DEFAULT },
   saveChipText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '700', fontSize: 14 },
   cancelText: { color: RivalColors.textSecondary, fontSize: 14 },
-  errorText: { fontSize: 12, color: RivalColors.error },
+  errorText: { fontSize: 12, color: RivalColors.error, marginTop: 4 },
 
   bioInput: { backgroundColor: RivalColors.surfaceContainer, borderRadius: RivalRadius.DEFAULT, paddingHorizontal: 14, paddingVertical: 12, color: RivalColors.onSurface, fontSize: 15, minHeight: 84, textAlignVertical: 'top' },
   // `alignItems: center` vertically centred a two-line hint against a
@@ -808,6 +1008,12 @@ const styles = StyleSheet.create({
   bioSaveRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 14, marginTop: 4 },
 
   subSection: { marginTop: 20, gap: 4 },
+  subSectionFirst: { marginTop: 4, gap: 4 },
+  subSectionTitleInner: { marginTop: 14 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, paddingHorizontal: 10 },
+  inputStacked: { flex: 0, marginTop: 8 },
+  okText: { fontSize: 12, color: RivalColors.tertiary, marginTop: 4 },
+  footNote: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 16, lineHeight: 17 },
   subSectionTitle: { ...RivalType.labelCaps, color: RivalColors.textSecondary, marginBottom: 8 },
   optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 10, borderRadius: RivalRadius.DEFAULT },
   optionRowActive: { backgroundColor: `${RivalColors.accentFill}11` },

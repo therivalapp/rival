@@ -20,7 +20,7 @@ export default function StravaCallbackScreen() {
     const error = urlParams.get('error');
 
     if (error || !code || !accessToken) {
-      setStatus('Connection cancelled or session expired.');
+      setStatus('The connection was cancelled or timed out. Try connecting again.');
       setTimeout(() => window.close(), 2000);
       return;
     }

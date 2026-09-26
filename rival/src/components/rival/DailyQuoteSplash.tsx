@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Animated, Easing, ImageBackground, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { getDailyQuote, type Quote, type QuoteTone } from '../../lib/quotes';
+import { getPrefs } from '../../lib/prefs';
 import { getDailyBackground } from '../../lib/dailyBackground';
 import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
 
@@ -81,6 +82,8 @@ export function DailyQuoteSplash() {
       if (checked.current) return;
       checked.current = true;
       if (seenToday()) return;
+      // Switched off in Profile → Preferences.
+      if (!getPrefs().dailyQuote) return;
       const path = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.pathname : '';
       if (SKIP_PATHS.some((p) => path.startsWith(p))) { checked.current = false; return; }
 

@@ -1,3 +1,5 @@
+import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
+import { defaultActivityName } from '../lib/activityName';
 import { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -91,6 +93,8 @@ export default function ManualEntryScreen() {
   // changing only the date field doesn't quietly reset an activity logged at
   // 6am to whatever time you happen to be editing it.
   const [originalStartedAt, setOriginalStartedAt] = useState<Date | null>(null);
+  // What a blank name will be saved as.
+  const namePlaceholder = defaultActivityName(workoutType, isEditMode && originalStartedAt ? originalStartedAt : new Date());
   // Held in state so the "≈ N Effort" hint can be computed synchronously on
   // every keystroke. Without it the hint fell back to the unknown-type
   // default and credited no elevation, so it read ~48 where the activity
@@ -111,13 +115,14 @@ export default function ManualEntryScreen() {
       setDurationMin(data.duration_seconds > 0 ? String(Math.floor(data.duration_seconds / 60)) : '');
       setDurationSec(data.duration_seconds > 0 ? String(data.duration_seconds % 60) : '');
       if (data.distance_meters > 0) {
-        const shown = String(Math.round(data.distance_meters / 10) / 100);
+        // The distance and climb fields are in the units chosen in Profile.
+        const shown = String(Math.round(toDisplayDistance(data.distance_meters / 1000) * 100) / 100);
         setDistanceKm(shown);
         setLoadedDistance({ shown, meters: data.distance_meters });
       } else {
         setDistanceKm('');
       }
-      setElevationM(data.elevation_meters > 0 ? String(Math.round(data.elevation_meters)) : '');
+      setElevationM(data.elevation_meters > 0 ? String(Math.round(toDisplayElevation(data.elevation_meters))) : '');
       setNotes(data.notes || '');
       if (Array.isArray(data.exercises)) setExercises(data.exercises);
       const { data: mediaRows } = await supabase.from('activity_media').select(MEDIA_COLUMNS).eq('activity_id', editId);
@@ -239,7 +244,6 @@ export default function ManualEntryScreen() {
   }
 
   async function saveSession() {
-    if (!workoutName.trim()) { setFieldError({ field: 'name', message: 'Enter an activity name.' }); return; }
     if (durationSeconds <= 0) { setFieldError({ field: 'duration', message: 'Enter duration.' }); return; }
     const isoDate = displayToIsoDate(dateStr);
     if (!isoDate) { setFieldError({ field: 'date', message: 'Enter a valid date' }); return; }
@@ -253,8 +257,8 @@ export default function ManualEntryScreen() {
 
       const distance = loadedDistance && distanceKm === loadedDistance.shown
         ? loadedDistance.meters / 1000
-        : distanceKm.trim() === '' ? 0 : Number(distanceKm);
-      const elevation = elevationM.trim() === '' ? 0 : Number(elevationM);
+        : distanceKm.trim() === '' ? 0 : fromDisplayDistance(Number(distanceKm));
+      const elevation = elevationM.trim() === '' ? 0 : fromDisplayElevation(Number(elevationM));
       const effortScore = calculateEffortScore(
         workoutType,
         durationSeconds,
@@ -267,6 +271,7 @@ export default function ManualEntryScreen() {
       // date portion is replaceable here, so a 6am run stays a 6am run
       // even if you only meant to fix its distance.
       const timeSource = isEditMode && originalStartedAt ? originalStartedAt : new Date();
+      const name = workoutName.trim() || defaultActivityName(workoutType, timeSource);
       const startedAt = new Date(y, m - 1, d, timeSource.getHours(), timeSource.getMinutes(), timeSource.getSeconds());
 
       // Only keep exercises the user actually named; tag canonical lifts so
@@ -286,7 +291,7 @@ export default function ManualEntryScreen() {
         const { error } = await supabase
           .from('activities')
           .update({
-            name: workoutName.trim(),
+            name,
             activity_type: workoutType,
             distance_meters: distance * 1000,
             duration_seconds: durationSeconds,
@@ -321,7 +326,7 @@ export default function ManualEntryScreen() {
           .from('activities')
           .insert({
             user_id: user.id,
-            name: workoutName.trim(),
+            name,
             activity_type: workoutType,
             distance_meters: distance * 1000,
             duration_seconds: durationSeconds,
@@ -448,7 +453,7 @@ export default function ManualEntryScreen() {
           style={styles.input}
           value={workoutName}
           onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
-          placeholder="Morning Tempo Run"
+          placeholder={namePlaceholder}
           placeholderTextColor={RivalColors.textSecondary}
         />
         {fieldError?.field === 'name' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
@@ -526,8 +531,8 @@ export default function ManualEntryScreen() {
       <Text style={styles.panelLabel}>CORE PERFORMANCE METRICS</Text>
       <View style={styles.metricsRow}>
         {durationMetric}
-        {metric('DISTANCE', 'KM', distanceKm, setDistanceKm, '0.00', 'decimal-pad')}
-        {metric('ELEVATION', 'M', elevationM, setElevationM, '0')}
+        {metric('DISTANCE', distanceUnit().toUpperCase(), distanceKm, setDistanceKm, '0.00', 'decimal-pad')}
+        {metric('ELEVATION', elevationUnit().toUpperCase(), elevationM, setElevationM, '0')}
       </View>
       {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
       {durationSeconds > 0 && (
@@ -811,7 +816,7 @@ export default function ManualEntryScreen() {
             style={m.nameInput}
             value={workoutName}
             onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
-            placeholder="Morning Tempo Run"
+            placeholder={namePlaceholder}
             placeholderTextColor="rgba(255,255,255,0.3)"
           />
         </View>
@@ -875,14 +880,14 @@ export default function ManualEntryScreen() {
             <Text style={m.statLabel}>Distance</Text>
             <View style={m.statValueRow}>
               <TextInput style={m.statInput} value={distanceKm} onChangeText={setDistanceKm} placeholder="0.0" placeholderTextColor="rgba(255,255,255,0.25)" keyboardType="decimal-pad" />
-              <Text style={m.statUnit}>km</Text>
+              <Text style={m.statUnit}>{distanceUnit()}</Text>
             </View>
           </View>
           <View style={m.stat}>
             <Text style={m.statLabel}>Elevation</Text>
             <View style={m.statValueRow}>
               <TextInput style={m.statInput} value={elevationM} onChangeText={setElevationM} placeholder="0" placeholderTextColor="rgba(255,255,255,0.25)" keyboardType="numeric" />
-              <Text style={m.statUnit}>m</Text>
+              <Text style={m.statUnit}>{elevationUnit()}</Text>
             </View>
           </View>
         </View>
@@ -976,6 +981,7 @@ export default function ManualEntryScreen() {
   const mobileSaveBar = (
     <View style={m.saveBar}>
       {generalError && <Text style={[styles.fieldError, m.saveBarError]}>{generalError}</Text>}
+      {!generalError && fieldError && <Text style={[styles.fieldError, m.saveBarError]}>{fieldError.message}</Text>}
       <View style={m.saveRow}>
         {/* Live: recalculates as the duration or climb changes, and it is
             what this session will be worth once saved. */}
@@ -1094,7 +1100,7 @@ function calculateEffortScorePreview(
   config: ScoringConfig | null,
 ): number {
   if (!config) return 0;
-  const elevation = elevationM.trim() === '' ? 0 : Number(elevationM);
+  const elevation = elevationM.trim() === '' ? 0 : fromDisplayElevation(Number(elevationM));
   return calculateEffortScore(type, durationSeconds, elevation, config);
 }
 

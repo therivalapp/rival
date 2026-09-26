@@ -1,3 +1,6 @@
+import { JournalYearView } from '../components/rival/JournalYearView';
+import { useSnapState } from '../lib/snapState';
+import { distanceUnit, formatActivityDistance, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../lib/units';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
@@ -249,8 +252,8 @@ function WeekStatPill({ title, dateRange, activities }: { title: string; dateRan
           <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
             <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <Text style={styles.recapStatValue}>{km >= 0.1 ? km.toFixed(1) : '0'}</Text>
-              <Text style={styles.recapStatUnit}>km</Text>
+              <Text style={styles.recapStatValue}>{km >= 0.1 ? toDisplayDistance(km).toFixed(1) : '0'}</Text>
+              <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
             </View>
             <Text style={styles.recapStatTitle}>Distance</Text>
           </View>
@@ -277,17 +280,17 @@ export default function MyActivitiesScreen() {
   // the only card that renders full-row is the LAST card of a week with an
   // odd activity count — that's decidable at render time, no measuring needed.
   const spaciousWindow = windowWidth >= BREAKPOINT_SPACIOUS_GALLERY;
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
-  const [thisWeekTotal, setThisWeekTotal] = useState(0);
-  const [pbs, setPbs] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState('');
+  const [allActivities, setAllActivities] = useSnapState<Activity[]>('journal.allActivities', []);
+  const [thisWeekTotal, setThisWeekTotal] = useSnapState('journal.thisWeekTotal', 0);
+  const [pbs, setPbs] = useSnapState<Record<string, string>>('journal.pbs', {});
+  const [loading, setLoading] = useSnapState('journal.loading', true);
+  const [userId, setUserId] = useSnapState('journal.userId', '');
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadErrorActivityId, setUploadErrorActivityId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [mediaMap, setMediaMap] = useState<Record<string, MediaRow[]>>({});
+  const [mediaMap, setMediaMap] = useSnapState<Record<string, MediaRow[]>>('journal.mediaMap', {});
   // The ordering sheet, open between the phone's picker and the upload.
   const [mediaPicker, setMediaPicker] = useState<{ activityId: string; items: MediaItem[]; notice?: string } | null>(null);
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
@@ -870,8 +873,8 @@ export default function MyActivitiesScreen() {
     const parts: string[] = [];
     if (ex.sets) parts.push(`${ex.sets}x${ex.reps ?? ''}`.replace(/x$/, ''));
     else if (ex.reps) parts.push(`${ex.reps} reps`);
-    if (ex.weight) parts.push(`${ex.weight}kg`);
-    if (ex.distanceMeters) parts.push(`${(ex.distanceMeters / 1000).toFixed(1)}km`);
+    if (ex.weight) parts.push(formatWeight(ex.weight).replace(' ', ''));
+    if (ex.distanceMeters) parts.push(`${toDisplayDistance(ex.distanceMeters / 1000).toFixed(1)}${distanceUnit()}`);
     return `${ex.name}${parts.length > 0 ? ` — ${parts.join(' · ')}` : ''}`;
   }
 
@@ -879,19 +882,11 @@ export default function MyActivitiesScreen() {
   // everything else as min/km.
   function formatPace(meters: number, seconds: number, activityType: string): string | null {
     if (!DISTANCE_SPORTS.has(activityType) || !meters || meters < 100 || !seconds) return null;
-    if (activityType === 'Ride' || activityType === 'VirtualRide') {
-      return `${((meters / 1000) / (seconds / 3600)).toFixed(1)} km/h`;
-    }
-    const per = activityType === 'Swim' ? seconds / (meters / 100) : seconds / (meters / 1000);
-    const m = Math.floor(per / 60);
-    const s = Math.round(per % 60);
-    return `${m}:${String(s).padStart(2, '0')} ${activityType === 'Swim' ? '/100m' : '/km'}`;
+    return formatSpeedOrPace(meters, seconds, activityType);
   }
 
   function formatDistance(meters: number, activityType?: string) {
-    if (!meters || meters < 100) return null;
-    if (activityType && METERS_SPORTS.has(activityType)) return `${Math.round(meters)} m`;
-    return `${(meters / 1000).toFixed(1)} km`;
+    return formatActivityDistance(meters, activityType, 100);
   }
 
   // Title — rendered as leading content INSIDE each layout's own scrollable
@@ -1055,8 +1050,8 @@ export default function MyActivitiesScreen() {
                           <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
                             <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
                             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                              <Text style={styles.recapStatValue}>{thisWk.km >= 0.1 ? thisWk.km.toFixed(1) : '0'}</Text>
-                              <Text style={styles.recapStatUnit}>km</Text>
+                              <Text style={styles.recapStatValue}>{thisWk.km >= 0.1 ? toDisplayDistance(thisWk.km).toFixed(1) : '0'}</Text>
+                              <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
                             </View>
                             <Text style={styles.recapStatTitle}>Distance</Text>
                           </View>
@@ -1353,8 +1348,8 @@ export default function MyActivitiesScreen() {
                 <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
                   <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
                   <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                    <Text style={styles.recapStatValue}>{activeMg.km >= 0.1 ? activeMg.km.toFixed(1) : '0'}</Text>
-                    <Text style={styles.recapStatUnit}>km</Text>
+                    <Text style={styles.recapStatValue}>{activeMg.km >= 0.1 ? toDisplayDistance(activeMg.km).toFixed(1) : '0'}</Text>
+                    <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
                   </View>
                   <Text style={styles.recapStatTitle}>Distance</Text>
                 </View>
@@ -1611,17 +1606,12 @@ export default function MyActivitiesScreen() {
           )}
 
           {journalLayout === 'year' && (
-          // Placeholder — the full year-in-review view (totals, monthly
-          // trend, PB timeline) is a future build; this just makes the tab
-          // real and navigable now instead of hiding it until that's done.
-          <ScrollView contentContainerStyle={styles.jWeekPage}>
+          // The year at a glance, from the activities already loaded here.
+          <ScrollView contentContainerStyle={styles.jWeekPage} {...pullProps}>
+            {pullIndicator}
             {journalTitle}
             {renderJournalToggle(false)}
-            <View style={styles.jYearComingSoon}>
-              <RivalIcon name="stats" size={32} color={RivalColors.accentText} />
-              <Text style={styles.jYearComingSoonTitle}>Year in Review, coming soon</Text>
-              <Text style={styles.jYearComingSoonBody}>A summary of everything you've put in this year: total Effort, your biggest months, and every PB along the way.</Text>
-            </View>
+            <JournalYearView activities={allActivities as any} />
           </ScrollView>
           )}
           </>
@@ -2383,9 +2373,6 @@ const styles = StyleSheet.create({
   // jAddCard when it lands alone on the last line.
   jGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
   jSwipeHint: { alignItems: 'center', paddingTop: 4, opacity: 0.6 },
-  jYearComingSoon: { alignItems: 'center', gap: 10, paddingTop: 80, paddingHorizontal: 24 },
-  jYearComingSoonTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: RivalColors.textPrimary, marginTop: 4 },
-  jYearComingSoonBody: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', lineHeight: 19 },
   jTitleBlock: { alignSelf: 'center', marginTop: 16, marginBottom: 16, paddingVertical: 8, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)' },
   jTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '500', fontSize: 17, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   jSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.32)', textAlign: 'center', marginTop: 2 },

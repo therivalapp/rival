@@ -143,7 +143,7 @@ export function TrainingPartners({
       {open ? (
         <View style={styles.panel}>
           <Text style={styles.panelNote}>
-            Each person confirms before the session is added to their account.
+            Each person confirms before the activity is added to their account.
           </Text>
 
           {loading ? (

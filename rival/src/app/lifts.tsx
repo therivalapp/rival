@@ -1,3 +1,5 @@
+import { useSnapState } from '../lib/snapState';
+import { LB_PER_KG, toDisplayWeight, weightUnit } from '../lib/units';
 import { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, ImageBackground, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,14 +12,18 @@ import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColor
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
 type Entry = { id: string; exercise_name: string; weight_kg: number; reps: number | null; performed_at: string };
+// kg as stored → the chosen units, to one decimal; and back for saving.
+const shownWeight = (kg: number) => Math.round(toDisplayWeight(kg) * 10) / 10;
+const storedWeight = (shown: number) => (weightUnit() === 'lb' ? shown / LB_PER_KG : shown);
+
 type LiftCard = { name: string; pb: number; goal: number | null; goalStart: number | null; history: Entry[] };
 
 export default function LiftsScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= BREAKPOINT_WIDE_LAYOUT;
 
-  const [cards, setCards] = useState<LiftCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [cards, setCards] = useSnapState<LiftCard[]>('lifts.cards', []);
+  const [loading, setLoading] = useSnapState('lifts.loading', true);
   const [focused, setFocused] = useState<string | null>(null);
 
   const [logModalFor, setLogModalFor] = useState<string | null>(null);
@@ -50,13 +56,19 @@ export default function LiftsScreen() {
       supabase.from('exercise_goals').select('exercise_name, target_weight_kg, starting_weight_kg').eq('user_id', user.id),
     ]);
 
+    // Everything on this screen is in the units chosen in Profile. Weights
+    // are converted once here (kg are stored) and back again when saved, so
+    // the PB, goal, checkpoints and history all agree with each other.
     const goalMap = new Map<string, { target: number; start: number | null }>();
-    (goalsRes.data || []).forEach((g: any) => goalMap.set(g.exercise_name, { target: g.target_weight_kg, start: g.starting_weight_kg }));
+    (goalsRes.data || []).forEach((g: any) => goalMap.set(g.exercise_name, {
+      target: shownWeight(g.target_weight_kg),
+      start: g.starting_weight_kg == null ? null : shownWeight(g.starting_weight_kg),
+    }));
 
     const byName = new Map<string, Entry[]>();
     (entriesRes.data || []).forEach((e: any) => {
       if (!byName.has(e.exercise_name)) byName.set(e.exercise_name, []);
-      byName.get(e.exercise_name)!.push(e);
+      byName.get(e.exercise_name)!.push({ ...e, weight_kg: shownWeight(e.weight_kg) });
     });
 
     const names = new Set<string>([...CANONICAL_LIFTS, ...byName.keys()]);
@@ -94,7 +106,7 @@ export default function LiftsScreen() {
     const { error } = await supabase.from('exercise_entries').insert({
       user_id: user.id,
       exercise_name: exerciseName,
-      weight_kg: weight,
+      weight_kg: storedWeight(weight),
       reps: logReps ? parseInt(logReps, 10) : null,
       performed_at: new Date().toISOString(),
     });
@@ -121,8 +133,8 @@ export default function LiftsScreen() {
     const target = parseFloat(goalWeight);
     if (!target || target <= 0) return;
 
-    const payload: Record<string, unknown> = { user_id: user.id, exercise_name: goalModalFor, target_weight_kg: target };
-    if (goalModalIsNew) payload.starting_weight_kg = goalModalCurrentPb;
+    const payload: Record<string, unknown> = { user_id: user.id, exercise_name: goalModalFor, target_weight_kg: storedWeight(target) };
+    if (goalModalIsNew) payload.starting_weight_kg = storedWeight(goalModalCurrentPb);
 
     await supabase.from('exercise_goals')
       .upsert(payload, { onConflict: 'user_id,exercise_name' });
@@ -210,7 +222,7 @@ export default function LiftsScreen() {
                 <>
                   <View style={styles.pbRow}>
                     <Text style={[styles.pbValue, !wide && ms.pbValue]}>{active.pb}</Text>
-                    <Text style={styles.pbUnit}>KG</Text>
+                    <Text style={styles.pbUnit}>{weightUnit().toUpperCase()}</Text>
                   </View>
 
                   {progress !== null && active.goal !== null ? (
@@ -286,8 +298,8 @@ export default function LiftsScreen() {
                   <View style={styles.divider} />
                   <View style={styles.statsRow}>
                     <View style={styles.stat}>
-                      <Text style={styles.statLabel}>LAST SESSION</Text>
-                      <Text style={styles.statValue}>{lastEntry!.weight_kg} kg</Text>
+                      <Text style={styles.statLabel}>LAST ACTIVITY</Text>
+                      <Text style={styles.statValue}>{lastEntry!.weight_kg} {weightUnit()}</Text>
                       {trendPct !== null && (
                         <View style={styles.trendRow}>
                           <RivalIcon name={trendPct >= 0 ? 'trendUp' : 'trendDown'} size={13} color={trendPct >= 0 ? RivalColors.success : RivalColors.textSecondary} />
@@ -298,14 +310,14 @@ export default function LiftsScreen() {
                       )}
                     </View>
                     <View style={styles.stat}>
-                      <Text style={styles.statLabel}>SESSIONS</Text>
+                      <Text style={styles.statLabel}>ACTIVITIES</Text>
                       <Text style={styles.statValue}>{active.history.length}</Text>
                       <Text style={styles.statSub}>logged</Text>
                     </View>
                     <View style={styles.stat}>
                       <Text style={styles.statLabel}>TOTAL VOLUME</Text>
                       <Text style={styles.statValue}>{fmtVolume(totalVolume)}</Text>
-                      <Text style={styles.statSub}>kg lifted</Text>
+                      <Text style={styles.statSub}>{weightUnit()} lifted</Text>
                     </View>
                   </View>
                 </>
@@ -332,7 +344,7 @@ export default function LiftsScreen() {
                   >
                     <Text style={[styles.chipName, isActive && { color: wide ? RivalColors.onAccentFill : ms.onGradient.color }]}>{c.name.toUpperCase()}</Text>
                     {hasPb ? (
-                      <Text style={[styles.chipValue, !wide && ms.chipValue, isActive && { color: wide ? RivalColors.onAccentFill : ms.onGradient.color }]}>{c.pb} <Text style={styles.chipUnit}>KG</Text></Text>
+                      <Text style={[styles.chipValue, !wide && ms.chipValue, isActive && { color: wide ? RivalColors.onAccentFill : ms.onGradient.color }]}>{c.pb} <Text style={styles.chipUnit}>{weightUnit().toUpperCase()}</Text></Text>
                     ) : (
                       <Text style={styles.chipNoEntry}>NO ENTRIES</Text>
                     )}
@@ -360,7 +372,7 @@ export default function LiftsScreen() {
             )}
             <TextInput
               style={wide ? styles.modalInput : [rm.field, rm.input, ms.modalInput]}
-              placeholder="Weight (kg)"
+              placeholder={`Weight (${weightUnit()})`}
               placeholderTextColor={RivalColors.textSecondary}
               keyboardType="decimal-pad"
               value={logWeight}
@@ -393,7 +405,7 @@ export default function LiftsScreen() {
             <Text style={[styles.modalTitle, !wide && ms.modalTitle]}>Goal for {goalModalFor}</Text>
             <TextInput
               style={wide ? styles.modalInput : [rm.field, rm.input, ms.modalInput]}
-              placeholder="Target weight (kg)"
+              placeholder={`Target weight (${weightUnit()})`}
               placeholderTextColor={RivalColors.textSecondary}
               keyboardType="decimal-pad"
               value={goalWeight}

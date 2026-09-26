@@ -55,7 +55,7 @@ export function computeGoalProgress(goal: GoalRow, activities: ActivityRow[]): n
 }
 
 export function goalUnit(goalType: GoalRow['goal_type']): string {
-  return goalType === 'distance' ? 'km' : goalType === 'elevation' ? 'm' : 'sessions';
+  return goalType === 'distance' ? 'km' : goalType === 'elevation' ? 'm' : 'activities';
 }
 
 export function goalTitle(goal: GoalRow): string {

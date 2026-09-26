@@ -1,3 +1,4 @@
+import { useSnapState } from '../lib/snapState';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
@@ -130,24 +131,24 @@ export default function ChatScreen() {
   const { width } = useWindowDimensions();
   const mob = width < BREAKPOINT_WIDE_LAYOUT;
 
-  const [teamName, setTeamName] = useState('');
-  const [teamLogo, setTeamLogo] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [rsvpMap, setRsvpMap] = useState<Record<string, string[]>>({});
-  const [currentUserId, setCurrentUserId] = useState('');
+  const [teamName, setTeamName] = useSnapState(`chat.${id}.teamName`, '');
+  const [teamLogo, setTeamLogo] = useSnapState<string | null>(`chat.${id}.teamLogo`, null);
+  const [messages, setMessages] = useSnapState<Msg[]>(`chat.${id}.messages`, []);
+  const [members, setMembers] = useSnapState<Member[]>(`chat.${id}.members`, []);
+  const [rsvpMap, setRsvpMap] = useSnapState<Record<string, string[]>>(`chat.${id}.rsvpMap`, {});
+  const [currentUserId, setCurrentUserId] = useSnapState(`chat.${id}.currentUserId`, '');
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useSnapState(`chat.${id}.loading`, true);
   const [error, setError] = useState('');
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
   const [showTimeFor, setShowTimeFor] = useState<string | null>(null);
   // messageId -> emoji -> userIds
-  const [reactions, setReactions] = useState<Record<string, Record<string, string[]>>>({});
+  const [reactions, setReactions] = useSnapState<Record<string, Record<string, string[]>>>(`chat.${id}.reactions`, {});
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   // userId -> the last message they have read, for the seen-by avatars.
-  const [seenBy, setSeenBy] = useState<Record<string, string[]>>({});
+  const [seenBy, setSeenBy] = useSnapState<Record<string, string[]>>(`chat.${id}.seenBy`, {});
   const [sessionsOnly, setSessionsOnly] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [editingSession, setEditingSession] = useState<EditableSession | null>(null);
@@ -481,7 +482,7 @@ export default function ChatScreen() {
       {sessionsOnly && (
         <TouchableOpacity style={[styles.filterBanner, mob && ms.band]} onPress={() => setSessionsOnly(false)}>
           <Text style={styles.filterBannerText}>
-            Showing upcoming sessions · <Text style={styles.filterBannerAction}>Show everything</Text>
+            Showing upcoming activities · <Text style={styles.filterBannerAction}>Show everything</Text>
           </Text>
         </TouchableOpacity>
       )}
@@ -585,7 +586,7 @@ export default function ChatScreen() {
                                 {src ? nameFor(src.user_id) : 'Message'}
                               </Text>
                               <Text style={styles.quoteBody} numberOfLines={1}>
-                                {src ? (src.kind === 'session' ? 'Session' : src.body) : 'Deleted message'}
+                                {src ? (src.kind === 'session' ? 'Planned activity' : src.body) : 'Deleted message'}
                               </Text>
                             </View>
                           );
@@ -617,7 +618,7 @@ export default function ChatScreen() {
                         >
                           <View style={[
                             styles.bubble,
-                            isMe ? styles.bubbleMe : [styles.bubbleThem, mob && ms.bubbleThem],
+                            isMe ? [styles.bubbleMe, mob && ms.bubbleMe] : [styles.bubbleThem, mob && ms.bubbleThem],
                             // Tighten the corners that face another bubble in
                             // the same run, so the run reads as one block.
                             !isFirstOfGroup && (isMe ? styles.tightTopRight : styles.tightTopLeft),
@@ -699,7 +700,7 @@ export default function ChatScreen() {
             <View style={styles.replyBarText}>
               <Text style={styles.replyBarName}>Replying to {nameFor(replyTo.user_id)}</Text>
               <Text style={styles.replyBarBody} numberOfLines={1}>
-                {replyTo.kind === 'session' ? 'Session' : replyTo.body}
+                {replyTo.kind === 'session' ? 'Planned activity' : replyTo.body}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyTo(null)} accessibilityLabel="Cancel reply">
@@ -1058,7 +1059,17 @@ const styles = StyleSheet.create({
 
 // Mobile only — the RIVAL look (see RivalMobile.tsx) on the screen's chrome.
 const ms = StyleSheet.create({
-  container: { backgroundColor: RivalWarm.page },
+  // A low warm glow in the corners, so the thread isn't a flat black sheet.
+  container: {
+    backgroundColor: RivalWarm.page,
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'radial-gradient(ellipse 110% 45% at 100% 0%, rgba(217,119,87,0.12) 0%, rgba(17,14,12,0) 60%), radial-gradient(ellipse 100% 40% at 0% 100%, rgba(255,181,158,0.05) 0%, rgba(17,14,12,0) 60%)' } as any)
+      : {}),
+  },
+  // Your own messages in the brand gradient rather than one flat colour.
+  bubbleMe: Platform.OS === 'web'
+    ? ({ backgroundImage: 'linear-gradient(135deg, #e6927a 0%, #D97757 100%)' } as any)
+    : {},
   header: { borderBottomColor: RivalWarm.hairline },
   headerLogo: { borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder },
   headerTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', lineHeight: 24 },

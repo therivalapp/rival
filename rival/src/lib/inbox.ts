@@ -1,4 +1,5 @@
 import { supabase, getAuthUser } from './supabase';
+import { getPrefs, onPrefsChanged } from './prefs';
 
 // The in-app inbox. Items are created by database triggers, never by the app —
 // see supabase/add_inbox_triggers.sql — so everything here reads, marks read,
@@ -40,6 +41,17 @@ export function isActionable(item: InboxItem): boolean {
   return ACTIONABLE.includes(item.kind) && !item.resolved_at;
 }
 
+// Profile → Notifications. A switched-off kind, or anything from a muted team,
+// is left out of the bell — except questions still waiting for an answer,
+// which always show so nobody is left waiting on a reply.
+function wanted(item: Pick<InboxItem, 'kind' | 'league_id' | 'resolved_at'>): boolean {
+  if (ACTIONABLE.includes(item.kind) && !item.resolved_at) return true;
+  const p = getPrefs();
+  if ((p.notify as Record<string, boolean>)[item.kind] === false) return false;
+  if (item.league_id && p.mutedTeams.includes(item.league_id)) return false;
+  return true;
+}
+
 // The bell lives in the top nav on every screen and refreshes its count on
 // navigation, which is the cheapest signal that something changed — but acting
 // on an item does not navigate, so the badge would sit there claiming work that
@@ -57,6 +69,9 @@ function inboxChanged() {
   listeners.forEach((l) => { try { l(); } catch { /* a bad listener must not break the action */ } });
 }
 
+// A change in Profile → Notifications changes what counts.
+onPrefsChanged(() => inboxChanged());
+
 export async function fetchInbox(limit = 50): Promise<InboxItem[]> {
   const { data: { user } } = await getAuthUser();
   if (!user) return [];
@@ -65,9 +80,10 @@ export async function fetchInbox(limit = 50): Promise<InboxItem[]> {
     .select(COLUMNS)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    // Room for items the settings hide, so the list still fills.
+    .limit(limit * 2);
   if (error) return [];
-  return (data ?? []) as InboxItem[];
+  return ((data ?? []) as InboxItem[]).filter(wanted).slice(0, limit);
 }
 
 // Drives the bell's badge. Counts unread, plus anything still waiting for an
@@ -83,14 +99,18 @@ export async function fetchInboxBadgeCount(): Promise<number> {
   const { data: { user } } = await getAuthUser();
   if (!user) return 0;
   if (badgeCache && badgeCache.userId === user.id && Date.now() - badgeCache.at < BADGE_CACHE_MS) return badgeCache.count;
-  const { count, error } = await supabase
+  // The rows themselves rather than a server count, so the settings in
+  // Profile → Notifications can be applied. Outstanding items are few.
+  const { data, error } = await supabase
     .from('inbox_items')
-    .select('id', { count: 'exact', head: true })
+    .select('kind, league_id, resolved_at')
     .eq('user_id', user.id)
-    .or(`read_at.is.null,and(kind.in.(${ACTIONABLE.join(',')}),resolved_at.is.null)`);
+    .or(`read_at.is.null,and(kind.in.(${ACTIONABLE.join(',')}),resolved_at.is.null)`)
+    .limit(500);
   if (error) return 0;
-  badgeCache = { at: Date.now(), userId: user.id, count: count ?? 0 };
-  return count ?? 0;
+  const count = (data ?? []).filter((r: any) => wanted(r)).length;
+  badgeCache = { at: Date.now(), userId: user.id, count };
+  return count;
 }
 
 export async function markRead(ids: string[]): Promise<void> {

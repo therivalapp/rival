@@ -123,7 +123,7 @@ export async function tagTeammates(
   // The insert policy is the real guard, so its refusals surface here as a
   // generic RLS error. Say what the rule is rather than passing that through.
   if (error.code === '42501') {
-    return { ok: false, error: `Only teammates can be added, within ${TAG_WINDOW_HOURS} hours of the session.` };
+    return { ok: false, error: `Only teammates can be added, within ${TAG_WINDOW_HOURS} hours of the activity.` };
   }
   if (error.code === '23505') {
     return { ok: false, error: 'This person has already been added.' };

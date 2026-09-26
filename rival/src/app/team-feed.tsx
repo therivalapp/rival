@@ -1,4 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { getMyTeamRows } from '../lib/myTeams';
+import { formatActivityDistance } from '../lib/units';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, Image, ImageBackground, TouchableOpacity, TextInput } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { buildDayRollups, mergeRollups, rollsUpIntoDayCard, type DayRollup, type RollupRow } from '@/lib/dayRollup';
@@ -310,28 +312,51 @@ async function fetchActivityPage(ctx: FeedContext, cursor: string | null) {
   return { page, more, nextCursor: page.length ? page[page.length - 1].started_at : null };
 }
 
+// The feed as last shown. Coming back to Teams draws it straight away and
+// refreshes behind it, instead of starting from "Loading" on every visit.
+type FeedSnapshot = {
+  userId: string;
+  teams: Team[];
+  items: FeedPost[];
+  avatarMap: Record<string, string | null>;
+  nameMap: Record<string, string>;
+  reactionsMap: Record<string, Array<{ user_id: string; emoji: string }>>;
+  commentsMap: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>;
+  hasMore: boolean;
+  ctx: FeedContext | null;
+  cursor: string | null;
+};
+let feedSnap: FeedSnapshot | null = null;
+
 export default function TeamFeedScreen() {
   const { width } = useWindowDimensions();
   const mobile = width < BREAKPOINT_WIDE_LAYOUT;
 
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => loadFeed());
-  const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState('');
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [items, setItems] = useState<FeedPost[]>([]);
-  const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>({});
-  const [nameMap, setNameMap] = useState<Record<string, string>>({});
-  const [reactionsMap, setReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>({});
-  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>({});
+  const [loading, setLoading] = useState(() => !feedSnap);
+  const [currentUserId, setCurrentUserId] = useState(() => feedSnap?.userId ?? '');
+  const [teams, setTeams] = useState<Team[]>(() => feedSnap?.teams ?? []);
+  const [items, setItems] = useState<FeedPost[]>(() => feedSnap?.items ?? []);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>(() => feedSnap?.avatarMap ?? {});
+  const [nameMap, setNameMap] = useState<Record<string, string>>(() => feedSnap?.nameMap ?? {});
+  const [reactionsMap, setReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>(() => feedSnap?.reactionsMap ?? {});
+  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(() => feedSnap?.commentsMap ?? {});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(() => feedSnap?.hasMore ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
   // Refs, not state: these are read inside loadMore's async body, where a
   // stale closure over state would page from the wrong place.
-  const ctxRef = useRef<FeedContext | null>(null);
-  const cursorRef = useRef<string | null>(null);
+  const ctxRef = useRef<FeedContext | null>(feedSnap?.ctx ?? null);
+  const cursorRef = useRef<string | null>(feedSnap?.cursor ?? null);
+
+  // Keep the snapshot current with whatever is on screen, including a
+  // reaction or comment just added, so a revisit shows exactly this.
+  useEffect(() => {
+    if (loading || !currentUserId) return;
+    feedSnap = { userId: currentUserId, teams, items, avatarMap, nameMap, reactionsMap, commentsMap, hasMore, ctx: ctxRef.current, cursor: cursorRef.current };
+  }, [loading, currentUserId, teams, items, avatarMap, nameMap, reactionsMap, commentsMap, hasMore]);
 
   // Reactions/comments are fetched per visible page. `replace` distinguishes a
   // refresh (drop what was there) from appending a page (merge, so the social
@@ -364,14 +389,12 @@ export default function TeamFeedScreen() {
     if (!ctxRef.current) setLoading(true);
     const { data: { user } } = await getAuthUser();
     if (!user) { setLoading(false); return; }
+    // Someone else's snapshot must never show, even for a moment.
+    if (feedSnap && feedSnap.userId !== user.id) { feedSnap = null; ctxRef.current = null; setItems([]); setTeams([]); setLoading(true); }
     setCurrentUserId(user.id);
 
     // Every team this account is an active member of.
-    const { data: myMemberships } = await supabase
-      .from('league_members')
-      .select('league_id, leagues(id, name, logo_url)')
-      .eq('user_id', user.id)
-      .eq('status', 'active');
+    const myMemberships = await getMyTeamRows(user.id).catch(() => []);
 
     const myTeams: Team[] = (myMemberships || [])
       .map((m: any) => m.leagues)
@@ -771,7 +794,7 @@ function PostCard({
   }
 
   const statsLine = post.kind === 'activity'
-    ? [post.distanceMeters > 100 ? `${(post.distanceMeters / 1000).toFixed(1)} km` : null, formatDuration(post.durationSeconds)].filter(Boolean).join(' · ')
+    ? [formatActivityDistance(post.distanceMeters, post.activityType, 100), formatDuration(post.durationSeconds)].filter(Boolean).join(' · ')
     : post.kind === 'dayRoll'
       ? formatDuration(post.totalSeconds)
       : '';
@@ -930,13 +953,13 @@ function PostCard({
 
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
-          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentGold }]}>Respect</Text>
+          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentText : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentText }]}>Respect</Text>
           <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive]}>{respectCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
-          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.accentGold }]}>Inspired</Text>
+          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.rankAnchors.unrivaled : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.rankAnchors.unrivaled }]}>Inspired</Text>
           <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive]}>{inspiredCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>

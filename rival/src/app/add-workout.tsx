@@ -101,7 +101,7 @@ export default function AddWorkoutScreen() {
             <Text style={styles.heroLabel}>ADD WORKOUT</Text>
             <Text style={styles.heroTitle}>Honor the commitment.</Text>
             <Text style={styles.heroSub}>
-              Record a session by photo, by manual entry or with a weekly scan.
+              Record an activity by photo, by manual entry or with a weekly scan.
             </Text>
           </View>
 

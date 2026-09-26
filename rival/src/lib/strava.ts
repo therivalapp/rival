@@ -1,3 +1,4 @@
+import { invalidateActivityCache } from './fetchAllActivities';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
@@ -93,6 +94,7 @@ export async function runFullStravaImport(
     onProgress?.({ savedSoFar: saved, page });
 
     if (!data.hasMore) {
+      invalidateActivityCache();
       return { ok: true, saved, importedSeconds, importedEffort, newMilestones };
     }
     page++;

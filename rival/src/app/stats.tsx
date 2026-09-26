@@ -1,3 +1,5 @@
+import { useSnapState } from '../lib/snapState';
+import { distanceNumber, distanceUnit, elevationNumber, elevationUnit } from '../lib/units';
 import { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
@@ -21,33 +23,33 @@ function rankColorFor(level: number): string {
 
 export default function StatsScreen() {
   const { userId: viewedUserId } = useLocalSearchParams<{ userId?: string }>();
-  const [currentAuthUserId, setCurrentAuthUserId] = useState('');
+  const [currentAuthUserId, setCurrentAuthUserId] = useSnapState(`stats.${viewedUserId ?? 'me'}.currentAuthUserId`, '');
   const isOwnProfile = !viewedUserId || viewedUserId === currentAuthUserId;
 
-  const [displayName, setDisplayName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useSnapState(`stats.${viewedUserId ?? 'me'}.displayName`, '');
+  const [avatarUrl, setAvatarUrl] = useSnapState<string | null>(`stats.${viewedUserId ?? 'me'}.avatarUrl`, null);
   // What gets them through: a quote, a principle, a line they live by.
   // Stored in users.bio; "Mindset" is the name people see.
-  const [mindset, setMindset] = useState('');
+  const [mindset, setMindset] = useSnapState(`stats.${viewedUserId ?? 'me'}.mindset`, '');
   const { width } = useWindowDimensions();
   const wide = width >= BREAKPOINT_WIDE_LAYOUT;
-  const [totalPoints, setTotalPoints] = useState(0);
-  const [seasonPoints, setSeasonPoints] = useState(0);
-  const [pastSeasons, setPastSeasons] = useState<Array<{ year: number; final_xp: number; final_rank_name: string }>>([]);
-  const [totalActivities, setTotalActivities] = useState(0);
-  const [totalTimeMinutes, setTotalTimeMinutes] = useState(0);
-  const [hardTimeMinutes, setHardTimeMinutes] = useState(0);
-  const [earnedMilestones, setEarnedMilestones] = useState<string[]>([]);
-  const [thisWeekPoints, setThisWeekPoints] = useState(0);
-  const [totalDistanceKm, setTotalDistanceKm] = useState(0);
-  const [totalElevationM, setTotalElevationM] = useState(0);
-  const [streak, setStreak] = useState<StreakResult | null>(null);
-  const [inspiredCount, setInspiredCount] = useState(0);
-  const [inspiredTimes, setInspiredTimes] = useState(0);
-  const [respectTimes, setRespectTimes] = useState(0);
-  const [peopleCount, setPeopleCount] = useState(0);
-  const [memberSince, setMemberSince] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [totalPoints, setTotalPoints] = useSnapState(`stats.${viewedUserId ?? 'me'}.totalPoints`, 0);
+  const [seasonPoints, setSeasonPoints] = useSnapState(`stats.${viewedUserId ?? 'me'}.seasonPoints`, 0);
+  const [pastSeasons, setPastSeasons] = useSnapState<Array<{ year: number; final_xp: number; final_rank_name: string }>>(`stats.${viewedUserId ?? 'me'}.pastSeasons`, []);
+  const [totalActivities, setTotalActivities] = useSnapState(`stats.${viewedUserId ?? 'me'}.totalActivities`, 0);
+  const [totalTimeMinutes, setTotalTimeMinutes] = useSnapState(`stats.${viewedUserId ?? 'me'}.totalTimeMinutes`, 0);
+  const [hardTimeMinutes, setHardTimeMinutes] = useSnapState(`stats.${viewedUserId ?? 'me'}.hardTimeMinutes`, 0);
+  const [earnedMilestones, setEarnedMilestones] = useSnapState<string[]>(`stats.${viewedUserId ?? 'me'}.earnedMilestones`, []);
+  const [thisWeekPoints, setThisWeekPoints] = useSnapState(`stats.${viewedUserId ?? 'me'}.thisWeekPoints`, 0);
+  const [totalDistanceKm, setTotalDistanceKm] = useSnapState(`stats.${viewedUserId ?? 'me'}.totalDistanceKm`, 0);
+  const [totalElevationM, setTotalElevationM] = useSnapState(`stats.${viewedUserId ?? 'me'}.totalElevationM`, 0);
+  const [streak, setStreak] = useSnapState<StreakResult | null>(`stats.${viewedUserId ?? 'me'}.streak`, null);
+  const [inspiredCount, setInspiredCount] = useSnapState(`stats.${viewedUserId ?? 'me'}.inspiredCount`, 0);
+  const [inspiredTimes, setInspiredTimes] = useSnapState(`stats.${viewedUserId ?? 'me'}.inspiredTimes`, 0);
+  const [respectTimes, setRespectTimes] = useSnapState(`stats.${viewedUserId ?? 'me'}.respectTimes`, 0);
+  const [peopleCount, setPeopleCount] = useSnapState(`stats.${viewedUserId ?? 'me'}.peopleCount`, 0);
+  const [memberSince, setMemberSince] = useSnapState(`stats.${viewedUserId ?? 'me'}.memberSince`, '');
+  const [loading, setLoading] = useSnapState(`stats.${viewedUserId ?? 'me'}.loading`, true);
 
   useEffect(() => {
     loadStats();
@@ -282,12 +284,12 @@ export default function StatsScreen() {
         {/* Stats row 2 */}
         <View style={[styles.statsGrid, { marginBottom: 20 }]}>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: RivalColors.accentText }]}>{totalDistanceKm.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>km logged</Text>
+            <Text style={[styles.statValue, { color: RivalColors.accentText }]}>{distanceNumber(totalDistanceKm)}</Text>
+            <Text style={styles.statLabel}>{distanceUnit()} logged</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: RivalColors.accentText }]}>{totalElevationM.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>m climbed</Text>
+            <Text style={[styles.statValue, { color: RivalColors.accentText }]}>{elevationNumber(totalElevationM)}</Text>
+            <Text style={styles.statLabel}>{elevationUnit()} climbed</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { fontSize: 16 }]}>{memberSince || '—'}</Text>
