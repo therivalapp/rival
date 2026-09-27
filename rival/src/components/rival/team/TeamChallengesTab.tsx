@@ -6,6 +6,7 @@ import { formatTeamName } from '../../../lib/identity';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../../constants/rivalTheme';
 import { RivalIcon } from '../RivalIcon';
 import { sheet } from './sheetStyles';
+import { BusyText } from '../BusyText';
 
 // Team Hub's Challenges tab: 1v1 challenges between teammates, and Team vs
 // Team. Ported from the old team page (league.tsx), which was the only place
@@ -506,7 +507,7 @@ export function ChallengeTeammateSheet({
               <Text style={sheet.secondaryBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[sheet.primaryBtn, (!valid || sending) && sheet.primaryBtnOff]} onPress={send} disabled={!valid || sending}>
-              <Text style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send challenge'}</Text>
+              <BusyText busy={!!(sending)} style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send challenge'}</BusyText>
             </TouchableOpacity>
           </View>
         </View>
@@ -606,7 +607,7 @@ function ChallengeTeamSheet({
               <Text style={sheet.secondaryBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[sheet.primaryBtn, (!valid || sending) && sheet.primaryBtnOff]} onPress={send} disabled={!valid || sending}>
-              <Text style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send challenge'}</Text>
+              <BusyText busy={!!(sending)} style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send challenge'}</BusyText>
             </TouchableOpacity>
           </View>
         </View>

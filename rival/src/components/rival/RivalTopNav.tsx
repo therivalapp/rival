@@ -8,10 +8,12 @@ import { getLevel } from '../../lib/xp';
 import { getSeasonStartISO } from '../../lib/season';
 import { fetchInboxBadgeCount, onInboxChanged } from '../../lib/inbox';
 import { NotificationsMenu } from './NotificationsMenu';
+import { stravaSharingNeedsAnswer } from '../../lib/stravaSharing';
 import { getUnreadChats } from '../../lib/unreadChats';
 import { RivalColors, RivalType } from '../../constants/rivalTheme';
 import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 import { RivalIcon, RivalIconName } from './RivalIcon';
+import { goToTab, type TabRoute } from '../../lib/tabNav';
 
 // Shared persistent top navigation, matching the Stitch mockups. Drop it in at
 // the top of a screen (outside the ScrollView so it stays put) and pass the
@@ -79,8 +81,8 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      fetchInboxBadgeCount()
-        .then((n) => { if (!cancelled) setInboxCount(n); })
+      Promise.all([fetchInboxBadgeCount(), stravaSharingNeedsAnswer().catch(() => false)])
+        .then(([n, strava]) => { if (!cancelled) setInboxCount(n + (strava ? 1 : 0)); })
         .catch(() => {});
     };
     refresh();
@@ -246,7 +248,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           return (
             <TouchableOpacity
               key={l.key}
-              onPress={() => router.push(l.route as any)}
+              onPress={() => goToTab(l.route as TabRoute)}
               style={[styles.bottomNavItem, isActive && styles.bottomNavItemActive, navShrunk && styles.bottomNavItemShrunk]}
             >
               <View>
@@ -285,7 +287,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
     <View ref={barRef as any} style={[styles.bar, narrow && styles.barNarrow, insets.top > 0 && ({ marginTop: -insets.top, paddingTop: insets.top } as any)]}>
       <View style={[styles.row, narrow && styles.rowNarrow]}>
         <TouchableOpacity
-          onPress={() => router.push('/home')}
+          onPress={() => goToTab('/home')}
           style={narrow && centerSlot ? styles.logoWrapBalanced : undefined}
         >
           <Text style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</Text>
@@ -294,7 +296,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
         {!narrow && (
           <View style={[styles.links, Platform.OS === 'web' && (styles.linksCentered as any)]}>
             {LINKS.map((l) => (
-              <TouchableOpacity key={l.key} onPress={() => router.push(l.route as any)}>
+              <TouchableOpacity key={l.key} onPress={() => goToTab(l.route as TabRoute)}>
                 <Text style={[styles.link, active === l.key && styles.linkActive]}>{l.label}</Text>
               </TouchableOpacity>
             ))}

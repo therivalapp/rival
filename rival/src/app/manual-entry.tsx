@@ -16,6 +16,8 @@ import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, 
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 type Exercise = { name: string; sets?: number; reps?: number; weight?: number };
 
@@ -234,9 +236,9 @@ export default function ManualEntryScreen() {
     if (!editId) return;
     if (!(await confirmAction({ title: 'Delete this activity?', message: "This can't be undone.", confirmLabel: 'Delete', destructive: true }))) return;
     setDeleting(true);
-    const { error } = await supabase.from('activities').delete().eq('id', editId);
-    if (error) {
-      setGeneralError(`Delete failed: ${error.message}`);
+    const { error, count } = await supabase.from('activities').delete({ count: 'exact' }).eq('id', editId);
+    if (error || !count) {
+      setGeneralError(error ? `Delete failed: ${error.message}` : 'The activity could not be deleted. Try again.');
       setDeleting(false);
       return;
     }
@@ -408,13 +410,13 @@ export default function ManualEntryScreen() {
       }).catch(() => {});
 
       if (isEditMode) {
-        router.replace('/my-activities');
+        goToTab('/my-activities');
         return;
       }
       setSavedActivityId(activityId);
       setSavedHasPhoto(!!coverUrl);
       // With a photo, offer to AI-enhance before leaving; otherwise head to the feed.
-      if (!coverUrl) setTimeout(() => router.replace('/my-activities'), 900);
+      if (!coverUrl) setTimeout(() => goToTab('/my-activities'), 900);
     } catch (err) {
       console.error('Save failed:', err);
       setGeneralError('The activity could not be saved. Try again.');
@@ -545,6 +547,7 @@ export default function ManualEntryScreen() {
       )}
       {generalError && <Text style={styles.fieldError}>{generalError}</Text>}
       <RivalButton
+        busy={saving}
         label={saving ? 'Saving…' : isEditMode ? 'Save Changes' : 'Save activity'}
         onPress={saveSession}
         disabled={saving || !!savedActivityId}
@@ -552,7 +555,7 @@ export default function ManualEntryScreen() {
       />
       {isEditMode ? (
         <TouchableOpacity onPress={deleteActivity} disabled={saving || deleting}>
-          <Text style={styles.discard}>{deleting ? 'Deleting…' : 'Delete Activity'}</Text>
+          <BusyText busy={!!(deleting)} style={styles.discard}>{deleting ? 'Deleting…' : 'Delete Activity'}</BusyText>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={() => router.back()} disabled={saving}>
@@ -965,7 +968,7 @@ export default function ManualEntryScreen() {
       <View style={m.dangerZone}>
         {isEditMode ? (
           <TouchableOpacity onPress={deleteActivity} disabled={saving || deleting} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={m.dangerText}>{deleting ? 'Deleting…' : 'Delete this activity'}</Text>
+            <BusyText busy={!!(deleting)} style={m.dangerText}>{deleting ? 'Deleting…' : 'Delete this activity'}</BusyText>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={() => router.back()} disabled={saving} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -1004,7 +1007,7 @@ export default function ManualEntryScreen() {
         disabled={saving || !!savedActivityId}
         activeOpacity={0.85}
       >
-        <Text style={m.saveBtnText}>{saving ? 'Saving…' : isEditMode ? 'Save changes' : 'Log activity'}</Text>
+        <BusyText busy={!!(saving)} style={m.saveBtnText}>{saving ? 'Saving…' : isEditMode ? 'Save changes' : 'Log activity'}</BusyText>
       </TouchableOpacity>
       </View>
     </View>
@@ -1044,7 +1047,7 @@ export default function ManualEntryScreen() {
                   <RivalIcon name="ai" size={16} color={RivalColors.onAccentFill} />
                   <Text style={styles.enhanceBtnText}>Enhance photo with AI</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.replace('/my-activities')}>
+                <TouchableOpacity onPress={() => goToTab('/my-activities')}>
                   <Text style={styles.doneText}>Done</Text>
                 </TouchableOpacity>
               </View>

@@ -1,4 +1,4 @@
--- Private routes. 2026-09-26. WRITTEN, NOT RUN — needs Ricky's OK.
+-- Private routes. 2026-09-26. RUN 2026-09-26 on Ricky's OK: 304 routes moved, activities.route_polyline cleared.
 --
 -- The problem: a Strava route map (activities.route_polyline) can reveal where
 -- someone lives or trains. No screen shows another person's route today, but
@@ -13,7 +13,7 @@
 -- 3. Clear the old column (kept, not dropped, so nothing that still selects it
 --    breaks while the app and importers switch over).
 --
--- After it runs, three code changes go with it (prepared, not yet made):
+-- Code that went with it (done, functions deployed):
 --   - strava-webhook / strava-backfill / strava-full-import write the route to
 --     activity_routes instead of activities.route_polyline (redeploy all three).
 --   - ai-share.tsx reads the owner's route from activity_routes.

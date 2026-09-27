@@ -80,11 +80,13 @@ export const rm = StyleSheet.create({
 
 // Back arrow and a small caps page label. The page's real title — a session
 // or team name — is left to the content beneath, so the two never compete.
-export function RivalMobileHeader({ title, onBack, right }: { title: string; onBack: () => void; right?: ReactNode }) {
+// `serif` sets the title as the page's heading instead (serif italic, white),
+// for pages whose sections below use serif headings too, like Goals.
+export function RivalMobileHeader({ title, onBack, right, serif = false }: { title: string; onBack: () => void; right?: ReactNode; serif?: boolean }) {
   return (
     <View style={styles.header}>
       <RivalBackButton onPress={onBack} />
-      <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+      <Text style={serif ? styles.headerTitleSerif : styles.headerTitle} numberOfLines={1}>{title}</Text>
       {right ?? null}
     </View>
   );
@@ -118,6 +120,7 @@ export function RivalHairline({ style }: { style?: StyleProp<ViewStyle> }) {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  headerTitleSerif: { flex: 1, fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', color: '#fff' },
   headerTitle: { flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   rowText: { flex: 1, minWidth: 0, gap: 2 },

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDuration } from '../lib/format';
+import { goToTab } from '../lib/tabNav';
 
 const SHARE_STYLES = [
   { id: 'cinematic',      label: '🎬 Cinematic',      desc: 'Golden hour · glowing route · sports ad' },
@@ -146,11 +147,17 @@ export default function AiShareScreen() {
   }
 
   async function loadActivity() {
-    const { data } = await supabase
-      .from('activities')
-      .select('id, name, activity_type, distance_meters, duration_seconds, elevation_meters, effort_score, route_polyline, started_at, photo_url, exercises')
-      .eq('id', activityId).single();
-    if (data) setActivity(data as Activity);
+    // The route is private to its owner and lives in its own table
+    // (supabase/private_routes.sql); row-level security returns it only for
+    // the person's own activity.
+    const [{ data }, { data: routeRow }] = await Promise.all([
+      supabase
+        .from('activities')
+        .select('id, name, activity_type, distance_meters, duration_seconds, elevation_meters, effort_score, started_at, photo_url, exercises')
+        .eq('id', activityId).single(),
+      supabase.from('activity_routes').select('polyline').eq('activity_id', activityId).maybeSingle(),
+    ]);
+    if (data) setActivity({ ...(data as any), route_polyline: routeRow?.polyline ?? null } as Activity);
 
     // Pull the photos already attached to this activity (the activity's own photo_url
     // plus any images in activity_media) so they're pre-loaded — no re-upload needed.
@@ -1101,7 +1108,7 @@ export default function AiShareScreen() {
   function goBack() {
     // router.back() no-ops when there's no history (e.g. page refreshed on web).
     if (router.canGoBack()) router.back();
-    else router.replace('/my-activities');
+    else goToTab('/my-activities');
   }
 
   return (

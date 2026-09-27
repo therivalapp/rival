@@ -1,4 +1,5 @@
 import { defaultActivityName } from '../lib/activityName';
+import { fitPhoto } from '../lib/imageResize';
 import { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
@@ -13,6 +14,8 @@ import { RivalColors, RivalRadius, RivalButtonColors } from '../constants/rivalT
 import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm } from '../components/rival';
 import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB } from '../components/rival/MediaPicker';
 import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 type ExtractedWorkout = {
   workoutType: string;
@@ -682,12 +685,13 @@ export default function ScanWorkoutScreen() {
 
       for (let i = 0; i < extraMedia.length; i++) {
         const item = extraMedia[i];
+        const up = await fitPhoto({ blob: item.blob, mimeType: item.mimeType, ext: item.ext });
         const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const path = `${user.id}/${activityId}-${uniqueId}.${item.ext}`;
+        const path = `${user.id}/${activityId}-${uniqueId}.${up.ext}`;
 
         const { error: storageErr } = await supabase.storage
           .from('activity-photos')
-          .upload(path, item.blob, { contentType: item.mimeType, upsert: true });
+          .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
 
         if (storageErr) {
           console.error('Media upload failed:', storageErr.message);
@@ -724,7 +728,7 @@ export default function ScanWorkoutScreen() {
       }).catch(() => {});
       // If they added a photo, let them AI-enhance it before leaving; otherwise
       // head back to the feed automatically.
-      if (!firstPhotoUrl) setTimeout(() => router.replace('/my-activities'), 1200);
+      if (!firstPhotoUrl) setTimeout(() => goToTab('/my-activities'), 1200);
     } catch (err) {
       console.error('Save failed:', err);
       setGeneralError('Failed to save workout');
@@ -750,14 +754,14 @@ export default function ScanWorkoutScreen() {
         {wide ? (
           <>
             <View style={st.header}>
-              <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/my-activities'))} color={RivalColors.accentFill} />
+              <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} color={RivalColors.accentFill} />
             </View>
             <Text style={st.title}>{editActivityId ? 'Edit Activity' : 'Scan Workout'}</Text>
           </>
         ) : (
           <RivalMobileHeader
             title={editActivityId ? 'Edit activity' : 'Scan workout'}
-            onBack={() => (router.canGoBack() ? router.back() : router.replace('/my-activities'))}
+            onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))}
           />
         )}
         {loadingEdit && <Text style={st.subtitle}>Loading…</Text>}
@@ -774,7 +778,7 @@ export default function ScanWorkoutScreen() {
                   {!wide ? <RivalIcon name="ai" size={16} color={st.enhanceBtnText.color as string} /> : null}
                   <Text style={st.enhanceBtnText}>{em('✨ ')}Enhance photo with AI</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.replace('/my-activities')}>
+                <TouchableOpacity onPress={() => goToTab('/my-activities')}>
                   <Text style={st.enhanceDoneText}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -1233,7 +1237,7 @@ export default function ScanWorkoutScreen() {
                   <TouchableOpacity
                     style={st.changeBtn}
                     onPress={() => editActivityId
-                      ? router.replace('/my-activities')
+                      ? goToTab('/my-activities')
                       : (() => { setScanImages([]); setExtractedWorkout(null); setLiftTags({}); setTagPickerIndex(null); })()}
                     disabled={loading}
                   >
@@ -1244,9 +1248,9 @@ export default function ScanWorkoutScreen() {
                     onPress={saveWorkout}
                     disabled={loading}
                   >
-                    <Text style={st.saveBtnText}>
+                    <BusyText busy={loading} style={st.saveBtnText}>
                       {wide ? (loading ? '⏳ Saving…' : '✓ Save Workout') : (loading ? 'Saving…' : 'Save workout')}
-                    </Text>
+                    </BusyText>
                   </TouchableOpacity>
                 </View>
               </View>

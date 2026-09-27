@@ -9,6 +9,7 @@ import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../const
 import { displayToIsoDate, isoToDisplayDate } from '../lib/dateFormat';
 import { formatGoalTimeMask } from '../lib/format';
 import { Asset } from 'expo-asset';
+import { BusyText } from '../components/rival/BusyText';
 
 const MODAL_BG_SOURCE = require('../../assets/images/backgrounds/optimized/trail-sisters-finish-line.jpg');
 // Same RN-Web gap as RivalFixedBackground: Image's style/resizeMode can't
@@ -915,7 +916,7 @@ export default function CreateLeagueScreen() {
                 />
                 <TouchableOpacity style={styles.searchBarBtn} onPress={searchRegistrationLink} disabled={searchingLink}>
                   <RivalIcon name="search" size={16} color={RivalColors.onAccentFill} />
-                  <Text style={styles.searchBarBtnText}>{searchingLink ? 'Searching…' : 'Search'}</Text>
+                  <BusyText busy={!!(searchingLink)} style={styles.searchBarBtnText}>{searchingLink ? 'Searching…' : 'Search'}</BusyText>
                 </TouchableOpacity>
               </View>
               <View style={styles.searchStatusRow}>
@@ -1142,7 +1143,7 @@ export default function CreateLeagueScreen() {
                 onPress={saveAddRace}
                 disabled={!isAddRaceValid() || addingRace}
               >
-                <Text style={styles.createButtonText}>{addingRace ? 'Adding…' : 'Add Event'}</Text>
+                <BusyText busy={!!(addingRace)} style={styles.createButtonText}>{addingRace ? 'Adding…' : 'Add Event'}</BusyText>
               </TouchableOpacity>
             </View>
           </ScrollView>

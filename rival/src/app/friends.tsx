@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDisplayName, IdentityUser } from '../lib/identity';
 import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
+import { goToTab } from '../lib/tabNav';
 
 type UserResult = IdentityUser & {
   id: string;
@@ -172,7 +173,7 @@ export default function FriendsScreen() {
       <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
         <RivalTopNav active="today" />
         <ScrollView contentContainerStyle={[rm.content, ms.content]} keyboardShouldPersistTaps="handled">
-          <RivalMobileHeader title="Friends" onBack={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+          <RivalMobileHeader title="Friends" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
           <Text style={rm.hint}>The people you show up with.</Text>
 
           <View style={[rm.field, ms.search]}>
@@ -243,7 +244,7 @@ export default function FriendsScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
         <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} color={RivalColors.accentFill} />
         </View>
 
         <RivalPageHeader title="Friends" subtitle="The people you show up with." />

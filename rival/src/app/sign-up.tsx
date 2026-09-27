@@ -180,6 +180,7 @@ export default function SignUpScreen() {
             </View>
 
             <RivalButton
+              busy={loading}
               label={loading ? 'Creating account…' : 'Create account'}
               onPress={handleSignUp}
               disabled={loading}

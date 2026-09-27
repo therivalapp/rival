@@ -12,6 +12,8 @@ import { RivalTopNav, RivalPageHeader, RivalIcon, RivalBackButton, RivalDateFiel
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import type { RivalIconName } from '../components/rival';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 const RACE_TYPES = ['Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Other', 'Custom'];
 
@@ -529,7 +531,7 @@ export default function RacesScreen() {
                     style={[rm.primary, (!isFormValid() || saving) && rm.disabled]}
                     onPress={saveRace} disabled={!isFormValid() || saving} activeOpacity={0.85}
                   >
-                    <Text style={rm.primaryText}>{saving ? 'Saving…' : editingRace ? 'Save changes' : 'Add race'}</Text>
+                    <BusyText busy={!!(saving)} style={rm.primaryText}>{saving ? 'Saving…' : editingRace ? 'Save changes' : 'Add race'}</BusyText>
                   </TouchableOpacity>
                   <TouchableOpacity style={rm.ghost} onPress={closeModal} activeOpacity={0.85}>
                     <Text style={rm.ghostText}>Cancel</Text>
@@ -550,7 +552,7 @@ export default function RacesScreen() {
                     style={[styles.saveButton, (!isFormValid() || saving) && styles.saveButtonDisabled]}
                     onPress={saveRace} disabled={!isFormValid() || saving}
                   >
-                    <Text style={styles.saveButtonText}>{saving ? 'Saving…' : editingRace ? 'Save Changes' : 'Add Race'}</Text>
+                    <BusyText busy={!!(saving)} style={styles.saveButtonText}>{saving ? 'Saving…' : editingRace ? 'Save Changes' : 'Add Race'}</BusyText>
                   </TouchableOpacity>
                 </View>
               )}
@@ -655,7 +657,7 @@ export default function RacesScreen() {
                     style={[rm.primary, (!actualFinishInput.trim() || savingFinish) && rm.disabled]}
                     onPress={saveActualFinishTime} disabled={!actualFinishInput.trim() || savingFinish} activeOpacity={0.85}
                   >
-                    <Text style={rm.primaryText}>{savingFinish ? 'Saving…' : 'Save finish time'}</Text>
+                    <BusyText busy={!!(savingFinish)} style={rm.primaryText}>{savingFinish ? 'Saving…' : 'Save finish time'}</BusyText>
                   </TouchableOpacity>
                   <TouchableOpacity style={rm.ghost} onPress={() => { setFinishModalRace(null); setActualFinishInput(''); }} activeOpacity={0.85}>
                     <Text style={rm.ghostText}>Cancel</Text>
@@ -670,7 +672,7 @@ export default function RacesScreen() {
                     style={[styles.saveButton, (!actualFinishInput.trim() || savingFinish) && styles.saveButtonDisabled]}
                     onPress={saveActualFinishTime} disabled={!actualFinishInput.trim() || savingFinish}
                   >
-                    <Text style={styles.saveButtonText}>{savingFinish ? 'Saving…' : 'Save'}</Text>
+                    <BusyText busy={!!(savingFinish)} style={styles.saveButtonText}>{savingFinish ? 'Saving…' : 'Save'}</BusyText>
                   </TouchableOpacity>
                 </View>
               )}
@@ -698,7 +700,7 @@ export default function RacesScreen() {
       <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
         <RivalTopNav active="today" />
         <ScrollView contentContainerStyle={[rm.content, ms.content]}>
-          <RivalMobileHeader title="Races" onBack={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+          <RivalMobileHeader title="Races" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
           <View style={ms.actions}>
             <TouchableOpacity style={[rm.primary, { flex: 1 }]} onPress={() => setShowAdd(true)} activeOpacity={0.85}>
@@ -868,7 +870,7 @@ export default function RacesScreen() {
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} color={RivalColors.accentFill} />
         </View>
 
         <View style={styles.titleRow}>

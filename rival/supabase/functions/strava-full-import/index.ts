@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { saveActivityRoute } from '../_shared/activityRoute.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveCanonicalActivityId, linkNewActivitySource } from '../_shared/activityDedup.ts'
 import { calculateEffortScore, loadScoringConfig } from '../_shared/effortScore.ts'
@@ -179,7 +180,6 @@ serve(async (req) => {
         distance_meters: activity.distance,
         duration_seconds: activity.moving_time,
         elevation_meters: activity.total_elevation_gain,
-        route_polyline: activity.map?.summary_polyline || null,
         started_at: activity.start_date,
         effort_score: effortScore,
         raw_effort_score: effortScore,
@@ -201,6 +201,7 @@ serve(async (req) => {
 
         const { error } = await supabase.from('activities').update(fields).eq('id', canonicalId)
         if (error) return null
+        await saveActivityRoute(supabase, canonicalId, user.id, activity.map?.summary_polyline)
         return { seconds: activity.moving_time || 0, effort: effortScore }
       }
 
@@ -211,6 +212,7 @@ serve(async (req) => {
         .single()
       if (error || !inserted) return null
       await linkNewActivitySource(supabase, user.id, inserted.id, 'strava', providerActivityId, sourceProvenance)
+      await saveActivityRoute(supabase, inserted.id, user.id, activity.map?.summary_polyline)
       return { seconds: activity.moving_time || 0, effort: effortScore }
     }
 

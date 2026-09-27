@@ -64,7 +64,7 @@ export function onInboxChanged(listener: InboxListener): () => void {
   return () => { listeners.delete(listener); };
 }
 
-function inboxChanged() {
+export function inboxChanged() {
   badgeCache = null;
   listeners.forEach((l) => { try { l(); } catch { /* a bad listener must not break the action */ } });
 }

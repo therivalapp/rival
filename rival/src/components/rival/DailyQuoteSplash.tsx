@@ -18,9 +18,9 @@ import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/
 // tone" setting saving a choice that nothing read. It reads that setting again.
 
 const SEEN_KEY = 'rival_quote_date';
-const HOLD_MS = 5000;
+const HOLD_MS = 7000;
 const FADE_IN_MS = 500;
-const FADE_OUT_MS = 700;
+const FADE_OUT_MS = 2000;
 
 // Pages the quote must never cover: mid-way through signing in, resetting a
 // password, or finishing the Strava connection.
@@ -72,7 +72,7 @@ export function DailyQuoteSplash() {
     Animated.timing(opacity, {
       toValue: 0,
       duration: prefersReducedMotion() ? 0 : FADE_OUT_MS,
-      easing: Easing.out(Easing.quad),
+      easing: Easing.inOut(Easing.quad),
       useNativeDriver: Platform.OS !== 'web',
     }).start(() => setQuote(null));
   }

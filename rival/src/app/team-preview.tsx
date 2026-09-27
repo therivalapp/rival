@@ -7,6 +7,7 @@ import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav, RivalMobileHeader, 
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { formatTeamName } from '../lib/identity';
+import { BusyText } from '../components/rival/BusyText';
 
 // What a stranger sees before joining a public team.
 //
@@ -198,7 +199,7 @@ export default function TeamPreviewScreen() {
             onPress={requestToJoin}
             disabled={joining}
           >
-            <Text style={mob ? rm.primaryText : styles.primaryBtnText}>{joining ? 'Sending…' : 'Request to join'}</Text>
+            <BusyText busy={!!(joining)} style={mob ? rm.primaryText : styles.primaryBtnText}>{joining ? 'Sending…' : 'Request to join'}</BusyText>
           </TouchableOpacity>
         )}
 

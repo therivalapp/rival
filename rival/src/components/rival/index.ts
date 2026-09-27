@@ -23,3 +23,4 @@ export type { RivalIconName } from './RivalIcon';
 export { PlanSessionSheet } from './PlanSessionSheet';
 export { TrainingPartners } from './TrainingPartners';
 export { RivalMobileHeader, RivalRowLink, RivalHairline, RivalWarm, rm } from './RivalMobile';
+export { RouteMap } from './RouteMap';

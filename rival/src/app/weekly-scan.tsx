@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fitPhoto } from '../lib/imageResize';
 import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
@@ -11,6 +12,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { matchCanonicalLift } from '../lib/lifts';
+import { goToTab } from '../lib/tabNav';
 
 type DayImage = { uri: string; base64: string; mimeType: string };
 type DayState = {
@@ -336,12 +338,13 @@ export default function WeeklyScanScreen() {
         if (item.mediaType === 'photo' && photoCount >= MAX_PHOTOS) { setErrorMsg(`Up to ${MAX_PHOTOS} photos per workout`); continue; }
         if (item.mediaType === 'video' && videoCount >= MAX_VIDEOS) { setErrorMsg(`Up to ${MAX_VIDEOS} video per workout`); continue; }
 
+        const up = await fitPhoto({ blob: item.blob, mimeType: item.mimeType, ext: item.ext });
         const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const path = `${user.id}/${activityId}-${uniqueId}.${item.ext}`;
+        const path = `${user.id}/${activityId}-${uniqueId}.${up.ext}`;
 
         const { error: storageErr } = await supabase.storage
           .from('activity-photos')
-          .upload(path, item.blob, { contentType: item.mimeType, upsert: true });
+          .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
 
         if (storageErr) { setErrorMsg(`Upload failed: ${storageErr.message}`); continue; }
 
@@ -385,10 +388,10 @@ export default function WeeklyScanScreen() {
 
         {wide ? (
           <View style={st.header}>
-            <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/my-activities'))} color={RivalColors.accentFill} />
+            <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} color={RivalColors.accentFill} />
           </View>
         ) : (
-          <RivalMobileHeader title="Weekly scan" onBack={() => (router.canGoBack() ? router.back() : router.replace('/my-activities'))} />
+          <RivalMobileHeader title="Weekly scan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} />
         )}
 
         <Text style={st.title}>{wide ? 'Scan Your Week' : 'This week'}</Text>
@@ -545,7 +548,7 @@ export default function WeeklyScanScreen() {
             ))}
 
             {allDone && (
-              <TouchableOpacity style={st.doneBtn} onPress={() => router.replace('/my-activities')}>
+              <TouchableOpacity style={st.doneBtn} onPress={() => goToTab('/my-activities')}>
                 <Text style={st.doneBtnText}>View my Activities →</Text>
               </TouchableOpacity>
             )}

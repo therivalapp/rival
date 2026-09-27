@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { clearPendingInvite, readPendingInvite } from '../lib/pendingInvite';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { BusyText } from '../components/rival/BusyText';
 
 export default function JoinLeagueScreen() {
   const [code, setCode] = useState('');
@@ -101,7 +102,7 @@ export default function JoinLeagueScreen() {
               disabled={loading || code.trim().length < 4}
               activeOpacity={0.85}
             >
-              <Text style={rm.primaryText}>{loading ? 'Joining…' : 'Join team'}</Text>
+              <BusyText busy={!!(loading)} style={rm.primaryText}>{loading ? 'Joining…' : 'Join team'}</BusyText>
             </TouchableOpacity>
           </View>
 
@@ -157,9 +158,9 @@ export default function JoinLeagueScreen() {
           onPress={handleJoin}
           disabled={loading}
         >
-          <Text style={styles.joinButtonText}>
+          <BusyText busy={loading} style={styles.joinButtonText}>
             {loading ? 'Joining…' : 'Join Team'}
-          </Text>
+          </BusyText>
         </TouchableOpacity>
 
       </ScrollView>

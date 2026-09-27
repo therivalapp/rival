@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 const REMEMBER_KEY = 'rival_remembered_email';
@@ -159,11 +160,12 @@ export default function SignInScreen() {
                 <Text style={[styles.checkboxLabel, mob && ms.soft]}>Remember me</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setError(''); setResetSent(false); handleForgotPassword(); }} disabled={resetLoading}>
-                <Text style={styles.forgotLink}>{resetLoading ? 'Sending…' : 'Forgot password?'}</Text>
+                <BusyText busy={!!(resetLoading)} style={styles.forgotLink}>{resetLoading ? 'Sending…' : 'Forgot password?'}</BusyText>
               </TouchableOpacity>
             </View>
 
             <RivalButton
+              busy={loading}
               label={loading ? 'Signing in…' : 'Sign in'}
               onPress={handleSignIn}
               disabled={loading}

@@ -18,10 +18,10 @@ import { formatActivityDistance } from '../lib/units';
 // same goal-window activities query (no schema change needed). The Team
 // Challenge total/ring/pace still reflect the whole team regardless of filter
 // — the chips slice the leaderboard view, not the goal itself.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -42,6 +42,8 @@ import { WeeklyStandings } from '../components/rival/team/WeeklyStandings';
 import { EncourageSheet, loadEncouragedToday } from '../components/rival/team/EncourageSheet';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { matchCanonicalLift } from '../lib/lifts';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 // Matches chat.tsx's SESSION_GRACE_MS — a session stays "upcoming" for 12
 // hours past its start, since sessions carry no duration.
@@ -199,13 +201,14 @@ const chipActiveWeb = Platform.OS === 'web'
 
 function ChallengeRing({ pct, value, unit, size = 200, thickness = 14 }: { pct: number; value: number; unit: string; size?: number; thickness?: number }) {
   const clamped = Math.max(0, Math.min(1, pct));
+  const ringId = `ringGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`; // unique per ring on the page
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
         <Defs>
-          <LinearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <LinearGradient id={ringId} x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={RivalColors.accentFill} />
             <Stop offset="100%" stopColor={RivalColors.accentText} />
           </LinearGradient>
@@ -213,7 +216,7 @@ function ChallengeRing({ pct, value, unit, size = 200, thickness = 14 }: { pct: 
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
-          stroke="url(#ringGrad)" strokeWidth={thickness} fill="none"
+          stroke={`url(#${ringId})`} strokeWidth={thickness} fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - clamped)}
@@ -418,7 +421,7 @@ export default function TeamHub() {
     if (!ok) return;
     const { error } = await supabase.rpc('leave_league', { p_league_id: id });
     if (error) { notify("Couldn't leave the team", error.message); return; }
-    router.replace('/team-feed');
+    goToTab('/team-feed');
   }
 
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => load());
@@ -869,7 +872,7 @@ export default function TeamHub() {
             <View style={[styles.heroScrim, heroScrimWeb]} />
 
             <View style={styles.header}>
-              <RivalBackButton onPress={() => router.push('/team-feed')} color="#fff" style={styles.backBtn} />
+              <RivalBackButton onPress={() => goToTab('/team-feed')} color="#fff" style={styles.backBtn} />
               {isAdmin && (
                 <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push({ pathname: '/league-settings', params: { id } })}>
                   <RivalIcon name="settings" size={18} color="#fff" />
@@ -961,7 +964,7 @@ export default function TeamHub() {
                         onPress={postToBoard}
                         disabled={postingBoard || !boardBodyDraft.trim()}
                       >
-                        <Text style={styles.boardPostBtnText}>{postingBoard ? 'Posting…' : 'Post'}</Text>
+                        <BusyText busy={!!(postingBoard)} style={styles.boardPostBtnText}>{postingBoard ? 'Posting…' : 'Post'}</BusyText>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1478,7 +1481,7 @@ export default function TeamHub() {
                         <Text style={styles.noteActionText}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.noteActionBtn, styles.noteActionPrimary]} onPress={saveNoteEdit} disabled={savingNote}>
-                        <Text style={styles.noteActionPrimaryText}>{savingNote ? 'Saving…' : 'Save'}</Text>
+                        <BusyText busy={!!(savingNote)} style={styles.noteActionPrimaryText}>{savingNote ? 'Saving…' : 'Save'}</BusyText>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -1558,12 +1561,14 @@ function ActivityPostCard({
     if (!(await confirmAction({ title: 'Delete this activity?', message: "This can't be undone.", confirmLabel: 'Delete', destructive: true }))) return;
     setMenuOpen(false);
     setDeleting(true);
-    const { error } = await supabase.from('activities').delete().eq('id', a.id);
-    setDeleting(false);
-    if (error) {
-      if (Platform.OS === 'web') window.alert(`Delete failed: ${error.message}`);
+    const { error, count } = await supabase.from('activities').delete({ count: 'exact' }).eq('id', a.id);
+    if (error || !count) {
+      setDeleting(false);
+      if (Platform.OS === 'web') window.alert(error ? `Delete failed: ${error.message}` : 'The activity could not be deleted. Try again.');
       return;
     }
+    // Stays in the deleting state until the post is removed, so it never
+    // flickers back to normal first.
     onDeleted();
   }
 
@@ -1597,6 +1602,12 @@ function ActivityPostCard({
 
   return (
     <View style={styles.post}>
+      {deleting && (
+        <View style={styles.postDeleting} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={RivalColors.accentText} />
+          <Text style={styles.postDeletingText}>Deleting activity…</Text>
+        </View>
+      )}
       {Platform.OS === 'web' ? (
         <>
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
@@ -2009,6 +2020,12 @@ const styles = StyleSheet.create({
 
   caption: { fontSize: 12.5, color: RivalColors.onSurface, lineHeight: 18, paddingHorizontal: 2 },
 
+  postDeleting: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
+    alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderRadius: 16, backgroundColor: 'rgba(17,14,12,0.78)',
+  },
+  postDeletingText: { fontSize: 14, fontWeight: '700', color: RivalColors.accentText },
   noPhotoPanel: {
     position: 'relative', borderRadius: 14, overflow: 'hidden', padding: 20, alignItems: 'center', gap: 8,
     backgroundColor: '#2d241f',

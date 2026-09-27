@@ -11,8 +11,8 @@ const PAD = 26; // room around the picture for the leaves and stem ends
 const GAP = 5; // stem distance outside the picture's edge
 const RANGE: [number, number] = [22, 120]; // degrees round from the bottom
 const PAIRS = 9;
-const LEAF_LEN = 9.5;
-const LEAF_WID = 2.9;
+const LEAF_LEN = 7.8;
+const LEAF_WID = 2.35;
 const SPREAD = 28; // leaf angle off the stem
 const STEM = 1;
 const TAIL = 1.55; // how far the stems carry on past where they cross
@@ -81,6 +81,9 @@ function build(avatarSize: number) {
   return { size, stems, leaves, tips };
 }
 
+// Leaves drawn as gold outlines rather than solid shapes. false = filled.
+const OUTLINE_LEAVES = false;
+
 /** Sits centred behind a picture of `avatarSize`; place it inside the
  *  picture's own (position: relative) wrapper. */
 export function LaurelWreath({ avatarSize }: { avatarSize: number }) {
@@ -96,7 +99,7 @@ export function LaurelWreath({ avatarSize }: { avatarSize: number }) {
       style={[
         { position: 'absolute', left: -PAD, top: -PAD, overflow: 'visible' } as any,
         Platform.OS === 'web'
-          ? ({ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55)) drop-shadow(0 0 4px rgba(255,215,0,0.3))' } as any)
+          ? ({ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))' } as any)
           : null,
       ]}
     >
@@ -112,13 +115,22 @@ export function LaurelWreath({ avatarSize }: { avatarSize: number }) {
       ))}
       {leaves.map((l, i) => (
         <G key={`l${i}`} transform={`translate(${f1(l.x)} ${f1(l.y)}) rotate(${f1(l.angle)})`}>
-          <Path d={l.d} fill={fill} stroke={EDGE} strokeOpacity={0.55} strokeWidth={0.45} />
-          <Path d={l.vein} fill="none" stroke={EDGE} strokeOpacity={0.5} strokeWidth={0.5} />
+          {OUTLINE_LEAVES ? (
+            <>
+              <Path d={l.d} fill="none" stroke={fill} strokeWidth={0.9} strokeLinejoin="round" />
+              <Path d={l.vein} fill="none" stroke={fill} strokeOpacity={0.7} strokeWidth={0.5} />
+            </>
+          ) : (
+            <>
+              <Path d={l.d} fill={fill} stroke={EDGE} strokeOpacity={0.55} strokeWidth={0.45} />
+              <Path d={l.vein} fill="none" stroke={EDGE} strokeOpacity={0.5} strokeWidth={0.5} />
+            </>
+          )}
         </G>
       ))}
       {tips.map((t, i) => (
         <G key={`t${i}`} transform={`translate(${f1(t.x)} ${f1(t.y)}) rotate(${f1(t.angle)})`}>
-          <Path d={t.d} fill={fill} />
+          <Path d={t.d} fill={OUTLINE_LEAVES ? 'none' : fill} stroke={OUTLINE_LEAVES ? fill : undefined} strokeWidth={OUTLINE_LEAVES ? 0.9 : undefined} strokeLinejoin="round" />
         </G>
       ))}
     </Svg>

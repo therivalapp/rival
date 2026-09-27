@@ -6,6 +6,7 @@ import { displayToIsoDate, isoToDisplayDate } from '../../lib/dateFormat';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
+import { BusyText } from './BusyText';
 
 // Planning a meet-up, in one sheet, from anywhere.
 //
@@ -499,9 +500,9 @@ export function PlanSessionSheet({
             onPress={post}
             disabled={posting || !canPost}
           >
-            <Text style={styles.postBtnText}>
+            <BusyText busy={posting} style={styles.postBtnText}>
               {posting ? 'Saving…' : editing ? 'Save changes' : 'Post to team'}
-            </Text>
+            </BusyText>
           </TouchableOpacity>
 
           {/* Cancelling is destructive and permanent, so it sits apart from the
@@ -531,9 +532,9 @@ export function PlanSessionSheet({
                 onClose();
               }}
             >
-              <Text style={styles.cancelBtnText}>
+              <BusyText busy={deleting} style={styles.cancelBtnText}>
                 {deleting ? 'Cancelling…' : 'Cancel this activity'}
-              </Text>
+              </BusyText>
             </TouchableOpacity>
           )}
 

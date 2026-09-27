@@ -5,6 +5,8 @@ import { router } from 'expo-router';
 import { fetchInbox, isActionable, markRead, type InboxItem } from '../../lib/inbox';
 import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
+import { goToTab } from '../../lib/tabNav';
+import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../../lib/stravaSharing';
 
 // The bell's dropdown on phones: the latest few notifications at a glance,
 // with "See all" leading to the full Notifications page. Anything that needs
@@ -34,9 +36,9 @@ export function inboxTimeAgo(iso: string): string {
 
 // Where tapping an informational notification goes.
 export function goToInboxSubject(item: InboxItem) {
-  if (item.kind === 'reaction' || item.kind === 'comment') router.push('/team-feed');
+  if (item.kind === 'reaction' || item.kind === 'comment') goToTab('/team-feed');
   else if (item.kind === 'team_joined' || item.kind === 'join_request') router.push('/team-hub');
-  else if (item.kind === 'tag_accepted') router.push('/my-activities');
+  else if (item.kind === 'tag_accepted') goToTab('/my-activities');
 }
 
 const SHOWN = 6;
@@ -54,6 +56,8 @@ type Anchor = { left: number; top: number; width: number; height: number; barBot
 
 export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose: () => void }) {
   const [items, setItems] = useState<InboxItem[] | null>(null);
+  const [stravaPending, setStravaPending] = useState(false);
+  useEffect(() => { stravaSharingNeedsAnswer().then(setStravaPending, () => {}); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +88,7 @@ export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose
     else goToInboxSubject(item);
   };
 
-  const unread = (items ?? []).filter((i) => !i.read_at || isActionable(i)).length;
+  const unread = (items ?? []).filter((i) => !i.read_at || isActionable(i)).length + (stravaPending ? 1 : 0);
 
   const menu = (
     <View style={styles.layer}>
@@ -107,9 +111,22 @@ export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose
           {unread > 0 ? <Text style={styles.newCount}>{unread} new</Text> : null}
         </View>
 
+        {stravaPending && (
+          <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={() => { onClose(); STRAVA_SHARING_NOTICE.open(); }}>
+            <View style={styles.iconWrap}>
+              <RivalIcon name="groups" size={15} color={RivalColors.accentText} />
+            </View>
+            <View style={styles.text}>
+              <Text style={styles.rowTitle} numberOfLines={2}>{STRAVA_SHARING_NOTICE.title}</Text>
+              <Text style={styles.when}><Text style={styles.needsAnswer}>Needs a reply</Text></Text>
+            </View>
+            <View style={styles.dot} />
+          </TouchableOpacity>
+        )}
         {items === null ? (
           <Text style={styles.state}>Loading…</Text>
         ) : items.length === 0 ? (
+          stravaPending ? null :
           <View style={styles.empty}>
             <RivalIcon name="notificationsOutline" size={22} color={RivalColors.accentText} />
             <Text style={styles.state}>No notifications yet</Text>
@@ -120,7 +137,7 @@ export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.row, i > 0 && styles.rowDivider]}
+                style={[styles.row, (i > 0 || stravaPending) && styles.rowDivider]}
                 activeOpacity={0.7}
                 onPress={() => open(item)}
               >

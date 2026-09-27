@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, Image, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -12,13 +12,19 @@ const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-s
 
 export default function WelcomeScreen() {
   const mobile = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  // Signed-in people go straight to Home. The welcome page stays hidden until
+  // the session check finishes, so it never flashes up on the way through.
+  const [checked, setChecked] = useState(false);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace('/home');
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session) router.replace('/home');
+        else setChecked(true);
+      })
+      .catch(() => setChecked(true));
   }, []);
+
+  if (!checked) return <View style={styles.pending} />;
 
   return (
     <View style={styles.page}>
@@ -69,6 +75,7 @@ const styles = StyleSheet.create({
   page: {
     backgroundColor: RivalColors.surfaceLow,
   },
+  pending: { flex: 1, minHeight: '100%', backgroundColor: RivalColors.surfaceLow },
   // minHeight, not height: fills at least one screen but is free to grow, same as
   // any ordinary hero section on a real webpage.
   // 100dvh, not 100vh: on iOS 100vh is the LARGE viewport (741px of an 852px

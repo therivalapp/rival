@@ -8,6 +8,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { ACTIVITY_ICONS } from '../constants/activityIcons';
 import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, activityIconName } from '../components/rival';
+import { goToTab } from '../lib/tabNav';
 
 // Class-based types use sessions (1 session = 45 min) instead of free duration entry
 const SESSION_TYPES = new Set([
@@ -216,7 +217,7 @@ export default function PlanScreen() {
       <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
         <RivalTopNav active="today" />
         <ScrollView contentContainerStyle={[rm.content, ms.content]}>
-          <RivalMobileHeader title="Weekly plan" onBack={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+          <RivalMobileHeader title="Weekly plan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
           {/* The one hero moment: where the week stands, and where it could. */}
           <View style={rm.hero}>
@@ -420,7 +421,7 @@ export default function PlanScreen() {
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} color={RivalColors.accentFill} />
         </View>
 
         <RivalPageHeader title="Weekly Plan" subtitle="Projected team standing." />

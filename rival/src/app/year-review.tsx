@@ -12,6 +12,7 @@ import { fetchReactionsOn, impactTotals, type ImpactTotals } from '../lib/reacti
 import { inLocalYear, buildYearReview, activityDisplayName, formatMinutes, type YearReview } from '../lib/yearReview';
 import { RivalIcon, RivalTopNav, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName } from '../components/rival';
 import { RivalColors, RivalFontFamily, RivalSerifFamily, RANK_LEVEL_COLORS } from '../constants/rivalTheme';
+import { goToTab } from '../lib/tabNav';
 
 // Year in review: a person's whole year of training, reachable from the
 // January card on Home, the December countdown, and each year on Stats.
@@ -103,7 +104,7 @@ export default function YearReviewScreen() {
     <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
       <RivalTopNav active="today" />
       <ScrollView contentContainerStyle={[rm.content, s.content]}>
-        <RivalMobileHeader title="Year in review" onBack={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+        <RivalMobileHeader title="Year in review" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
         {error ? <Text style={rm.error}>{error}</Text> : null}
         {!review && !error ? <Text style={[rm.hint, { textAlign: 'center', marginTop: 40 }]}>Loading…</Text> : null}

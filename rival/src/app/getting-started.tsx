@@ -3,10 +3,11 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { connectStrava } from '../lib/strava';
 import { readPendingInvite } from '../lib/pendingInvite';
+import { loadStravaSharing, startStravaConnect } from '../lib/stravaSharing';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { RivalIcon, RivalMobileHeader, RivalRowLink, RivalWarm, rm, type RivalIconName } from '../components/rival';
+import { goToTab } from '../lib/tabNav';
 
 // How RIVAL works — the introduction a new person sees straight after
 // creating an account, and can come back to from Profile at any time.
@@ -56,12 +57,13 @@ export default function GettingStartedScreen() {
         supabase.from('users').select('display_name').eq('id', user.id).maybeSingle(),
       ]);
       setStrava(!!conn.data);
+      loadStravaSharing();
       setInTeam((teams.count ?? 0) > 0);
       setFirstName(((profile.data?.display_name as string | undefined) ?? '').split(' ')[0]);
     })();
   }, []);
 
-  const goHome = () => router.replace('/home');
+  const goHome = () => goToTab('/home');
   const back = () => (router.canGoBack() ? router.back() : goHome());
 
   return (
@@ -103,7 +105,7 @@ export default function GettingStartedScreen() {
             icon="refresh"
             title="Connect Strava"
             body="New activities sync automatically."
-            onPress={() => connectStrava()}
+            onPress={() => startStravaConnect()}
           />
         )}
         <RivalRowLink

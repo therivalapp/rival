@@ -10,6 +10,7 @@ import { formatDisplayName, formatTeamName } from '../lib/identity';
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BusyText } from '../components/rival/BusyText';
 
 type MembershipState = 'none' | 'pending' | 'active';
 
@@ -458,7 +459,7 @@ export default function DiscoverLeaguesScreen() {
                         onPress={() => join(team.id)}
                         disabled={joining === team.id}
                       >
-                        <Text style={[styles.joinBtnText, mob && ms.joinBtnText]}>{joining === team.id ? 'Sending…' : mob ? 'Request' : 'Request to join'}</Text>
+                        <BusyText busy={!!(joining === team.id)} style={[styles.joinBtnText, mob && ms.joinBtnText]}>{joining === team.id ? 'Sending…' : mob ? 'Request' : 'Request to join'}</BusyText>
                       </TouchableOpacity>
                     )}
                   </View>

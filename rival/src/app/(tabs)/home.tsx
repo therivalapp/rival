@@ -1,32 +1,33 @@
-import { getMyTeamRows } from '../lib/myTeams';
-import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation } from '../lib/units';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { getMyTeamRows } from '../../lib/myTeams';
+import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation } from '../../lib/units';
+import { useState, useCallback, useRef, useEffect, useId } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
-import Svg, { Defs, Line, LinearGradient, Polygon, Stop } from 'react-native-svg';
+import Svg, { Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { supabase, getAuthUser } from '../lib/supabase';
-import { connectStrava } from '../lib/strava';
-import { fetchAllActivities } from '../lib/fetchAllActivities';
-import { notify } from '../lib/notify';
-import { getMondayOfWeek, calculateStreak } from '../lib/streak';
-import { getCurrentSeasonYear, daysUntilSeasonEnd, getSeasonStartISO, deviceTimeZone } from '../lib/season';
-import { getLevel, xpProgressInLevel, LEVELS } from '../lib/xp';
-import { fetchReactionsOn, impactTotals } from '../lib/reactions';
-import { computeGoalProgress, goalUnit, GoalRow } from '../lib/goalProgress';
+import { supabase, getAuthUser } from '../../lib/supabase';
+import { loadStravaSharing, startStravaConnect } from '../../lib/stravaSharing';
+import { fetchAllActivities } from '../../lib/fetchAllActivities';
+import { notify } from '../../lib/notify';
+import { getMondayOfWeek, calculateStreak } from '../../lib/streak';
+import { getCurrentSeasonYear, daysUntilSeasonEnd, getSeasonStartISO, deviceTimeZone } from '../../lib/season';
+import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
+import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
+import { computeGoalProgress, goalActivityLabel, goalUnit, GoalRow } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
 // distances read as near-zero once rounded to km ("0.7km" is really "700m").
 // Distance goals always store/compute progress and target in km regardless
 // of activity (goalUnit() is unconditional), so the Focus card converts back
 // to metres at display time only, for these activity types only.
 const METERS_SPORTS = new Set(['Swim', 'Rowing']);
-import { formatTeamName, formatRaceName } from '../lib/identity';
-import { LaurelWreath } from '../components/rival/LaurelWreath';
-import { useSnapState } from '../lib/snapState';
-import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, type RivalIconName } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType, RivalFontFamily, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { formatTeamName, formatRaceName } from '../../lib/identity';
+import { LaurelWreath } from '../../components/rival/LaurelWreath';
+import { useSnapState } from '../../lib/snapState';
+import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, type RivalIconName } from '../../components/rival';
+import { RivalColors, RivalRadius, RivalType, RivalFontFamily, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { goToTab } from '../../lib/tabNav';
 
 type League = { id: string; name: string; invite_code: string; logo_url: string | null; recentCount?: number };
 type NextRace = { name: string; race_date: string } | null;
@@ -114,7 +115,7 @@ const PODIUM_RANK_STYLE = [
   {
     gradFrom: 'rgba(255,215,0,0.4)', gradTo: 'rgba(180,140,10,0.1)', glow: 'rgba(255,215,0,0.28)', glowRadius: 10,
     avatarGlow: 'rgba(255,215,0,0.25)', avatarGlowRadius: 7,
-    tint: '#FFD700', ptsColor: '#FFD700', ptsTint: 'rgba(255,215,0,0.7)', minH: 119, maxH: 161, avatarSize: 64, nameSize: 11, nameLetterSpacing: 1.5, ptsSize: 31, padTop: 29, padBottom: 20,
+    tint: '#FFD700', ptsColor: '#FFD700', ptsTint: 'rgba(255,215,0,0.7)', minH: 119, maxH: 161, avatarSize: 55, nameSize: 11, nameLetterSpacing: 1.5, ptsSize: 31, padTop: 29, padBottom: 20,
   },
   {
     gradFrom: 'rgba(150,130,110,0.32)', gradTo: 'rgba(60,50,45,0.08)', glow: 'rgba(180,150,120,0.18)', glowRadius: 7,
@@ -144,7 +145,15 @@ const PODIUM_LENS_CLIP =
 // anyone who has asked their device for reduced motion.
 const PODIUM_MOTION = Platform.OS === 'web' && typeof window !== 'undefined'
   && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-const RISE_DELAY_MS: Record<0 | 1 | 2, number> = { 0: 420, 1: 260, 2: 100 };
+// Slowed for more drama (Ricky, 2026-09-27): 760ms → 1140ms (+50%) → 2050ms (+80%).
+const SHOW_STRAVA_SHARING_CARD = false;
+const RISE_MS = 2050;
+const RISE_EASE: [number, number, number, number] = [0.2, 0.9, 0.25, 1];
+const RISE_DELAY_MS: Record<0 | 1 | 2, number> = { 0: 1135, 1: 700, 2: 270 };
+// A card swiped into view starts sooner: the wait before each pillar is
+// halved (the rise itself keeps its speed), so the podium arrives with the card.
+const riseDelay = (effRank: 0 | 1 | 2, quick = false) => Math.round(RISE_DELAY_MS[effRank] * (quick ? 0.5 : 1));
+
 
 // Sparkles that rise out of the top of the leader's pillar and fade — only
 // ever on first place. Fixed positions and timings (not random) so the effect
@@ -167,6 +176,43 @@ const SPARKS: { left: string; delay: number; dur: number; size: number; star: bo
 const SPARK_ORIGIN: 'top' | 'base' = 'top';
 // Below 1 slows the whole effect: longer rise, sparkles spaced further apart.
 const SPARK_SPEED = 0.6;
+// Off for now (Ricky, 2026-09-27); kept so they can be switched back on.
+const SHOW_PILLAR_SPARKS = false;
+
+// Stars that burst outward from behind the leader's picture, in every
+// direction but straight down, staggered so a few are always in flight.
+const AVATAR_BURST = [
+  { size: 9, dur: 2.4, delay: 0 }, { size: 6, dur: 2.0, delay: 1.1 }, { size: 8, dur: 2.6, delay: 0.5 },
+  { size: 10, dur: 2.2, delay: 1.7 }, { size: 7, dur: 2.5, delay: 0.3 }, { size: 9, dur: 2.1, delay: 1.4 },
+  { size: 6, dur: 2.7, delay: 0.8 }, { size: 7, dur: 2.3, delay: 2.0 }, { size: 6, dur: 2.4, delay: 1.2 },
+];
+
+function AvatarStarBurst({ avatarSize, run = true, quick = false }: { avatarSize: number; run?: boolean; quick?: boolean }) {
+  if (!PODIUM_MOTION) return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: avatarSize / 2, top: avatarSize / 2, width: 0, height: 0, zIndex: 0 }}>
+      {AVATAR_BURST.map((b, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute', left: -b.size / 2, top: -b.size / 2, width: b.size, height: b.size,
+            animationName: `rivalSparkBurst${i}`,
+            animationPlayState: run ? 'running' : 'paused',
+            animationDuration: `${b.dur}s`,
+            animationDelay: `${(3.6 - (RISE_DELAY_MS[0] - riseDelay(0, quick)) / 1000 + b.delay).toFixed(2)}s`,
+            animationIterationCount: 'infinite',
+            animationTimingFunction: 'ease-out',
+            animationFillMode: 'both',
+          } as any}
+        >
+          <Svg width={b.size} height={b.size} viewBox="0 0 10 10" style={{ filter: 'drop-shadow(0 0 2px rgba(255,215,0,0.9))' } as any}>
+            <Polygon points="5,0 6,4 10,5 6,6 5,10 4,6 0,5 4,4" fill="#FFF3C4" />
+          </Svg>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function PodiumSparkles({ slope, height }: { slope: [number, number]; height: number }) {
   if (!PODIUM_MOTION) return null;
@@ -195,7 +241,7 @@ function PodiumSparkles({ slope, height }: { slope: [number, number]; height: nu
             // Further to travel from the foot, so a little slower.
             animationDuration: `${((base ? sp.dur * 1.6 : sp.dur) / SPARK_SPEED).toFixed(2)}s`,
             // Held back until the pillar has risen and the avatar settled.
-            animationDelay: `${(1.6 + sp.delay / SPARK_SPEED).toFixed(2)}s`,
+            animationDelay: `${(3.4 + sp.delay / SPARK_SPEED).toFixed(2)}s`,
             animationIterationCount: 'infinite',
             animationTimingFunction: 'ease-out',
             animationFillMode: 'both',
@@ -215,24 +261,319 @@ function PodiumSparkles({ slope, height }: { slope: [number, number]; height: nu
   );
 }
 
-function podiumRise(effRank: 0 | 1 | 2): any {
+// CSS cubic-bezier timing, so the count-up follows the pillar's own easing.
+function cubicBezier([x1, y1, x2, y2]: [number, number, number, number]) {
+  const bx = (t: number) => 3 * (1 - t) * (1 - t) * t * x1 + 3 * (1 - t) * t * t * x2 + t * t * t;
+  const by = (t: number) => 3 * (1 - t) * (1 - t) * t * y1 + 3 * (1 - t) * t * t * y2 + t * t * t;
+  return (x: number) => {
+    let lo = 0, hi = 1, t = x;
+    for (let i = 0; i < 24; i++) { t = (lo + hi) / 2; if (bx(t) < x) lo = t; else hi = t; }
+    return by(t);
+  };
+}
+const riseEase = cubicBezier(RISE_EASE);
+
+/** The pillar's Effort, counting up from 0 as the pillar rises and landing on
+ *  the full number as the pillar reaches full height. Counts once per mount;
+ *  later changes (a refresh) show the new number straight away. */
+function PodiumCount({ value, effRank, run, quick = false }: { value: number; effRank: 0 | 1 | 2; run: boolean; quick?: boolean }) {
+  const [shown, setShown] = useState(PODIUM_MOTION ? 0 : value);
+  // Timed from the moment the podium's motion is released (run), the same
+  // moment the pillar's CSS rise un-pauses.
+  const startedAt = useRef<number | null>(null);
+  const done = useRef(!PODIUM_MOTION);
+  useEffect(() => {
+    if (done.current) { setShown(value); return; }
+    if (!run) return;
+    if (startedAt.current === null) startedAt.current = performance.now();
+    const start = startedAt.current + riseDelay(effRank, quick);
+    let raf = 0;
+    const tick = () => {
+      const p = Math.min(1, Math.max(0, (performance.now() - start) / RISE_MS));
+      setShown(Math.round(value * riseEase(p)));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else done.current = true;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, effRank, run, quick]);
+  return <>{shown}</>;
+}
+
+// The stage the pillars hover over. Web: an oval platform seen slightly from
+// above, its back edge behind the pillars and its bright rim in front, so the
+// shadows and reflections land on its surface. Set false to go back to the
+// plain stage line (kept, Ricky 2026-09-27). Native keeps the line.
+const USE_PODIUM_PLATFORM = true;
+// Bottom step first. out/down: how much wider and lower than the top step.
+// Three steps, bottom first. In the platform's own drawing space: x is a
+// percentage of its width, y is pixels. cy = where the step's top sits below
+// the top step's; rx/ry = its oval's half-width (%) and half-depth (px).
+// Each step is one riser lower and a little bigger, so its tread shows in
+// front of the step above.
+const PLATFORM_RISER = 10;
+// Steps tried and dropped (Ricky, 2026-09-27): one platform only. More
+// entries here (bottom first, e.g. { cy: 8, rx: 45.5, ry: 25, rim: 0.7 })
+// would stack steps below it.
+const PLATFORM_STEPS = [
+  { cy: 0, rx: 48.5, ry: 18, rim: 1 },
+];
+const PLATFORM_TOP_Y = 20; // the top step's centre, from the top of the drawing
+const PLATFORM_VIEW_H = PLATFORM_TOP_Y + 18 + PLATFORM_RISER + 4;
+
+type PlatformTheme = { rgb: string; rim: number; glow: number; surface: string; tint: number; riser?: [string, string] };
+const PLATFORM_THEMES: Record<string, PlatformTheme> = {
+  silver: { rgb: '255,255,255', rim: 0.8, glow: 0.45, surface: 'rgba(17,14,12,0.55)', tint: 0.17 },
+  bronze: { rgb: '205,150,100', rim: 0.95, glow: 0.5, surface: 'rgba(24,16,11,0.7)', tint: 0.2 },
+  obsidian: { rgb: '226,190,120', rim: 0.95, glow: 0.35, surface: '#0b0907', tint: 0.1 },
+  white: { rgb: '255,255,255', rim: 1, glow: 0.4, surface: '#d8d3cd', tint: 0.55, riser: ['#b3ada6', '#77726c'] },
+  smoke: { rgb: '190,160,142', rim: 0.8, glow: 0.35, surface: 'rgba(32,24,20,0.7)', tint: 0.2 },
+};
+const PLATFORM_THEME: PlatformTheme = PLATFORM_THEMES.white; // obsidian chosen, then white (2026-09-27)
+
+// What sits under the pillars. 'none' (Ricky, 2026-09-27, after trying the
+// platform in several colours): just the shadows and reflections. 'line' is
+// the original stage line; 'platform' the oval stage (web).
+// 'disc' = the first silver platform (brought back by Ricky, 2026-09-27).
+// 'workbench' = settings Ricky built in the platform workbench (2026-09-27).
+const PODIUM_STAGE = 'workbench' as 'none' | 'line' | 'platform' | 'disc' | 'workbench';
+
+// The platform, exactly as set in the workbench (Copy settings, 2026-09-27).
+// Drawn like the workbench: x in % of the pillar row, y in px; the top's
+// centre sits `centre` px below the pillar bases.
+const WB_PLATFORM = {
+  width: 115, depth: 60, centre: 2, thickness: 10,
+  rim: '#ffffff', surface: '#1c1815', riserTop: '#2a2622', riserBottom: '#0f0d0b',
+  surfaceOpacity: 0, tint: 0.12, tintY: 20, feather: 0.7,
+  riserOpacity: 0.65, riserFade: 0.7,
+  rimOpacity: 1, rimWidth: 1.1, rimGlow: 0, rimGlowSize: 4, rimFade: 0.6,
+  backEdge: 0.22, footEdge: 0.18,
+};
+// Soft shadows under hovering pillars — for the floor/platform looks; off with the line.
+const SHOW_PILLAR_SHADOWS = PODIUM_STAGE === 'disc' || PODIUM_STAGE === 'platform' || PODIUM_STAGE === 'workbench';
+// Where the reflections start below each pillar, and how far they run.
+const REFLECTION_GAP = PODIUM_STAGE === 'line' ? 13 : 12;
+
+// Where the workbench platform's front rim sits under a given pillar, as a
+// clip-path for that pillar's reflection (starting REFLECTION_GAP px below the
+// pillar). The rim is an oval, so it's highest under the outer pillars.
+// Pillars are 82px wide with 12px gaps (mPodiumColumnSparse / mPodiumGridSparse),
+// and the platform is sized to that row.
+function reflectionClip(position: number, count: number): string {
+  const p = WB_PLATFORM;
+  const rowW = count * 82 + (count - 1) * 12;
+  const pillarW = 82 / rowW, gapW = 12 / rowW;
+  const left = position * (pillarW + gapW);
+  const rx = p.width / 200, ry = p.depth / 2;
+  const pts: string[] = ['0% 0%', '100% 0%'];
+  for (let i = 10; i >= 0; i--) {
+    const x = left + (pillarW * i) / 10; // across the row, 0..1
+    const u = Math.min(1, Math.abs(x - 0.5) / rx);
+    const rimY = p.centre + ry * Math.sqrt(1 - u * u); // px below the pillar base
+    const y = Math.max(0, rimY - REFLECTION_GAP - 2);
+    pts.push(`${i * 10}% ${y.toFixed(1)}px`);
+  }
+  return `polygon(${pts.join(', ')})`;
+}
+
+function WorkbenchPlatform() {
+  const p = WB_PLATFORM;
+  const H = 200, TOP = 60; // drawing box, and the top's centre within it (as in the workbench)
+  const rx = p.width / 2, ry = p.depth / 2, cy = TOP, R = p.thickness;
+  const l = 50 - rx, r = 50 + rx;
+  const front = `M${l},${cy} A${rx},${ry} 0 0 0 ${r},${cy}`;
+  const back = `M${l},${cy} A${rx},${ry} 0 0 1 ${r},${cy}`;
+  const foot = `M${l},${cy + R} A${rx},${ry} 0 0 0 ${r},${cy + R}`;
+  const f = p.rimFade;
+  return (
+    // Sized to the pillar row itself, as the workbench is (the row's own box
+    // is exactly the pillars' width), so its percentages match.
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: -(H - TOP) - p.centre, height: H }}>
+      <Svg width="100%" height="100%" viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" style={{ overflow: 'visible' } as any}>
+        <Defs>
+          <RadialGradient id="wbTread" cx="50%" cy={`${p.tintY}%`} r="60%">
+            <Stop offset="0" stopColor={p.rim} stopOpacity={p.tint} />
+            <Stop offset="0.55" stopColor={p.rim} stopOpacity={p.tint / 2} />
+            <Stop offset="1" stopColor={p.rim} stopOpacity={p.tint / 5} />
+          </RadialGradient>
+          <RadialGradient id="wbBase" cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor={p.surface} stopOpacity={p.surfaceOpacity} />
+            <Stop offset={1 - p.feather * 0.6} stopColor={p.surface} stopOpacity={p.surfaceOpacity} />
+            <Stop offset="1" stopColor={p.surface} stopOpacity={p.surfaceOpacity * (1 - p.feather)} />
+          </RadialGradient>
+          <LinearGradient id="wbRiser" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={p.riserTop} stopOpacity={p.riserOpacity} />
+            <Stop offset="1" stopColor={p.riserBottom} stopOpacity={p.riserOpacity * (1 - p.riserFade)} />
+          </LinearGradient>
+          <LinearGradient id="wbRim" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={p.rim} stopOpacity={1 - f} />
+            <Stop offset="0.25" stopColor={p.rim} stopOpacity={1 - f * 0.35} />
+            <Stop offset="0.5" stopColor={p.rim} stopOpacity={1} />
+            <Stop offset="0.75" stopColor={p.rim} stopOpacity={1 - f * 0.35} />
+            <Stop offset="1" stopColor={p.rim} stopOpacity={1 - f} />
+          </LinearGradient>
+        </Defs>
+        {R > 0 && <Path d={`${front} L${r},${cy + R} A${rx},${ry} 0 0 1 ${l},${cy + R} Z`} fill="url(#wbRiser)" />}
+        {R > 0 && p.footEdge > 0 && <Path d={foot} fill="none" stroke={p.rim} strokeOpacity={p.footEdge} strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+        <Ellipse cx={50} cy={cy} rx={rx} ry={ry} fill="url(#wbBase)" />
+        <Ellipse cx={50} cy={cy} rx={rx} ry={ry} fill="url(#wbTread)" />
+        {p.backEdge > 0 && <Path d={back} fill="none" stroke={p.rim} strokeOpacity={p.backEdge} strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+        {p.rimGlow > 0 && <Path d={front} fill="none" stroke="url(#wbRim)" strokeOpacity={p.rimGlow * p.rimOpacity} strokeWidth={p.rimGlowSize} vectorEffect="non-scaling-stroke" />}
+        {p.rimWidth > 0 && <Path d={front} fill="none" stroke="url(#wbRim)" strokeOpacity={p.rimOpacity} strokeWidth={p.rimWidth} vectorEffect="non-scaling-stroke" />}
+      </Svg>
+    </View>
+  );
+}
+
+function PodiumStage({ inset }: { inset?: any }) {
+  if (PODIUM_STAGE === 'none') return null;
+  if (PODIUM_STAGE === 'workbench' && Platform.OS === 'web') return <WorkbenchPlatform />;
+  if (PODIUM_STAGE === 'disc' && Platform.OS === 'web') {
+    return (
+      <View pointerEvents="none" style={[styles.mDisc, inset && { left: inset.left, right: undefined, width: inset.width + 12, marginLeft: inset.marginLeft - 6 }]}>
+        <View style={styles.mDiscSlab} />
+        <View style={styles.mDiscTop} />
+        <View style={styles.mDiscRim} />
+      </View>
+    );
+  }
+  if (Platform.OS !== 'web' || !USE_PODIUM_PLATFORM || PODIUM_STAGE === 'line') {
+    return <View style={[styles.mPodiumStageLine, inset]} pointerEvents="none" />;
+  }
+  const t = PLATFORM_THEME;
+  const H = PLATFORM_VIEW_H;
+  return (
+    <View pointerEvents="none" style={[styles.mPlatform, inset && { left: inset.left, right: undefined, width: inset.width + 8, marginLeft: inset.marginLeft - 4 }]}>
+      <Svg width="100%" height="100%" viewBox={`0 0 100 ${H}`} preserveAspectRatio="none">
+        <Defs>
+          <RadialGradient id="platformTread" cx="50%" cy="60%" rx="55%" ry="60%">
+            <Stop offset="0" stopColor={`rgb(${t.rgb})`} stopOpacity={t.tint} />
+            <Stop offset="0.55" stopColor={`rgb(${t.rgb})`} stopOpacity={t.tint / 2} />
+            <Stop offset="1" stopColor={`rgb(${t.rgb})`} stopOpacity={t.tint / 5} />
+          </RadialGradient>
+          {/* The front face fades out at its foot, so the slab has no hard bottom line. */}
+          <LinearGradient id="platformRiser" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={`rgb(${t.rgb})`} stopOpacity={0.28} />
+            <Stop offset="1" stopColor={`rgb(${t.rgb})`} stopOpacity={0.06} />
+          </LinearGradient>
+          <LinearGradient id="platformRiserBase" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={t.riser?.[0] ?? '#0d0a08'} stopOpacity={1} />
+            <Stop offset="1" stopColor={t.riser?.[1] ?? '#050403'} stopOpacity={1} />
+          </LinearGradient>
+          {/* The edge light is brightest at the front and fades away round the sides. */}
+          <LinearGradient id="platformRim" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor={`rgb(${t.rgb})`} stopOpacity={t.rim * 0.4} />
+            <Stop offset="0.25" stopColor={`rgb(${t.rgb})`} stopOpacity={t.rim * 0.85} />
+            <Stop offset="0.5" stopColor={`rgb(${t.rgb})`} stopOpacity={t.rim} />
+            <Stop offset="0.75" stopColor={`rgb(${t.rgb})`} stopOpacity={t.rim * 0.85} />
+            <Stop offset="1" stopColor={`rgb(${t.rgb})`} stopOpacity={t.rim * 0.4} />
+          </LinearGradient>
+        </Defs>
+        {/* Bottom step first; each step above covers the back of the one below. */}
+        {PLATFORM_STEPS.map((st, i) => {
+          const cy = PLATFORM_TOP_Y + st.cy;
+          const l = 50 - st.rx, r = 50 + st.rx;
+          const front = `M${l},${cy} A${st.rx},${st.ry} 0 0 0 ${r},${cy}`;
+          const riser = `${front} L${r},${cy + PLATFORM_RISER} A${st.rx},${st.ry} 0 0 1 ${l},${cy + PLATFORM_RISER} Z`;
+          return (
+            <G key={i}>
+              {/* The riser: the step's solid front face. */}
+              <Path d={riser} fill="url(#platformRiserBase)" />
+              <Path d={riser} fill="url(#platformRiser)" />
+              {/* The tread: the step's flat, lit top. */}
+              <Ellipse cx={50} cy={cy} rx={st.rx} ry={st.ry} fill={t.surface} />
+              <Ellipse cx={50} cy={cy} rx={st.rx} ry={st.ry} fill="url(#platformTread)" />
+              {/* The lit front edge where tread meets riser: a soft wide glow
+                  under a fine line, both fading out towards the sides. */}
+              {/* The far edge: a faint line so the top reads as a solid disc. */}
+              <Path d={`M${l},${cy} A${st.rx},${st.ry} 0 0 1 ${r},${cy}`} fill="none" stroke={`rgb(${t.rgb})`} strokeOpacity={0.22} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+              <Path d={front} fill="none" stroke="url(#platformRim)" strokeOpacity={0.3 * st.rim} strokeWidth={4} vectorEffect="non-scaling-stroke" />
+              <Path d={front} fill="none" stroke="url(#platformRim)" strokeOpacity={st.rim} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+              {/* The foot of the riser: a crisp dark edge. */}
+              <Path d={`M${l},${cy + PLATFORM_RISER} A${st.rx},${st.ry} 0 0 0 ${r},${cy + PLATFORM_RISER}`} fill="none" stroke={`rgb(${t.rgb})`} strokeOpacity={0.18} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+            </G>
+          );
+        })}
+      </Svg>
+    </View>
+  );
+}
+
+// The podium's motion waits until the page has finished its first burst of
+// work (loading and laying out Home). Started straight away, the rise ran
+// while the phone was busy: frames were dropped, then the pillars jumped to
+// full height once it caught up. Until then every animation is held on its
+// first frame (paused with fill-mode 'both'), so nothing shows early.
+// `visible` holds it further, for a team's card that hasn't been swiped to
+// yet: every card mounts at once, so without it the off-screen podiums rose
+// unseen and were already standing when you reached them.
+// `immediate` skips the wait for idle: a card swiped into view starts on the
+// next frame. Waiting for idle there held the rise for seconds, because a
+// phone is rarely idle while a swipe is still settling.
+function usePodiumGo(visible = true, immediate = false): boolean {
+  const [go, setGo] = useState(!PODIUM_MOTION);
+  useEffect(() => {
+    if (go || !visible) return;
+    let raf = 0, idle: any = 0, timer: any = 0, done = false;
+    const start = () => {
+      if (done) return;
+      done = true;
+      // Two frames after idle, so the held first frame has actually painted.
+      raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => setGo(true)); });
+    };
+    const w = window as any;
+    if (immediate) start();
+    else if (w.requestIdleCallback) idle = w.requestIdleCallback(start, { timeout: 900 });
+    else timer = setTimeout(start, 150);
+    return () => {
+      done = true;
+      cancelAnimationFrame(raf);
+      if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle);
+      clearTimeout(timer);
+    };
+  }, [go, visible, immediate]);
+  return go;
+}
+
+const playState = (run: boolean) => ({ animationPlayState: run ? 'running' : 'paused' });
+
+function podiumRise(effRank: 0 | 1 | 2, run = true, quick = false): any {
   if (!PODIUM_MOTION) return null;
   return {
+    ...playState(run),
+    // Its own GPU layer: the rise is then drawn by the compositor and keeps
+    // going smoothly even if the page is busy.
+    willChange: 'transform, opacity',
     animationName: 'rivalPodiumRise',
-    animationDuration: '760ms',
-    animationDelay: `${RISE_DELAY_MS[effRank]}ms`,
-    animationTimingFunction: 'cubic-bezier(0.2, 0.9, 0.25, 1)',
+    animationDuration: `${RISE_MS}ms`,
+    animationDelay: `${riseDelay(effRank, quick)}ms`,
+    animationTimingFunction: `cubic-bezier(${RISE_EASE.join(', ')})`,
     animationFillMode: 'both',
     transformOrigin: 'bottom',
   };
 }
 
-function podiumSettle(effRank: 0 | 1 | 2): any {
+function podiumStageIn(run: boolean, quick = false): any {
   if (!PODIUM_MOTION) return null;
   return {
+    ...playState(run),
+    animationName: 'rivalPodiumStageIn',
+    animationDuration: '900ms',
+    // Starts with the first pillar (third place rises first).
+    animationDelay: `${riseDelay(2, quick)}ms`,
+    animationTimingFunction: 'ease-out',
+    animationFillMode: 'both',
+  };
+}
+
+function podiumSettle(effRank: 0 | 1 | 2, run = true, quick = false): any {
+  if (!PODIUM_MOTION) return null;
+  return {
+    ...playState(run),
+    willChange: 'transform, opacity',
     animationName: 'rivalPodiumSettle',
     animationDuration: '520ms',
-    animationDelay: `${RISE_DELAY_MS[effRank] + 520}ms`,
+    animationDelay: `${riseDelay(effRank, quick) + Math.round(RISE_MS * 0.68)}ms`,
     animationTimingFunction: 'cubic-bezier(0.3, 1.4, 0.5, 1)',
     animationFillMode: 'both',
   };
@@ -240,12 +581,13 @@ function podiumSettle(effRank: 0 | 1 | 2): any {
 
 // The band of light: runs across in the first quarter of a 7s loop, then
 // rests, so it reads as light catching the pillar rather than a loading bar.
-function podiumSheen(effRank: 0 | 1 | 2): any {
+function podiumSheen(effRank: 0 | 1 | 2, run = true): any {
   if (!PODIUM_MOTION) return null;
   return {
+    ...playState(run),
     animationName: 'rivalPodiumSheen',
     animationDuration: '7000ms',
-    animationDelay: `${1600 + effRank * 700}ms`,
+    animationDelay: `${3500 + effRank * 700}ms`,
     animationIterationCount: 'infinite',
     animationTimingFunction: 'ease-in-out',
     animationFillMode: 'both',
@@ -259,6 +601,9 @@ const LEADER_HALO: any = PODIUM_MOTION ? {
   animationIterationCount: 'infinite',
   animationTimingFunction: 'ease-in-out',
 } : null;
+
+// Off for now (Ricky, 2026-09-27); kept so it can be switched back on.
+const SHOW_LEADER_HALO = false;
 
 // '#rrggbb' → 'rgba(r,g,b,a)'.
 function hexAlpha(hex: string, a: number): string {
@@ -291,6 +636,8 @@ function avatarRing(tint: string): any {
 // side, drawn in the pillar's 0–100 wide viewBox. DEPTH is in pixels (the y
 // axis is 1:1), SIDE in viewBox x-units (~11px on an 82px pillar).
 const PILLAR_DEPTH = 8;
+// How far across the slanted top the name's outer edge reaches (0 = centre, 1 = far corner).
+const SLANT_TEXT_FRACTION = 0.75;
 const PILLAR_SIDE = 14;
 function pillarFaces(slope: [number, number], h: number) {
   const [tl, tr] = slope;
@@ -398,8 +745,8 @@ function shownGoal(type: 'distance' | 'elevation' | 'gym_sessions', v: number): 
 }
 
 function featuredGoalTitle(goal: { goal_type: 'distance' | 'elevation' | 'gym_sessions'; activity_filter: string | null; target_value: number }): string {
-  if (goal.goal_type === 'gym_sessions') return `Gym activities • ${goal.target_value}`;
-  const activity = goal.activity_filter ?? 'All Activities';
+  if (goal.goal_type === 'gym_sessions') return `${goalActivityLabel(goal)} • ${goal.target_value}`;
+  const activity = goalActivityLabel(goal);
   const shown = shownGoal(goal.goal_type, goal.target_value);
   return `${activity} • ${shown.value} ${shown.unit}`;
 }
@@ -604,7 +951,75 @@ function MHeading({ title, subtitle, icon }: { title?: string; subtitle?: string
   );
 }
 
-function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
+// The Focus ring fills and its number counts up, like the podium, once the
+// ring is on screen (it usually sits below the fold, where a rise on load
+// would finish unseen). Keyed per visit by its parent, so it replays each time.
+const FOCUS_RING_MS = 1600;
+function FocusRing(props: Omit<React.ComponentProps<typeof RivalChallengeRing>, 'animate'>) {
+  const ref = useRef<View>(null);
+  const [seen, setSeen] = useState(!PODIUM_MOTION);
+  useEffect(() => {
+    const el = ref.current as any;
+    if (seen) return;
+    if (Platform.OS !== 'web' || !el || typeof IntersectionObserver === 'undefined') { setSeen(true); return; }
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.intersectionRatio >= 0.4) { setSeen(true); io.disconnect(); }
+    }, { threshold: [0, 0.4] });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [seen]);
+  return (
+    <View ref={ref}>
+      <RivalChallengeRing {...props} animate={PODIUM_MOTION ? { run: seen, ms: FOCUS_RING_MS, ease: riseEase } : undefined} />
+    </View>
+  );
+}
+
+// One team's card in the swipeable row. It watches for itself coming into
+// view (a tenth of it on screen) and starts its podium rising then, so the
+// rise begins as the card slides in, and again on every return. Watching
+// here, not from Home's scroll handler, keeps the swipe from re-rendering all
+// of Home, which on a phone delayed the start by over a second.
+function LeaderCardSlot({ leader, first, width }: { leader: WeeklyLeader; first: boolean; width: number }) {
+  const ref = useRef<View>(null);
+  const [shown, setShown] = useState(first);
+  const [visits, setVisits] = useState(0);
+  useEffect(() => {
+    const el = ref.current as any;
+    if (Platform.OS !== 'web' || !el || typeof IntersectionObserver === 'undefined') { setShown(true); return; }
+    let was = first;
+    // Replays only after the card was swiped away sideways. Scrolling the page
+    // up and down past the podium leaves it as it is (Ricky, 2026-09-27).
+    let swipedAway = false;
+    const io = new IntersectionObserver(([entry]) => {
+      const now = entry.intersectionRatio >= 0.1;
+      if (!now && entry.rootBounds) {
+        const r = entry.boundingClientRect, root = entry.rootBounds;
+        const inRow = r.bottom > root.top && r.top < root.bottom;
+        if (inRow && (r.right <= root.left + r.width * 0.9 || r.left >= root.right - r.width * 0.9)) swipedAway = true;
+      }
+      if (now === was) return;
+      was = now;
+      if (!now) return;
+      setShown(true);
+      if (swipedAway) { swipedAway = false; setVisits((v) => v + 1); }
+    }, { threshold: [0, 0.1] });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [first]);
+  return (
+    <View ref={ref} style={{ width, alignItems: 'center' }}>
+      <WeeklyLeaderCardBody key={visits} leader={leader} visible={shown} immediate={!first || visits > 0} />
+    </View>
+  );
+}
+
+function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { leader: WeeklyLeader | null; visible?: boolean; immediate?: boolean }) {
+  // Gradient ids must be unique on the page: every team's card is mounted at
+  // once, and a shared id made a pillar pick up another card's (hidden) fill
+  // and render black.
+  const gid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const run = usePodiumGo(visible, immediate);
   return (
     <>
                 <View style={styles.mLeaderHead}>
@@ -620,7 +1035,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                         the medal over first place, instead of a lone icon. */}
                     <View style={styles.mGhostPodium}>
                       {[{ place: 2, h: 62 }, { place: 1, h: 92 }, { place: 3, h: 46 }].map(({ place, h }) => (
-                        <View key={place} style={[styles.mGhostPillar, { height: h }, place === 1 && styles.mGhostPillarFirst, podiumRise((place - 1) as 0 | 1 | 2)]}>
+                        <View key={place} style={[styles.mGhostPillar, { height: h }, place === 1 && styles.mGhostPillarFirst, podiumRise((place - 1) as 0 | 1 | 2, run, immediate)]}>
                           {place === 1 && (
                             <View style={[styles.medalRing, styles.mGhostMedal]}><RivalIcon name="medal" size={26} color="#ECC654" /></View>
                           )}
@@ -666,19 +1081,25 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                           would stay full bleed-width while the pillars sit centered and
                           narrower, drifting out of alignment on wide viewports. */}
                       <View style={{ position: 'relative', maxWidth: 360, alignSelf: 'center' }}>
+                        {/* Light on the floor: a soft white pool around the stage line,
+                            and a spill rising up the pillar bases behind them. */}
+                        {Platform.OS === 'web' && (PODIUM_STAGE === 'line' || PODIUM_STAGE === 'none') && <View style={[styles.mPodiumFloorGlow, podiumStageIn(run, immediate)]} pointerEvents="none" />}
+                        {/* The base light is drawn inside each pillar now (mPodiumPillarBaseLight), so it rises with it. */}
                         {(() => {
                           // The static left:20/right:20 inset is tuned for the full
                           // 3-column row. When sparse, the pillars are centered at a
                           // fixed width with empty flex space on either side, so that
                           // same inset stretched the line far past the actual pillar
                           // footprint. Size and center it to the real footprint instead.
-                          if (!sparse) return <View style={styles.mPodiumStageLine} pointerEvents="none" />;
+                          // The stage fades in with the pillars' rise, so it never sits
+                          // alone on the card while they wait to start.
+                          if (!sparse) return <View pointerEvents="none" style={[StyleSheet.absoluteFill, podiumStageIn(run, immediate)]}><PodiumStage /></View>;
                           const COLUMN_W = 82;
                           const GAP = 12;
                           const BLEED = 36;
                           const footprint = activeCount * COLUMN_W + Math.max(0, activeCount - 1) * GAP + BLEED * 2;
                           const sparseInset: any = { left: '50%', right: undefined, width: footprint, marginLeft: -footprint / 2 };
-                          return <View style={[styles.mPodiumStageLine, sparseInset]} pointerEvents="none" />;
+                          return <View pointerEvents="none" style={[StyleSheet.absoluteFill, podiumStageIn(run, immediate)]}><PodiumStage inset={sparseInset} /></View>;
                         })()}
                         <View style={[styles.mPodiumGrid, sparse && styles.mPodiumGridSparse]}>
                         {slots.map((slot, colIdx) => {
@@ -696,7 +1117,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                           const effRank = (isTiedForFirst ? 0 : Math.max(0, rank - rankShift)) as 0 | 1 | 2;
                           const rankStyle = PODIUM_RANK_STYLE[effRank];
                           const heightPct = Math.max(0.35, entry.points / maxPoints);
-                          const pillarHeight = Math.round(rankStyle.minH + (rankStyle.maxH - rankStyle.minH) * heightPct);
+                          const scaledHeight = Math.round(rankStyle.minH + (rankStyle.maxH - rankStyle.minH) * heightPct);
                           // Mockup floats the crown a fixed distance above the
                           // avatar (not in normal flow, doesn't push it down)
                           // — same ~0.44x-of-avatar-size ratio as the mockup's
@@ -719,7 +1140,17 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                             ? (colIdx === 0 ? [0, 0.15] : colIdx === 2 ? [0.15, 0] : SHARD_SLOPE[colIdx])
                             : SHARD_SLOPE[colIdx];
                           const [shardTl, shardTr] = shardSlope;
-                          const slantClearance = Math.ceil(Math.max(shardTl, shardTr) * pillarHeight) + PILLAR_DEPTH + 4;
+                          const slope = Math.max(shardTl, shardTr);
+                          // Name + points + "Effort", stacked.
+                          const contentH = Math.round(rankStyle.nameSize * 1.15) + Math.round(rankStyle.ptsSize * 1.15) + 12;
+                          // A pillar far behind the leader scales down past the point where
+                          // its text fits, and "Effort" fell out of the bottom. Never shorter
+                          // than the slanted top, the text and a small bottom margin need.
+                          const fitHeight = Math.ceil((PILLAR_DEPTH + 4 + contentH + 8) / (1 - SLANT_TEXT_FRACTION * slope));
+                          const pillarHeight = Math.max(scaledHeight, fitHeight);
+                          // The text is centred, so it only needs to clear the slant where
+                          // the name actually sits, not the full drop at the far corner.
+                          const slantClearance = Math.ceil(SLANT_TEXT_FRACTION * slope * pillarHeight) + PILLAR_DEPTH + 4;
                           const faces = pillarFaces(shardSlope, pillarHeight);
                           const effPadTop = Math.max(slantClearance, Math.min(rankStyle.padTop, pillarHeight - MIN_CONTENT_H - rankStyle.padBottom));
                           // Raising padTop to clear the slant can eat back into the room the
@@ -731,7 +1162,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                               {/* The leader's glow is its own layer beneath the picture's
                                   wrapper, not inside it: inside a filtered, animated
                                   wrapper Safari drew it over the photo. */}
-                              {effRank === 0 && Platform.OS === 'web' && (
+                              {effRank === 0 && SHOW_LEADER_HALO && Platform.OS === 'web' && (
                                 <View
                                   pointerEvents="none"
                                   style={[
@@ -750,11 +1181,14 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                               <View
                                 style={[
                                   // Above the pillar, so the leader's sparkles pass behind the picture.
-                                  { position: 'relative', zIndex: 2 },
-                                  Platform.OS === 'web' ? ({ filter: `drop-shadow(0 0 ${rankStyle.avatarGlowRadius}px ${rankStyle.avatarGlow})` } as any) : null,
-                                  podiumSettle(effRank),
+                                  // The leader's picture sits 3px higher than the others.
+                                  { position: 'relative', zIndex: 2, top: effRank === 0 ? -3 : 0 },
+                                  // No glow on the leader: it spread onto the laurel wreath.
+                                  Platform.OS === 'web' && effRank !== 0 ? ({ filter: `drop-shadow(0 0 ${rankStyle.avatarGlowRadius}px ${rankStyle.avatarGlow})` } as any) : null,
+                                  podiumSettle(effRank, run, immediate),
                                 ]}
                               >
+                                {effRank === 0 && Platform.OS === 'web' && <AvatarStarBurst avatarSize={rankStyle.avatarSize} run={run} quick={immediate} />}
                                 {effRank === 0 && <LaurelWreath avatarSize={rankStyle.avatarSize} />}
                                 <View
                                   style={[
@@ -795,25 +1229,25 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                                 style={[
                                   { width: '100%', height: pillarHeight, marginTop: 2 },
                                   Platform.OS === 'web' ? ({ filter: `drop-shadow(0 0 ${rankStyle.glowRadius}px ${rankStyle.glow})` } as any) : null,
-                                  podiumRise(effRank),
+                                  podiumRise(effRank, run, immediate),
                                 ]}
                               >
                                 <Svg width="100%" height="100%" viewBox={`0 0 100 ${pillarHeight}`} preserveAspectRatio="none" style={{ position: 'absolute' }}>
                                   <Defs>
-                                    <LinearGradient id={`podiumGrad${colIdx}`} x1="0" y1="0" x2="0" y2="1">
+                                    <LinearGradient id={`podiumGrad${gid}${colIdx}`} x1="0" y1="0" x2="0" y2="1">
                                       <Stop offset="0" stopColor={rankStyle.gradFrom} />
                                       <Stop offset="1" stopColor={rankStyle.gradTo} />
                                     </LinearGradient>
                                     {/* Side light: brighter on the left face, shaded on the
                                         right, so the pillar reads as a solid block, not a flat card. */}
-                                    <LinearGradient id={`podiumFacet${colIdx}`} x1="0" y1="0" x2="1" y2="0">
+                                    <LinearGradient id={`podiumFacet${gid}${colIdx}`} x1="0" y1="0" x2="1" y2="0">
                                       <Stop offset="0" stopColor="#ffffff" stopOpacity={0.14} />
                                       <Stop offset="0.45" stopColor="#ffffff" stopOpacity={0} />
                                       <Stop offset="1" stopColor="#000000" stopOpacity={0.28} />
                                     </LinearGradient>
                                   </Defs>
                                   {/* Side face: the pillar's colour, shaded. */}
-                                  <Polygon points={faces.side} fill={`url(#podiumGrad${colIdx})`} />
+                                  <Polygon points={faces.side} fill={`url(#podiumGrad${gid}${colIdx})`} />
                                   <Polygon
                                     points={faces.side}
                                     fill="#000000" fillOpacity={0.42}
@@ -831,7 +1265,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                                   {/* Front face. */}
                                   <Polygon
                                     points={faces.front}
-                                    fill={`url(#podiumGrad${colIdx})`}
+                                    fill={`url(#podiumGrad${gid}${colIdx})`}
                                     stroke={rankStyle.tint}
                                     strokeWidth={1.25}
                                     strokeOpacity={0.85}
@@ -841,7 +1275,7 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                                     // corners instead of a clean miter point.
                                     vectorEffect="non-scaling-stroke"
                                   />
-                                  <Polygon points={faces.front} fill={`url(#podiumFacet${colIdx})`} />
+                                  <Polygon points={faces.front} fill={`url(#podiumFacet${gid}${colIdx})`} />
                                   {/* The lit front edge, where the top face meets the front. */}
                                   <Line
                                     {...faces.frontEdge}
@@ -858,17 +1292,38 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
                                       { clipPath: faces.frontClip } as any,
                                     ]}
                                   >
-                                    <View style={[styles.mPodiumSheen, podiumSheen(effRank)]} />
+                                    <View style={[styles.mPodiumSheen, podiumSheen(effRank, run)]} />
                                   </View>
                                 )}
                                 <View style={{ flex: 1, alignItems: 'center', paddingTop: effPadTop, paddingBottom: effPadBottom, marginRight: `${PILLAR_SIDE}%` }}>
                                   <Text style={[styles.mPodiumName, { color: rankStyle.tint, fontSize: rankStyle.nameSize, lineHeight: Math.round(rankStyle.nameSize * 1.15), letterSpacing: rankStyle.nameLetterSpacing }]} numberOfLines={1}>
                                     {entry.name}
                                   </Text>
-                                  <Text style={[styles.mPodiumPoints, { fontSize: rankStyle.ptsSize, lineHeight: Math.round(rankStyle.ptsSize * 1.15), color: rankStyle.ptsColor }]}>{entry.points}</Text>
+                                  <Text style={[styles.mPodiumPoints, { fontSize: rankStyle.ptsSize, lineHeight: Math.round(rankStyle.ptsSize * 1.15), color: rankStyle.ptsColor }]}><PodiumCount value={entry.points} effRank={effRank} run={run} quick={immediate} /></Text>
                                   <Text style={{ fontSize: 10, lineHeight: 12, color: rankStyle.ptsTint, fontWeight: '500', flexShrink: 0 }}>Effort</Text>
                                 </View>
-                                {effRank === 0 && <PodiumSparkles slope={shardSlope} height={pillarHeight} />}
+                                {Platform.OS === 'web' && SHOW_PILLAR_SHADOWS && <View pointerEvents="none" style={[styles.mPodiumContactShadow, { top: pillarHeight + 6 }]} />}
+                                {/* The pillar mirrored in the floor, starting just under the stage line
+                                    (which sits 6-12px below the pillar) and fading out as it goes down. */}
+                                {/* Light on the foot of the pillar, drawn inside it so it
+                                    only exists once the pillar has risen (it used to be
+                                    one strip across the row, lit before any pillar was up). */}
+                                {Platform.OS === 'web' && (
+                                  <View pointerEvents="none" style={[styles.mPodiumPillarBaseLight, { height: Math.min(52, pillarHeight - 20) }]} />
+                                )}
+                                {Platform.OS === 'web' && (
+                                  // On the workbench platform, trimmed to the curve of its front
+                                  // edge so a reflection never runs past the white rim.
+                                  <View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: pillarHeight + REFLECTION_GAP, height: pillarHeight }, PODIUM_STAGE === 'workbench' && ({ clipPath: reflectionClip(slots.slice(0, colIdx).filter(Boolean).length, activeCount) } as any)]}>
+                                    <View style={[styles.mPodiumReflection, PODIUM_STAGE !== 'line' && styles.mPodiumReflectionShort, { top: 0, height: pillarHeight }]}>
+                                      <Svg width="100%" height="100%" viewBox={`0 0 100 ${pillarHeight}`} preserveAspectRatio="none">
+                                        <Polygon points={faces.front} fill={rankStyle.tint} fillOpacity={effRank === 0 ? 0.5 : 0.38} />
+                                        <Polygon points={faces.side} fill={rankStyle.tint} fillOpacity={0.16} />
+                                      </Svg>
+                                    </View>
+                                  </View>
+                                )}
+                                {effRank === 0 && SHOW_PILLAR_SPARKS && <PodiumSparkles slope={shardSlope} height={pillarHeight} />}
                               </View>
                             </View>
                           );
@@ -923,6 +1378,8 @@ function WeeklyLeaderCardBody({ leader }: { leader: WeeklyLeader | null }) {
 
 export default function HomeScreen() {
   const [stravaConnected, setStravaConnected] = useSnapState('home.stravaConnected', true);
+  // Connected before the sharing consent existed: asked once, here.
+  const [stravaSharingUnanswered, setStravaSharingUnanswered] = useSnapState('home.stravaSharingUnanswered', false);
   const [leagues, setLeagues] = useSnapState<League[]>('home.leagues', []);
   // Populated by loadAll() below from real account data.
   // One entry per team the user belongs to (mobile Weekly Leader card swipes
@@ -980,7 +1437,12 @@ export default function HomeScreen() {
   const [addActivityHovered, setAddActivityHovered] = useState(false);
   const [avatarUrl, setAvatarUrl] = useSnapState<string | null>('home.avatarUrl', null);
 
+  // Bumped every time Today comes into view. It keys the podium, so the
+  // pillars rise and the numbers count up on every visit, not just the first
+  // (Today stays loaded between tab switches).
+  const [podiumVisit, setPodiumVisit] = useState(0);
   useFocusEffect(useCallback(() => {
+    setPodiumVisit((n) => n + 1);
     loadAll();
   }, []));
 
@@ -1023,7 +1485,7 @@ export default function HomeScreen() {
 
     const [stravaRes, activitiesRes, leaguesRes, raceRes, userProfileRes, goalsRes] = await Promise.all([
       supabase.from('fitness_connections').select('user_id').eq('user_id', uId).eq('provider', 'strava').maybeSingle(),
-      fetchAllActivities(uId, 'id, started_at, effort_score, distance_meters, elevation_meters, activity_type, duration_seconds'),
+      fetchAllActivities(uId, 'id, name, started_at, effort_score, distance_meters, elevation_meters, activity_type, duration_seconds'),
       leaguesP,
       supabase.from('races').select('name, race_date').eq('user_id', uId).gte('race_date', today).order('race_date', { ascending: true }).limit(1).maybeSingle(),
       supabase.from('users').select('avatar_url').eq('id', uId).single(),
@@ -1048,6 +1510,9 @@ export default function HomeScreen() {
     }
 
     setStravaConnected(!!stravaRes.data);
+    // Also learns whether they've agreed before, so Connect can skip the
+    // sharing screen for someone reconnecting.
+    loadStravaSharing().then((s) => setStravaSharingUnanswered(!!stravaRes.data && !!s && !s.agreedAt));
     setNextRace(raceRes.data ?? null);
     const myAvatarUrl: string | null = userProfileRes.data?.avatar_url || null;
     setAvatarUrl(myAvatarUrl);
@@ -1114,7 +1579,7 @@ export default function HomeScreen() {
       setFeaturedGoal({
         id: top.goal.id,
         title: featuredGoalTitle(top.goal),
-        activityLabel: top.goal.goal_type === 'gym_sessions' ? 'Gym activities' : (top.goal.activity_filter ?? 'All Activities'),
+        activityLabel: goalActivityLabel(top.goal),
         progress: useMeters ? Math.round(top.progress * 1000) : shownGoal(top.goal.goal_type, top.progress).value,
         target: useMeters ? Math.round(top.goal.target_value * 1000) : shownGoal(top.goal.goal_type, top.goal.target_value).value,
         unit: useMeters ? 'm' : shownGoal(top.goal.goal_type, 0).unit,
@@ -1286,7 +1751,7 @@ export default function HomeScreen() {
   }
 
   function handleConnectStrava() {
-    connectStrava(loadAll);
+    startStravaConnect(loadAll);
   }
 
   // The mockup's 4-card row must stay 4-across on desktop — explicit quarter
@@ -1319,7 +1784,7 @@ export default function HomeScreen() {
       {!mobile && (
         <>
           <ImageBackground
-            source={require('../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
+            source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
             style={styles.bgFixed}
             resizeMode="cover"
           />
@@ -1397,7 +1862,7 @@ export default function HomeScreen() {
                     so it never travels with the content — only the podium/
                     text pages across on top of this fixed backdrop. */}
                 <Image
-                  source={require('../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
+                  source={require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
                   style={styles.mPodiumSmoke}
                   resizeMode="cover"
                 />
@@ -1426,10 +1891,13 @@ export default function HomeScreen() {
                         setLeaderCardIndex(idx);
                       }}
                     >
-                      {weeklyLeaders.map((leader) => (
-                        <View key={leader.leagueId} style={{ width: windowWidth - 32, alignItems: 'center' }}>
-                          <WeeklyLeaderCardBody leader={leader} />
-                        </View>
+                      {weeklyLeaders.map((leader, i) => (
+                        <LeaderCardSlot
+                          key={`${leader.leagueId}-${podiumVisit}`}
+                          leader={leader}
+                          first={i === 0}
+                          width={windowWidth - 32}
+                        />
                       ))}
                     </ScrollView>
                     {/* One dot per team, like the photo dots in the activity
@@ -1470,7 +1938,7 @@ export default function HomeScreen() {
                     })}
                   </>
                 ) : (
-                  <WeeklyLeaderCardBody leader={weeklyLeaders[0] ?? null} />
+                  <WeeklyLeaderCardBody key={`single-${podiumVisit}`} leader={weeklyLeaders[0] ?? null} />
                 )}
               </RivalCard>
 
@@ -1487,7 +1955,12 @@ export default function HomeScreen() {
               <View style={[styles.mLegacyStatBox, styles.mTodayRow]}>
                 {/* A quiet day shows the last session rather than "+0" —
                     the same information, without reading as an empty score. */}
-                <View style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}>
+                <TouchableOpacity
+                  style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => goToTab('/my-activities')}
+                  accessibilityRole="button"
+                >
                   {todayEffort > 0 || !lastActivity ? (
                     <>
                       <RivalIcon name="bolt" size={16} color={RivalColors.accentFill} />
@@ -1504,14 +1977,24 @@ export default function HomeScreen() {
                       <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]} numberOfLines={1}>Last · {relativeDayLabel(lastActivity.startedAt)}</Text>
                     </>
                   )}
-                </View>
-                <View style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/ranks')}
+                  accessibilityRole="button"
+                >
                   <RivalIcon name="doubleChevronUp" size={16} color="#FFD700" />
                   <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueGold]} numberOfLines={1}>{rankName || '—'}</Text>
                   <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]}>{seasonYear} rank</Text>
                   <Text style={styles.mRankDaysLeft}>{seasonDaysLeft === 1 ? '1 day left' : `${seasonDaysLeft} days left`}</Text>
-                </View>
-                <View style={styles.mLegacyStatCell}>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.mLegacyStatCell}
+                  activeOpacity={0.7}
+                  onPress={() => (weeklyStreak > 0 ? router.push('/stats') : router.push('/add-workout'))}
+                  accessibilityRole="button"
+                >
                   <RivalIcon name="fire" size={16} color={RivalColors.accentFill} />
                   {weeklyStreak > 0 ? (
                     <>
@@ -1524,7 +2007,7 @@ export default function HomeScreen() {
                       <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]}>Starts streak</Text>
                     </>
                   )}
-                </View>
+                </TouchableOpacity>
               </View>
 
               {/* The year, made visible. In December, a countdown to the rank
@@ -1565,7 +2048,14 @@ export default function HomeScreen() {
               {/* Focus — no card chrome, same as the Team Challenge hero in
                   team-hub.tsx: content sits directly on the page background
                   rather than boxed in its own tinted card. */}
-              <View style={styles.mFocusFree}>
+              <TouchableOpacity
+                style={styles.mFocusFree}
+                activeOpacity={0.85}
+                onPress={() => router.push('/goals')}
+                accessibilityRole="button"
+                accessibilityLabel={featuredGoal ? 'Open focus' : 'Set focus'}
+              >
+                {Platform.OS === 'web' && <View pointerEvents="none" style={styles.mFocusEdge} />}
                 {featuredGoal ? (
                   <>
                     <View style={styles.mFocusHead}>
@@ -1576,7 +2066,8 @@ export default function HomeScreen() {
                         decides decimal-vs-whole-number display from the
                         target's own magnitude (see its formatRingValue) —
                         pass the raw progress, not a pre-rounded one. */}
-                    <RivalChallengeRing
+                    <FocusRing
+                      key={podiumVisit}
                       pct={featuredGoal.pct}
                       value={featuredGoal.progress}
                       target={featuredGoal.target}
@@ -1598,21 +2089,17 @@ export default function HomeScreen() {
                         <Text style={styles.mFocusMetaLabel}>{featuredGoal.daysLeft === 1 ? 'Day left' : 'Days left'}</Text>
                       </View>
                     </View>
-                    <TouchableOpacity onPress={() => router.push('/goals')}>
-                      <Text style={styles.mFocusViewLink}>View focus →</Text>
-                    </TouchableOpacity>
+                    {/* The whole Focus area opens Goals, so no separate link. */}
                   </>
                 ) : (
                   <>
                     <View style={styles.mFocusEmptyHead}>
                       <MHeading title="Choose something worth chasing." subtitle="Focus" />
                     </View>
-                    <TouchableOpacity onPress={() => router.push('/goals')}>
-                      <Text style={styles.mFocusViewLink}>Set focus →</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.mFocusViewLink}>Set focus →</Text>
                   </>
                 )}
-              </View>
+              </TouchableOpacity>
 
               {/* Legacy section — borderless, shared warm glow background.
                   Same smoke texture as Weekly Leader (Ricky's call,
@@ -1621,7 +2108,7 @@ export default function HomeScreen() {
                   what mPodiumSmoke's baked-in bleed margins are sized for. */}
               <View style={styles.mLegacySection}>
                 <Image
-                  source={require('../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
+                  source={require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
                   style={styles.mLegacySmoke}
                   resizeMode="cover"
                 />
@@ -2347,7 +2834,7 @@ export default function HomeScreen() {
                         <Text style={styles.gridCardLabel}>CLIMBED</Text>
                       </View>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.snapshotRow} onPress={() => router.push('/my-activities')}>
+                    <TouchableOpacity style={styles.snapshotRow} onPress={() => goToTab('/my-activities')}>
                       <View style={{ alignItems: 'center' }}>
                         <Text style={styles.snapshotHeroValue}>{lifetimeActivityCount.toLocaleString()}</Text>
                         <Text style={styles.gridCardLabel}>ACTIVITIES</Text>
@@ -2406,6 +2893,17 @@ export default function HomeScreen() {
             </View>
           </RivalCard>
           </>
+          )}
+
+          {/* Moved to notifications (Ricky, 2026-09-27); kept here, switched off. */}
+          {SHOW_STRAVA_SHARING_CARD && stravaConnected && stravaSharingUnanswered && (
+            <TouchableOpacity style={styles.stravaCard} onPress={() => router.push({ pathname: '/connect-strava', params: { review: '1' } })}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.stravaCardTitle}>Strava sharing</Text>
+                <Text style={styles.stravaCardSub}>Confirm what teammates can see from Strava.</Text>
+              </View>
+              <Text style={styles.stravaCardArrow}>→</Text>
+            </TouchableOpacity>
           )}
 
           {/* Strava connection prompt — only shown pre-connection. Once
@@ -2647,7 +3145,28 @@ const styles = StyleSheet.create({
   // has no card box of its own either). Same vertical padding as the old
   // card retained so spacing to the sections above/below doesn't jump.
   // Same warm radial treatment as mLegacySection, but off to one side — a
-  mFocusFree: { paddingTop: 20, paddingBottom: 24, paddingHorizontal: 16, alignItems: 'center' },
+  // Focus as a card with a warm light from its top edge (Ricky's pick, option
+  // M, 2026-09-27): its own look between the two smoky sections, the podium
+  // and Legacy. Same inset as the stats card above so their edges line up.
+  mFocusFree: {
+    paddingTop: 22, paddingBottom: 10, paddingHorizontal: 16, alignItems: 'center',
+    marginTop: 18, marginHorizontal: -8, borderRadius: 22, overflow: 'hidden',
+    backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
+      // The lit edge (mFocusEdge) replaces the plain border on web.
+      borderWidth: 0,
+    } : {}),
+  } as any,
+  // A fine, soft sand-coloured border, brightest along the top and fading down the
+  // sides: a 1px gradient frame, with the middle masked out.
+  mFocusEdge: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, padding: 1,
+    backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.30), rgba(255,209,190,0.09) 45%, rgba(255,209,190,0.05))',
+    WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+    WebkitMaskComposite: 'xor',
+    mask: 'linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0)',
+  } as any,
   mFocusHead: { alignSelf: 'stretch', marginBottom: 18 },
   mFocusEmptyHead: { alignSelf: 'stretch', marginTop: 4, marginBottom: 14 },
   // Ring meta row ("43% complete   129 days left") — same styling as
@@ -2655,7 +3174,8 @@ const styles = StyleSheet.create({
   // since that one is scoped private to team-hub.tsx.
   mFocusRingMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28, marginTop: 18, marginBottom: 14 },
   mFocusMetaCell: { alignItems: 'center', minWidth: 84 },
-  mFocusMetaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, fontWeight: '700', lineHeight: 32, color: RivalColors.accentText },
+  // White, so the card isn't all one colour: the ring and labels carry the salmon.
+  mFocusMetaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, fontWeight: '700', lineHeight: 32, color: '#ffffff' },
   mFocusMetaLabel: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,181,158,0.75)', marginTop: 4 },
   mFocusMetaDivider: {
     width: 1, height: 38,
@@ -2709,7 +3229,75 @@ const styles = StyleSheet.create({
   // tapered tip (each shape's curve is computed against its own bounding
   // box), leaving a visible seam. Baking the specular sheen in as the
   // gradient's own top stop guarantees every layer shares the same edge.
+  // The lit floor (web only): a flat oval of soft white light. Its back half
+  // runs behind the pillars and shows in the gaps between them; its front
+  // edge is the bright stage line. The pillars hover just above it.
+  mPodiumFloorGlow: {
+    position: 'absolute', left: -44, right: -44, bottom: -46, height: 84,
+    backgroundImage: 'radial-gradient(ellipse 50% 34% at 50% 50%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0) 100%)',
+  } as any,
+  // The top step's centre sits about 8px below the pillars' bases, so they
+  // stand in the middle of it (PLATFORM_TOP_Y = 20 → top = base - 12).
+  // Only a few px wider than the pillar row: the team card (and the swipeable
+  // multi-team row) clips anything past its edges.
+  mPlatform: { position: 'absolute', left: -4, right: -4, bottom: -(50 - 12), height: 50 },
+  // Soft shadow on the floor under each hovering pillar.
+  mPodiumContactShadow: {
+    position: 'absolute', left: '6%', right: '14%', height: 9,
+    backgroundImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0) 100%)',
+    filter: 'blur(1.5px)',
+  } as any,
+  // The same light rising a little way up the pillars from their base.
+  mPodiumBaseSpill: {
+    position: 'absolute', left: -10, right: -10, bottom: 0, height: 52,
+    backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.13), rgba(255,255,255,0.04) 45%, rgba(255,255,255,0))',
+    maskImage: 'radial-gradient(ellipse 50% 130% at 50% 100%, #000 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
+    WebkitMaskImage: 'radial-gradient(ellipse 50% 130% at 50% 100%, #000 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
+  } as any,
+  mPodiumPillarBaseLight: {
+    position: 'absolute', left: 0, right: `${PILLAR_SIDE}%`, bottom: 0,
+    backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.13), rgba(255,255,255,0.04) 45%, rgba(255,255,255,0))',
+  } as any,
+  // Mirrored below the pillar: flipped, then faded so only the first few
+  // pixels under the base show, like a polished floor.
+  mPodiumReflection: {
+    position: 'absolute', left: 0, right: 0,
+    transform: [{ scaleY: -1 }],
+    opacity: 0.55,
+    maskImage: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 9%, transparent 22%)',
+    WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 9%, transparent 22%)',
+    filter: 'blur(0.6px)',
+  } as any,
+  // The silver disc platform: a lit oval top, a thin slab edge showing below
+  // its front, and a bright rim along the front arc only (web).
+  mDisc: { position: 'absolute', left: -24, right: -24, bottom: -30, height: 76 },
+  mDiscSlab: {
+    position: 'absolute', left: 0, right: 0, top: 5, bottom: -5, borderRadius: '50%',
+    backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0.14) 85%, rgba(255,255,255,0.22))',
+    maskImage: 'linear-gradient(to top, #000 0%, #000 30%, transparent 60%)',
+    WebkitMaskImage: 'linear-gradient(to top, #000 0%, #000 30%, transparent 60%)',
+  } as any,
+  mDiscTop: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: '50%',
+    backgroundColor: 'rgba(17,14,12,0.55)',
+    backgroundImage: 'radial-gradient(ellipse 58% 52% at 50% 64%, rgba(255,255,255,0.17) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  } as any,
+  mDiscRim: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, borderRadius: '50%',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.8)',
+    maskImage: 'linear-gradient(to top, #000 0%, #000 22%, transparent 52%)',
+    WebkitMaskImage: 'linear-gradient(to top, #000 0%, #000 22%, transparent 52%)',
+    filter: 'drop-shadow(0 0 4px rgba(255,255,255,0.45))',
+  } as any,
+  // Short reflections that stay on the disc's surface.
+  mPodiumReflectionShort: {
+    maskImage: 'linear-gradient(to top, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0.3) 7px, transparent 14px)',
+    WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,0.9) 0px, rgba(0,0,0,0.3) 7px, transparent 14px)',
+  } as any,
   mPodiumStageLine: {
+    // A few px below the pillars so they float above it (standing them on it
+    // was tried and dropped, 2026-09-27).
     position: 'absolute', left: -18, right: -18, bottom: -12, height: 6,
     ...(Platform.OS === 'web'
       ? {
@@ -2839,7 +3427,7 @@ const styles = StyleSheet.create({
   // sibling that extends 19px below the pillar row) plus real breathing
   // room — the platform doesn't affect layout since it's out of flow, so
   // this has to be sized by hand rather than a plain small gap.
-  mStatus: { alignItems: 'center', marginTop: 22, gap: 10 },
+  mStatus: { alignItems: 'center', marginTop: PODIUM_STAGE === 'workbench' ? 44 : PODIUM_STAGE === 'disc' ? 34 : 22, gap: 10 },
   mHeading: { alignItems: 'center', gap: 10, alignSelf: 'stretch', paddingHorizontal: 8 },
   mStatusHeadline: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center', letterSpacing: 0.2 },
   mStatusBeside: { position: 'relative', top: 4 },
@@ -2860,12 +3448,13 @@ const styles = StyleSheet.create({
   mStatusRuleRight: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.5) 0%, rgba(255,181,158,0) 100%)' } as any)
     : { backgroundColor: 'rgba(255,181,158,0.3)' },
-  mLeaderDots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 22 },
+  // Page dots: all one size (Ricky, 2026-09-27); the current page is lit.
+  mLeaderDots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 22 },
   mLeaderDot: {
-    width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)',
-    ...(Platform.OS === 'web' ? ({ transition: 'width 220ms ease, background-color 220ms ease' } as any) : {}),
+    width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.22)',
+    ...(Platform.OS === 'web' ? ({ transition: 'background-color 220ms ease' } as any) : {}),
   },
-  mLeaderDotActive: { width: 18, backgroundColor: RivalColors.accentText },
+  mLeaderDotActive: { backgroundColor: RivalColors.accentText },
 
   // Next Event card
   mNextEventCard: {
@@ -2946,7 +3535,7 @@ const styles = StyleSheet.create({
   mYearNote: { fontFamily: RivalFontFamily, fontSize: 12.5, lineHeight: 18, color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
   mLegacyCarouselBox: { flexDirection: 'column', paddingVertical: 0, overflow: 'hidden' },
   mLegacyPage: { flexDirection: 'row', paddingVertical: 20 },
-  mTodayRow: { marginTop: 14, marginHorizontal: -8, backgroundColor: '#1d1714', borderColor: 'rgba(255,209,190,0.10)' },
+  mTodayRow: { marginTop: 14, marginHorizontal: -8, paddingVertical: 13, backgroundColor: '#1d1714', borderColor: 'rgba(255,209,190,0.10)' },
   mLegacyStatValueSerifSm: { fontSize: 14.5, letterSpacing: -0.2 },
   mLegacyStatQuiet: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.4)', marginTop: 2 },
   mLegacyStatGain: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '600', color: RivalColors.accentText, marginTop: 2 },

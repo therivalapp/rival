@@ -6,13 +6,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { notify } from '../lib/notify';
-import { connectStrava, runFullStravaImport } from '../lib/strava';
+import { runFullStravaImport } from '../lib/strava';
+import { loadStravaSharing, setShareRoutes, startStravaConnect } from '../lib/stravaSharing';
+import { ROUTE_MAPS_ENABLED } from '../lib/features';
+import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
 import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
   { value: 'metric', label: 'Metric', sub: 'Kilometres, metres and kilograms.' },
@@ -80,6 +85,8 @@ export default function ProfileScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [stravaConnected, setStravaConnected] = useState(false);
   const [stravaAthleteName, setStravaAthleteName] = useState<string | null>(null);
+  const [shareRoutes, setShareRoutesState] = useState(false);
+  const [sharingAgreed, setSharingAgreed] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [importingHistory, setImportingHistory] = useState(false);
@@ -166,6 +173,10 @@ export default function ProfileScreen() {
     setNewBio(userRes.data?.bio || '');
     setQuoteTone((userRes.data?.quote_tone as QuoteTone) || 'balanced');
     setStravaConnected(!!stravaRes.data);
+    loadStravaSharing().then((sh) => {
+      setShareRoutesState(!!sh?.shareRoutes);
+      setSharingAgreed(!!sh?.agreedAt);
+    });
     setStravaAthleteName(
       stravaRes.data ? [stravaRes.data.athlete_firstname, stravaRes.data.athlete_lastname].filter(Boolean).join(' ') || null : null
     );
@@ -218,6 +229,16 @@ export default function ProfileScreen() {
     setQuoteTone(tone);
     setQuotePreview(getQuote(tone).text);
     setSavingTone(false);
+  }
+
+  async function toggleShareRoutes(v: boolean) {
+    setPrefError(null);
+    setShareRoutesState(v);
+    const res = await setShareRoutes(v);
+    if (!res.ok) {
+      setShareRoutesState(!v);
+      setPrefError(res.error ?? 'The setting could not be saved. Try again.');
+    }
   }
 
   async function savePref(patch: Parameters<typeof updatePrefs>[0]) {
@@ -286,13 +307,18 @@ export default function ProfileScreen() {
       try {
         const { data: { user } } = await getAuthUser();
         if (!user) return;
-        const ext = file.name.split('.').pop() || 'jpg';
+        const image = await squareImage(file);
+        const resized = image !== file;
+        const ext = resized ? 'jpg' : (file.name.split('.').pop() || 'jpg');
         const path = `${user.id}/avatar.${ext}`;
         const { error: storageErr } = await supabase.storage
           .from('avatars')
-          .upload(path, file, { contentType: file.type, upsert: true });
+          .upload(path, image, { contentType: resized ? 'image/jpeg' : file.type, upsert: true });
         if (!storageErr) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+          // Same path every time, so a version stamp makes phones fetch the new
+          // photo instead of showing the cached old one.
+          urlData.publicUrl = `${urlData.publicUrl}?v=${Date.now()}`;
           // The file uploaded, but the row still has to point at it — if this
           // half fails the photo is orphaned in storage and the profile keeps
           // the old avatar, so say so rather than showing the new one.
@@ -521,7 +547,7 @@ export default function ProfileScreen() {
               <View style={styles.editRow}>
                 <TextInput style={styles.input} value={newName} onChangeText={setNewName} autoFocus autoCapitalize="words" />
                 <TouchableOpacity style={styles.saveChip} onPress={saveName} disabled={saving}>
-                  <Text style={styles.saveChipText}>{saving ? '…' : 'Save'}</Text>
+                  <BusyText busy={!!(saving)} style={styles.saveChipText}>{saving ? 'Saving…' : 'Save'}</BusyText>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => { setEditingName(false); setNewName(displayName); }}>
                   <Text style={styles.cancelText}>Cancel</Text>
@@ -563,7 +589,7 @@ export default function ProfileScreen() {
               <View style={styles.bioSaveRow}>
                 <TouchableOpacity onPress={() => setNewBio(bio)}><Text style={styles.cancelText}>Discard</Text></TouchableOpacity>
                 <TouchableOpacity style={styles.saveChip} onPress={saveBio} disabled={savingBio}>
-                  <Text style={styles.saveChipText}>{savingBio ? '…' : 'Save mindset'}</Text>
+                  <BusyText busy={!!(savingBio)} style={styles.saveChipText}>{savingBio ? 'Saving…' : 'Save mindset'}</BusyText>
                 </TouchableOpacity>
               </View>
             )}
@@ -674,12 +700,24 @@ export default function ProfileScreen() {
           // second "Connected" pill repeating the same word read as clutter.
           // A bare checkmark confirms the state without saying it twice.
           ? <View style={styles.connectedCheck}><RivalIcon name="check" size={14} color={RivalColors.tertiary} /></View>
-          : <RivalButton label="Connect" onPress={() => connectStrava(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
+          : <RivalButton label="Connect" onPress={() => startStravaConnect(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
       </View>
 
       {stravaConnected && (
         <>
+          {sharingAgreed
+            ? ROUTE_MAPS_ENABLED && switchRow('share-routes', 'Share route maps with teams', 'Teammates see the route of each Strava activity. A route can reveal where a person lives or trains.', shareRoutes, toggleShareRoutes)
+            : (
+              <RivalButton
+                label="Review Strava sharing"
+                onPress={() => router.push({ pathname: '/connect-strava', params: { review: '1' } })}
+                variant="secondary"
+                style={styles.actionBtn}
+              />
+            )}
+          {prefError && <Text style={styles.errorText}>{prefError}</Text>}
           <RivalButton
+            busy={syncing}
             label={syncing ? 'Syncing…' : 'Sync now'}
             onPress={syncNow}
             disabled={syncing}
@@ -788,7 +826,7 @@ export default function ProfileScreen() {
             autoComplete="email"
           />
           <TouchableOpacity style={styles.saveChip} onPress={changeEmail} disabled={savingEmail || !newEmail.trim()}>
-            <Text style={styles.saveChipText}>{savingEmail ? '…' : 'Change'}</Text>
+            <BusyText busy={!!(savingEmail)} style={styles.saveChipText}>{savingEmail ? '…' : 'Change'}</BusyText>
           </TouchableOpacity>
         </View>
         {emailMsg && <Text style={emailMsg.ok ? styles.okText : styles.errorText}>{emailMsg.text}</Text>}
@@ -814,14 +852,14 @@ export default function ProfileScreen() {
           secureTextEntry
           autoComplete="new-password"
         />
-        <RivalButton label={savingPassword ? 'Updating…' : 'Update password'} onPress={changePassword} disabled={savingPassword || !newPassword} variant="secondary" style={styles.actionBtn} />
+        <RivalButton busy={savingPassword} label={savingPassword ? 'Updating…' : 'Update password'} onPress={changePassword} disabled={savingPassword || !newPassword} variant="secondary" style={styles.actionBtn} />
         {passwordMsg && <Text style={passwordMsg.ok ? styles.okText : styles.errorText}>{passwordMsg.text}</Text>}
       </View>
 
       <View style={styles.subSection}>
         <Text style={styles.subSectionTitle}>YOUR DATA</Text>
         <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, goals, races, teams, messages and recognition, as one file.</Text>
-        <RivalButton label={exporting ? 'Preparing…' : 'Download my data'} onPress={downloadData} disabled={exporting} variant="secondary" style={styles.actionBtn} />
+        <RivalButton busy={exporting} label={exporting ? 'Preparing…' : 'Download my data'} onPress={downloadData} disabled={exporting} variant="secondary" style={styles.actionBtn} />
         {exportMsg && <Text style={exportMsg.ok ? styles.okText : styles.errorText}>{exportMsg.text}</Text>}
       </View>
 
@@ -833,7 +871,7 @@ export default function ProfileScreen() {
       <View style={styles.dangerZone}>
         <Text style={styles.dangerTitle}>DANGER ZONE</Text>
         <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} disabled={deletingAccount}>
-          <Text style={styles.deleteAccountText}>{deletingAccount ? 'Deleting account…' : 'Delete account'}</Text>
+          <BusyText busy={!!(deletingAccount)} style={styles.deleteAccountText}>{deletingAccount ? 'Deleting account…' : 'Delete account'}</BusyText>
         </TouchableOpacity>
       </View>
     </RivalCard>
@@ -898,7 +936,7 @@ export default function ProfileScreen() {
           <RivalBackButton
             onPress={() => {
               if (!wide && panelOpen) { setPanelOpen(false); return; }
-              router.canGoBack() ? router.back() : router.replace('/home');
+              router.canGoBack() ? router.back() : goToTab('/home');
             }}
             color={RivalColors.accentFill}
           />

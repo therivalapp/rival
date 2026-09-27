@@ -157,6 +157,7 @@ export default function ResetPasswordScreen() {
             </View>
 
             <RivalButton
+              busy={saving}
               label={saving ? 'Saving…' : 'Set new password'}
               onPress={handleSetNewPassword}
               disabled={saving}

@@ -17,6 +17,9 @@ import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { RivalBackButton, RivalIcon, RivalTopNav } from '@/components/rival';
 import { INBOX_ICON_FOR, goToInboxSubject, inboxTimeAgo } from '@/components/rival/NotificationsMenu';
 import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalType } from '@/constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
+import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../lib/stravaSharing';
 
 // The inbox. Items are answered where they sit rather than sending you off to
 // another screen to find the thing they are about — a notification you have to
@@ -41,7 +44,9 @@ export default function InboxScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Not an inbox row: shown while Strava sharing is still unanswered.
+  const [stravaPending, setStravaPending] = useState(false);
+  useFocusEffect(useCallback(() => { load(); stravaSharingNeedsAnswer().then(setStravaPending, () => {}); }, [load]));
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(load);
 
   async function act(item: InboxItem, run: () => Promise<{ ok: boolean; error?: string }>) {
@@ -73,13 +78,33 @@ export default function InboxScreen() {
         {pullIndicator}
 
         <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
           <Text style={styles.title}>Notifications</Text>
         </View>
+
+        {stravaPending && (
+          <View style={[styles.card, styles.cardUnread, styles.cardOpen]}>
+            <View style={styles.cardMain}>
+              <View style={styles.iconWrap}>
+                <RivalIcon name="groups" size={17} color={RivalColors.accentText} />
+              </View>
+              <View style={styles.textWrap}>
+                <Text style={styles.cardTitle}>{STRAVA_SHARING_NOTICE.title}</Text>
+                <Text style={styles.cardBody}>{STRAVA_SHARING_NOTICE.body}</Text>
+              </View>
+            </View>
+            <View style={styles.actions}>
+              <TouchableOpacity style={styles.primary} onPress={STRAVA_SHARING_NOTICE.open}>
+                <Text style={styles.primaryText}>Review</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {loading ? (
           <Text style={styles.state}>Loading…</Text>
         ) : unresolvedFirst.length === 0 ? (
+          stravaPending ? null :
           <View style={styles.empty}>
             <RivalIcon name="notificationsOutline" size={28} color={RivalColors.accentText} />
             <Text style={styles.emptyTitle}>No notifications</Text>
@@ -115,14 +140,14 @@ export default function InboxScreen() {
                       disabled={busy}
                       onPress={() => act(item, () => respondToJoinRequest(item, false))}
                     >
-                      <Text style={styles.secondaryText}>{busy ? '…' : 'Decline'}</Text>
+                      <BusyText busy={!!(busy)} style={styles.secondaryText}>{busy ? '…' : 'Decline'}</BusyText>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.primary}
                       disabled={busy}
                       onPress={() => act(item, () => respondToJoinRequest(item, true))}
                     >
-                      <Text style={styles.primaryText}>{busy ? '…' : 'Approve'}</Text>
+                      <BusyText busy={!!(busy)} style={styles.primaryText}>{busy ? '…' : 'Approve'}</BusyText>
                     </TouchableOpacity>
                   </View>
                 ) : null}
@@ -134,14 +159,14 @@ export default function InboxScreen() {
                       disabled={busy}
                       onPress={() => act(item, () => respondToShortActivity(item, false))}
                     >
-                      <Text style={styles.secondaryText}>{busy ? '…' : 'Remove'}</Text>
+                      <BusyText busy={!!(busy)} style={styles.secondaryText}>{busy ? '…' : 'Remove'}</BusyText>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.primary}
                       disabled={busy}
                       onPress={() => act(item, () => respondToShortActivity(item, true))}
                     >
-                      <Text style={styles.primaryText}>{busy ? '…' : 'Keep'}</Text>
+                      <BusyText busy={!!(busy)} style={styles.primaryText}>{busy ? '…' : 'Keep'}</BusyText>
                     </TouchableOpacity>
                   </View>
                 ) : null}
@@ -153,14 +178,14 @@ export default function InboxScreen() {
                       disabled={busy}
                       onPress={() => act(item, () => respondToActivityTag(item, false))}
                     >
-                      <Text style={styles.secondaryText}>{busy ? '…' : 'Decline'}</Text>
+                      <BusyText busy={!!(busy)} style={styles.secondaryText}>{busy ? '…' : 'Decline'}</BusyText>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.primary}
                       disabled={busy}
                       onPress={() => act(item, () => respondToActivityTag(item, true))}
                     >
-                      <Text style={styles.primaryText}>{busy ? '…' : 'Confirm'}</Text>
+                      <BusyText busy={!!(busy)} style={styles.primaryText}>{busy ? 'Confirming…' : 'Confirm'}</BusyText>
                     </TouchableOpacity>
                   </View>
                 ) : null}

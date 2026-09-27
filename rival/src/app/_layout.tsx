@@ -8,6 +8,7 @@ import '../global.css';
 import { useEffect, useState } from 'react';
 import { AppState, AppStateStatus, Platform, View } from 'react-native';
 import { Stack, router, usePathname } from 'expo-router';
+import { setCurrentPath } from '../lib/tabNav';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAppFonts } from '../lib/useAppFonts';
@@ -36,6 +37,7 @@ export default function RootLayout() {
   // bookmarked /home (or any screen) after signing out showed an empty app
   // with zeros everywhere instead of asking them to sign in.
   const pathname = usePathname();
+  setCurrentPath(pathname);
   useEffect(() => {
     if (PUBLIC_PATHS.has(pathname)) return;
     let cancelled = false;

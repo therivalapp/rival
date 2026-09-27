@@ -9,6 +9,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { copyText } from '../lib/clipboard';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 // A crest (and the name baked into it) can change once every 6 months —
 // often enough to fix a bad first attempt or reflect a real team change,
@@ -102,7 +104,7 @@ export default function LeagueSettingsScreen() {
       .single();
 
     if (membership?.role !== 'admin') {
-      router.replace('/home');
+      goToTab('/home');
       return;
     }
 
@@ -337,7 +339,7 @@ export default function LeagueSettingsScreen() {
     if (!ok) return;
     const { error } = await supabase.rpc('leave_league', { p_league_id: id });
     if (error) { notify("Couldn't leave the team", error.message); return; }
-    router.replace('/team-feed');
+    goToTab('/team-feed');
   }
 
   async function deleteTeam() {
@@ -345,7 +347,7 @@ export default function LeagueSettingsScreen() {
     const { error } = await supabase.rpc('delete_league', { p_league_id: id });
     setDeleting(false);
     if (error) { notify("Couldn't delete the team", error.message); return; }
-    router.replace('/team-feed');
+    goToTab('/team-feed');
   }
 
   function getDisplayName(member: Member) {
@@ -404,7 +406,7 @@ export default function LeagueSettingsScreen() {
                   onPress={() => respondToRequest(member.user_id, true)}
                   disabled={respondingTo === member.user_id}
                 >
-                  <Text style={ms.fillBtnText}>{respondingTo === member.user_id ? '…' : 'Approve'}</Text>
+                  <BusyText busy={!!(respondingTo === member.user_id)} style={ms.fillBtnText}>{respondingTo === member.user_id ? '…' : 'Approve'}</BusyText>
                 </TouchableOpacity>
               </View>
             ) : manageable ? (
@@ -503,7 +505,7 @@ export default function LeagueSettingsScreen() {
                     <Text style={ms.ghostBtnText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={ms.fillBtn} onPress={saveName} disabled={saving}>
-                    <Text style={ms.fillBtnText}>{saving ? 'Saving…' : 'Save name'}</Text>
+                    <BusyText busy={!!(saving)} style={ms.fillBtnText}>{saving ? 'Saving…' : 'Save name'}</BusyText>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -554,7 +556,7 @@ export default function LeagueSettingsScreen() {
               <Text style={ms.cardHint}>{descDraft.length}/160 · Shown on the team page and in team search.</Text>
               {descDraft.trim() !== description ? (
                 <TouchableOpacity style={ms.fillBtn} onPress={saveDescription} disabled={savingDesc}>
-                  <Text style={ms.fillBtnText}>{savingDesc ? 'Saving…' : 'Save'}</Text>
+                  <BusyText busy={!!(savingDesc)} style={ms.fillBtnText}>{savingDesc ? 'Saving…' : 'Save'}</BusyText>
                 </TouchableOpacity>
               ) : descSaved ? <Text style={ms.savedText}>Saved</Text> : null}
             </View>
@@ -575,7 +577,7 @@ export default function LeagueSettingsScreen() {
               <View style={ms.descFoot}>
                 <Text style={ms.cardHint}>{codeNote || 'Anyone with the code or link can join.'}</Text>
                 <TouchableOpacity onPress={resetCode} disabled={resettingCode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={ms.resetLink}>{resettingCode ? 'Resetting…' : 'Reset code'}</Text>
+                  <BusyText busy={!!(resettingCode)} style={ms.resetLink}>{resettingCode ? 'Resetting…' : 'Reset code'}</BusyText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -683,7 +685,7 @@ export default function LeagueSettingsScreen() {
                         const match = deleteTyped.trim().toLowerCase() === formatTeamName(leagueName).trim().toLowerCase();
                         return (
                           <TouchableOpacity style={[ms.deleteBtn, (!match || deleting) && ms.crestBtnOff]} disabled={!match || deleting} onPress={deleteTeam}>
-                            <Text style={ms.deleteBtnText}>{deleting ? 'Deleting…' : 'Delete team'}</Text>
+                            <BusyText busy={!!(deleting)} style={ms.deleteBtnText}>{deleting ? 'Deleting…' : 'Delete team'}</BusyText>
                           </TouchableOpacity>
                         );
                       })()}
@@ -774,7 +776,7 @@ export default function LeagueSettingsScreen() {
                 maxLength={40}
               />
               <TouchableOpacity style={styles.saveBtn} onPress={saveName} disabled={saving}>
-                <Text style={styles.saveBtnText}>{saving ? '…' : 'Save'}</Text>
+                <BusyText busy={!!(saving)} style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save'}</BusyText>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setEditingName(false); setNewName(leagueName); }}>
                 <Text style={styles.cancelText}>Cancel</Text>

@@ -1,14 +1,14 @@
-import { getMyTeamRows } from '../lib/myTeams';
+import { getMyTeamRows } from '../../lib/myTeams';
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView, Image, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
-import { supabase, getAuthUser } from '../lib/supabase';
-import { formatTeamName } from '../lib/identity';
-import { RivalTopNav, RivalIcon, RivalWarm, rm } from '../components/rival';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { getUnreadChats, latestMessageByLeague } from '../lib/unreadChats';
-import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { supabase, getAuthUser } from '../../lib/supabase';
+import { formatTeamName } from '../../lib/identity';
+import { RivalTopNav, RivalIcon, RivalWarm, rm } from '../../components/rival';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { getUnreadChats, latestMessageByLeague } from '../../lib/unreadChats';
+import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
 
 // Same per-name color assignment as team-feed.tsx's team rail — kept as a
 // local copy rather than shared, matching how timeAgo is already duplicated
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   emptyBtnText: { fontSize: 13, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 });
 
-const SMOKE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
+const SMOKE = require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 
 // Rows ease in one after another when the list appears (web; the keyframe is
 // in global.css). Skipped for anyone who has asked for reduced motion.

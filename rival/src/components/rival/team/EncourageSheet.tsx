@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { RivalColors } from '../../../constants/rivalTheme';
 import { RivalIcon } from '../RivalIcon';
 import { sheet } from './sheetStyles';
+import { BusyText } from '../BusyText';
 
 // Send a teammate a word of encouragement. Ported from the old team page,
 // where it hung off each feed post. The send-encouragement function enforces
@@ -115,7 +116,7 @@ export function EncourageSheet({
               <Text style={sheet.secondaryBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[sheet.primaryBtn, !canSend && sheet.primaryBtnOff]} onPress={send} disabled={!canSend}>
-              <Text style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send'}</Text>
+              <BusyText busy={!!(sending)} style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send'}</BusyText>
             </TouchableOpacity>
           </View>
         </View>

@@ -22,6 +22,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors } from '../constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
 
 type GoalMetric = 'xp' | 'distance' | 'elevation' | 'duration' | 'activities';
 type Mode = 'target' | 'race';
@@ -414,7 +415,7 @@ export default function CreateTeamChallenge() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <TouchableOpacity style={[styles.createBtn, mob && ms.gradient, saving && styles.createBtnDisabled]} onPress={handleCreate} disabled={saving}>
-              <Text style={[styles.createBtnText, mob && ms.onGradient]}>{saving ? 'Saving…' : editing ? sc('Save Changes') : sc('Start Challenge')}</Text>
+              <BusyText busy={!!(saving)} style={[styles.createBtnText, mob && ms.onGradient]}>{saving ? 'Saving…' : editing ? sc('Save Changes') : sc('Start Challenge')}</BusyText>
             </TouchableOpacity>
           </View>
         </ScrollView>

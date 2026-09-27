@@ -13,6 +13,7 @@ import { CoverImage } from './CoverImage';
 import { RivalBackButton } from './RivalBackButton';
 import { WebVideo } from './MediaPicker';
 import { TrainingPartners } from './TrainingPartners';
+import { BusyText } from './BusyText';
 
 // Full-screen, tap-through "diary" viewer for a single activity — the photo
 // dominates (70% of the screen), stats overlay its bottom edge, and a
@@ -494,7 +495,7 @@ export function ActivityDiaryViewer({
                 <Text style={styles.discardBtnLabel}>Discard</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveBtn} onPress={saveChanges} disabled={saving}>
-                <Text style={styles.saveBtnLabel}>{saving ? 'Saving…' : 'Save'}</Text>
+                <BusyText busy={!!(saving)} style={styles.saveBtnLabel}>{saving ? 'Saving…' : 'Save'}</BusyText>
               </TouchableOpacity>
             </View>
           )}

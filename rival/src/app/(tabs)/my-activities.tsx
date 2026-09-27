@@ -1,25 +1,25 @@
-import { JournalYearView } from '../components/rival/JournalYearView';
-import { useSnapState } from '../lib/snapState';
-import { distanceUnit, formatActivityDistance, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../lib/units';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { JournalYearView } from '../../components/rival/JournalYearView';
+import { useSnapState } from '../../lib/snapState';
+import { distanceUnit, formatActivityDistance, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { supabase, getAuthUser } from '../lib/supabase';
-import { notify } from '../lib/notify';
-import { formatDuration, formatDurationClock } from '../lib/format';
-import { calculateStreak } from '../lib/streak';
-import { displayToIsoDate, isoToDisplayDate } from '../lib/dateFormat';
-import { fetchAllActivities } from '../lib/fetchAllActivities';
-import { computeActivityInsight, InsightTone } from '../lib/activityInsights';
-import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../lib/effort';
-import { rm } from '../components/rival/RivalMobile';
-import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage } from '../components/rival';
-import { MediaPicker, pickMediaFiles, type MediaItem } from '../components/rival/MediaPicker';
-import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaRow } from '../lib/activityMedia';
-import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
-import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV } from '../constants/breakpoints';
+import { supabase, getAuthUser } from '../../lib/supabase';
+import { notify } from '../../lib/notify';
+import { formatDuration, formatDurationClock } from '../../lib/format';
+import { calculateStreak } from '../../lib/streak';
+import { displayToIsoDate, isoToDisplayDate } from '../../lib/dateFormat';
+import { fetchAllActivities } from '../../lib/fetchAllActivities';
+import { computeActivityInsight, InsightTone } from '../../lib/activityInsights';
+import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../../lib/effort';
+import { rm } from '../../components/rival/RivalMobile';
+import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage } from '../../components/rival';
+import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
+import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaRow } from '../../lib/activityMedia';
+import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 
 type ExerciseEntry = {
   name: string;
@@ -331,6 +331,11 @@ export default function MyActivitiesScreen() {
   // fills the screen and vertical swipe/scroll snaps to the next, retro-app
   // style. Falls back to a generous flex fill before the first layout pass.
   const [pagerHeight, setPagerHeight] = useState(0);
+  // Which week page the pager is on. Only pages near it are drawn in full;
+  // the rest are empty space of the same height. Drawing every week at once
+  // (a year or more of photo cards) held the phone for seconds on opening
+  // and on every switch back to Week.
+  const [weekPageIndex, setWeekPageIndex] = useState(0);
   // Mobile Activity Journal's 3-way layout switch — Rows (horizontal
   // per-week scroll), Weekly (full-screen one-week-per-page swipe, the
   // previous default), Month (calendar grid, swipe between months). Kept
@@ -629,13 +634,15 @@ export default function MyActivitiesScreen() {
     return weekGroups;
   }
 
-  const activityTypes = Array.from(new Set(allActivities.map(a => a.activity_type))).sort();
-  const filteredActivities = allActivities.filter(a =>
+  // Worked out once per change of data or filter, not on every render: the
+  // page re-renders as you scroll, and each pass walked the whole history.
+  const activityTypes = useMemo(() => Array.from(new Set(allActivities.map(a => a.activity_type))).sort(), [allActivities]);
+  const filteredActivities = useMemo(() => allActivities.filter(a =>
     (filterType === 'All' || a.activity_type === filterType) &&
     (!prOnly || !!pbs[a.id]) &&
     (!dateFilter || localIsoDate(a.started_at) === dateFilter)
-  );
-  const groups = computeGroups(filteredActivities, sortOrder);
+  ), [allActivities, filterType, prOnly, pbs, dateFilter]);
+  const groups = useMemo(() => computeGroups(filteredActivities, sortOrder), [filteredActivities, sortOrder]);
   // Flat, continuously-ordered list matching the rows' own display order —
   // what the diary viewer tap-through navigates across.
   const flatOrdered = groups.flatMap((g) => g.activities);
@@ -648,13 +655,13 @@ export default function MyActivitiesScreen() {
   // Unfiltered, like Week's thisWk/thisWeekTotal — the "This Month" header
   // numbers stay put when a filter is toggled; only the calendar cells below
   // react (via filteredMonthByKey).
-  const monthGroups = computeMonthGroups(allActivities);
+  const monthGroups = useMemo(() => computeMonthGroups(allActivities), [allActivities]);
   // Type/PBs-only/date-filtered version, keyed by "year-month", so the
   // calendar day cells can react to the same corner-button filters as
   // Week's and Rows' card grids without touching the header stats above.
-  const filteredMonthByKey = new Map(
+  const filteredMonthByKey = useMemo(() => new Map(
     computeMonthGroups(filteredActivities).map((g) => [`${g.year}-${g.month}`, g])
-  );
+  ), [filteredActivities]);
 
   // Full-width paging (chevron buttons are the swipe affordance instead of
   // a peek carousel) — each month card is exactly the pager's width.
@@ -710,7 +717,7 @@ export default function MyActivitiesScreen() {
   const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
   // allActivities is capped at 100 most-recent rows (see loadActivities) — plenty
   // for a streak read, which only ever looks a handful of weeks back.
-  const streak = calculateStreak(allActivities);
+  const streak = useMemo(() => calculateStreak(allActivities), [allActivities]);
 
   // Weekly momentum — the hero tells a story (this week vs last), not just a number.
   function weekAgg(weekStart: number) {
@@ -931,7 +938,7 @@ export default function MyActivitiesScreen() {
   return (
     <View style={styles.root}>
       <RivalFixedBackground
-        source={require('../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
+        source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
         focalPoint="50% 42%"
       />
       <View style={styles.scrim} />
@@ -974,6 +981,12 @@ export default function MyActivitiesScreen() {
             pagingEnabled
             style={styles.jPager}
             onLayout={(e) => setPagerHeight(e.nativeEvent.layout.height)}
+            scrollEventThrottle={32}
+            onScroll={(e) => {
+              if (!pagerHeight) return;
+              const idx = Math.round(e.nativeEvent.contentOffset.y / pagerHeight);
+              setWeekPageIndex((cur) => (cur === idx ? cur : idx));
+            }}
             showsVerticalScrollIndicator={false}
           >
             {loading && (
@@ -1003,7 +1016,10 @@ export default function MyActivitiesScreen() {
               </View>
             )}
 
-            {!loading && groups.map((group) => {
+            {!loading && groups.map((group, gi) => {
+              if (Math.abs(gi - weekPageIndex) > 2) {
+                return <View key={group.weekStart} style={{ height: pagerHeight || 600 }} />;
+              }
               const isCurrentWeek = group.weekStart === currentWeekStartForHero;
               return (
                 <ScrollView
@@ -1475,7 +1491,11 @@ export default function MyActivitiesScreen() {
                 setVisibleMonthIndex(Math.max(0, Math.min(monthGroups.length - 1, idx)));
               }}
             >
-              {monthGroups.map((mg) => {
+              {monthGroups.map((mg, mi) => {
+                // Only the months beside the one showing are drawn in full.
+                if (Math.abs(mi - visibleMonthIndex) > 1) {
+                  return <View key={`${mg.year}-${mg.month}`} style={monthPageWidth ? { width: monthPageWidth } : styles.jMonthPageFallback} />;
+                }
                 const leadingBlanks = mg.startWeekday;
                 const dayCells: Array<{ day: number } | null> = [
                   ...Array.from({ length: leadingBlanks }, () => null),

@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { saveActivityRoute } from '../_shared/activityRoute.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveCanonicalActivityId, linkNewActivitySource } from '../_shared/activityDedup.ts'
 import { calculateEffortScore, loadScoringConfig } from '../_shared/effortScore.ts'
@@ -168,7 +169,6 @@ serve(async (req) => {
         started_at: activity.start_date,
         effort_score: effortScore,
         raw_effort_score: effortScore,
-        route_polyline: activity.map?.summary_polyline || null,
         // start_date_local (not start_date) — races.race_date is a bare calendar
         // date, so matching needs the athlete's local day, not the UTC one.
         race_id: raceIdForLocalDate(activity.start_date_local),
@@ -214,6 +214,8 @@ serve(async (req) => {
         activityId = insertedRow.id
         wasInsert = true
       }
+
+      await saveActivityRoute(supabase, activityId, user.id, activity.map?.summary_polyline)
 
       // Fetch a photo only when this activity doesn't already have one
       // (total_photo_count on the list endpoint is unreliable, so the photos

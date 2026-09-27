@@ -17,6 +17,7 @@ import type { EditableSession } from '../components/rival/PlanSessionSheet';
 import { CalendarAddIcon } from '../components/rival/CalendarAddIcon';
 import { RivalColors, RivalRadius, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { goToTab } from '../lib/tabNav';
 
 // Dedicated team chat, laid out the way Messenger does it.
 //
@@ -439,7 +440,7 @@ export default function ChatScreen() {
     <SafeAreaView style={[styles.container, mob && ms.container]} edges={['top', 'left', 'right']}>
       <View style={[styles.header, mob && ms.header]}>
         <RivalBackButton
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/messages'))}
+          onPress={() => (router.canGoBack() ? router.back() : goToTab('/messages'))}
           color={RivalColors.accentFill}
         />
         {/* Crest before the name: which conversation you're in should be

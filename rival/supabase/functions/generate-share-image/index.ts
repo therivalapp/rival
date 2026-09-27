@@ -191,10 +191,14 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { data: activity } = await supabase.from('activities')
-      .select('activity_type, distance_meters, duration_seconds, elevation_meters, route_polyline, exercises')
-      .eq('id', activityId)
-      .single()
+    const [{ data: activity }, { data: routeRow }] = await Promise.all([
+      supabase.from('activities')
+        .select('activity_type, distance_meters, duration_seconds, elevation_meters, exercises')
+        .eq('id', activityId)
+        .single(),
+      // Routes are private: only the owner's own route is ever used.
+      supabase.from('activity_routes').select('polyline').eq('activity_id', activityId).eq('user_id', user.id).maybeSingle(),
+    ])
 
     // Lift breakdown lives on the activity as a JSON column: { name, sets?, reps?, weight? }[]
     const exercises: any[] = Array.isArray(activity?.exercises) ? activity.exercises : []
@@ -324,7 +328,7 @@ Deno.serve(async (req) => {
       surpriseIndex = candidates[Math.floor(Math.random() * candidates.length)]
     }
 
-    const prompt = buildPrompt(style ?? 'cinematic', statsLine, !!routeImageUrl, activityNoun, surpriseIndex, routeTopology(activity?.route_polyline), routePerspective === true)
+    const prompt = buildPrompt(style ?? 'cinematic', statsLine, !!routeImageUrl, activityNoun, surpriseIndex, routeTopology(routeRow?.polyline), routePerspective === true)
 
     // Two-image input: base photo first, route map second.
     const content: any[] = [{ type: 'input_image', image_url: photoUrl }]

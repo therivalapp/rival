@@ -44,6 +44,11 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   0% { transform: translateY(-14px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
+/* The stage under the pillars fades in as they start to rise. */
+@keyframes rivalPodiumStageIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
 @keyframes rivalPodiumSheen {
   0% { transform: translateX(-160%) skewX(-18deg); }
   22% { transform: translateX(360%) skewX(-18deg); }
@@ -68,6 +73,52 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
 @keyframes rivalHaloPulse {
   0%, 100% { opacity: 0.6; transform: scale(0.92); }
   50% { opacity: 1; transform: scale(1.08); }
+}
+/* Stars bursting outward from behind the leader's picture, one direction each. */
+@keyframes rivalSparkBurst0 {
+  0% { transform: translate(-19.7px, -3.5px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-55.1px, -9.7px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst1 {
+  0% { transform: translate(-15.3px, -12.9px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-42.9px, -36.0px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst2 {
+  0% { transform: translate(-8.5px, -18.1px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-23.7px, -50.8px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst3 {
+  0% { transform: translate(0.0px, -20.0px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(0.0px, -56.0px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst4 {
+  0% { transform: translate(8.5px, -18.1px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(23.7px, -50.8px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst5 {
+  0% { transform: translate(15.3px, -12.9px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(42.9px, -36.0px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst6 {
+  0% { transform: translate(19.7px, -3.5px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(55.1px, -9.7px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst7 {
+  0% { transform: translate(19.3px, 5.2px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(54.1px, 14.5px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst8 {
+  0% { transform: translate(-19.3px, 5.2px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-54.1px, 14.5px) scale(1) rotate(120deg); opacity: 0; }
 }
 /* The same sparkles starting at the foot of the pillar, rising up its face
    and out past the top. */

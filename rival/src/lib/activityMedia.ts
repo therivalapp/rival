@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { fitPhoto } from './imageResize';
 import type { MediaItem } from '../components/rival/MediaPicker';
 
 // Saving an activity's photos and videos as one ordered set, Instagram-style:
@@ -130,11 +131,14 @@ export async function saveArrangement({
     let url = item.uri;
     if (!item.existingId) {
       if (!item.blob) continue;
+      const up = item.type === 'photo'
+        ? await fitPhoto({ blob: item.blob, mimeType: item.mimeType, ext: item.ext || 'jpg' })
+        : { blob: item.blob, mimeType: item.mimeType, ext: item.ext || 'mp4' };
       const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const path = `${userId}/${activityId}-${uniqueId}.${item.ext || (item.type === 'video' ? 'mp4' : 'jpg')}`;
+      const path = `${userId}/${activityId}-${uniqueId}.${up.ext}`;
       const { error: storageErr } = await supabase.storage
         .from('activity-photos')
-        .upload(path, item.blob, { contentType: item.mimeType, upsert: true });
+        .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
       if (storageErr) { errors.push(`Upload failed: ${storageErr.message}`); continue; }
       url = supabase.storage.from('activity-photos').getPublicUrl(path).data.publicUrl;
     }

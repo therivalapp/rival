@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
+import { BusyText } from './BusyText';
 import { RivalColors, RivalRadius, RivalType } from '../../constants/rivalTheme';
 
 type Variant = 'primary' | 'secondary' | 'destructive' | 'text';
@@ -9,6 +10,7 @@ export function RivalButton({
   variant = 'primary',
   disabled,
   loading,
+  busy,
   style,
   labelStyle,
   onMouseEnter,
@@ -19,6 +21,8 @@ export function RivalButton({
   variant?: Variant;
   disabled?: boolean;
   loading?: boolean;
+  // Keeps the label (e.g. "Saving…") and adds a spinner beside it (mobile).
+  busy?: boolean;
   style?: StyleProp<ViewStyle>;
   // Optional label override — additive, every existing call site is
   // unaffected when omitted.
@@ -29,7 +33,7 @@ export function RivalButton({
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }) {
-  const isDisabled = disabled || loading;
+  const isDisabled = disabled || loading || busy;
   return (
     <Pressable
       onPress={onPress}
@@ -49,7 +53,8 @@ export function RivalButton({
       {loading ? (
         <ActivityIndicator color={variant === 'primary' ? RivalColors.accentText : RivalColors.textPrimary} />
       ) : (
-        <Text
+        <BusyText
+          busy={!!busy}
           style={[
             styles.label,
             variant === 'primary' && styles.labelPrimary,
@@ -60,7 +65,7 @@ export function RivalButton({
           ]}
         >
           {label}
-        </Text>
+        </BusyText>
       )}
     </Pressable>
   );

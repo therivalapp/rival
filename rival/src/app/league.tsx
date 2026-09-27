@@ -6,6 +6,7 @@ import { Asset } from 'expo-asset';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { invalidateUnreadChats } from '../lib/unreadChats';
 import { notify } from '../lib/notify';
+import { squareImage } from '../lib/imageResize';
 import { getLevel } from '../lib/xp';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
@@ -18,6 +19,8 @@ import { formatDuration } from '../lib/format';
 import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../lib/activityInsights';
 import { RivalIcon, RivalFixedBackground, RivalTopNav, RivalProgressBar, RivalAvatar, RivalBackButton, RivalDateField } from '../components/rival';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 const INSIGHT_ICON: Record<InsightTone, 'trophy' | 'fire' | 'trendUp'> = {
   record: 'trophy',
@@ -421,7 +424,7 @@ export default function LeagueScreen() {
       notify("Couldn't leave team", error.message);
       return;
     }
-    router.replace('/home');
+    goToTab('/home');
   }
 
   async function loadLeague() {
@@ -432,7 +435,7 @@ export default function LeagueScreen() {
         .from('league_members').select('status').eq('league_id', id).eq('user_id', user.id).maybeSingle();
       if (myMembership?.status === 'pending') {
         notify('Request pending', "Your request to join this team hasn't been approved by an admin yet.");
-        router.replace('/home');
+        goToTab('/home');
         return;
       }
     }
@@ -775,13 +778,16 @@ export default function LeagueScreen() {
       if (!file) return;
       setUploadingLogo(true);
       try {
-        const ext = file.name.split('.').pop() || 'jpg';
+        const image = await squareImage(file);
+        const resized = image !== file;
+        const ext = resized ? 'jpg' : (file.name.split('.').pop() || 'jpg');
         const path = `leagues/${id}/logo.${ext}`;
         const { error: storageErr } = await supabase.storage
           .from('avatars')
-          .upload(path, file, { contentType: file.type, upsert: true });
+          .upload(path, image, { contentType: resized ? 'image/jpeg' : file.type, upsert: true });
         if (!storageErr) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+          urlData.publicUrl = `${urlData.publicUrl}?v=${Date.now()}`;
           const { error: logoErr } = await supabase.from('leagues').update({ logo_url: urlData.publicUrl }).eq('id', id);
           if (logoErr) notify("Couldn't update the team logo", logoErr.message);
           setLeague(prev => prev ? { ...prev, logo_url: urlData.publicUrl } : prev);
@@ -1392,7 +1398,7 @@ export default function LeagueScreen() {
                 onSubmitEditing={() => sendEncouragement(ownerId, key)}
               />
               <TouchableOpacity onPress={() => sendEncouragement(ownerId, key)} disabled={isSending || !(encourageDrafts[key] || '').trim()}>
-                <Text style={styles.commentSendText}>{isSending ? '…' : 'Send'}</Text>
+                <BusyText busy={!!(isSending)} style={styles.commentSendText}>{isSending ? '…' : 'Send'}</BusyText>
               </TouchableOpacity>
             </View>
             {!!encourageErrors[key] && <Text style={styles.encourageErrorText}>{encourageErrors[key]}</Text>}
@@ -1502,7 +1508,7 @@ export default function LeagueScreen() {
               no single hardcoded destination is right for all of them. Falls
               back to the Teams tab rather than Today — this screen belongs to
               that section. */}
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/team-feed'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/team-feed'))} color={RivalColors.accentFill} />
           {isAdmin && (
             <TouchableOpacity onPress={() => router.push({ pathname: '/league-settings', params: { id } })}>
               <Text style={styles.settingsLink}>⚙️ Settings</Text>
@@ -1720,7 +1726,7 @@ export default function LeagueScreen() {
                 <Text style={styles.editCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.postSessionBtn} onPress={saveTeamGoal} disabled={savingGoal}>
-                <Text style={styles.postSessionBtnText}>{savingGoal ? 'Saving…' : 'Save Challenge'}</Text>
+                <BusyText busy={!!(savingGoal)} style={styles.postSessionBtnText}>{savingGoal ? 'Saving…' : 'Save Challenge'}</BusyText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1896,7 +1902,7 @@ export default function LeagueScreen() {
             <Text style={styles.composerLabel}>Location (optional)</Text>
             <TextInput style={styles.composerInput} value={quickTrainLocation} onChangeText={setQuickTrainLocation} placeholder="e.g. Coastal Track car park, Mission Bay" placeholderTextColor="#555" />
             <TouchableOpacity style={styles.postSessionBtn} onPress={postQuickTrain} disabled={postingQuickTrain}>
-              <Text style={styles.postSessionBtnText}>{postingQuickTrain ? 'Sending…' : "Notify the team 🔔"}</Text>
+              <BusyText busy={!!(postingQuickTrain)} style={styles.postSessionBtnText}>{postingQuickTrain ? 'Sending…' : "Notify the team 🔔"}</BusyText>
             </TouchableOpacity>
           </View>
         )}
@@ -1970,7 +1976,7 @@ export default function LeagueScreen() {
             <TouchableOpacity style={[styles.sideNavItem, activeTab === 'challenges' && styles.sideNavItemActive]} onPress={() => setActiveTab('challenges')}>
               <Text style={[styles.sideNavText, activeTab === 'challenges' && styles.sideNavTextActive]}>Challenges</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sideNavItem} onPress={() => router.push('/my-activities')}>
+            <TouchableOpacity style={styles.sideNavItem} onPress={() => goToTab('/my-activities')}>
               <Text style={styles.sideNavText}>Activity</Text>
             </TouchableOpacity>
 
@@ -2204,7 +2210,7 @@ export default function LeagueScreen() {
                   <TextInput style={styles.composerInput} value={sessionLocation} onChangeText={setSessionLocation} placeholder="e.g. Coastal Track car park, Mission Bay" placeholderTextColor="#555" />
                   <Text style={styles.composerHint}>Tappable in Maps — include the suburb/city so it finds the right spot.</Text>
                   <TouchableOpacity style={styles.postSessionBtn} onPress={async () => { await postSession(); loadSessions(); }} disabled={postingSession}>
-                    <Text style={styles.postSessionBtnText}>{postingSession ? 'Posting…' : 'Post activity'}</Text>
+                    <BusyText busy={!!(postingSession)} style={styles.postSessionBtnText}>{postingSession ? 'Posting…' : 'Post activity'}</BusyText>
                   </TouchableOpacity>
                 </View>
               )}
@@ -2267,7 +2273,7 @@ export default function LeagueScreen() {
                     <Text style={styles.editCancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.postSessionBtn} onPress={createChallenge} disabled={postingChallenge}>
-                    <Text style={styles.postSessionBtnText}>{postingChallenge ? 'Sending…' : 'Send Challenge'}</Text>
+                    <BusyText busy={!!(postingChallenge)} style={styles.postSessionBtnText}>{postingChallenge ? 'Sending…' : 'Send Challenge'}</BusyText>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2417,7 +2423,7 @@ export default function LeagueScreen() {
                     <Text style={styles.editCancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.postSessionBtn, (!lvlTargetLeague || postingLvl) && { opacity: 0.5 }]} onPress={sendLvlChallenge} disabled={!lvlTargetLeague || postingLvl}>
-                    <Text style={styles.postSessionBtnText}>{postingLvl ? 'Sending…' : 'Send Challenge'}</Text>
+                    <BusyText busy={!!(postingLvl)} style={styles.postSessionBtnText}>{postingLvl ? 'Sending…' : 'Send Challenge'}</BusyText>
                   </TouchableOpacity>
                 </View>
               </View>

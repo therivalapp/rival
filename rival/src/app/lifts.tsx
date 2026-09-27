@@ -10,6 +10,8 @@ import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 type Entry = { id: string; exercise_name: string; weight_kg: number; reps: number | null; performed_at: string };
 // kg as stored → the chosen units, to one decimal; and back for saving.
@@ -31,6 +33,7 @@ export default function LiftsScreen() {
   const [logReps, setLogReps] = useState('');
   const [customName, setCustomName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(false);
 
   const [goalModalFor, setGoalModalFor] = useState<string | null>(null);
   const [goalWeight, setGoalWeight] = useState('');
@@ -136,8 +139,14 @@ export default function LiftsScreen() {
     const payload: Record<string, unknown> = { user_id: user.id, exercise_name: goalModalFor, target_weight_kg: storedWeight(target) };
     if (goalModalIsNew) payload.starting_weight_kg = storedWeight(goalModalCurrentPb);
 
-    await supabase.from('exercise_goals')
+    setSavingGoal(true);
+    const { error } = await supabase.from('exercise_goals')
       .upsert(payload, { onConflict: 'user_id,exercise_name' });
+    setSavingGoal(false);
+    if (error) {
+      notify("Couldn't save that goal", error.message);
+      return;
+    }
     setGoalModalFor(null);
     load();
   }
@@ -202,7 +211,7 @@ export default function LiftsScreen() {
         <RivalTopNav active="activity" />
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.headerRow}>
-            <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/my-activities'))} color={RivalColors.accentFill} />
+            <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} color={RivalColors.accentFill} />
             <Text style={styles.headerTitle}>{wide ? 'Personal Bests' : 'Personal bests'}</Text>
             <View style={{ width: 48 }} />
           </View>
@@ -391,7 +400,7 @@ export default function LiftsScreen() {
                 <Text style={wide ? styles.modalCancelText : rm.ghostText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={wide ? styles.modalSaveBtn : [rm.primary, { flex: 1 }]} onPress={saveLog} disabled={saving}>
-                <Text style={wide ? styles.modalSaveText : rm.primaryText}>{saving ? 'Saving…' : 'Save'}</Text>
+                <BusyText busy={!!(saving)} style={wide ? styles.modalSaveText : rm.primaryText}>{saving ? 'Saving…' : 'Save'}</BusyText>
               </TouchableOpacity>
             </View>
           </View>
@@ -415,8 +424,8 @@ export default function LiftsScreen() {
               <TouchableOpacity style={wide ? styles.modalCancelBtn : [rm.ghost, { flex: 1 }]} onPress={() => setGoalModalFor(null)}>
                 <Text style={wide ? styles.modalCancelText : rm.ghostText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={wide ? styles.modalSaveBtn : [rm.primary, { flex: 1 }]} onPress={saveGoal}>
-                <Text style={wide ? styles.modalSaveText : rm.primaryText}>Save</Text>
+              <TouchableOpacity style={wide ? styles.modalSaveBtn : [rm.primary, { flex: 1 }, savingGoal && rm.disabled]} onPress={saveGoal} disabled={savingGoal}>
+                <BusyText busy={!!(savingGoal)} style={wide ? styles.modalSaveText : rm.primaryText}>{savingGoal ? 'Saving…' : 'Save'}</BusyText>
               </TouchableOpacity>
             </View>
           </View>
