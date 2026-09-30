@@ -18,7 +18,7 @@ describe('rankPace', () => {
     expect(p.fullYear).toBeNull();
     expect(p.yearEnd.effort).toBeGreaterThan(13500);
     expect(p.yearEnd.effort).toBeLessThan(14500);
-    expect(p.yearEnd.level.name).toBe('Legend');
+    expect(p.yearEnd.level.name).toBe('Champion'); // Champion from 13,000 (2026-10 ladder)
   });
 
   it('measures a latecomer from their first activity and shows a full-year projection', () => {
@@ -28,7 +28,7 @@ describe('rankPace', () => {
     expect(p.latecomer).toBe(true);
     expect(p.start.getMonth()).toBe(6);
     expect(p.fullYear!.effort).toBeGreaterThan(13500);
-    expect(p.fullYear!.level.name).toBe('Legend');
+    expect(p.fullYear!.level.name).toBe('Champion');
     // The rank actually reached this year stays far lower.
     expect(p.yearEnd.effort).toBeLessThan(p.fullYear!.effort);
   });

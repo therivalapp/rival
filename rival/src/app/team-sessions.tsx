@@ -13,7 +13,7 @@ import { RivalIcon } from '../components/rival/RivalIcon';
 import { SessionCard } from '../components/rival/SessionCard';
 import { PlanSessionSheet, EditableSession } from '../components/rival/PlanSessionSheet';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
-import { RivalWarm, rm } from '../components/rival/RivalMobile';
+import { GreyPageHead, GreySegment, GREY_PAGE_BG, rb } from '../components/rival/RivalGreySheet';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
 // Every planned activity for one team, upcoming and past. Team Hub's Coming
@@ -113,32 +113,54 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: mob ? RivalWarm.page : RivalColors.surfaceLow }}>
+    <View style={{ flex: 1, backgroundColor: mob ? GREY_PAGE_BG : RivalColors.surfaceLow }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         <RivalTopNav active="teams" hideBar />
-        <View style={styles.header}>
-          <RivalBackButton
-            onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))}
-            color={RivalColors.accentFill}
-          />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.title}>Planned activities</Text>
-            {!!teamName && <Text style={[styles.sub, mob && ms.sub]} numberOfLines={1}>{teamName}</Text>}
+        {mob ? (
+          // Phone: the blend. Team name over the title; one segmented
+          // toggle; planning is the button under the list, not a +.
+          <View style={ms.top}>
+            <GreyPageHead
+              kicker={(teamName || 'Team').toUpperCase()}
+              title="Planned activities"
+              onBack={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))}
+            />
+            <GreySegment
+              options={[
+                { value: 'upcoming' as const, label: `Upcoming (${upcoming.length})` },
+                { value: 'history' as const, label: `History (${history.length})` },
+              ]}
+              value={view}
+              onChange={setView}
+            />
           </View>
-          <TouchableOpacity style={styles.planBtn} onPress={() => { setEditing(null); setPlanning(true); }} accessibilityLabel="Plan an activity">
-            <RivalIcon name="add" size={18} color={RivalColors.accentText} />
-          </TouchableOpacity>
-        </View>
+        ) : (
+          <>
+            <View style={styles.header}>
+              <RivalBackButton
+                onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))}
+                color={RivalColors.accentFill}
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.title}>Planned activities</Text>
+                {!!teamName && <Text style={styles.sub} numberOfLines={1}>{teamName}</Text>}
+              </View>
+              <TouchableOpacity style={styles.planBtn} onPress={() => { setEditing(null); setPlanning(true); }} accessibilityLabel="Plan an activity">
+                <RivalIcon name="add" size={18} color={RivalColors.accentText} />
+              </TouchableOpacity>
+            </View>
 
-        <View style={[styles.segment, mob && ms.segment]}>
-          {(['upcoming', 'history'] as const).map(v => (
-            <TouchableOpacity key={v} style={[styles.segBtn, view === v && styles.segBtnOn, mob && view === v && ms.segBtnOn]} onPress={() => setView(v)}>
-              <Text style={[styles.segText, view === v && styles.segTextOn, mob && view === v && ms.segTextOn]}>
-                {v === 'upcoming' ? `Upcoming (${upcoming.length})` : `History (${history.length})`}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            <View style={styles.segment}>
+              {(['upcoming', 'history'] as const).map(v => (
+                <TouchableOpacity key={v} style={[styles.segBtn, view === v && styles.segBtnOn]} onPress={() => setView(v)}>
+                  <Text style={[styles.segText, view === v && styles.segTextOn]}>
+                    {v === 'upcoming' ? `Upcoming (${upcoming.length})` : `History (${history.length})`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
 
         {loading ? (
           <View style={styles.center}><ActivityIndicator color={RivalColors.accentFill} /></View>
@@ -147,19 +169,13 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
             {pullIndicator}
             {shown.length === 0 ? (
               mob ? (
-                <View style={[rm.card, ms.empty]}>
-                  <View style={rm.iconCircle}>
-                    <RivalIcon name="calendar" size={20} color={RivalColors.accentText} />
+                <View style={[rb.card, ms.empty]}>
+                  <View style={rb.badge}>
+                    <RivalIcon name="calendar" size={16} color={RivalColors.accentText} />
                   </View>
-                  <Text style={[rm.hint, { textAlign: 'center' }]}>
+                  <Text style={ms.emptyText}>
                     {view === 'upcoming' ? 'No upcoming activities. Plan one and teammates can join.' : 'No past activities yet.'}
                   </Text>
-                  {view === 'upcoming' && (
-                    <TouchableOpacity style={[rm.primary, ms.emptyBtn]} onPress={() => { setEditing(null); setPlanning(true); }} activeOpacity={0.85}>
-                      <RivalIcon name="add" size={18} color={rm.primaryText.color as string} />
-                      <Text style={rm.primaryText}>Plan an activity</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               ) : (
               <Text style={styles.empty}>
@@ -180,6 +196,11 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
                 onToggleRsvp={() => toggleRsvp(r.id)}
               />
             ))}
+            {mob && view === 'upcoming' ? (
+              <TouchableOpacity style={ms.planBtn} onPress={() => { setEditing(null); setPlanning(true); }} activeOpacity={0.85} accessibilityRole="button">
+                <Text style={ms.planBtnText}>Plan an activity</Text>
+              </TouchableOpacity>
+            ) : null}
           </ScrollView>
         )}
       </SafeAreaView>
@@ -218,12 +239,11 @@ const styles = StyleSheet.create({
   empty: { fontSize: 14, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 40 },
 });
 
-// Phone only — the RIVAL look (see RivalMobile.tsx).
+// Phone only — the blend (see RivalGreySheet's rb).
 const ms = StyleSheet.create({
-  sub: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 3 },
-  segment: { backgroundColor: RivalWarm.field, borderColor: RivalWarm.cardBorder },
-  segBtnOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
-  segTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
-  empty: { alignItems: 'center', paddingVertical: 28 },
-  emptyBtn: { alignSelf: 'stretch', marginTop: 4 },
+  top: { paddingHorizontal: 16, paddingBottom: 12, gap: 4 },
+  empty: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
+  planBtn: { paddingVertical: 14, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  planBtnText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 });

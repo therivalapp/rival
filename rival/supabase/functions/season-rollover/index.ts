@@ -8,15 +8,15 @@ const supabase = createClient(
 // Must match LEVELS in src/lib/xp.ts.
 const LEVELS = [
   { level: 1,  name: 'Rookie',    minXp: 0 },
-  { level: 2,  name: 'Hustler',   minXp: 1500 },
-  { level: 3,  name: 'Warrior',   minXp: 4000 },
-  { level: 4,  name: 'Elite',     minXp: 7000 },
-  { level: 5,  name: 'Champion',  minXp: 10000 },
-  { level: 6,  name: 'Legend',    minXp: 13500 },
-  { level: 7,  name: 'Mythic',    minXp: 17500 },
-  { level: 8,  name: 'Immortal',  minXp: 21500 },
-  { level: 9,  name: 'God',       minXp: 25500 },
-  { level: 10, name: 'Unrivaled', minXp: 30000 },
+  { level: 2,  name: 'Hustler',   minXp: 2000 },
+  { level: 3,  name: 'Warrior',   minXp: 5250 },
+  { level: 4,  name: 'Elite',     minXp: 9000 },
+  { level: 5,  name: 'Champion',  minXp: 13000 },
+  { level: 6,  name: 'Legend',    minXp: 17500 },
+  { level: 7,  name: 'Mythic',    minXp: 22750 },
+  { level: 8,  name: 'Immortal',  minXp: 28000 },
+  { level: 9,  name: 'God',       minXp: 33250 },
+  { level: 10, name: 'Unrivaled', minXp: 39000 },
 ];
 
 function getLevel(xp: number) {

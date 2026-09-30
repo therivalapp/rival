@@ -1,7 +1,7 @@
 import { getMyTeamRows } from '../../lib/myTeams';
-import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation } from '../../lib/units';
+import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation, fromDisplayDistance, fromDisplayElevation } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useId } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated, Modal } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import Svg, { Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { getMondayOfWeek, calculateStreak } from '../../lib/streak';
 import { getCurrentSeasonYear, daysUntilSeasonEnd, getSeasonStartISO, deviceTimeZone } from '../../lib/season';
 import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
-import { computeGoalProgress, goalActivityLabel, goalUnit, GoalRow } from '../../lib/goalProgress';
+import { computeGoalProgress, goalActivityLabel, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
 // distances read as near-zero once rounded to km ("0.7km" is really "700m").
 // Distance goals always store/compute progress and target in km regardless
@@ -23,14 +23,27 @@ import { computeGoalProgress, goalActivityLabel, goalUnit, GoalRow } from '../..
 const METERS_SPORTS = new Set(['Swim', 'Rowing']);
 import { formatTeamName, formatRaceName } from '../../lib/identity';
 import { LaurelWreath } from '../../components/rival/LaurelWreath';
+import { selectAll, inChunks } from '../../lib/selectAll';
 import { useSnapState } from '../../lib/snapState';
-import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, type RivalIconName } from '../../components/rival';
+import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, RivalMiniTile, RivalStartTiles, GreySheet, GreyNote, GreyPrimary, type RivalIconName } from '../../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalFontFamily, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { goToTab } from '../../lib/tabNav';
 
+// Empty podium: a faint wreath round an empty seat over first place.
+// false = the older medal in a ring.
+const GHOST_WREATH = true;
+// Empty podium drawn as the live podium's own blocks, unlit, standing on a
+// thin line rather than the live platform (as in the mockup chosen 2026-09-28).
+// false = the flat outline pillars, which still get the wreath with your
+// initial and the teammates underneath.
+const EMPTY_PODIUM_3D = true;
+// Next event as a ticket: race on the left, days to go large on the right,
+// split by a tear line (chosen 2026-09-28). false = the plain card.
+const NEXT_EVENT_TICKET = true;
+
 type League = { id: string; name: string; invite_code: string; logo_url: string | null; recentCount?: number };
-type NextRace = { name: string; race_date: string } | null;
+type NextRace = { name: string; race_date: string; location?: string | null } | null;
 type WeeklyLeaderEntry = { userId: string; name: string; avatarUrl: string | null; points: number; isSelf: boolean };
 type WeeklyLeader = {
   leagueId: string;
@@ -39,6 +52,10 @@ type WeeklyLeader = {
   // Full ranked list (points > 0 only), so the card can tell the viewer's
   // own story even when they're not #1 — not just the top 3.
   standings: WeeklyLeaderEntry[];
+  // You plus the first few teammates, scored or not: the empty podium shows
+  // them waiting. Only a handful, so a team of thousands stays light.
+  members: { userId: string; name: string; avatarUrl: string | null; isSelf: boolean }[];
+  memberCount: number;
 };
 type MomentumTrainers = { leagueId: string; names: string[]; totalCount: number; selfTrained: boolean };
 type MomentumContent = { message: string; cta: string };
@@ -115,7 +132,7 @@ const PODIUM_RANK_STYLE = [
   {
     gradFrom: 'rgba(255,215,0,0.4)', gradTo: 'rgba(180,140,10,0.1)', glow: 'rgba(255,215,0,0.28)', glowRadius: 10,
     avatarGlow: 'rgba(255,215,0,0.25)', avatarGlowRadius: 7,
-    tint: '#FFD700', ptsColor: '#FFD700', ptsTint: 'rgba(255,215,0,0.7)', minH: 119, maxH: 161, avatarSize: 55, nameSize: 11, nameLetterSpacing: 1.5, ptsSize: 31, padTop: 29, padBottom: 20,
+    tint: '#FFD700', ptsColor: '#FFFFFF', ptsTint: 'rgba(255,215,0,0.7)', minH: 119, maxH: 161, avatarSize: 55, nameSize: 11, nameLetterSpacing: 1.5, ptsSize: 31, padTop: 29, padBottom: 20,
   },
   {
     gradFrom: 'rgba(150,130,110,0.32)', gradTo: 'rgba(60,50,45,0.08)', glow: 'rgba(180,150,120,0.18)', glowRadius: 7,
@@ -425,6 +442,121 @@ function WorkbenchPlatform() {
   );
 }
 
+// The empty Weekly Leader podium: the live podium's three blocks in their own
+// colours, dimmed and without the glow, with empty seats where the pictures
+// go. First place wears the wreath with your own picture faint inside it,
+// the seat the first activity takes.
+const UNLIT_ON_PLATFORM = false; // true = the live podium's platform under the blocks
+const UNLIT_BASELINE = false; // true = a thin line under the blocks
+const UNLIT_HEIGHTS = [92, 126, 74]; // columns left to right: 2nd, 1st, 3rd
+function UnlitPodium({ members, run, immediate }: { members: WeeklyLeader['members']; run: boolean; immediate: boolean }) {
+  const gid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const me = members.find((m) => m.isSelf);
+  const COLUMN_W = 82;
+  const GAP = 12;
+  const BLEED = 36;
+  const footprint = 3 * COLUMN_W + 2 * GAP + BLEED * 2;
+  const stageInset: any = { left: '50%', right: undefined, width: footprint, marginLeft: -footprint / 2 };
+  return (
+    <View style={{ position: 'relative', maxWidth: 360, width: '100%', alignSelf: 'center' }}>
+      {UNLIT_ON_PLATFORM && <View pointerEvents="none" style={[StyleSheet.absoluteFill, podiumStageIn(run, immediate)]}><PodiumStage inset={stageInset} /></View>}
+      <View style={[styles.mPodiumGrid, styles.mPodiumGridSparse, styles.mUnlitGrid]}>
+        {([1, 0, 2] as const).map((effRank, colIdx) => {
+          const rankStyle = PODIUM_RANK_STYLE[effRank];
+          const h = UNLIT_HEIGHTS[colIdx];
+          const faces = pillarFaces(SHARD_SLOPE[colIdx], h);
+          const size = rankStyle.avatarSize;
+          const lead = effRank === 0;
+          return (
+            <View key={colIdx} style={[styles.mPodiumColumn, styles.mPodiumColumnSparse]}>
+              <View style={[{ position: 'relative', zIndex: 2, top: lead ? -3 : 0, width: size, height: size, marginBottom: 6 }, podiumSettle(effRank, run, immediate)]}>
+                {lead && <View style={styles.mUnlitWreath}><LaurelWreath avatarSize={size} /></View>}
+                {lead && me ? (
+                  <View style={[styles.mUnlitMe, { width: size, height: size, borderRadius: size / 2, borderColor: 'rgba(255,215,0,0.5)' }]}>
+                    {/* Your first initial, not your picture: the picture is
+                        what the first activity earns. */}
+                    <Text style={[styles.mPodiumInitial, { color: '#ffffff', fontSize: size * 0.46, lineHeight: size * 0.56 }]}>
+                      {(me.name[0] || '?').toUpperCase()}
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.mUnlitSeat,
+                      { width: size, height: size, borderRadius: size / 2, borderColor: rankStyle.tint, opacity: lead ? 0.65 : 0.35 },
+                      { transform: [{ rotate: colIdx === 0 ? '-7deg' : colIdx === 2 ? '7deg' : '0deg' }] },
+                    ]}
+                  />
+                )}
+              </View>
+              <View style={[{ width: '100%', height: h, marginTop: 2 }, podiumRise(effRank, run, immediate)]}>
+                <Svg width="100%" height="100%" viewBox={`0 0 100 ${h}`} preserveAspectRatio="none" style={{ position: 'absolute' }}>
+                  <Defs>
+                    <LinearGradient id={`unlitGrad${gid}${colIdx}`} x1="0" y1="0" x2="0" y2="1">
+                      <Stop offset="0" stopColor={rankStyle.gradFrom} stopOpacity={0.4} />
+                      <Stop offset="1" stopColor={rankStyle.gradTo} stopOpacity={0.4} />
+                    </LinearGradient>
+                    <LinearGradient id={`unlitFacet${gid}${colIdx}`} x1="0" y1="0" x2="1" y2="0">
+                      <Stop offset="0" stopColor="#ffffff" stopOpacity={0.14} />
+                      <Stop offset="0.45" stopColor="#ffffff" stopOpacity={0} />
+                      <Stop offset="1" stopColor="#000000" stopOpacity={0.28} />
+                    </LinearGradient>
+                  </Defs>
+                  <Polygon points={faces.side} fill={`url(#unlitGrad${gid}${colIdx})`} />
+                  <Polygon points={faces.side} fill="#000000" fillOpacity={0.42} stroke={rankStyle.tint} strokeOpacity={0.14} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <Polygon points={faces.top} fill={rankStyle.tint} fillOpacity={lead ? 0.1 : 0.07} />
+                  <Polygon points={faces.top} fill="#ffffff" fillOpacity={0.05} stroke={rankStyle.tint} strokeOpacity={0.24} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <Polygon points={faces.front} fill={`url(#unlitGrad${gid}${colIdx})`} stroke={rankStyle.tint} strokeWidth={1.25} strokeOpacity={0.35} vectorEffect="non-scaling-stroke" />
+                  <Polygon points={faces.front} fill={`url(#unlitFacet${gid}${colIdx})`} />
+                  <Line {...faces.frontEdge} stroke="#ffffff" strokeOpacity={0.25} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                </Svg>
+                {/* Just under each block's slanted top, so the numbers step down with
+                    the blocks: 1 highest, then 2, then 3. */}
+                <Text style={[styles.mUnlitPlace, { color: '#ffffff', right: `${PILLAR_SIDE}%` as any, top: Math.ceil(Math.max(...SHARD_SLOPE[colIdx]) * h * SLANT_TEXT_FRACTION) + PILLAR_DEPTH + 12 }, effRank === 2 && styles.mUnlitPlaceThree]}>{effRank + 1}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+      {!UNLIT_ON_PLATFORM && UNLIT_BASELINE && <View style={[styles.mGhostStage, styles.mUnlitLine, podiumStageIn(run, immediate)]} />}
+    </View>
+  );
+}
+
+// The rest of the team, faded under the empty podium: they're here, the week
+// is open. Up to six pictures, then "+N" ("1k+" past a thousand).
+const WAITING_FACES = 6;
+// Up to this many teammates across all teams, Home asks for every name and
+// picture at once; above it, only the ones it shows.
+const SMALL_TEAMS_MAX = 150;
+const TEAMMATES_WAITING_LINE = 'The week is open';
+const SHOW_TEAMMATES_WAITING_LINE = false; // the "N teammates · …" line under the pictures
+function TeammatesWaiting({ members, memberCount, flat }: { members: WeeklyLeader['members']; memberCount: number; flat?: boolean }) {
+  const others = members.filter((m) => !m.isSelf);
+  if (others.length === 0) return null;
+  const shown = others.slice(0, WAITING_FACES);
+  const extra = Math.max(0, memberCount - 1 - shown.length);
+  return (
+    <View style={[styles.mWaiting, flat && styles.mWaitingFlat]}>
+      <View style={styles.mWaitingRow}>
+        {shown.map((m, i) => (
+          <View key={m.userId} style={[styles.mWaitingAvatar, i > 0 && { marginLeft: -8 }, !m.avatarUrl && initialBackdrop(RivalColors.accentText)]}>
+            {m.avatarUrl
+              ? <Image source={{ uri: m.avatarUrl }} style={styles.mWaitingImage} />
+              : <Text style={styles.mWaitingInitial}>{(m.name[0] || '?').toUpperCase()}</Text>}
+          </View>
+        ))}
+        {extra > 0 && <View style={[styles.mWaitingAvatar, styles.mWaitingMore, { marginLeft: -8 }]}><Text style={styles.mWaitingMoreText}>{extra >= 1000 ? `${Math.floor(extra / 1000)}k+` : `+${extra}`}</Text></View>}
+      </View>
+      {SHOW_TEAMMATES_WAITING_LINE && (
+        <Text style={styles.mWaitingText}>
+          {memberCount - 1} {memberCount - 1 === 1 ? 'teammate' : 'teammates'} · {TEAMMATES_WAITING_LINE}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function PodiumStage({ inset }: { inset?: any }) {
   if (PODIUM_STAGE === 'none') return null;
   if (PODIUM_STAGE === 'workbench' && Platform.OS === 'web') return <WorkbenchPlatform />;
@@ -687,6 +819,24 @@ function momentumStory(trainers: MomentumTrainers | null, weeklyLeader: WeeklyLe
   }
   return { message: 'No activities logged this week', cta: 'Add activity' };
 }
+// A focus that ended in the last few days without being reached. Today keeps
+// it for ENDED_GRACE_DAYS with Extend and Start again, rather than dropping it.
+type EndedGoal = {
+  id: string;
+  activityLabel: string;
+  progress: number;
+  target: number;
+  unit: string;
+  pct: number;
+  endIso: string;
+  extendedDays: number;
+  /** What's left, in the goal's own display units. */
+  remaining: number;
+  row: { goal_type: string; target_value: number; activity_filter: string | null; start_date: string; end_date: string };
+};
+const ENDED_GRACE_DAYS = 3;
+const MAX_EXTEND_DAYS = 14;
+
 type FeaturedGoal = {
   id: string;
   title: string;
@@ -742,6 +892,66 @@ function shownGoal(type: 'distance' | 'elevation' | 'gym_sessions', v: number): 
   if (type === 'distance') return { value: Math.round(toDisplayDistance(v) * 10) / 10, unit: distanceUnit() };
   if (type === 'elevation') return { value: Math.round(toDisplayElevation(v)), unit: elevationUnit() };
   return { value: v, unit: goalUnit(type) };
+}
+
+// Focus empty state: three one-tap goals over the next 4 weeks (a "month"
+// goal is a fixed 28 days). New accounts get modest starting targets; once
+// someone has a month of training, each is set a little above what they did
+// over the last 28 days. Targets are stored metric (km, m, count).
+type FocusStarter = {
+  key: string;
+  icon: RivalIconName;
+  value: string;          // shown in the tile, in the viewer's units
+  label: string;          // under the value
+  goal: { goal_type: 'distance' | 'elevation' | 'gym_sessions'; activity_filter: string; target_value: number };
+};
+const STARTER_DAYS = 28;
+function buildFocusStarters(activities: any[]): { starters: FocusStarter[]; basis: string | null } {
+  const now = Date.now();
+  const since = now - STARTER_DAYS * 86400000;
+  const earliest = activities.reduce((min: number, a: any) => Math.min(min, new Date(a.started_at).getTime()), now);
+  const hasMonth = earliest <= since;
+  const recent = activities.filter((a: any) => new Date(a.started_at).getTime() >= since);
+  const km = (types: string[]) => recent.filter((a: any) => types.includes(a.activity_type)).reduce((t: number, a: any) => t + (a.distance_meters || 0), 0) / 1000;
+  const runKm = km(['Run', 'VirtualRun', 'TrailRun']);
+  const rideKm = km(['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide']);
+  const climbM = recent.reduce((t: number, a: any) => t + (a.elevation_meters || 0), 0);
+  const count = recent.length;
+  const roundTo = (v: number, step: number) => Math.max(step, Math.round(v / step) * step);
+
+  // Distance: the sport they do most by distance, else running.
+  const ride = hasMonth && rideKm > runKm;
+  const sportKm = ride ? rideKm : runKm;
+  const distStep = ride ? 25 : 5;
+  const distShown = hasMonth && sportKm > 0
+    ? roundTo(toDisplayDistance(sportKm * 1.1), distStep)
+    : (ride ? 50 : 20);
+  const countTarget = hasMonth && count > 0 ? Math.max(4, count + 1) : 8;
+  const climbShown = hasMonth && climbM > 0
+    ? roundTo(toDisplayElevation(climbM * 1.1), 100)
+    : Math.round(toDisplayElevation(500) / 100) * 100;
+
+  const starters: FocusStarter[] = [
+    {
+      key: 'distance', icon: ride ? 'ride' : 'run',
+      value: `${distShown} ${distanceUnit()}`, label: ride ? 'of riding' : 'of running',
+      goal: { goal_type: 'distance', activity_filter: ride ? 'Ride' : 'Run', target_value: Math.round(fromDisplayDistance(distShown) * 10) / 10 },
+    },
+    {
+      key: 'count', icon: 'calendar',
+      value: String(countTarget), label: 'activities',
+      goal: { goal_type: 'gym_sessions', activity_filter: 'All', target_value: countTarget },
+    },
+    {
+      key: 'climb', icon: 'elevation',
+      value: `${climbShown.toLocaleString()} ${elevationUnit()}`, label: 'climbed',
+      goal: { goal_type: 'elevation', activity_filter: 'All', target_value: Math.round(fromDisplayElevation(climbShown)) },
+    },
+  ];
+  const basis = hasMonth && count > 0
+    ? `Last 4 weeks: ${count} ${count === 1 ? 'activity' : 'activities'}${sportKm > 0 ? `, ${Math.round(toDisplayDistance(sportKm))} ${distanceUnit()} ${ride ? 'riding' : 'running'}` : ''}.`
+    : null;
+  return { starters, basis };
 }
 
 function featuredGoalTitle(goal: { goal_type: 'distance' | 'elevation' | 'gym_sessions'; activity_filter: string | null; target_value: number }): string {
@@ -892,12 +1102,24 @@ function relativeDayLabel(iso: string): string {
   return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-// The lifetime total counts up from 90% the first time it scrolls into view
+// The lifetime total counts up from 70% the first time it scrolls into view
 // (and again whenever it changes), so the biggest number on Home lands with
 // some weight instead of just sitting there. Respects reduced motion.
+// The + beside Add activity that opened the "Get set up" pop-up. Off (Ricky,
+// 2026-09-30); kept in case it comes back.
+const SHOW_ADD_MORE = false;
+// Inline Focus empty section (heading + starters). Off: on Today, everything
+// not set up yet is a tile at the bottom of the page (Ricky, 2026-09-30).
+const SHOW_FOCUS_EMPTY_SECTION = false;
+
+const COUNT_UP_FROM = 0.7;
+const COUNT_UP_MS = 1600;
 function CountUpText({ value, style }: { value: number; style: any }) {
-  const [shown, setShown] = useState(value);
-  const ref = useRef<any>(null);
+  // Starts at the count's first frame, not the full total, so the number
+  // doesn't flash at full and then drop back before counting up.
+  const [shown, setShown] = useState(() => Math.round(value * COUNT_UP_FROM));
+  const boxRef = useRef<any>(null);
+  const numRef = useRef<any>(null);
   const played = useRef<number | null>(null);
   useEffect(() => {
     if (played.current === value) { setShown(value); return; }
@@ -906,18 +1128,29 @@ function CountUpText({ value, style }: { value: number; style: any }) {
     if (reduced || value <= 0) { played.current = value; setShown(value); return; }
     let raf = 0;
     let io: IntersectionObserver | null = null;
+    // On web each frame writes straight to the text node instead of
+    // re-rendering through React, so no frame is dropped mid-count.
+    const paint = (n: number) => {
+      const el = numRef.current;
+      if (Platform.OS === 'web' && el instanceof Element) el.textContent = n.toLocaleString();
+      else setShown(n);
+    };
     const run = () => {
       played.current = value;
-      const from = Math.round(value * 0.9);
-      const start = Date.now();
-      const tick = () => {
-        const p = Math.min(1, (Date.now() - start) / 900);
-        setShown(Math.round(from + (value - from) * (1 - Math.pow(1 - p, 3))));
+      const from = Math.round(value * COUNT_UP_FROM);
+      const start = performance.now();
+      let last = -1;
+      const tick = (now: number) => {
+        const p = Math.min(1, (now - start) / COUNT_UP_MS);
+        // Quintic ease-out: quick at first, then a long gentle settle.
+        const n = Math.round(from + (value - from) * (1 - Math.pow(1 - p, 5)));
+        if (n !== last) { last = n; paint(n); }
         if (p < 1) raf = requestAnimationFrame(tick);
+        else setShown(value);
       };
       raf = requestAnimationFrame(tick);
     };
-    const node = ref.current;
+    const node = boxRef.current;
     if (Platform.OS === 'web' && node instanceof Element && typeof IntersectionObserver !== 'undefined') {
       io = new IntersectionObserver((entries) => {
         if (entries.some((en) => en.isIntersecting)) { io?.disconnect(); run(); }
@@ -928,8 +1161,22 @@ function CountUpText({ value, style }: { value: number; style: any }) {
     }
     return () => { cancelAnimationFrame(raf); io?.disconnect(); };
   }, [value]);
-  return <Text ref={ref} style={style}>{shown.toLocaleString()}</Text>;
+  // The serif's digits are different widths (a 1 is much narrower than a 0),
+  // so centred text shuffled sideways on every frame. The box is sized by an
+  // invisible copy of the final total, and the counting number is pinned to
+  // its left edge: the number sits still and only its last digits change.
+  return (
+    <View ref={boxRef} style={countUp.box}>
+      <Text style={[style, countUp.ghost]} aria-hidden>{value.toLocaleString()}</Text>
+      <Text ref={numRef} style={[style, countUp.live]}>{shown.toLocaleString()}</Text>
+    </View>
+  );
 }
+const countUp = StyleSheet.create({
+  box: { alignSelf: 'center' },
+  ghost: { opacity: 0 },
+  live: { position: 'absolute', left: 0, top: 0 },
+});
 
 // The heading every mobile Home section opens with — the same pairing as the
 // Weekly Leader's "You're leading" line: a serif italic title, then a small
@@ -942,7 +1189,7 @@ function MHeading({ title, subtitle, icon }: { title?: string; subtitle?: string
       {subtitle ? (
         <View style={styles.mStatusCountdown}>
           <View style={[styles.mStatusRule, styles.mStatusRuleLeft]} />
-          {icon ? <RivalIcon name={icon} size={12} color="rgba(255,181,158,0.7)" /> : null}
+          {icon ? <RivalIcon name={icon} size={12} color={RivalColors.accentText} /> : null}
           <Text style={styles.mStatusCountdownText}>{subtitle}</Text>
           <View style={[styles.mStatusRule, styles.mStatusRuleRight]} />
         </View>
@@ -1030,20 +1277,43 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
 
                 {leader === null || leader.standings.length === 0 ? (
                   <View style={styles.mLeaderEmpty}>
+                    {EMPTY_PODIUM_3D ? (
+                      <>
+                        <UnlitPodium members={leader?.members ?? []} run={run} immediate={immediate} />
+                        <TeammatesWaiting members={leader?.members ?? []} memberCount={leader?.memberCount ?? 0} />
+                      </>
+                    ) : (<>
                     {/* An empty podium waiting to be filled — the same three
                         pillars as a live board, drawn as faint outlines with
                         the medal over first place, instead of a lone icon. */}
                     <View style={styles.mGhostPodium}>
                       {[{ place: 2, h: 62 }, { place: 1, h: 92 }, { place: 3, h: 46 }].map(({ place, h }) => (
                         <View key={place} style={[styles.mGhostPillar, { height: h }, place === 1 && styles.mGhostPillarFirst, podiumRise((place - 1) as 0 | 1 | 2, run, immediate)]}>
-                          {place === 1 && (
+                          {place === 1 && (GHOST_WREATH ? (
+                            // The leader's wreath around an empty seat: the
+                            // same mark a live leader wears, waiting to be filled.
+                            <View style={styles.mGhostSeat}>
+                              <View style={styles.mUnlitWreath}><LaurelWreath avatarSize={55} /></View>
+                              {leader?.members.find((m) => m.isSelf) ? (
+                                <View style={[styles.mUnlitMe, { width: 55, height: 55, borderRadius: 28, borderColor: 'rgba(255,215,0,0.5)' }]}>
+                                  <Text style={[styles.mPodiumInitial, { color: '#ffffff', fontSize: 55 * 0.46, lineHeight: 55 * 0.56 }]}>
+                                    {(leader.members.find((m) => m.isSelf)!.name[0] || '?').toUpperCase()}
+                                  </Text>
+                                </View>
+                              ) : (
+                                <View style={styles.mGhostSeatCircle} />
+                              )}
+                            </View>
+                          ) : (
                             <View style={[styles.medalRing, styles.mGhostMedal]}><RivalIcon name="medal" size={26} color="#ECC654" /></View>
-                          )}
+                          ))}
                           <Text style={styles.mGhostPlace}>{place}</Text>
                         </View>
                       ))}
                     </View>
                     <View style={styles.mGhostStage} />
+                    <TeammatesWaiting members={leader?.members ?? []} memberCount={leader?.memberCount ?? 0} flat />
+                    </>)}
                     {leader === null ? (
                       // Not in a team yet: the podium needs people, so the way
                       // forward is finding them rather than earning Effort.
@@ -1218,7 +1488,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                         style={{ width: rankStyle.avatarSize - AVATAR_RING * 2, height: rankStyle.avatarSize - AVATAR_RING * 2, borderRadius: rankStyle.avatarSize / 2 }}
                                       />
                                     ) : (
-                                      <Text style={[styles.mPodiumInitial, { color: rankStyle.tint, fontSize: rankStyle.avatarSize * 0.46, lineHeight: rankStyle.avatarSize * 0.56 }, initialGlow(rankStyle.tint)]}>
+                                      <Text style={[styles.mPodiumInitial, { color: '#ffffff', fontSize: rankStyle.avatarSize * 0.46, lineHeight: rankStyle.avatarSize * 0.56 }, initialGlow(rankStyle.tint)]}>
                                         {(entry.name[0] || '?').toUpperCase()}
                                       </Text>
                                     )}
@@ -1296,7 +1566,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                   </View>
                                 )}
                                 <View style={{ flex: 1, alignItems: 'center', paddingTop: effPadTop, paddingBottom: effPadBottom, marginRight: `${PILLAR_SIDE}%` }}>
-                                  <Text style={[styles.mPodiumName, { color: rankStyle.tint, fontSize: rankStyle.nameSize, lineHeight: Math.round(rankStyle.nameSize * 1.15), letterSpacing: rankStyle.nameLetterSpacing }]} numberOfLines={1}>
+                                  <Text style={[styles.mPodiumName, { color: '#ffffff', fontSize: rankStyle.nameSize, lineHeight: Math.round(rankStyle.nameSize * 1.15), letterSpacing: rankStyle.nameLetterSpacing }]} numberOfLines={1}>
                                     {entry.name}
                                   </Text>
                                   <Text style={[styles.mPodiumPoints, { fontSize: rankStyle.ptsSize, lineHeight: Math.round(rankStyle.ptsSize * 1.15), color: rankStyle.ptsColor }]}><PodiumCount value={entry.points} effRank={effRank} run={run} quick={immediate} /></Text>
@@ -1425,6 +1695,15 @@ export default function HomeScreen() {
   const heroScrollRef = useRef<ScrollView>(null);
   const legacyScrollRef = useRef<ScrollView>(null);
   const [featuredGoal, setFeaturedGoal] = useSnapState<FeaturedGoal | null>('home.featuredGoal', null);
+  const [focusStarters, setFocusStarters] = useSnapState<{ starters: FocusStarter[]; basis: string | null } | null>('home.focusStarters', null);
+  const [startingGoal, setStartingGoal] = useState<string | null>(null);
+  const [focusSheetOpen, setFocusSheetOpen] = useState(false);
+  const [endedGoal, setEndedGoal] = useSnapState<EndedGoal | null>('home.endedGoal', null);
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [extendDays, setExtendDays] = useState(3);
+  const [extending, setExtending] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const homeUserId = useRef<string | null>(null);
   // False until the first load finishes. Every figure above starts empty, not
   // with example numbers, and the phone layout shows a skeleton until then —
   // so nobody ever sees placeholder figures that look like someone's real data.
@@ -1447,6 +1726,84 @@ export default function HomeScreen() {
   }, []));
 
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => loadAll());
+
+  // What can still be set up from Today, shown in the Add activity pop-up.
+  const createOptions: { key: string; icon: RivalIconName; label: string; onPress: () => void }[] = [
+    ...(!featuredGoal ? [{ key: 'focus', icon: 'target' as const, label: 'Set focus', onPress: () => { setCreateOpen(false); router.push({ pathname: '/goals', params: { add: 'true' } }); } }] : []),
+    ...(!nextRace ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => { setCreateOpen(false); router.push('/races?add=true'); } }] : []),
+    ...(leagues.length === 0 ? [{ key: 'team', icon: 'groups' as const, label: 'Join a team', onPress: () => { setCreateOpen(false); router.push('/discover-leagues'); } }] : []),
+  ];
+
+  // One tap on a Focus starter: create the goal (next 28 days, pinned as the
+  // focus) and reload so the ring takes the card's place.
+  async function startFocusGoal(st: FocusStarter) {
+    const uId = homeUserId.current;
+    if (!uId || startingGoal) return;
+    setStartingGoal(st.key);
+    const start = new Date();
+    const end = new Date(start); end.setDate(start.getDate() + STARTER_DAYS - 1);
+    const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const { error } = await supabase.from('goals').insert({
+      user_id: uId,
+      ...st.goal,
+      period_type: 'month',
+      start_date: ymd(start),
+      end_date: ymd(end),
+      pinned: true,
+    });
+    if (error) {
+      setStartingGoal(null);
+      notify("Couldn't set that focus", error.message);
+      return;
+    }
+    await loadAll();
+    setStartingGoal(null);
+    setFocusSheetOpen(false);
+  }
+
+  const ymdOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // Extend: the goal runs for N more days counting today. The days added
+  // are recorded (extended_days) so the history stays honest.
+  const extendEnd = (() => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + extendDays - 1); return d; })();
+  async function extendFocus() {
+    if (!endedGoal || extending) return;
+    setExtending(true);
+    const oldEnd = new Date(endedGoal.endIso + 'T12:00:00');
+    const added = Math.max(1, Math.round((extendEnd.getTime() - oldEnd.getTime()) / 86400000));
+    const { error } = await supabase.from('goals').update({
+      end_date: ymdOf(extendEnd),
+      period_type: 'custom',
+      pinned: true,
+      extended_days: endedGoal.extendedDays + added,
+    }).eq('id', endedGoal.id);
+    setExtending(false);
+    if (error) { notify("Couldn't extend the goal", error.message); return; }
+    setExtendOpen(false);
+    setEndedGoal(null);
+    await loadAll();
+  }
+  // Start again: the same goal over the same length of time, from today.
+  async function restartFocus() {
+    const uId = homeUserId.current;
+    if (!endedGoal || !uId || extending) return;
+    setExtending(true);
+    const days = Math.max(1, Math.round((new Date(endedGoal.row.end_date + 'T12:00:00').getTime() - new Date(endedGoal.row.start_date + 'T12:00:00').getTime()) / 86400000) + 1);
+    const start = new Date(); const end = new Date(start); end.setDate(start.getDate() + days - 1);
+    const { error } = await supabase.from('goals').insert({
+      user_id: uId,
+      goal_type: endedGoal.row.goal_type,
+      target_value: endedGoal.row.target_value,
+      activity_filter: endedGoal.row.activity_filter,
+      period_type: 'custom',
+      start_date: ymdOf(start),
+      end_date: ymdOf(end),
+      pinned: true,
+    });
+    setExtending(false);
+    if (error) { notify("Couldn't start the goal again", error.message); return; }
+    setEndedGoal(null);
+    await loadAll();
+  }
 
   async function loadAll() {
     try {
@@ -1471,6 +1828,7 @@ export default function HomeScreen() {
     if (!user) return;
 
     const uId = user.id;
+    homeUserId.current = uId;
 
     const today = todayLocalStr();
 
@@ -1487,7 +1845,7 @@ export default function HomeScreen() {
       supabase.from('fitness_connections').select('user_id').eq('user_id', uId).eq('provider', 'strava').maybeSingle(),
       fetchAllActivities(uId, 'id, name, started_at, effort_score, distance_meters, elevation_meters, activity_type, duration_seconds'),
       leaguesP,
-      supabase.from('races').select('name, race_date').eq('user_id', uId).gte('race_date', today).order('race_date', { ascending: true }).limit(1).maybeSingle(),
+      supabase.from('races').select('name, race_date, location').eq('user_id', uId).gte('race_date', today).order('race_date', { ascending: true }).limit(1).maybeSingle(),
       supabase.from('users').select('avatar_url').eq('id', uId).single(),
       supabase.from('goals').select('*').eq('user_id', uId),
     ]);
@@ -1558,10 +1916,10 @@ export default function HomeScreen() {
     type GoalRowFull = GoalRow & { id: string; target_value: number; period_type: 'week' | 'month' | 'custom'; pinned?: boolean };
     const allGoals = (goalsRes.data ?? []) as GoalRowFull[];
     const activeGoals = allGoals
-      .filter(g => { const end = new Date(g.end_date); end.setHours(23, 59, 59, 999); return end >= now; })
+      .filter(g => { const end = localDay(g.end_date); end.setHours(23, 59, 59, 999); return end >= now; })
       .map(g => {
         const progress = computeGoalProgress(g, activities);
-        const end = new Date(g.end_date); end.setHours(23, 59, 59, 999);
+        const end = localDay(g.end_date); end.setHours(23, 59, 59, 999);
         return {
           endMs: end.getTime(),
           goal: g,
@@ -1592,6 +1950,40 @@ export default function HomeScreen() {
       // endedMessage), not here. Today's card just invites setting a new
       // one either way.
       setFeaturedGoal(null);
+      setFocusStarters(buildFocusStarters(activities));
+    }
+
+    // An unreached goal that ended in the last few days stays on Today with
+    // Extend and Start again. Pinned first, then the most recent.
+    if (activeGoals.length === 0) {
+      const graceStart = new Date(now); graceStart.setHours(0, 0, 0, 0); graceStart.setDate(graceStart.getDate() - ENDED_GRACE_DAYS);
+      const ended = allGoals
+        .filter((g) => { const end = new Date(g.end_date + 'T23:59:59'); return end < now && end >= graceStart; })
+        .map((g) => ({ g, progress: computeGoalProgress(g, activities) }))
+        .filter(({ g, progress }) => progress < g.target_value)
+        .sort((a, b) => (b.g.pinned ? 1 : 0) - (a.g.pinned ? 1 : 0) || b.g.end_date.localeCompare(a.g.end_date));
+      if (ended.length > 0) {
+        const { g, progress } = ended[0];
+        const unit = goalUnit(g.goal_type);
+        const useMeters = unit === 'km' && g.activity_filter != null && METERS_SPORTS.has(g.activity_filter);
+        const shown = (v: number) => (useMeters ? Math.round(v * 1000) : shownGoal(g.goal_type, v).value);
+        setEndedGoal({
+          id: g.id,
+          activityLabel: goalActivityLabel(g),
+          progress: shown(progress),
+          target: shown(g.target_value),
+          unit: useMeters ? 'm' : shownGoal(g.goal_type, 0).unit,
+          pct: g.target_value > 0 ? Math.min(1, progress / g.target_value) : 0,
+          endIso: g.end_date,
+          extendedDays: Number((g as any).extended_days ?? 0),
+          remaining: Math.max(0, Math.round((shown(g.target_value) - shown(progress)) * 10) / 10),
+          row: { goal_type: g.goal_type, target_value: g.target_value, activity_filter: g.activity_filter, start_date: g.start_date, end_date: g.end_date },
+        });
+      } else {
+        setEndedGoal(null);
+      }
+    } else {
+      setEndedGoal(null);
     }
 
     // Teams load alongside everything above rather than after it.
@@ -1614,11 +2006,15 @@ export default function HomeScreen() {
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
 
-      const { data: leagueMembersData } = await supabase
+      // Paged: one big team can pass PostgREST's 1,000-row limit on its own.
+      const leagueMembersData = await selectAll((from, to) => supabase
         .from('league_members')
         .select('league_id, user_id')
         .in('league_id', leagueIds)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .order('league_id')
+        .order('user_id')
+        .range(from, to));
 
       const memberIdsByLeague: Record<string, string[]> = {};
       (leagueMembersData || []).forEach((m: any) => {
@@ -1632,20 +2028,26 @@ export default function HomeScreen() {
       // come from one request: the week always contains today (weeks start
       // on Monday), so today's activities are the tail of the week's.
       const weekStart = getMondayOfWeek(new Date());
-      // Every teammate's name and picture alongside the week's activities, not
-      // after them: waiting to learn who ranked before asking for names cost a
-      // whole extra round trip, and teams are small enough to ask for everyone.
-      const [{ data: weekActivities }, { data: memberProfiles }] = allMemberIds.length > 0
-        ? await Promise.all([
-            Promise.resolve(supabase
-              .from('activities')
-              .select('user_id, started_at, effort_score')
-              .in('user_id', allMemberIds)
-              .gte('started_at', weekStart.toISOString())
-              .order('started_at', { ascending: false })),
-            Promise.resolve(supabase.from('users').select('id, display_name, avatar_url').in('id', allMemberIds)),
-          ])
-        : [{ data: [] as any[] }, { data: [] as any[] }];
+      // The week's activities for every teammate, in slices of ids (a long
+      // list doesn't fit in one request) and paged within each slice.
+      const weekActivitiesP = inChunks(allMemberIds, (slice) => selectAll((from, to) => supabase
+        .from('activities')
+        .select('id, user_id, started_at, effort_score')
+        .in('user_id', slice)
+        .gte('started_at', weekStart.toISOString())
+        .order('started_at', { ascending: false })
+        .order('id')
+        .range(from, to)));
+      const fetchProfiles = (ids: string[]) =>
+        inChunks(ids, async (slice) => (await supabase.from('users').select('id, display_name, avatar_url').in('id', slice)).data ?? []);
+      // Small teams: every name and picture alongside the activities, saving a
+      // round trip. Big teams: only the people Home actually shows, asked for
+      // once the week's standings are known.
+      const everyoneAtOnce = allMemberIds.length <= SMALL_TEAMS_MAX;
+      const [weekActivities, earlyProfiles] = await Promise.all([
+        weekActivitiesP,
+        everyoneAtOnce ? fetchProfiles(allMemberIds) : Promise.resolve([] as any[]),
+      ]);
       const recentActivities = (weekActivities || []).filter((a: any) => new Date(a.started_at) >= startOfToday);
 
       const leagueListWithCounts = leagueList.map((l: League) => {
@@ -1715,8 +2117,18 @@ export default function HomeScreen() {
           ids.forEach((id) => everyRankedId.add(id));
         }
 
-        // One profile request for everyone Home names: today's trainers
-        // (Momentum) and everyone on a podium.
+        // Names and pictures for everyone Home shows: today's trainers
+        // (Momentum), the top three, you and whoever is just ahead of you on
+        // each board, and the few faces waiting under an empty podium.
+        const shownIds = new Set<string>([uId, ...trainerIds]);
+        for (const league of leagueListWithCounts) {
+          const ranked = rankedByLeague[league.id] ?? [];
+          ranked.slice(0, 3).forEach((id) => shownIds.add(id));
+          const me = ranked.indexOf(uId);
+          if (me > 0) shownIds.add(ranked[me - 1]);
+          (memberIdsByLeague[league.id] || []).filter((id) => id !== uId).slice(0, WAITING_FACES).forEach((id) => shownIds.add(id));
+        }
+        const memberProfiles = everyoneAtOnce ? earlyProfiles : await fetchProfiles([...shownIds]);
         const profileById: Record<string, any> = {};
         (memberProfiles || []).forEach((p: any) => { profileById[p.id] = p; });
         setMomentumTrainers(trainerIds.length > 0
@@ -1733,7 +2145,15 @@ export default function HomeScreen() {
             points: Math.round(pointsByUser[id]),
             isSelf: id === uId,
           }));
-          leaders.push({ leagueId: league.id, teamName: formatTeamName(league.name), daysRemaining, standings });
+          const leagueMemberIds = memberIdsByLeague[league.id] || [];
+          const sample = [...leagueMemberIds.filter((id) => id === uId), ...leagueMemberIds.filter((id) => id !== uId).slice(0, WAITING_FACES)];
+          const members = sample.map((id) => ({
+            userId: id,
+            name: weeklyLeaderName(profileById[id]),
+            avatarUrl: profileById[id]?.avatar_url || null,
+            isSelf: id === uId,
+          }));
+          leaders.push({ leagueId: league.id, teamName: formatTeamName(league.name), daysRemaining, standings, members, memberCount: leagueMemberIds.length });
         }
       }
       // Lead with the board that has the most people on it this week — a
@@ -1842,6 +2262,110 @@ export default function HomeScreen() {
             <MobileHomeSkeleton />
           ) : mobile ? (
             <>
+              {/* What isn't set up yet, as tiles at the very top. Each one
+                  becomes its own section on Today once it exists. */}
+              {/* Start tiles hidden on Today (Ricky, 2026-09-30): they sat above the podium. */}
+              <Modal visible={createOpen} transparent animationType="slide" onRequestClose={() => setCreateOpen(false)}>
+                <View style={styles.mSheetBackdrop}>
+                  <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setCreateOpen(false)} />
+                  <GreySheet
+                    kicker="TODAY"
+                    title="Get set up"
+                    onClose={() => setCreateOpen(false)}
+                    footer={null}
+                  >
+                    <GreyNote>Set up once, then it shows on Today.</GreyNote>
+                    <View style={[styles.mStarterRow, { marginTop: 10, marginBottom: 0 }]}>
+                      {createOptions.map((o) => (
+                        <TouchableOpacity key={o.key} style={styles.mStarterTile} onPress={o.onPress} activeOpacity={0.8} accessibilityRole="button">
+                          <View style={styles.mCreateBadge}>
+                            <RivalIcon name={o.icon} size={16} color={RivalColors.surfaceLowest} />
+                          </View>
+                          <Text style={styles.mCreateLabel} numberOfLines={1}>{o.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </GreySheet>
+                </View>
+              </Modal>
+              <Modal visible={extendOpen} transparent animationType="slide" onRequestClose={() => setExtendOpen(false)}>
+                <View style={styles.mSheetBackdrop}>
+                  <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setExtendOpen(false)} />
+                  <GreySheet
+                    kicker="FOCUS"
+                    title="Extend"
+                    onClose={() => setExtendOpen(false)}
+                    footer={<GreyPrimary label={`Extend ${extendDays} ${extendDays === 1 ? 'day' : 'days'}`} busy={extending} onPress={extendFocus} />}
+                  >
+                    <View style={styles.mStepper}>
+                      <TouchableOpacity
+                        style={[styles.mStepBtn, extendDays <= 1 && styles.mStepBtnOff]}
+                        onPress={() => setExtendDays((d) => Math.max(1, d - 1))}
+                        disabled={extendDays <= 1}
+                        accessibilityLabel="One day fewer"
+                      >
+                        <RivalIcon name="remove" size={20} color="#fff" />
+                      </TouchableOpacity>
+                      <View style={styles.mStepValue}>
+                        <Text style={styles.mStepNumber}>{extendDays}</Text>
+                        <Text style={styles.mStepUnit}>{extendDays === 1 ? 'day' : 'days'}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.mStepBtn, extendDays >= MAX_EXTEND_DAYS && styles.mStepBtnOff]}
+                        onPress={() => setExtendDays((d) => Math.min(MAX_EXTEND_DAYS, d + 1))}
+                        disabled={extendDays >= MAX_EXTEND_DAYS}
+                        accessibilityLabel="One more day"
+                      >
+                        <RivalIcon name="add" size={20} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.mStepEnds}>
+                      Ends {extendEnd.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </Text>
+                    {endedGoal ? (
+                      <GreyNote>
+                        {endedGoal.remaining.toLocaleString()} {endedGoal.unit} to go in {extendDays} {extendDays === 1 ? 'day' : 'days'}. Up to {MAX_EXTEND_DAYS} days at a time; the goal shows it was extended.
+                      </GreyNote>
+                    ) : null}
+                  </GreySheet>
+                </View>
+              </Modal>
+              <Modal visible={focusSheetOpen} transparent animationType="slide" onRequestClose={() => setFocusSheetOpen(false)}>
+                <View style={styles.mSheetBackdrop}>
+                  <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setFocusSheetOpen(false)} />
+                  <GreySheet
+                    kicker="FOCUS"
+                    title="Choose something worth chasing."
+                    onClose={() => setFocusSheetOpen(false)}
+                    footer={
+                      <TouchableOpacity style={styles.mSheetLinkRow} onPress={() => { setFocusSheetOpen(false); router.push({ pathname: '/goals', params: { add: 'true' } }); }}>
+                        <Text style={styles.mFocusViewLink}>Custom goal →</Text>
+                      </TouchableOpacity>
+                    }
+                  >
+                    <GreyNote>{focusStarters?.basis ?? 'One tap sets it as the focus for the next 4 weeks.'}</GreyNote>
+                    <View style={[styles.mStarterRow, { marginTop: 14, marginBottom: 0 }]}>
+                      {(focusStarters?.starters ?? []).map((st) => (
+                        <TouchableOpacity
+                          key={st.key}
+                          style={[styles.mStarterTile, startingGoal === st.key && styles.mStarterTileBusy]}
+                          onPress={() => startFocusGoal(st)}
+                          disabled={!!startingGoal}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Set focus: ${st.value} ${st.label} in 4 weeks`}
+                        >
+                          <View style={styles.mStarterBadge}>
+                            <RivalIcon name={st.icon} size={17} color="rgba(255,255,255,0.65)" />
+                          </View>
+                          <Text style={styles.mStarterValue} numberOfLines={1}>{st.value}</Text>
+                          <Text style={styles.mStarterLabel} numberOfLines={2}>{startingGoal === st.key ? 'Setting…' : `${st.label} in 4 weeks`}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </GreySheet>
+                </View>
+              </Modal>
               {/* Weekly Leader podium — swipeable across every team you're in
                   (Instagram-style: drag either direction, snaps to the next
                   card). The card's own background (gradient + smoke glow) is
@@ -1942,13 +2466,21 @@ export default function HomeScreen() {
                 )}
               </RivalCard>
 
-              {/* Add Activity */}
-              <RivalButton
-                label="Add activity"
-                onPress={() => router.push('/add-workout')}
-                style={[styles.addWorkoutPill, styles.mAddActivityOverride]}
-                labelStyle={styles.mAddActivityLabel}
-              />
+              {/* Add activity goes straight in. The + beside it opens what can
+                  still be set up (focus, event, team) and leaves once all are. */}
+              <View style={styles.mAddRow}>
+                <RivalButton
+                  label="Add activity"
+                  onPress={() => router.push('/add-workout')}
+                  style={[styles.addWorkoutPill, styles.mAddActivityOverride, styles.mAddInRow]}
+                  labelStyle={styles.mAddActivityLabel}
+                />
+                {SHOW_ADD_MORE && createOptions.length > 0 && (
+                  <TouchableOpacity style={styles.mAddMore} onPress={() => setCreateOpen(true)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Set up focus, events and teams">
+                    <RivalIcon name="add" size={22} color={RivalColors.accentText} />
+                  </TouchableOpacity>
+                )}
+              </View>
 
               {/* Today — sits with the day's actions, just under Add activity,
                   so Legacy below it is purely lifetime. */}
@@ -2048,15 +2580,15 @@ export default function HomeScreen() {
               {/* Focus — no card chrome, same as the Team Challenge hero in
                   team-hub.tsx: content sits directly on the page background
                   rather than boxed in its own tinted card. */}
+              {featuredGoal ? (
               <TouchableOpacity
                 style={styles.mFocusFree}
                 activeOpacity={0.85}
                 onPress={() => router.push('/goals')}
                 accessibilityRole="button"
-                accessibilityLabel={featuredGoal ? 'Open focus' : 'Set focus'}
+                accessibilityLabel="Open focus"
               >
                 {Platform.OS === 'web' && <View pointerEvents="none" style={styles.mFocusEdge} />}
-                {featuredGoal ? (
                   <>
                     <View style={styles.mFocusHead}>
                       <MHeading title={featuredGoal.activityLabel} subtitle="Focus" />
@@ -2091,15 +2623,64 @@ export default function HomeScreen() {
                     </View>
                     {/* The whole Focus area opens Goals, so no separate link. */}
                   </>
-                ) : (
-                  <>
-                    <View style={styles.mFocusEmptyHead}>
-                      <MHeading title="Choose something worth chasing." subtitle="Focus" />
-                    </View>
-                    <Text style={styles.mFocusViewLink}>Set focus →</Text>
-                  </>
-                )}
               </TouchableOpacity>
+              ) : endedGoal ? (
+                <View style={styles.mFocusFree}>
+                  {Platform.OS === 'web' && <View pointerEvents="none" style={styles.mFocusEdge} />}
+                  <View style={styles.mFocusHead}>
+                    <MHeading title={endedGoal.activityLabel} subtitle="Focus" />
+                  </View>
+                  <Text style={styles.mEndedFigure}>
+                    {endedGoal.progress.toLocaleString()}<Text style={styles.mEndedOf}> / {endedGoal.target.toLocaleString()} {endedGoal.unit}</Text>
+                  </Text>
+                  <View style={styles.mEndedBar}><View style={[styles.mEndedFill, { width: `${Math.max(2, endedGoal.pct * 100)}%` as any }]} /></View>
+                  <Text style={styles.mEndedNote}>
+                    {(() => {
+                      const days = Math.round((Date.now() - new Date(endedGoal.endIso + 'T23:59:59').getTime()) / 86400000);
+                      return `Ended ${days <= 0 ? 'yesterday' : days === 1 ? 'yesterday' : `${days + 1} days ago`}. ${endedGoal.remaining.toLocaleString()} ${endedGoal.unit} to go.`;
+                    })()}
+                  </Text>
+                  <View style={styles.mEndedActions}>
+                    <TouchableOpacity style={styles.mEndedPrimary} onPress={() => { setExtendDays(3); setExtendOpen(true); }} activeOpacity={0.85} accessibilityRole="button">
+                      <Text style={styles.mEndedPrimaryText}>Extend</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.mEndedGhost} onPress={restartFocus} disabled={extending} activeOpacity={0.85} accessibilityRole="button">
+                      <Text style={styles.mEndedGhostText}>Start again</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                // Focus empty state: Set focus is a tile at the bottom of Today.
+                // The inline section is kept behind a flag.
+                !SHOW_FOCUS_EMPTY_SECTION ? null : <View style={styles.mFocusEmpty}>
+                  <View style={styles.mFocusEmptyHead}>
+                    <MHeading title="Choose something worth chasing." subtitle="Focus" />
+                  </View>
+                  {focusStarters?.basis ? <Text style={styles.mStarterBasis}>{focusStarters.basis}</Text> : null}
+                  <View style={styles.mStarterRow}>
+                    {(focusStarters?.starters ?? []).map((st) => (
+                      <TouchableOpacity
+                        key={st.key}
+                        style={[styles.mStarterTile, startingGoal === st.key && styles.mStarterTileBusy]}
+                        onPress={() => startFocusGoal(st)}
+                        disabled={!!startingGoal}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set focus: ${st.value} ${st.label} in 4 weeks`}
+                      >
+                        <View style={styles.mStarterBadge}>
+                          <RivalIcon name={st.icon} size={17} color="rgba(255,255,255,0.65)" />
+                        </View>
+                        <Text style={styles.mStarterValue} numberOfLines={1}>{st.value}</Text>
+                        <Text style={styles.mStarterLabel} numberOfLines={2}>{startingGoal === st.key ? 'Setting…' : `${st.label} in 4 weeks`}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/goals', params: { add: 'true' } })}>
+                    <Text style={styles.mFocusViewLink}>Custom goal →</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Legacy section — borderless, shared warm glow background.
                   Same smoke texture as Weekly Leader (Ricky's call,
@@ -2236,7 +2817,7 @@ export default function HomeScreen() {
                         <Text style={styles.mLegacyStatValue}>{impact.inspired.toLocaleString()}</Text>
                         {impactWeek.inspired > 0
                           ? <Text style={styles.mLegacyStatGain}>{`+${impactWeek.inspired} this week`}</Text>
-                          : <Text style={styles.mLegacyStatQuiet}>by your training</Text>}
+                          : <Text style={styles.mLegacyStatQuiet}>by your effort</Text>}
                         <Text style={styles.mLegacyStatLabel}>Inspired</Text>
                       </View>
                       <View style={styles.mLegacyStatCell}>
@@ -2270,7 +2851,35 @@ export default function HomeScreen() {
 
               {/* Next Event — only when a race is booked; races are added from
                   the Races page, so an empty card here was just taking room. */}
-              {nextRace && (
+              {nextRace && NEXT_EVENT_TICKET && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => router.push('/races')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${formatRaceName(nextRace.name)}, ${days === 0 ? 'today' : `${days} ${days === 1 ? 'day' : 'days'} to go`}`}
+                  style={styles.mTicket}
+                >
+                  <View style={styles.mTicketMain}>
+                    <Text style={styles.mNextEventKicker}>Next event</Text>
+                    <Text style={styles.mTicketName} numberOfLines={2}>{formatRaceName(nextRace.name)}</Text>
+                    <Text style={styles.mNextEventDate} numberOfLines={1}>
+                      {formatRaceDateShort(nextRace.race_date)}{nextRace.location ? ` · ${nextRace.location}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.mTicketTear} />
+                  <View style={styles.mTicketStub}>
+                    {days === 0 ? (
+                      <Text style={styles.mTicketToday}>Today</Text>
+                    ) : (
+                      <>
+                        <Text style={styles.mTicketDays}>{days}</Text>
+                        <Text style={styles.mTicketDaysLabel}>{days === 1 ? 'Day' : 'Days'}</Text>
+                      </>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+              {nextRace && !NEXT_EVENT_TICKET && (
               <RivalCard style={styles.mNextEventCard}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.mNextEventKicker}>NEXT EVENT</Text>
@@ -2281,8 +2890,8 @@ export default function HomeScreen() {
                     </>
                   ) : (
                     <TouchableOpacity onPress={() => router.push('/races?add=true')}>
-                      <Text style={styles.mNextEventEmptyLine}>No race scheduled</Text>
-                      <Text style={styles.mFocusViewLink}>Add race →</Text>
+                      <Text style={styles.mNextEventEmptyLine}>No event scheduled</Text>
+                      <Text style={styles.mFocusViewLink}>Add event →</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -2294,6 +2903,12 @@ export default function HomeScreen() {
                 )}
               </RivalCard>
               )}
+
+              {/* Everything not set up yet, as tiles at the bottom of Today —
+                  out of the podium's way. Each tile leaves once it's set up. */}
+              <View style={styles.mStartBottom}>
+                <RivalStartTiles tiles={createOptions.map((o) => ({ ...o, onPress: () => o.onPress() }))} />
+              </View>
             </>
           ) : (
           <>
@@ -2858,7 +3473,7 @@ export default function HomeScreen() {
           <RivalCard glass style={styles.seasonWrap}>
             <View style={styles.seasonWrapRow}>
               <View style={{ alignItems: 'center' }}>
-                <Text style={styles.gridCardLabel}>NEXT RACE</Text>
+                <Text style={styles.gridCardLabel}>NEXT EVENT</Text>
                 {days !== null ? (
                   <TouchableOpacity onPress={() => router.push('/races')}>
                     <Text style={styles.seasonWrapValue}>{days} Days</Text>
@@ -2866,7 +3481,7 @@ export default function HomeScreen() {
                 ) : (
                   <TouchableOpacity style={styles.addRaceBtn} onPress={() => router.push('/races?add=true')}>
                     <RivalIcon name="add" size={13} color={RivalColors.accentText} />
-                    <Text style={styles.addRaceBtnText}>Add Race</Text>
+                    <Text style={styles.addRaceBtnText}>Add Event</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -2911,10 +3526,10 @@ export default function HomeScreen() {
               (Connected Apps panel) instead of taking up home real estate
               on every visit. */}
           {!stravaConnected && (
-            <TouchableOpacity style={styles.stravaCard} onPress={handleConnectStrava}>
+            <TouchableOpacity style={styles.stravaCard} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
               <View>
-                <Text style={styles.stravaCardTitle}>Connect Strava</Text>
-                <Text style={styles.stravaCardSub}>Link an account to earn Effort from synced workouts.</Text>
+                <Text style={styles.stravaCardTitle}>Connect a device</Text>
+                <Text style={styles.stravaCardSub}>Sync workouts from a watch or app to earn Effort.</Text>
               </View>
               <Text style={styles.stravaCardArrow}>→</Text>
             </TouchableOpacity>
@@ -3168,7 +3783,55 @@ const styles = StyleSheet.create({
     mask: 'linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0)',
   } as any,
   mFocusHead: { alignSelf: 'stretch', marginBottom: 18 },
+  mEndedFigure: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 34, color: '#fff' },
+  mEndedOf: { fontSize: 17, color: RivalColors.textSecondary },
+  mEndedBar: { alignSelf: 'stretch', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 12 },
+  mEndedFill: {
+    height: '100%', borderRadius: 3, backgroundColor: RivalColors.accentFill,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}),
+  } as any,
+  mEndedNote: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 10 },
+  mEndedActions: { flexDirection: 'row', gap: 8, alignSelf: 'stretch', marginTop: 14, marginBottom: 8 },
+  mEndedPrimary: { flex: 1, paddingVertical: 12, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  mEndedPrimaryText: { fontSize: 14.5, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  mEndedGhost: { flex: 1, paddingVertical: 12, borderRadius: 999, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)' },
+  mEndedGhostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },
+  mStepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 22, marginTop: 14 },
+  mStepBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  mStepBtnOff: { opacity: 0.35 },
+  mStepValue: { alignItems: 'center', minWidth: 90 },
+  mStepNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 48, lineHeight: 54, color: '#fff' },
+  mStepUnit: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  mStepEnds: { fontSize: 14, fontWeight: '600', color: RivalColors.accentText, textAlign: 'center', marginTop: 12 },
   mFocusEmptyHead: { alignSelf: 'stretch', marginTop: 4, marginBottom: 14 },
+  // Add activity and its + share the pill's old width and position.
+  mAddRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 8, width: '80%', marginTop: -43, marginBottom: 16 },
+  mAddInRow: { flex: 1, width: 'auto', marginTop: 0, marginBottom: 0 } as any,
+  mAddMore: {
+    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(14,14,14,0.85)', borderWidth: 1, borderColor: 'rgba(255,181,158,0.4)',
+  },
+  mStartBottom: { marginTop: 28, marginBottom: 8 },
+  mFocusEmpty: { alignItems: 'center', marginTop: 26, marginBottom: 6 },
+  mFocusSlot: { alignItems: 'center', gap: 8, marginTop: 22, marginBottom: 6 },
+  mFocusSlotLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: RivalColors.accentText, textTransform: 'uppercase' },
+  mCreateBadge: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  mCreateLabel: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  mSheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  mSheetLinkRow: { alignItems: 'center', paddingVertical: 6 },
+  mStarterBasis: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', marginTop: -6, marginBottom: 12 },
+  mStarterRow: { flexDirection: 'row', gap: 7, alignSelf: 'stretch', marginBottom: 14 },
+  mStarterTile: {
+    flex: 1, alignItems: 'center', gap: 6, paddingTop: 11, paddingBottom: 10, paddingHorizontal: 4,
+    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: 'rgba(255,209,190,0.09)',
+  },
+  mStarterTileBusy: { borderColor: 'rgba(255,181,158,0.6)', backgroundColor: 'rgba(217,119,87,0.10)' },
+  mStarterBadge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  mStarterValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 16, color: '#fff' },
+  mStarterLabel: { fontSize: 10.5, lineHeight: 13, color: RivalColors.textSecondary, textAlign: 'center' },
   // Ring meta row ("43% complete   129 days left") — same styling as
   // team-hub.tsx's ringMetaRow/ringMeta/ringMetaBold, this card's own copy
   // since that one is scoped private to team-hub.tsx.
@@ -3176,7 +3839,7 @@ const styles = StyleSheet.create({
   mFocusMetaCell: { alignItems: 'center', minWidth: 84 },
   // White, so the card isn't all one colour: the ring and labels carry the salmon.
   mFocusMetaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, fontWeight: '700', lineHeight: 32, color: '#ffffff' },
-  mFocusMetaLabel: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,181,158,0.75)', marginTop: 4 },
+  mFocusMetaLabel: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 4 },
   mFocusMetaDivider: {
     width: 1, height: 38,
     ...(Platform.OS === 'web'
@@ -3440,7 +4103,7 @@ const styles = StyleSheet.create({
   mStatusLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8, flexWrap: 'wrap' },
   mStatusNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 34, fontWeight: '700' },
   mStatusCountdown: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  mStatusCountdownText: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,181,158,0.75)' },
+  mStatusCountdownText: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   mStatusRule: { width: 34, height: 1 },
   mStatusRuleLeft: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.5) 100%)' } as any)
@@ -3457,13 +4120,34 @@ const styles = StyleSheet.create({
   mLeaderDotActive: { backgroundColor: RivalColors.accentText },
 
   // Next Event card
+  mTicket: {
+    flexDirection: 'row', alignItems: 'stretch', borderRadius: 18, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)', backgroundColor: '#1b1512',
+  },
+  mTicketMain: { flex: 1, paddingVertical: 16, paddingLeft: 18, paddingRight: 12 },
+  mTicketName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 19, fontWeight: '700', lineHeight: 24, color: RivalColors.textPrimary, marginTop: 5 },
+  mTicketTear: {
+    width: 0, marginVertical: 10, borderLeftWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.15)',
+  },
+  mTicketStub: {
+    width: 96, alignItems: 'center', justifyContent: 'center',
+    ...(Platform.OS === 'web' ? ({ backgroundImage: 'radial-gradient(circle at 50% 30%, rgba(217,119,87,0.16), transparent 70%)' } as any) : null),
+  },
+  mTicketDays: {
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 40, lineHeight: 42, fontWeight: '700', color: RivalColors.accentText,
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } as any)
+      : null),
+  },
+  mTicketDaysLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 4 },
+  mTicketToday: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700', color: RivalColors.accentText },
   mNextEventCard: {
     borderRadius: RivalRadius.lg, paddingVertical: 12, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderWidth: 1, borderColor: 'rgba(255,181,158,0.14)',
     backgroundColor: '#241c17',
     ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #1c1a19 0%, #241c17 100%)' } as any : {}),
   },
-  mNextEventKicker: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,181,158,0.75)' },
+  mNextEventKicker: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   mNextEventName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', lineHeight: 26, color: RivalColors.textPrimary, marginTop: 6 },
   mNextEventDate: { fontFamily: RivalFontFamily, fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
   mNextEventDaysNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 30, fontWeight: '700', color: RivalColors.accentText, lineHeight: 30 },
@@ -3560,7 +4244,7 @@ const styles = StyleSheet.create({
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
     } as any : {}),
   },
-  mLegacyHeroLabel: { ...RivalType.labelCaps, fontSize: 11, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentFill },
+  mLegacyHeroLabel: { ...RivalType.labelCaps, fontSize: 11, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText },
   mLegacyDivider: { width: 1, height: 56, alignSelf: 'center', backgroundColor: RivalColors.accentFill, opacity: 0.4, marginTop: 8, marginBottom: 6 },
   // Half the Legacy divider's length — leads the eye down toward the Add
   // Activity button below the empty-state card instead of just floating copy.
@@ -3578,6 +4262,30 @@ const styles = StyleSheet.create({
   // 19 marginTop + 5/8 padding + ~32 of two text lines.
   mLeaderEmpty: { flex: 1, minHeight: 285, alignItems: 'center', justifyContent: 'flex-end', gap: 0, paddingBottom: 8 },
   mLeaderFindTeam: { alignSelf: 'center', paddingHorizontal: 28, marginTop: 14 },
+  mUnlitGrid: { minHeight: 0, paddingTop: 44 },
+  mUnlitLine: { alignSelf: 'center', marginBottom: 0 },
+  mUnlitWreath: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', opacity: 0.8 },
+  mUnlitMe: {
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, backgroundColor: '#332e2a', opacity: 0.6,
+  },
+  mUnlitSeat: { borderWidth: 1, borderStyle: 'dashed', backgroundColor: 'rgba(255,255,255,0.03)' },
+  mUnlitPlace: { position: 'absolute', left: 0, textAlign: 'center', fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, lineHeight: 26, fontWeight: '700', opacity: 0.7 },
+  // Georgia only has old-style figures: 1 and 2 are small, 3 is tall and
+  // hangs below the line, so it read bigger. A smaller 3 matches them.
+  mUnlitPlaceThree: { fontSize: 18, marginTop: -1 },
+  mWaiting: { alignItems: 'center', marginTop: 18, marginBottom: 14 },
+  mWaitingFlat: { marginTop: -4, marginBottom: 18 },
+  mWaitingRow: { flexDirection: 'row', paddingLeft: 8 },
+  mWaitingAvatar: {
+    width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: '#1a1411', overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#332e2a', opacity: 0.7,
+    ...(Platform.OS === 'web' ? ({ filter: 'grayscale(0.5)' } as any) : null),
+  },
+  mWaitingImage: { width: 26, height: 26, borderRadius: 13 },
+  mWaitingInitial: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  mWaitingMore: { backgroundColor: '#2a2320' },
+  mWaitingMoreText: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+  mWaitingText: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 8 },
   mGhostPodium: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 56 },
   mGhostPillar: {
     width: 72, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 10,
@@ -3589,6 +4297,11 @@ const styles = StyleSheet.create({
   },
   mGhostPillarFirst: { borderColor: 'rgba(236,198,84,0.28)' },
   mGhostMedal: { position: 'absolute', top: -70, backgroundColor: 'rgba(236,198,84,0.06)' },
+  mGhostSeat: { position: 'absolute', top: -76, width: 55, height: 55 },
+  mGhostSeatCircle: {
+    width: 55, height: 55, borderRadius: 28, borderWidth: 1, borderStyle: 'dashed',
+    borderColor: 'rgba(236,198,84,0.7)', backgroundColor: 'rgba(236,198,84,0.05)',
+  },
   mGhostPlace: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', color: 'rgba(255,209,190,0.28)' },
   mGhostStage: {
     width: 280, height: 1, marginBottom: 22,

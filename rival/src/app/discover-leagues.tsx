@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Image, useWindowDimensions, Platform } from 'react-native';
+import { goToTab } from '../lib/tabNav';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { notify } from '../lib/notify';
-import { RivalTopNav, RivalIcon, RivalFixedBackground, RivalWarm } from '../components/rival';
+import { RivalTopNav, RivalIcon, RivalFixedBackground, RivalWarm, RivalMiniTile, rb, GreyPageHead } from '../components/rival';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
@@ -332,6 +333,99 @@ export default function DiscoverLeaguesScreen() {
     return FALLBACK_ICONS[hash % FALLBACK_ICONS.length];
   }
 
+  // Phone: the blend. No background photo; every team shows its crest
+  // beside its name, in grouped rows.
+  if (mob) {
+    const crest = (team: TeamRow) => team.logo_url ? (
+      <Image source={{ uri: team.logo_url }} style={pm.crest} />
+    ) : (
+      <View style={[pm.crest, pm.crestFallback]}>
+        <RivalIcon name={fallbackIcon(team.id)} size={17} color={RivalColors.accentText} />
+      </View>
+    );
+    return (
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+        <RivalTopNav active="teams" />
+        <ScrollView contentContainerStyle={[rb.content, { paddingBottom: 120 }]} {...pullProps}>
+          {pullIndicator}
+          <GreyPageHead kicker="TEAMS" title="Find a team" onBack={() => (router.canGoBack() ? router.back() : goToTab('/team-feed'))} />
+
+          <View style={[rb.field, pm.search]}>
+            <RivalIcon name="search" size={17} color={RivalColors.textSecondary} />
+            <TextInput style={pm.searchInput} value={search} onChangeText={setSearch} placeholder="Search teams" placeholderTextColor={RivalColors.textSecondary} />
+          </View>
+          <View style={pm.tiles}>
+            <RivalMiniTile icon="add" label="Create team" onPress={() => router.push('/create-league')} />
+            <RivalMiniTile icon="key" label="Invite code" onPress={() => router.push('/join-league')} />
+          </View>
+
+          {loading && <Text style={pm.muted}>Loading…</Text>}
+
+          {!loading && (
+            <>
+              <Text style={rb.section}>My teams</Text>
+              {filteredMine.length === 0 ? (
+                <View style={[rb.card, pm.emptyRow]}>
+                  <View style={rb.badge}><RivalIcon name="groups" size={16} color={RivalColors.accentText} /></View>
+                  <Text style={pm.emptyText}>{q ? 'No teams match this search.' : 'No team yet. Create one, or ask to join a public team below.'}</Text>
+                </View>
+              ) : (
+                <View style={[rb.card, pm.list]}>
+                  {filteredMine.map((team, i) => (
+                    <TouchableOpacity key={team.id} style={[pm.row, i > 0 && rb.rule]} onPress={() => router.push({ pathname: '/team-hub', params: { id: team.id } })} activeOpacity={0.8}>
+                      {crest(team)}
+                      <View style={pm.rowText}>
+                        <Text style={pm.name} numberOfLines={1}>{team.name}</Text>
+                        <Text style={pm.meta} numberOfLines={1}>
+                          {team.unreadFrom ? `${team.unreadFrom} messaged` : memberLabel(team.member_count)}
+                        </Text>
+                      </View>
+                      {team.pinned ? <RivalIcon name="pin" size={14} color={RivalColors.accentText} /> : null}
+                      <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <Text style={rb.section}>Discover</Text>
+              {joinError && <Text style={styles.joinError}>{joinError}</Text>}
+              {filteredPublic.length === 0 ? (
+                <View style={[rb.card, pm.emptyRow]}>
+                  <View style={rb.badge}><RivalIcon name="globe" size={16} color={RivalColors.accentText} /></View>
+                  <Text style={pm.emptyText}>{q ? 'No public teams match this search.' : 'No public teams right now.'}</Text>
+                </View>
+              ) : (
+                <View style={[rb.card, pm.list]}>
+                  {filteredPublic.map((team, i) => (
+                    <View key={team.id} style={[pm.row, i > 0 && rb.rule]}>
+                      <TouchableOpacity style={pm.rowMain} onPress={() => router.push({ pathname: '/team-preview', params: { id: team.id } })} activeOpacity={0.8}>
+                        {crest(team)}
+                        <View style={pm.rowText}>
+                          <Text style={pm.name} numberOfLines={1}>{team.name}</Text>
+                          <Text style={pm.meta} numberOfLines={1}>
+                            {memberLabel(team.member_count)}
+                            {team.sessions_last_7d > 0 ? ` · ${team.sessions_last_7d} this week` : ' · Quiet this week'}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                      {team.membership === 'pending' ? (
+                        <Text style={pm.requested}>Requested</Text>
+                      ) : (
+                        <TouchableOpacity style={pm.request} onPress={() => join(team.id)} disabled={joining === team.id}>
+                          <BusyText busy={joining === team.id} style={pm.requestText}>{joining === team.id ? 'Sending…' : 'Request'}</BusyText>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <RivalFixedBackground
@@ -360,14 +454,22 @@ export default function DiscoverLeaguesScreen() {
             />
           </View>
           <View style={styles.actionBtns}>
+            {mob ? (
+              <RivalMiniTile icon="add" label="Create team" onPress={() => router.push('/create-league')} />
+            ) : (
             <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/create-league')}>
               <RivalIcon name="add" size={16} color={RivalColors.onAccentFill} />
               <Text style={styles.actionBtnText}>Create Team</Text>
             </TouchableOpacity>
+            )}
+            {mob ? (
+              <RivalMiniTile icon="key" label="Invite code" onPress={() => router.push('/join-league')} />
+            ) : (
             <TouchableOpacity style={styles.actionBtnGhost} onPress={() => router.push('/join-league')}>
               <RivalIcon name="key" size={16} color={RivalColors.accentText} />
               <Text style={styles.actionBtnGhostText}>Invite code</Text>
             </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -685,4 +787,28 @@ const ms = StyleSheet.create({
   // Only one gradient pill per screen (Create Team); a row action is quiet.
   joinBtn: { backgroundColor: 'transparent', ...RivalButtonColors.noGradient, borderWidth: 1, borderColor: 'rgba(255,209,190,0.28)' },
   joinBtnText: { color: RivalColors.accentText },
+});
+
+// Phone: the blend.
+const pm = StyleSheet.create({
+  search: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  searchInput: {
+    flex: 1, minWidth: 0, padding: 0, color: '#fff', fontSize: 15,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+  },
+  tiles: { flexDirection: 'row', gap: 8 },
+  muted: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 20 },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
+  list: { paddingVertical: 0, gap: 0 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+  rowMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  crest: { width: 40, height: 40, borderRadius: 20, backgroundColor: RivalColors.surfaceContainer, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  crestFallback: { alignItems: 'center', justifyContent: 'center' },
+  rowText: { flex: 1, minWidth: 0, gap: 2 },
+  name: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, fontWeight: '700', color: '#fff' },
+  meta: { fontSize: 12, color: RivalColors.textSecondary },
+  request: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)' },
+  requestText: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  requested: { fontSize: 12.5, fontWeight: '600', color: RivalColors.textSecondary },
 });

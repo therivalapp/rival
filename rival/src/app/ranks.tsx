@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { getSeasonStartISO, getCurrentSeasonYear } from '../lib/season';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { goToTab } from '../lib/tabNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { LEVELS, getLevel } from '../lib/xp';
 import { rankPace, type RankPace } from '../lib/rankPace';
-import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
+import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead } from '../components/rival';
 
 // A rough idea of the training each rank takes, for a person reading the list:
 // Effort earned over a whole year at a typical mix of activities. About 70
@@ -73,22 +74,26 @@ export default function RanksScreen() {
     const span = next ? next.minXp - currentLevel.minXp : 1;
     const pct = next ? Math.min(1, (totalXp - currentLevel.minXp) / span) : 1;
     return (
-      <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
         <RivalTopNav active="today" />
-        <ScrollView contentContainerStyle={[rm.content, ms.content]}>
-          <RivalMobileHeader title="Ranks" onBack={() => router.back()} />
+        <ScrollView contentContainerStyle={[rb.content, ms.content]}>
+          <GreyPageHead kicker={String(getCurrentSeasonYear())} title="Ranks" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
-          <View style={[rm.hero, { alignItems: 'center' }]}>
-            <Text style={rm.label}>{getCurrentSeasonYear()} rank</Text>
-            <Text style={[ms.heroRank, { color: currentLevel.color }]}>{currentLevel.name}</Text>
-            <Text style={rm.hint}>Level {currentLevel.level} · {Math.round(totalXp).toLocaleString()} Effort</Text>
+          {/* The rank, and the Effort behind it, up front. */}
+          <View style={[rb.card, ms.rankCard]}>
+            <Text style={rb.label}>{getCurrentSeasonYear()} rank</Text>
+            <Text style={rb.big}>{currentLevel.name}</Text>
+            <View style={ms.effortRow}>
+              <Text style={ms.effortNum}>{Math.round(totalXp).toLocaleString()}</Text>
+              <Text style={ms.effortUnit}>Effort this year</Text>
+            </View>
             {next ? (
-              <View style={ms.progress}>
-                <View style={ms.track}><View style={[ms.fill, { width: `${Math.round(pct * 100)}%`, backgroundColor: currentLevel.color }]} /></View>
-                <Text style={[rm.hint, { textAlign: 'center' }]}>{Math.max(0, Math.ceil(next.minXp - totalXp)).toLocaleString()} Effort to {next.name}</Text>
-              </View>
+              <>
+                <View style={rb.bar}><View style={[rb.barFill, { width: `${Math.max(2, Math.round(pct * 100))}%` as any }]} /></View>
+                <Text style={ms.sub}>{Math.max(0, Math.ceil(next.minXp - totalXp)).toLocaleString()} Effort to {next.name} · Level {currentLevel.level}</Text>
+              </>
             ) : (
-              <Text style={[rm.hint, { color: currentLevel.color }]}>The top rank.</Text>
+              <Text style={ms.sub}>The top rank.</Text>
             )}
           </View>
 
@@ -96,24 +101,22 @@ export default function RanksScreen() {
               what has been earned. A latecomer also sees what a full year at
               their pace would reach: something to aim at next year. */}
           {pace ? (
-            <View style={[rm.card, ms.pace]}>
+            <View style={[rb.card, ms.paceCard]}>
               <View style={ms.paceRow}>
-                <RivalIcon name="trendUp" size={18} color={RivalColors.accentText} />
+                <View style={rb.badge}><RivalIcon name="trendUp" size={16} color={RivalColors.accentText} /></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={rm.label}>On pace for</Text>
-                  <Text style={[ms.paceRank, { color: pace.yearEnd.level.color }]}>{pace.yearEnd.level.name}</Text>
-                  <Text style={rm.hint}>
-                    About {pace.yearEnd.effort.toLocaleString()} Effort by 31 December at the current pace.
-                  </Text>
+                  <Text style={rb.label}>On pace for</Text>
+                  <Text style={ms.paceRank}>{pace.yearEnd.level.name}</Text>
+                  <Text style={ms.sub2}>About {pace.yearEnd.effort.toLocaleString()} Effort by 31 December at the current pace.</Text>
                 </View>
               </View>
               {pace.fullYear ? (
-                <View style={[ms.paceRow, ms.paceDivider]}>
-                  <RivalIcon name="calendar" size={18} color={RivalColors.accentText} />
+                <View style={[ms.paceRow, rb.rule, ms.paceDivider]}>
+                  <View style={rb.badge}><RivalIcon name="calendar" size={16} color={RivalColors.accentText} /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={rm.label}>A full year at this pace</Text>
-                    <Text style={[ms.paceRank, { color: pace.fullYear.level.color }]}>{pace.fullYear.level.name}</Text>
-                    <Text style={rm.hint}>
+                    <Text style={rb.label}>A full year at this pace</Text>
+                    <Text style={ms.paceRank}>{pace.fullYear.level.name}</Text>
+                    <Text style={ms.sub2}>
                       Based on training since {pace.start.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}. The first full year begins on 1 January.
                     </Text>
                   </View>
@@ -122,41 +125,36 @@ export default function RanksScreen() {
             </View>
           ) : null}
 
-          <Text style={ms.explainer}>
-            Rank is earned each year. Everyone starts again on 1 January. Lifetime totals never reset.
-          </Text>
-          <Text style={ms.guideNote}>
-            The times show roughly how much training reaches each rank within a year, with rest days and about six weeks off for holidays, illness or a taper. Activities earn Effort at different rates, so they are a guide.
-          </Text>
-
-          <View style={{ gap: 8 }}>
-            {LEVELS.map((lvl) => {
+          <Text style={rb.section}>All ranks</Text>
+          <View style={[rb.card, ms.list]}>
+            {LEVELS.map((lvl, i) => {
               const isCurrent = lvl.level === currentLevel.level;
               const isUnlocked = totalXp >= lvl.minXp;
-              const isLast = lvl.maxXp === Infinity;
+              const guide = weeklyGuide(lvl.minXp);
               return (
-                <View key={lvl.level} style={[rm.card, ms.row, isCurrent && { borderColor: lvl.color + '99', backgroundColor: lvl.color + '14' }]}>
-                  <View style={[ms.num, { borderColor: isUnlocked ? lvl.color : 'rgba(255,255,255,0.12)' }]}>
-                    <Text style={[ms.numText, { color: isUnlocked ? lvl.color : RivalWarm.muted }]}>{lvl.level}</Text>
+                <View key={lvl.level} style={[ms.row, i > 0 && rb.rule]}>
+                  <View style={[ms.num, isUnlocked && ms.numOn]}>
+                    <Text style={[ms.numText, isUnlocked && ms.numTextOn]}>{lvl.level}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[ms.name, { color: isUnlocked ? lvl.color : 'rgba(255,255,255,0.35)' }]}>{lvl.name}</Text>
-                    <Text style={rm.hint}>{lvl.minXp.toLocaleString()}{isLast ? '+' : ` – ${lvl.maxXp.toLocaleString()}`} Effort</Text>
-                    {weeklyGuide(lvl.minXp) ? <Text style={ms.guide}>{weeklyGuide(lvl.minXp)}</Text> : null}
+                    <Text style={[ms.name, isUnlocked && ms.nameOn]}>{lvl.name}</Text>
+                    {guide ? <Text style={ms.guide}>{guide}</Text> : null}
                   </View>
                   {isCurrent ? (
-                    <View style={[ms.you, { backgroundColor: lvl.color }]}><Text style={ms.youText}>YOU</Text></View>
-                  ) : isUnlocked ? (
-                    <RivalIcon name="checkCircle" size={20} color={lvl.color} />
+                    <View style={ms.you}><Text style={ms.youText}>You</Text></View>
                   ) : (
-                    <RivalIcon name="lock" size={18} color={RivalWarm.muted} />
+                    <Text style={[ms.value, isUnlocked && ms.valueOn]}>{lvl.minXp.toLocaleString()}</Text>
                   )}
                 </View>
               );
             })}
           </View>
-
-          <Text style={ms.footer}>Everyone has a Rival. Only a few become Unrivaled.</Text>
+          <Text style={ms.note}>
+            Rank is earned each year; everyone starts again on 1 January. The hours are a rough guide to reaching each rank in a year.
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/effort')} accessibilityRole="link" style={ms.effortLink}>
+            <Text style={ms.effortLinkText}>How Effort works →</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     );
@@ -325,25 +323,36 @@ const styles = StyleSheet.create({
   },
 });
 
-// Mobile only — the RIVAL look (see RivalMobile.tsx).
+// Mobile only — the blend (see RivalGreySheet's rb).
 const ms = StyleSheet.create({
-  pace: { gap: 14 },
-  paceRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  paceDivider: { borderTopWidth: 1, borderTopColor: RivalWarm.hairline, paddingTop: 14 },
-  paceRank: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, lineHeight: 28, marginTop: 2 },
-  guide: { fontSize: 12, fontWeight: '600', color: RivalColors.accentText, marginTop: 2 },
-  guideNote: { fontSize: 12, lineHeight: 17, color: RivalWarm.muted, textAlign: 'center', paddingHorizontal: 12, marginTop: -6 },
-  explainer: { fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.6)', textAlign: 'center', paddingHorizontal: 16 },
   content: { paddingBottom: 120 },
-  heroRank: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 40, fontWeight: '700', lineHeight: 46 },
-  progress: { alignSelf: 'stretch', gap: 8, marginTop: 4 },
-  track: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  fill: { height: 6, borderRadius: 3 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 },
-  num: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  numText: { fontSize: 14, fontWeight: '800' },
-  name: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 19, fontWeight: '700' },
-  you: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  youText: { fontSize: 10.5, fontWeight: '900', letterSpacing: 1, color: '#fff' },
-  footer: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 15, color: RivalColors.accentText, textAlign: 'center', marginTop: 8 },
+  rankCard: { alignItems: 'center', paddingVertical: 16, gap: 8 },
+  effortRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: -2 },
+  effortNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: RivalColors.accentText, fontVariant: ['tabular-nums'] },
+  effortUnit: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  sub: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center' },
+  sub2: { fontSize: 12.5, lineHeight: 17, color: RivalColors.textSecondary, marginTop: 2 },
+  paceCard: { gap: 0, paddingVertical: 4 },
+  paceRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', paddingVertical: 10 },
+  paceDivider: {},
+  paceRank: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, lineHeight: 26, color: '#fff', marginTop: 2 },
+  list: { paddingVertical: 0, gap: 0 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  num: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  numOn: {
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  numText: { fontSize: 12.5, fontWeight: '800', color: 'rgba(255,255,255,0.45)' },
+  numTextOn: { color: RivalColors.surfaceLowest },
+  name: { fontSize: 14.5, fontWeight: '600', color: 'rgba(255,255,255,0.45)' },
+  nameOn: { color: '#fff' },
+  guide: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)', marginTop: 1 },
+  value: { fontSize: 13.5, fontWeight: '500', color: 'rgba(255,255,255,0.45)', fontVariant: ['tabular-nums'] },
+  valueOn: { color: '#fff' },
+  you: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(217,119,87,0.15)' },
+  youText: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  note: { fontSize: 12, lineHeight: 17, color: RivalColors.textSecondary, textAlign: 'center', paddingHorizontal: 16 },
+  effortLink: { alignSelf: 'center', paddingVertical: 4 },
+  effortLinkText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
 });

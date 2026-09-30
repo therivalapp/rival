@@ -143,7 +143,7 @@ serve(async (req) => {
     // sport_type:"MountainBikeRide"), so reading `type` made the TrailRun /
     // MountainBikeRide / GravelRide / VirtualRow config rows unreachable.
     const canonicalType = normaliseActivityType(activity.sport_type ?? activity.type)
-      const effortScore = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig)
+      const effortScore = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig, activity.distance)
       const providerActivityId = String(activity.id)
 
       // Resolves same-source re-syncs AND cross-source duplicates (e.g. a Garmin

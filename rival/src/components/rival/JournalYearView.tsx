@@ -83,7 +83,7 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
         <View style={[rm.card, s.empty]}>
           <RivalIcon name="calendar" size={28} color={RivalColors.accentText} />
           <Text style={rm.serifTitleSm}>{isThisYear ? `${year} starts with the first activity` : `Nothing logged in ${year}`}</Text>
-          <Text style={[rm.hint, { textAlign: 'center' }]}>Every activity logged or synced from Strava builds the year here.</Text>
+          <Text style={[rm.hint, { textAlign: 'center' }]}>Every activity logged or synced from a connected device builds the year here.</Text>
           {isThisYear && (
             <TouchableOpacity style={[rm.primary, { alignSelf: 'stretch', marginTop: 6 }]} onPress={() => router.push('/add-workout')} accessibilityRole="button">
               <Text style={rm.primaryText}>Add activity</Text>

@@ -131,7 +131,7 @@ serve(async (req) => {
     // sport_type:"MountainBikeRide"), so reading `type` made the TrailRun /
     // MountainBikeRide / GravelRide / VirtualRow config rows unreachable.
     const canonicalType = normaliseActivityType(activity.sport_type ?? activity.type)
-      const effortScore = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig)
+      const effortScore = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig, activity.distance)
       const providerActivityId = String(activity.id)
       // external_id reveals the ORIGINAL source of a Strava activity (e.g.
       // "garmin_ping_123.fit" from a Garmin watch) — kept on activity_sources so

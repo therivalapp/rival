@@ -1,8 +1,9 @@
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ImageBackground, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, RivalMobileHeader, RivalRowLink, rm } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, rb, GreyPageHead, GreyRows, GreyRow } from '../components/rival';
+import { goToTab } from '../lib/tabNav';
+import { RivalButtonColors, RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
@@ -37,46 +38,41 @@ export default function AddWorkoutScreen() {
     // people don't know RIVAL can do. Manual entry and a whole week are the
     // two other roads, as full-width rows you can tap anywhere on.
     return (
-      <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
         <RivalTopNav />
-        <ScrollView contentContainerStyle={rm.content}>
-          <RivalMobileHeader title="Add workout" onBack={() => router.back()} />
+        <ScrollView contentContainerStyle={[rb.content, { paddingBottom: 120 }]}>
+          <GreyPageHead kicker="LOG" title="Add an activity" onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} />
 
-          <View style={rm.hero}>
-            <View style={ms.heroTop}>
-              <View style={rm.iconCircle}>
-                <RivalIcon name="scan" size={20} color={RivalColors.accentText} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={rm.label}>AI scan</Text>
-                <Text style={rm.serifTitleSm}>Scan workout</Text>
-              </View>
-            </View>
-            <Text style={rm.hint}>Capture a workout card, whiteboard or app screenshot. The details are extracted automatically.</Text>
-
-            <View style={ms.steps}>
-              {PROCESS_STEPS.map((step, i) => (
-                <View key={step.title} style={ms.step}>
+          <View style={rb.card}>
+            <Text style={rb.label}>Photo scan</Text>
+            <View>
+              {['Capture or upload', 'Details read automatically', 'Review and save'].map((t, i) => (
+                <View key={t} style={[ms.step, i > 0 && rb.rule]}>
                   <View style={ms.stepNum}><Text style={ms.stepNumText}>{i + 1}</Text></View>
-                  <Text style={ms.stepText}>{['Capture or upload', 'Details extracted automatically', 'Review and save'][i]}</Text>
+                  <Text style={ms.stepText}>{t}</Text>
                 </View>
               ))}
             </View>
-
-            <View style={ms.heroActions}>
-              <TouchableOpacity style={[rm.primary, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=camera')} activeOpacity={0.85}>
-                <RivalIcon name="camera" size={18} color={rm.primaryText.color as string} />
-                <Text style={rm.primaryText} numberOfLines={1}>Take photo</Text>
+            <View style={ms.actions}>
+              <TouchableOpacity style={[ms.primary, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=camera')} activeOpacity={0.85}>
+                <RivalIcon name="camera" size={17} color={ms.primaryText.color as string} />
+                <Text style={ms.primaryText} numberOfLines={1}>Take photo</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[rm.ghost, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=gallery')} activeOpacity={0.85}>
-                <RivalIcon name="upload" size={18} color={RivalColors.accentText} />
-                <Text style={rm.ghostText} numberOfLines={1}>Upload</Text>
+              <TouchableOpacity style={[ms.ghost, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=gallery')} activeOpacity={0.85}>
+                <RivalIcon name="upload" size={17} color={RivalColors.accentText} />
+                <Text style={ms.ghostText} numberOfLines={1}>Upload</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <RivalRowLink icon="manual" title="Manual entry" body="Enter duration, distance and lifts" onPress={() => router.push('/manual-entry')} />
-          <RivalRowLink icon="batch" title="Weekly scan" body="Log multiple days at once" onPress={() => router.push('/weekly-scan')} />
+          <GreyRows>
+            <GreyRow icon="manual" label="Manual entry" onPress={() => router.push('/manual-entry')}>
+              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+            </GreyRow>
+            <GreyRow icon="batch" label="Weekly scan" onPress={() => router.push('/weekly-scan')}>
+              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+            </GreyRow>
+          </GreyRows>
         </ScrollView>
       </SafeAreaView>
     );
@@ -184,12 +180,21 @@ const styles = StyleSheet.create({
   processStepBody: { fontSize: 13, color: RivalColors.textSecondary, lineHeight: 19 },
 });
 
+// Phone only — the blend (see RivalGreySheet's rb).
 const ms = StyleSheet.create({
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  steps: { gap: 8 },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepNum: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,209,190,0.12)' },
-  stepNumText: { fontSize: 11, fontWeight: '800', color: RivalColors.accentText },
-  stepText: { flex: 1, fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.72)' },
-  heroActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  stepNumText: { fontSize: 12, fontWeight: '800', color: RivalColors.accentText },
+  stepText: { flex: 1, fontSize: 14, fontWeight: '600', color: RivalColors.textSecondary },
+  actions: { flexDirection: 'row', gap: 8 },
+  primary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: 999,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+  },
+  primaryText: { fontSize: 14.5, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  ghost: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: 999,
+    borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)',
+  },
+  ghostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },
 });

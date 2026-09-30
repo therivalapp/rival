@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   category: {
     fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '800', letterSpacing: 2.5,
-    textTransform: 'uppercase', color: 'rgba(255,181,158,0.85)',
+    textTransform: 'uppercase', color: RivalColors.accentText,
   },
   rule: { width: 32, height: 1 },
   ruleLeft: Platform.OS === 'web'

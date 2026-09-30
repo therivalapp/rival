@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
-import { RivalIcon, RivalBackButton, RivalAvatar } from '../components/rival';
+import { RivalIcon, RivalBackButton, RivalAvatar, GreyPageHead, GREY_PAGE_BG } from '../components/rival';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { confirmAction, notify } from '../lib/notify';
@@ -11,6 +11,7 @@ import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { copyText } from '../lib/clipboard';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { useSnapState } from '../lib/snapState';
 
 // A crest (and the name baked into it) can change once every 6 months —
 // often enough to fix a bad first attempt or reflect a real team change,
@@ -40,6 +41,8 @@ type Member = {
     avatar_url?: string | null;
   };
 };
+
+type SettingsSnap = { userId: string; league: any; members: any[]; pending: any[] };
 
 export default function LeagueSettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -85,65 +88,71 @@ export default function LeagueSettingsScreen() {
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Last loaded copy of this team's settings, so reopening the page draws at
+  // once and refreshes behind it instead of showing "Loading…" again.
+  const [snap, setSnap] = useSnapState<SettingsSnap | null>(`teamSettings.${id}`, null);
+
   useEffect(() => {
+    if (snap) apply(snap);
     load();
   }, [id]);
+
+  function apply(d: SettingsSnap) {
+    const league = d.league;
+    setCurrentUserId(d.userId);
+    setLeagueName(league.name);
+    setNewName(league.name);
+    setCreatedBy(league.created_by);
+    setLogoUrl(league.logo_url || null);
+    setIsPrivate(league.is_private !== false);
+    setCrestGeneratedAt(league.crest_generated_at || null);
+    setHasDescription('description' in league);
+    setDescription(league.description ?? '');
+    setDescDraft(league.description ?? '');
+    setInviteCode(league.invite_code ?? '');
+    setMembers(d.members as any);
+    setPendingRequests(d.pending as any);
+    setLoading(false);
+  }
 
   async function load() {
     const { data: { user } } = await getAuthUser();
     if (!user) return;
-    setCurrentUserId(user.id);
 
-    // Verify user is admin
-    const { data: membership } = await supabase
-      .from('league_members')
-      .select('role')
-      .eq('league_id', id)
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single();
+    // The team and its members (active and waiting) in one round trip each,
+    // side by side. This used to be four requests one after another: the
+    // admin check, the team, the members, then the join requests. Being an
+    // admin is read off the member list instead of asked for separately.
+    const [{ data: league }, { data: rows }] = await Promise.all([
+      supabase
+        .from('leagues')
+        // select('*'): works before and after team_settings.sql adds description.
+        .select('*')
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('league_members')
+        .select('user_id, role, status, users(display_name, avatar_url)')
+        .eq('league_id', id)
+        .in('status', ['active', 'pending']),
+    ]);
 
-    if (membership?.role !== 'admin') {
+    const all = (rows || []) as any[];
+    const me = all.find((r) => r.user_id === user.id && r.status === 'active');
+    if (me?.role !== 'admin') {
       goToTab('/home');
       return;
     }
+    if (!league) return;
 
-    const { data: league } = await supabase
-      .from('leagues')
-      // select('*'): works before and after team_settings.sql adds description.
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (league) {
-      setLeagueName(league.name);
-      setNewName(league.name);
-      setCreatedBy(league.created_by);
-      setLogoUrl(league.logo_url || null);
-      setIsPrivate(league.is_private !== false);
-      setCrestGeneratedAt(league.crest_generated_at || null);
-      setHasDescription('description' in league);
-      setDescription(league.description ?? '');
-      setDescDraft(league.description ?? '');
-      setInviteCode(league.invite_code ?? '');
-    }
-
-    const { data: membersData } = await supabase
-      .from('league_members')
-      .select('user_id, role, users(display_name, avatar_url)')
-      .eq('league_id', id)
-      .eq('status', 'active');
-
-    if (membersData) setMembers(membersData as any);
-
-    const { data: pendingData } = await supabase
-      .from('league_members')
-      .select('user_id, role, users(display_name, avatar_url)')
-      .eq('league_id', id)
-      .eq('status', 'pending');
-
-    if (pendingData) setPendingRequests(pendingData as any);
-    setLoading(false);
+    const next: SettingsSnap = {
+      userId: user.id,
+      league,
+      members: all.filter((r) => r.status === 'active'),
+      pending: all.filter((r) => r.status === 'pending'),
+    };
+    setSnap(next);
+    apply(next);
   }
 
   async function respondToRequest(userId: string, approve: boolean) {
@@ -372,26 +381,20 @@ export default function LeagueSettingsScreen() {
         ? `New crest available ${nextCrestEligibleAt(crestGeneratedAt!).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`
         : crestGeneratedAt ? 'Regenerate crest' : 'Generate a crest';
 
-    const memberRow = (member: Member, isRequest: boolean) => {
+    const memberRow = (member: Member, isRequest: boolean, first = false) => {
       const name = isRequest ? formatDisplayName(member.users) : getDisplayName(member);
       const isCreator = member.user_id === createdBy;
       const isYou = member.user_id === currentUserId;
       const manageable = !isRequest && !isYou && !isCreator;
       const open = openMemberId === member.user_id;
       return (
-        <View key={member.user_id} style={ms.member}>
+        <View key={member.user_id} style={[ms.member, first && { borderTopWidth: 0 }]}>
           <View style={ms.memberMain}>
-            <RivalAvatar uri={member.users?.avatar_url ?? null} name={name} size={38} />
-            <View style={ms.memberText}>
-              <Text style={ms.memberName} numberOfLines={1}>{name}{isYou ? <Text style={ms.memberYou}>  You</Text> : null}</Text>
-              {isRequest ? (
-                <Text style={ms.memberRole}>Join request</Text>
-              ) : isCreator ? (
-                <Text style={ms.memberRole}>Founder</Text>
-              ) : member.role === 'admin' ? (
-                <Text style={ms.memberRole}>Admin</Text>
-              ) : null}
-            </View>
+            <RivalAvatar uri={member.users?.avatar_url ?? null} name={name} size={30} />
+            <Text style={ms.memberName} numberOfLines={1}>{name}{isYou ? <Text style={ms.memberYou}>  You</Text> : null}</Text>
+            {!isRequest ? (
+              <Text style={ms.memberRole}>{isCreator ? 'Founder' : member.role === 'admin' ? 'Admin' : ''}</Text>
+            ) : null}
             {isRequest ? (
               <View style={ms.requestActions}>
                 <TouchableOpacity
@@ -453,10 +456,11 @@ export default function LeagueSettingsScreen() {
     return (
       <SafeAreaView style={ms.page}>
         <ScrollView contentContainerStyle={ms.content}>
-          <View style={ms.header}>
-            <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))} />
-            <Text style={ms.headerTitle}>Team settings</Text>
-          </View>
+          <GreyPageHead
+            kicker={formatTeamName(leagueName).toUpperCase()}
+            title="Team settings"
+            onBack={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))}
+          />
 
           {/* Identity: crest and name together, because they are one thing —
               the name is painted into the crest artwork. */}
@@ -532,9 +536,7 @@ export default function LeagueSettingsScreen() {
                 disabled={generatingCrest || cooldownActive}
                 activeOpacity={0.85}
               >
-                {!cooldownActive ? (
-                  <RivalIcon name="ai" size={16} color={generatingCrest ? 'rgba(255,255,255,0.5)' : RivalButtonColors.label(RivalColors.onAccentFill)} />
-                ) : null}
+                <RivalIcon name="ai" size={16} color={generatingCrest || cooldownActive ? 'rgba(255,255,255,0.5)' : RivalButtonColors.label(RivalColors.onAccentFill)} />
                 <Text style={[ms.crestBtnText, (generatingCrest || cooldownActive) && ms.crestBtnTextOff]}>{crestLabel}</Text>
               </TouchableOpacity>
             ) : null}
@@ -565,15 +567,15 @@ export default function LeagueSettingsScreen() {
           {inviteCode ? (
             <View style={ms.card}>
               <Text style={ms.cardLabel}>Invite</Text>
+              <Text style={ms.code} selectable>{inviteCode}</Text>
               <View style={ms.codeRow}>
-                <Text style={ms.code} selectable>{inviteCode}</Text>
-                <TouchableOpacity style={ms.ghostBtn} onPress={copyCode}>
-                  <Text style={ms.ghostBtnText}>Copy</Text>
+                <TouchableOpacity style={[ms.accentGhost, { flex: 1 }]} onPress={copyCode}>
+                  <Text style={ms.accentGhostText}>Copy code</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[ms.accentGhost, { flex: 1 }]} onPress={shareInvite}>
+                  <Text style={ms.accentGhostText}>Share link</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={[ms.fillBtn, ms.wideBtn]} onPress={shareInvite}>
-                <Text style={ms.fillBtnText}>Share invite link</Text>
-              </TouchableOpacity>
               <View style={ms.descFoot}>
                 <Text style={ms.cardHint}>{codeNote || 'Anyone with the code or link can join.'}</Text>
                 <TouchableOpacity onPress={resetCode} disabled={resettingCode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -607,7 +609,7 @@ export default function LeagueSettingsScreen() {
                       }
                     }}
                   >
-                    <RivalIcon name={priv ? 'lock' : 'globe'} size={15} color={on ? RivalButtonColors.label(RivalColors.onAccentFill) : RivalColors.textSecondary} />
+                    <RivalIcon name={priv ? 'lock' : 'globe'} size={15} color={on ? RivalColors.accentText : RivalColors.textSecondary} />
                     <Text style={[ms.segmentText, on && ms.segmentTextOn]}>{priv ? 'Private' : 'Public'}</Text>
                   </TouchableOpacity>
                 );
@@ -621,21 +623,23 @@ export default function LeagueSettingsScreen() {
           </View>
 
           {pendingRequests.length > 0 && (
-            <View style={ms.card}>
-              <View style={ms.cardHead}>
-                <Text style={ms.cardLabel}>Join requests</Text>
+            <>
+              <View style={ms.sectHead}>
+                <Text style={ms.sect}>Join requests</Text>
                 <View style={ms.countBadge}><Text style={ms.countBadgeText}>{pendingRequests.length}</Text></View>
               </View>
-              {pendingRequests.map((r) => memberRow(r, true))}
-            </View>
+              <View style={ms.rowsCard}>
+                {pendingRequests.map((r, i) => memberRow(r, true, i === 0))}
+              </View>
+            </>
           )}
 
-          <View style={ms.card}>
-            <View style={ms.cardHead}>
-              <Text style={ms.cardLabel}>Members</Text>
-              <Text style={ms.cardCount}>{members.length}</Text>
-            </View>
-            {members.map((mbr) => memberRow(mbr, false))}
+          <View style={ms.sectHead}>
+            <Text style={ms.sect}>Members</Text>
+            <Text style={ms.cardCount}>{members.length}</Text>
+          </View>
+          <View style={ms.rowsCard}>
+            {members.map((mbr, i) => memberRow(mbr, false, i === 0))}
           </View>
 
           {/* Kept apart at the bottom, away from everyday settings. */}
@@ -1089,17 +1093,24 @@ const styles = StyleSheet.create({
 });
 
 // Mobile styles — the warm palette the rest of the mobile app now uses.
-const WARM = '#1d1714';
 const ms = StyleSheet.create({
   descInput: {
-    minHeight: 64, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 12,
+    minHeight: 64, backgroundColor: RivalColors.surfaceContainer, borderWidth: 1, borderColor: RivalColors.surfaceBright, borderRadius: 12, padding: 12,
     color: '#fff', fontSize: 14.5, lineHeight: 20, textAlignVertical: 'top',
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   descFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   savedText: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
   codeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  code: { fontSize: 26, fontWeight: '800', letterSpacing: 5, color: '#fff' },
+  code: {
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 32, fontWeight: '700', letterSpacing: 6, color: '#fff', textAlign: 'center',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : {}),
+  } as any,
+  accentGhost: { paddingVertical: 10, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)', alignItems: 'center' },
+  accentGhostText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
+  sectHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, marginHorizontal: 4, marginBottom: -4 },
+  sect: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  rowsCard: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13 },
   wideBtn: { paddingVertical: 12 },
   resetLink: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textDecorationLine: 'underline' },
   dangerCard: { borderColor: 'rgba(255,143,143,0.18)' },
@@ -1109,28 +1120,31 @@ const ms = StyleSheet.create({
   dangerDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)' },
   deleteBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#b54848', alignItems: 'center' },
   deleteBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
-  page: { flex: 1, backgroundColor: '#110e0c' },
-  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 48, gap: 14 },
+  page: { flex: 1, backgroundColor: GREY_PAGE_BG },
+  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   headerTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText },
 
   identity: {
-    alignItems: 'center', gap: 10, borderRadius: 20, paddingVertical: 22, paddingHorizontal: 18,
+    alignItems: 'center', gap: 8, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 16,
+    // The warm glass card (kept by Ricky over the flat blend card).
     borderWidth: 1, borderColor: 'rgba(255,181,158,0.16)', backgroundColor: '#2d241f',
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
     } as any : {}),
   },
-  crestFrame: { width: 200, height: 200, alignItems: 'center', justifyContent: 'center' },
-  crestImg: { width: 200, height: 200 },
-  crestEmpty: { width: 160, height: 160, borderRadius: 80, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,209,190,0.06)', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.3)' },
+  // Bigger crest in the same card: the artwork has clear space around it, so
+  // the frame overlaps the card's padding rather than growing the card.
+  crestFrame: { width: 180, height: 180, marginVertical: -20, alignItems: 'center', justifyContent: 'center' },
+  crestImg: { width: 180, height: 180 },
+  crestEmpty: { width: 136, height: 136, borderRadius: 68, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,209,190,0.06)', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.3)' },
   crestEmptyText: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
   pickHint: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
   pickRow: { flexDirection: 'row', gap: 8, alignSelf: 'stretch' },
   pickFrame: { flex: 1, aspectRatio: 1, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.25)', overflow: 'hidden' },
   pickImg: { width: '100%', height: '100%' },
 
-  teamName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  teamName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700', color: '#fff', textAlign: 'center' },
   renameLink: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   lockedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12 },
   lockedText: { fontSize: 12, color: 'rgba(255,255,255,0.45)', textAlign: 'center', flexShrink: 1 },
@@ -1144,37 +1158,37 @@ const ms = StyleSheet.create({
   nameEditActions: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
 
   crestBtn: {
-    marginTop: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 12, paddingHorizontal: 22, borderRadius: 999, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+    marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    paddingVertical: 10, paddingHorizontal: 20, borderRadius: 999, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
   },
   crestBtnOff: { backgroundColor: 'rgba(255,255,255,0.06)', ...RivalButtonColors.noGradient },
   crestBtnText: { fontSize: 14, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   crestBtnTextOff: { color: 'rgba(255,255,255,0.5)', fontWeight: '600', fontSize: 12.5 },
   error: { fontSize: 12.5, color: '#ff8f8f', textAlign: 'center' },
 
-  card: { backgroundColor: WARM, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, gap: 12 },
+  card: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 12 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+  cardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   cardCount: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.45)' },
   cardHint: { fontSize: 12.5, lineHeight: 17, color: 'rgba(255,255,255,0.5)' },
   countBadge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   countBadgeText: { fontSize: 11, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
-  segment: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 999, padding: 4, gap: 4 },
+  segment: { flexDirection: 'row', backgroundColor: RivalColors.surfaceContainer, borderWidth: 1, borderColor: RivalColors.surfaceBright, borderRadius: 999, padding: 4, gap: 4 },
   segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 999 },
-  segmentBtnOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  segmentBtnOn: { backgroundColor: RivalColors.surfaceBright },
   segmentText: { fontSize: 14, fontWeight: '700', color: RivalColors.textSecondary },
-  segmentTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  segmentTextOn: { color: '#fff' },
 
-  member: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', paddingTop: 12 },
-  memberMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  member: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)', paddingVertical: 9 },
+  memberMain: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   memberText: { flex: 1, minWidth: 0, gap: 2 },
-  memberName: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  memberName: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: '600', color: RivalColors.textSecondary },
   memberYou: { fontSize: 11.5, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
-  memberRole: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: RivalColors.accentText },
-  moreBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  memberRole: { fontSize: 13.5, fontWeight: '500', color: '#fff' },
+  moreBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
   moreBtnOpen: { backgroundColor: 'rgba(255,209,190,0.12)' },
-  memberMenu: { marginTop: 10, marginLeft: 50, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.04)', paddingVertical: 4 },
+  memberMenu: { marginTop: 8, marginLeft: 41, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.04)', paddingVertical: 4 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12 },
   menuText: { fontSize: 14, fontWeight: '600', color: RivalColors.onSurface },
   menuDanger: { color: '#ff8f8f' },

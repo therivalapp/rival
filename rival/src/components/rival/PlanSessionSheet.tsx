@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { confirmAction, notify } from '../../lib/notify';
-import { displayToIsoDate, isoToDisplayDate } from '../../lib/dateFormat';
+import { displayToIsoDate, isoToDisplayDate, friendlyDate, friendlyTime } from '../../lib/dateFormat';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 
 // Planning a meet-up, in one sheet, from anywhere.
 //
@@ -27,6 +28,12 @@ const SESSION_TYPES = ['Run', 'Ride', 'Swim', 'CrossFit', 'Hike', 'WeightTrainin
 // reaches scoring_config and can't fork a multiplier row the way an
 // un-normalised imported activity_type would.
 const CUSTOM = '__custom__';
+// Phones plan everything through Date and Time; Train Now stored exactly what
+// Schedule does, so the toggle is hidden there. Kept for desktop and in case
+// it comes back.
+const SHOW_TRAIN_NOW_ON_PHONE = false;
+// Short names so every tile label fits on one line.
+const TILE_LABELS: Record<string, string> = { CrossFit: 'CrossFit', WeightTraining: 'Weights' };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -142,6 +149,11 @@ export function PlanSessionSheet({
   // Replaces the old team page's separate Let's Train form: same thing, one
   // switch inside the sheet rather than a second button competing for room.
   const [startsIn, setStartsIn] = useState<number | null>(null);
+  // Train Now with a set clock time instead of "in N min". Today only: a
+  // later day is what Schedule is for.
+  const [nowAt, setNowAt] = useState<string | null>(null);
+  // Which value the time wheel is editing.
+  const [timeFor, setTimeFor] = useState<'plan' | 'now'>('plan');
   const [location, setLocation] = useState('');
   const [note, setNote] = useState('');
   const [posting, setPosting] = useState(false);
@@ -154,8 +166,12 @@ export function PlanSessionSheet({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
-  const [hh, mm] = [time.split(':')[0] ?? '07', time.split(':')[1] ?? '00'];
-  const { height: windowHeight } = useWindowDimensions();
+  const wheelTime = timeFor === 'now' && nowAt ? nowAt : time;
+  const setWheelTime = (v: string) => (timeFor === 'now' ? setNowAt(v) : setTime(v));
+  const [hh, mm] = [wheelTime.split(':')[0] ?? '07', wheelTime.split(':')[1] ?? '00'];
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  // Phones get the tile grid and centred title; desktop keeps the chips.
+  const m = windowWidth < BREAKPOINT_WIDE_LAYOUT;
 
   // Load the session being edited into the form. Keyed on the row's id rather
   // than the object, so a refetch that returns an equal-but-new object can't
@@ -192,9 +208,19 @@ export function PlanSessionSheet({
   function reset() {
     setType('Run');
     setCustomType('');
-    setDate(todayDisplay());
-    setTime('07:00');
+    // Phone: start at the next quarter hour, so planning a session for right
+    // now takes no extra taps. Desktop keeps 07:00.
+    if (m) {
+      const d = new Date(Date.now() + 15 * 60 * 1000);
+      d.setMinutes(Math.ceil(d.getMinutes() / 15) * 15, 0, 0);
+      setDate(isoToDisplayDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`));
+      setTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+    } else {
+      setDate(todayDisplay());
+      setTime('07:00');
+    }
     setStartsIn(null);
+    setNowAt(null);
     setLocation('');
     setNote('');
   }
@@ -216,6 +242,26 @@ export function PlanSessionSheet({
   const whenValid = startsIn !== null || (!!displayToIsoDate(date) && timeValid);
   const canPost = !!resolvedType && whenValid && !!location.trim();
 
+  // Opens the time wheel for a Train Now start, beginning at the next quarter
+  // hour so the first value shown is always later today.
+  function nextQuarterHour(): string {
+    const d = new Date(Date.now() + 15 * 60 * 1000);
+    d.setMinutes(Math.ceil(d.getMinutes() / 15) * 15, 0, 0);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function pickNowTime() {
+    if (!nowAt) setNowAt(nextQuarterHour());
+    setTimeFor('now');
+    setTimeOpen(true);
+  }
+
+  function nowStartLabel(): string {
+    if (nowAt) return friendlyTime(nowAt);
+    const d = new Date(Date.now() + (startsIn ?? 0) * 60 * 1000);
+    return friendlyTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+  }
+
   async function post() {
     if (!currentUserId || posting || !canPost) return;
     if (!resolvedType) {
@@ -223,7 +269,15 @@ export function PlanSessionSheet({
       return;
     }
     let scheduledAt: Date;
-    if (startsIn !== null) {
+    if (startsIn !== null && nowAt) {
+      const [h, min] = nowAt.split(':').map(Number);
+      const now = new Date();
+      scheduledAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, min);
+      if (scheduledAt.getTime() <= now.getTime()) {
+        notify('Pick a later time', 'Train Now is for later today. To plan another day, use Schedule.');
+        return;
+      }
+    } else if (startsIn !== null) {
       scheduledAt = new Date(Date.now() + startsIn * 60 * 1000);
     } else {
       const isoDate = displayToIsoDate(date);
@@ -323,18 +377,26 @@ export function PlanSessionSheet({
           <View style={styles.glow} pointerEvents="none" />
           <View style={styles.grabber} />
 
-          <View style={styles.head}>
-            <View style={styles.headIcon}>
-              <RivalIcon name="calendar" size={17} color={RivalColors.accentText} />
+          {m ? (
+            // Centred kicker and serif title, the Edit team challenge header.
+            <View style={styles.mHead}>
+              <Text style={[styles.kicker, styles.mCenter]}>TEAM ACTIVITY</Text>
+              <Text style={[styles.title, styles.mTitle]}>{editing ? 'Edit activity' : 'Plan an activity'}</Text>
             </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.kicker}>TEAM ACTIVITY</Text>
-              <Text style={styles.title}>{editing ? 'Edit Activity' : 'Plan an Activity'}</Text>
+          ) : (
+            <View style={styles.head}>
+              <View style={styles.headIcon}>
+                <RivalIcon name="calendar" size={17} color={RivalColors.accentText} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.kicker}>TEAM ACTIVITY</Text>
+                <Text style={styles.title}>{editing ? 'Edit Activity' : 'Plan an Activity'}</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} accessibilityLabel="Cancel" style={styles.closeBtn}>
+                <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose} accessibilityLabel="Cancel" style={styles.closeBtn}>
-              <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
-            </TouchableOpacity>
-          </View>
+          )}
 
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -346,34 +408,76 @@ export function PlanSessionSheet({
                 the same generic dumbbell, so they stopped telling you anything
                 and just added texture to an already busy block. They stay in
                 the picker, where the rows are tall enough for them to read. */}
-            <View style={styles.chipRow}>
-              {SESSION_TYPES.map((t) => (
+            {m ? (
+              // Seven tiles with round icon badges plus See all, four to a row.
+              // The eighth tile also shows a pick made outside the seven.
+              <View style={styles.tiles}>
+                {SESSION_TYPES.map((t) => {
+                  const on = type === t;
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.tile, on && styles.tileOn]}
+                      onPress={() => setType(t)}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                    >
+                      <View style={[styles.badge, on && styles.badgeOn]}>
+                        <RivalIcon name={activityIconName(t)} size={16} color={on ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
+                      </View>
+                      <Text style={[styles.tileText, on && styles.tileTextOn]} numberOfLines={1}>{TILE_LABELS[t] ?? typeLabel(t)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
                 <TouchableOpacity
-                  key={t}
-                  style={[styles.chip, type === t && styles.chipOn]}
-                  onPress={() => setType(t)}
+                  style={[styles.tile, outsidePick ? styles.tileOn : styles.tileAll]}
+                  onPress={() => setPickerOpen(true)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
                 >
-                  <Text style={[styles.chipText, type === t && styles.chipTextOn]}>{typeLabel(t)}</Text>
+                  <View style={[styles.badge, outsidePick ? styles.badgeOn : styles.badgeAll]}>
+                    <RivalIcon
+                      name={outsidePick && type !== CUSTOM ? activityIconName(type) : type === CUSTOM ? 'edit' : 'apps'}
+                      size={16}
+                      color={outsidePick ? RivalColors.surfaceLowest : RivalColors.accentText}
+                    />
+                  </View>
+                  <Text style={[styles.tileText, outsidePick ? styles.tileTextOn : styles.tileAllText]} numberOfLines={1}>
+                    {type === CUSTOM ? 'Custom' : outsidePick ? typeLabel(type) : 'See all'}
+                  </Text>
                 </TouchableOpacity>
-              ))}
-              {/* ONE trailing action, not two. It also doubles as the display
-                  for a pick made outside the seven — filled with that activity's
-                  name — so choosing "Badminton" doesn't inject an eighth chip
-                  and reflow the whole block. */}
-              <TouchableOpacity
-                style={[styles.chip, outsidePick ? styles.chipOn : styles.chipMore]}
-                onPress={() => setPickerOpen(true)}
-              >
-                <Text style={[styles.chipText, outsidePick ? styles.chipTextOn : styles.chipMoreText]}>
-                  {type === CUSTOM ? 'Custom Activity' : outsidePick ? typeLabel(type) : 'See all'}
-                </Text>
-                <RivalIcon
-                  name="chevronRight"
-                  size={13}
-                  color={outsidePick ? RivalColors.surfaceLowest : RivalColors.accentText}
-                />
-              </TouchableOpacity>
-            </View>
+              </View>
+            ) : (
+              <View style={styles.chipRow}>
+                {SESSION_TYPES.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.chip, type === t && styles.chipOn]}
+                    onPress={() => setType(t)}
+                  >
+                    <Text style={[styles.chipText, type === t && styles.chipTextOn]}>{typeLabel(t)}</Text>
+                  </TouchableOpacity>
+                ))}
+                {/* ONE trailing action, not two. It also doubles as the display
+                    for a pick made outside the seven — filled with that activity's
+                    name — so choosing "Badminton" doesn't inject an eighth chip
+                    and reflow the whole block. */}
+                <TouchableOpacity
+                  style={[styles.chip, outsidePick ? styles.chipOn : styles.chipMore]}
+                  onPress={() => setPickerOpen(true)}
+                >
+                  <Text style={[styles.chipText, outsidePick ? styles.chipTextOn : styles.chipMoreText]}>
+                    {type === CUSTOM ? 'Custom Activity' : outsidePick ? typeLabel(type) : 'See all'}
+                  </Text>
+                  <RivalIcon
+                    name="chevronRight"
+                    size={13}
+                    color={outsidePick ? RivalColors.surfaceLowest : RivalColors.accentText}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
             {/* Built as a row in the same recessed card the details use, not a
                 loose full-width box. It appeared mid-form in a shape nothing
                 else on the sheet had, so it read as bolted on rather than as
@@ -402,24 +506,27 @@ export function PlanSessionSheet({
                 reads as a single form rather than a stack of identical
                 rectangles — and every row gets its own accent icon, which is
                 what makes it scannable at a glance. */}
-            {!editing && (
+            {!editing && (!m || SHOW_TRAIN_NOW_ON_PHONE) && (
               <>
                 <Text style={styles.label}>When</Text>
                 <View style={styles.whenRow}>
-                  <TouchableOpacity style={[styles.whenBtn, startsIn === null && styles.whenBtnOn]} onPress={() => setStartsIn(null)}>
+                  <TouchableOpacity style={[styles.whenBtn, startsIn === null && styles.whenBtnOn]} onPress={() => { setStartsIn(null); setNowAt(null); }}>
                     <Text style={[styles.whenText, startsIn === null && styles.whenTextOn]}>Schedule</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.whenBtn, startsIn !== null && styles.whenBtnOn]} onPress={() => setStartsIn(v => v ?? 30)}>
+                  <TouchableOpacity style={[styles.whenBtn, startsIn !== null && styles.whenBtnOn]} onPress={() => { setStartsIn(v => v ?? 30); if (m && !nowAt) setNowAt(nextQuarterHour()); }}>
                     <Text style={[styles.whenText, startsIn !== null && styles.whenTextOn]}>Train Now</Text>
                   </TouchableOpacity>
                 </View>
-                {startsIn !== null && (
+                {startsIn !== null && !m && (
                   <View style={[styles.chipRow, { marginTop: 10 }]}>
-                    {[15, 30, 60, 90].map(m => (
-                      <TouchableOpacity key={m} style={[styles.chip, startsIn === m && styles.chipOn]} onPress={() => setStartsIn(m)}>
-                        <Text style={[styles.chipText, startsIn === m && styles.chipTextOn]}>In {m} min</Text>
+                    {[15, 30, 60, 90].map(v => (
+                      <TouchableOpacity key={v} style={[styles.chip, !nowAt && startsIn === v && styles.chipOn]} onPress={() => { setNowAt(null); setStartsIn(v); }}>
+                        <Text style={[styles.chipText, !nowAt && startsIn === v && styles.chipTextOn]}>In {v} min</Text>
                       </TouchableOpacity>
                     ))}
+                    <TouchableOpacity style={[styles.chip, !!nowAt && styles.chipOn]} onPress={pickNowTime}>
+                      <Text style={[styles.chipText, !!nowAt && styles.chipTextOn]}>{nowAt ? `At ${nowAt}` : 'Set time'}</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </>
@@ -427,6 +534,19 @@ export function PlanSessionSheet({
 
             <Text style={styles.label}>Details</Text>
             <View style={styles.fieldCard}>
+              {startsIn !== null && m && (
+                <>
+                  {/* Train Now on a phone: one start time, today only. */}
+                  <TouchableOpacity style={styles.fieldRow} onPress={pickNowTime}>
+                    <RivalIcon name="schedule" size={16} color={RivalColors.accentText} style={styles.fieldIcon} />
+                    <Text style={styles.fieldLabel}>Time</Text>
+                    <View style={styles.fieldControl}>
+                      <Text style={[styles.rowValue, styles.mValue]}>Today, {nowStartLabel()}</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <View style={styles.divider} />
+                </>
+              )}
               {startsIn === null && (
                 <>
               {/* The whole row is the trigger — no trailing calendar button.
@@ -439,7 +559,7 @@ export function PlanSessionSheet({
                 <RivalIcon name="calendar" size={16} color={RivalColors.accentText} style={styles.fieldIcon} />
                 <Text style={styles.fieldLabel}>Date</Text>
                 <View style={styles.fieldControl}>
-                  <Text style={styles.rowValue}>{date}</Text>
+                  <Text style={[styles.rowValue, m && styles.mValue]}>{m ? friendlyDate(date) : date}</Text>
                 </View>
               </TouchableOpacity>
 
@@ -449,11 +569,11 @@ export function PlanSessionSheet({
                   "07:00" before you can enter anything, and a free text field
                   accepts "7pm" and "25:70". Tapping picks the hour and minute
                   directly, matching the Date row above it. */}
-              <TouchableOpacity style={styles.fieldRow} onPress={() => setTimeOpen(true)}>
+              <TouchableOpacity style={styles.fieldRow} onPress={() => { setTimeFor('plan'); setTimeOpen(true); }}>
                 <RivalIcon name="schedule" size={16} color={RivalColors.accentText} style={styles.fieldIcon} />
                 <Text style={styles.fieldLabel}>Time</Text>
                 <View style={styles.fieldControl}>
-                  <Text style={styles.rowValue}>{time}</Text>
+                  <Text style={[styles.rowValue, m && styles.mValue]}>{m ? friendlyTime(time) : time}</Text>
                 </View>
               </TouchableOpacity>
 
@@ -466,14 +586,15 @@ export function PlanSessionSheet({
                 <Text style={styles.fieldLabel}>Location</Text>
                 <View style={styles.fieldControl}>
                   <TextInput
-                    style={styles.rowInput}
+                    style={[styles.rowInput, m && styles.mValue]}
                     value={location}
                     onChangeText={setLocation}
+                    placeholder={m ? 'Required' : undefined}
                     // The label beside it already says "Location" — repeating
                     // that here is dead text. The one thing a placeholder can
                     // usefully say in a labelled row is whether the field has
                     // to be filled in, and this one doesn't.
-                    placeholderTextColor={RivalColors.textSecondary}
+                    placeholderTextColor={m ? 'rgba(255,255,255,0.28)' : RivalColors.textSecondary}
                   />
                 </View>
               </View>
@@ -482,13 +603,14 @@ export function PlanSessionSheet({
 
               <View style={styles.fieldRow}>
                 <RivalIcon name="manual" size={16} color={RivalColors.accentText} style={styles.fieldIcon} />
-                <Text style={styles.fieldLabel}>Additional information</Text>
+                <Text style={styles.fieldLabel}>Notes</Text>
                 <View style={styles.fieldControl}>
                   <TextInput
-                    style={styles.rowInput}
+                    style={[styles.rowInput, m && styles.mValue]}
                     value={note}
                     onChangeText={setNote}
-                    placeholderTextColor={RivalColors.textSecondary}
+                    placeholder={m ? 'Optional' : undefined}
+                    placeholderTextColor={m ? 'rgba(255,255,255,0.28)' : RivalColors.textSecondary}
                   />
                 </View>
               </View>
@@ -553,9 +675,9 @@ export function PlanSessionSheet({
                       wheels and ignores touches, so a tap still lands on the
                       number under it. */}
                   <View style={styles.wheelBand} pointerEvents="none" />
-                  <Wheel values={HOURS} value={hh} onChange={(v) => setTime(`${v}:${mm}`)} open={timeOpen} />
+                  <Wheel values={HOURS} value={hh} onChange={(v) => setWheelTime(`${v}:${mm}`)} open={timeOpen} />
                   <Text style={styles.wheelColon}>:</Text>
-                  <Wheel values={MINUTES} value={mm} onChange={(v) => setTime(`${hh}:${v}`)} open={timeOpen} />
+                  <Wheel values={MINUTES} value={mm} onChange={(v) => setWheelTime(`${hh}:${v}`)} open={timeOpen} />
 
                   {/* The signature of an Apple picker: rows don't stop at the
                       frame, they fade into it. A scrim in the card's own colour
@@ -700,6 +822,10 @@ const styles = StyleSheet.create({
   // Serif italic, the same voice the Team Challenge and section headings use —
   // the sheet was the only surface in the app titled in plain sans.
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', marginTop: 1 },
+  mHead: { alignItems: 'center', marginBottom: 2, paddingHorizontal: 36 },
+  mCenter: { textAlign: 'center' },
+  mTitle: { fontSize: 24, textAlign: 'center', marginTop: 3 },
+  mClose: { position: 'absolute', right: 0, top: -4 },
   closeBtn: {
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.surfaceContainer,
@@ -745,8 +871,7 @@ const styles = StyleSheet.create({
   },
   fieldRow: { flexDirection: 'row', alignItems: 'center', minHeight: 46, gap: 10, paddingVertical: 4 },
   fieldIcon: { width: 18, textAlign: 'center' },
-  // Wide enough that "Additional information" wraps to two tidy lines rather
-  // than crowding the value beside it; the other three labels stay on one.
+  // Every label fits on one line, so all four rows are the same height.
   fieldLabel: { fontSize: 13.5, fontWeight: '600', color: RivalColors.textSecondary, width: 104 },
   // The value side takes the rest of the row and right-aligns, so all four
   // values line up in a column instead of each floating in its own wide box.
@@ -761,6 +886,8 @@ const styles = StyleSheet.create({
   // Matches rowInput exactly, so the date sits on the same baseline and the
   // same right edge as the values typed into the rows around it.
   rowValue: { color: RivalColors.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'right', paddingVertical: 8 },
+  // Phone: values a step lighter so they sit with their labels.
+  mValue: { fontSize: 15, fontWeight: '500' },
   divider: { height: 1, backgroundColor: RivalColors.surfaceBright, opacity: 0.6 },
   whenRow: {
     flexDirection: 'row', padding: 4, borderRadius: 999,
@@ -826,6 +953,28 @@ const styles = StyleSheet.create({
   postBtnText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.surfaceLowest), letterSpacing: 0.2 },
   cancelBtn: { paddingVertical: 12, alignItems: 'center' },
   cancelBtnText: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary },
+
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tile: {
+    width: '23.1%', flexGrow: 1, alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8,
+    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest,
+    borderWidth: 1, borderColor: 'rgba(255,209,190,0.09)',
+  },
+  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  badge: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  badgeOn: {
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  },
+  tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' },
+  tileTextOn: { color: '#fff' },
+  // See all is an action, so it is outlined rather than filled.
+  tileAll: { backgroundColor: 'transparent' },
+  badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: `${RivalColors.accentFill}80` },
+  tileAllText: { color: RivalColors.accentText },
 
   // "See all" is an action, not a choice — outlined in the accent rather than
   // filled, so it never looks like a selected activity.

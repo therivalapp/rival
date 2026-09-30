@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { readPendingInvite } from '../lib/pendingInvite';
 import { loadStravaSharing, startStravaConnect } from '../lib/stravaSharing';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
-import { RivalIcon, RivalMobileHeader, RivalRowLink, RivalWarm, rm, type RivalIconName } from '../components/rival';
+import { RivalIcon, RivalMobileHeader, RivalRowLink, RivalWarm, rm, rb, GreyPageHead, GreyRows, GreyRow, type RivalIconName } from '../components/rival';
+import { RivalButtonColors } from '../constants/rivalTheme';
 import { goToTab } from '../lib/tabNav';
 
 // How RIVAL works — the introduction a new person sees straight after
@@ -21,7 +23,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   {
     icon: 'bolt',
     title: 'Every activity earns Effort',
-    body: 'Effort comes from the time you put in, weighted by the kind of activity, with credit for climbing. A gym workout, a swim and a long run all count.',
+    body: 'Distance sports score mostly on distance, everything else on time, with credit for climbing. A gym workout, a swim and a long run all count.',
   },
   {
     icon: 'groups',
@@ -35,7 +37,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   },
   {
     icon: 'crown',
-    title: 'Your rank is earned each year',
+    title: 'Rank is earned each year',
     body: 'Effort moves you up the ranks through the year, from Rookie to Unrivaled. Everyone starts again on 1 January. Lifetime totals never reset.',
   },
 ];
@@ -43,6 +45,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
 export default function GettingStartedScreen() {
   const { welcome } = useLocalSearchParams<{ welcome?: string }>();
   const isWelcome = welcome === '1';
+  const wide = useWindowDimensions().width >= BREAKPOINT_WIDE_LAYOUT;
   const [strava, setStrava] = useState<boolean | null>(null);
   const [inTeam, setInTeam] = useState<boolean | null>(null);
   const [firstName, setFirstName] = useState('');
@@ -65,6 +68,58 @@ export default function GettingStartedScreen() {
 
   const goHome = () => goToTab('/home');
   const back = () => (router.canGoBack() ? router.back() : goHome());
+
+  // Phone: the blend. Same words, grey style: the four ideas in one card with
+  // their full sentences, How Effort works as a link, set-up as rows.
+  if (!wide) {
+    const setupRow = (icon: RivalIconName, label: string, done: boolean, onPress: () => void) => (
+      <GreyRow icon={done ? 'check' : icon} label={label} onPress={done ? undefined : onPress}>
+        {done ? <Text style={g2.done}>Done</Text> : <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />}
+      </GreyRow>
+    );
+    return (
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+        <ScrollView contentContainerStyle={[rb.content, { paddingBottom: 120 }]}>
+          <GreyPageHead
+            kicker={isWelcome ? 'WELCOME TO RIVAL' : 'HOW RIVAL WORKS'}
+            title={isWelcome && firstName ? `Welcome, ${firstName}` : 'We make each other better'}
+            sub="RIVAL turns training into Effort, alongside the people who keep you going."
+            onBack={isWelcome ? undefined : back}
+          />
+          <View style={[rb.card, g2.ideas]}>
+            {IDEAS.map((idea, i) => (
+              <View key={idea.title} style={[g2.idea, i > 0 && rb.rule]}>
+                <View style={rb.badge}><RivalIcon name={idea.icon} size={16} color={RivalColors.accentText} /></View>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text style={g2.ideaTitle}>{idea.title}</Text>
+                  <Text style={g2.ideaBody}>{idea.body}</Text>
+                  {i === 0 ? (
+                    <TouchableOpacity onPress={() => router.push('/effort')} accessibilityRole="link">
+                      <Text style={s.ideaLink}>How Effort works →</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <Text style={rb.section}>Get set up</Text>
+          <GreyRows>
+            {setupRow('link', strava ? 'Device connected' : 'Connect a device', !!strava, () => router.push({ pathname: '/profile', params: { tab: 'apps' } }))}
+            {setupRow('add', 'Add an activity', false, () => router.push('/add-workout'))}
+            {!inTeam && readPendingInvite() ? setupRow('groups', 'Join the team that invited you', false, () => router.push('/join-league')) : null}
+            {inTeam ? setupRow('groups', 'In a team', true, () => {}) : setupRow('search', 'Find a team', false, () => router.push('/discover-leagues'))}
+            {!inTeam ? setupRow('flag', 'Create a team', false, () => router.push('/create-league')) : null}
+          </GreyRows>
+
+          <TouchableOpacity style={g2.cta} onPress={goHome} accessibilityRole="button">
+            <Text style={g2.ctaText}>{isWelcome ? 'Go to Today' : 'Back to Today'}</Text>
+          </TouchableOpacity>
+          {isWelcome ? <Text style={g2.foot}>This page is always in Settings, under How RIVAL works.</Text> : null}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
@@ -92,6 +147,11 @@ export default function GettingStartedScreen() {
               <Text style={rm.label}>Step {i + 1}</Text>
               <Text style={s.ideaTitle}>{idea.title}</Text>
               <Text style={rm.body}>{idea.body}</Text>
+              {i === 0 && !wide ? (
+                <TouchableOpacity onPress={() => router.push('/effort')} accessibilityRole="link">
+                  <Text style={s.ideaLink}>How Effort works →</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         ))}
@@ -99,13 +159,13 @@ export default function GettingStartedScreen() {
         <Text style={[rm.label, s.sectionLabel]}>Get set up</Text>
 
         {strava ? (
-          <DoneRow title="Strava connected" body="New activities sync automatically." />
+          <DoneRow title="Device connected" body="New activities sync automatically." />
         ) : (
           <RivalRowLink
             icon="refresh"
-            title="Connect Strava"
+            title="Connect a device"
             body="New activities sync automatically."
-            onPress={() => startStravaConnect()}
+            onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}
           />
         )}
         <RivalRowLink
@@ -179,10 +239,23 @@ const s = StyleSheet.create({
   idea: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   ideaText: { flex: 1, gap: 4 },
   ideaTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18, lineHeight: 23, color: '#fff' },
+  ideaLink: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText, marginTop: 4 },
   sectionLabel: { marginTop: 10, marginLeft: 4 },
   doneRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   doneIcon: { backgroundColor: 'rgba(143,214,164,0.12)' },
   doneTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
   cta: { marginTop: 10 },
   footnote: { textAlign: 'center' },
+});
+
+// Phone: the blend.
+const g2 = StyleSheet.create({
+  ideas: { paddingVertical: 2, gap: 0 },
+  idea: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12 },
+  ideaTitle: { fontSize: 14.5, fontWeight: '700', color: '#fff' },
+  ideaBody: { fontSize: 13, lineHeight: 18.5, color: RivalColors.textSecondary },
+  done: { fontSize: 13, fontWeight: '700', color: '#8fd6a4' },
+  cta: { marginTop: 4, paddingVertical: 14, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  ctaText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  foot: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
 });

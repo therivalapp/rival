@@ -11,7 +11,7 @@ import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { RivalColors, RivalRadius, RivalButtonColors } from '../constants/rivalTheme';
-import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm } from '../components/rival';
+import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm, rb, GreyPageHead, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
 import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB } from '../components/rival/MediaPicker';
 import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
@@ -584,6 +584,7 @@ export default function ScanWorkoutScreen() {
         extractedWorkout.duration,
         extractedWorkout.elevation || 0,
         await loadScoringConfig(),
+        extractedWorkout.distance ? extractedWorkout.distance * 1000 : 0,
       );
 
       const isoDate = displayToIsoDate(activityDateStr);
@@ -759,7 +760,8 @@ export default function ScanWorkoutScreen() {
             <Text style={st.title}>{editActivityId ? 'Edit Activity' : 'Scan Workout'}</Text>
           </>
         ) : (
-          <RivalMobileHeader
+          <GreyPageHead
+            kicker={editActivityId ? 'EDIT' : 'AI SCAN'}
             title={editActivityId ? 'Edit activity' : 'Scan workout'}
             onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))}
           />
@@ -789,39 +791,39 @@ export default function ScanWorkoutScreen() {
         {scanImages.length === 0 && !extractedWorkout && !editParamId && !wide ? (
           // Mobile: the same hero as Add workout, so arriving here from a
           // cancelled camera reads as the same place, not a new screen.
-          <View style={{ gap: 14 }}>
-            <View style={rm.hero}>
-              <View style={mx.heroTop}>
-                <View style={rm.iconCircle}>
-                  <RivalIcon name="scan" size={20} color={RivalColors.accentText} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={rm.serifTitleSm}>Photo scan</Text>
-                </View>
-              </View>
-              <Text style={rm.hint}>Capture a workout card, whiteboard or app screenshot. Add several photos if one activity spans more than one. Each day is scanned separately.</Text>
-              <View style={mx.steps}>
-                {['Capture or upload', 'Details extracted automatically', 'Review and save'].map((t, i) => (
-                  <View key={t} style={mx.step}>
-                    <View style={mx.stepNum}><Text style={mx.stepNumText}>{i + 1}</Text></View>
-                    <Text style={mx.stepText}>{t}</Text>
+          // The blend, the same as Add an activity.
+          <View style={{ gap: 12 }}>
+            <View style={rb.card}>
+              <Text style={rb.label}>Photo scan</Text>
+              <Text style={mx.blendHint}>A workout card, whiteboard or app screenshot. Add several photos if one activity spans more than one.</Text>
+              <View>
+                {['Capture or upload', 'Details read automatically', 'Review and save'].map((t, i) => (
+                  <View key={t} style={[mx.blendStep, i > 0 && rb.rule]}>
+                    <View style={mx.blendNum}><Text style={mx.stepNumText}>{i + 1}</Text></View>
+                    <Text style={mx.blendStepText}>{t}</Text>
                   </View>
                 ))}
               </View>
               <View style={mx.actions}>
-                <TouchableOpacity style={[rm.primary, { flex: 1 }]} onPress={() => pickImage('camera')} activeOpacity={0.85}>
-                  <RivalIcon name="camera" size={18} color={rm.primaryText.color as string} />
+                <TouchableOpacity style={[rm.primary, mx.blendBtn, { flex: 1 }]} onPress={() => pickImage('camera')} activeOpacity={0.85}>
+                  <RivalIcon name="camera" size={17} color={rm.primaryText.color as string} />
                   <Text style={rm.primaryText} numberOfLines={1}>Take photo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[rm.ghost, { flex: 1 }]} onPress={() => pickImage('gallery')} activeOpacity={0.85}>
-                  <RivalIcon name="upload" size={18} color={RivalColors.accentText} />
+                <TouchableOpacity style={[rm.ghost, mx.blendBtn, { flex: 1 }]} onPress={() => pickImage('gallery')} activeOpacity={0.85}>
+                  <RivalIcon name="upload" size={17} color={RivalColors.accentText} />
                   <Text style={rm.ghostText} numberOfLines={1}>Upload</Text>
                 </TouchableOpacity>
               </View>
               {generalError && <Text style={rm.error}>{generalError}</Text>}
             </View>
-            <RivalRowLink icon="manual" title="Manual entry" body="Enter duration, distance and lifts" onPress={() => router.push('/manual-entry')} />
-            <RivalRowLink icon="batch" title="Weekly scan" body="Log multiple days at once" onPress={() => router.push('/weekly-scan')} />
+            <GreyRows>
+              <GreyRow icon="manual" label="Manual entry" onPress={() => router.push('/manual-entry')}>
+                <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+              </GreyRow>
+              <GreyRow icon="batch" label="Weekly scan" onPress={() => router.push('/weekly-scan')}>
+                <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+              </GreyRow>
+            </GreyRows>
           </View>
         ) : scanImages.length === 0 && !extractedWorkout && !editParamId ? (
           <View style={st.uploadArea}>
@@ -905,7 +907,7 @@ export default function ScanWorkoutScreen() {
                             duration: applyClassDurationFloor(opt.type, extractedWorkout.duration),
                           })}
                         >
-                          {wide ? <Text style={st.typeChipIcon}>{opt.icon}</Text> : <RivalIcon name={activityIconName(opt.type)} size={15} color={selected ? RivalButtonColors.label(RivalColors.onAccentFill) : RivalColors.textSecondary} />}
+                          <RivalIcon name={activityIconName(opt.type)} size={15} color={selected ? RivalButtonColors.label(RivalColors.onAccentFill) : RivalColors.textSecondary} />
                           <Text style={[st.typeChipText, selected && st.typeChipTextSelected]}>{opt.type}</Text>
                         </TouchableOpacity>
                       );
@@ -1407,9 +1409,9 @@ const styles = StyleSheet.create({
 const mobileStyles = {
   ...styles,
   ...StyleSheet.create({
-    container: { flex: 1, backgroundColor: RivalWarm.page },
-    content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 48 },
-    successBanner: { backgroundColor: RivalWarm.card, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(126,217,149,0.35)' },
+    container: { flex: 1, backgroundColor: GREY_PAGE_BG },
+    content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 120 },
+    successBanner: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(126,217,149,0.35)' },
     successBannerText: { color: '#8fe0a8', fontSize: 14, fontWeight: '700' },
     enhanceBtn: { flexDirection: 'row', justifyContent: 'center', gap: 8, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 14, alignItems: 'center' },
 
@@ -1489,6 +1491,11 @@ const mobileStyles = {
 
 // Mobile-only pieces of the empty state.
 const mx = StyleSheet.create({
+  blendHint: { fontSize: 12.5, lineHeight: 17, color: RivalColors.textSecondary },
+  blendStep: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  blendNum: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  blendStepText: { flex: 1, fontSize: 14, fontWeight: '600', color: RivalColors.textSecondary },
+  blendBtn: { paddingVertical: 12 },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   steps: { gap: 8 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 10 },

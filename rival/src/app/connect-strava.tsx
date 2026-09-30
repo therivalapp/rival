@@ -5,8 +5,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { connectStrava } from '../lib/strava';
 import { agreeToStravaSharing, loadStravaSharing } from '../lib/stravaSharing';
 import { ROUTE_MAPS_ENABLED } from '../lib/features';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
-import { RivalIcon, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
+import { RivalButtonColors, RivalColors } from '../constants/rivalTheme';
+import { RivalIcon, rm, rb, GreyPageHead, GreyRows, GreyRow } from '../components/rival';
 import { goToTab } from '../lib/tabNav';
 
 // The consent step before Strava connects. Strava's API Agreement only allows
@@ -43,76 +43,66 @@ export default function ConnectStravaScreen() {
   }
 
   return (
-    <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={[rm.content, s.content]}>
-        <RivalMobileHeader title={isReview ? 'Strava sharing' : 'Connect Strava'} onBack={leave} />
+    <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+      <ScrollView contentContainerStyle={[rb.content, s.content]}>
+        <GreyPageHead
+          kicker="CONNECTED DEVICES"
+          title={isReview ? 'Sharing with teams' : 'Connect a device'}
+          sub={isReview ? 'Review what teammates can see.' : 'Past training imports with Effort. New activities sync automatically.'}
+          onBack={leave}
+        />
 
-        <View style={[rm.hero, s.hero]}>
-          <Text style={rm.label}>{isReview ? 'Review sharing' : 'Before connecting'}</Text>
-          <Text style={rm.serifTitle}>Sharing with teams</Text>
-          <Text style={rm.body}>
+        {!isReview ? (
+          <GreyRows>
+            <GreyRow icon="run" label="Strava" value="Selected" />
+            <GreyRow icon="watch" label="Garmin" value="Coming soon" />
+            <GreyRow icon="respect" label="Apple Health" value="Coming soon" />
+          </GreyRows>
+        ) : null}
+
+        <Text style={rb.section}>Sharing with teams</Text>
+        <View style={[rb.card, s.list]}>
+          <Text style={s.intro}>
             RIVAL shows activities to the teams you belong to. Strava requires agreement before any of its data is shown to other people.
           </Text>
-        </View>
-
-        <View style={rm.card}>
-          <View style={s.row}>
-            <View style={rm.iconCircle}>
-              <RivalIcon name="groups" size={20} color={RivalColors.accentText} />
-            </View>
+          <View style={[s.row, rb.rule]}>
+            <View style={rb.badge}><RivalIcon name="groups" size={16} color={RivalColors.accentText} /></View>
             <View style={s.rowText}>
               <Text style={s.rowTitle}>Activities</Text>
-              <Text style={rm.body}>
-                Activity type, name, date, duration, distance, elevation and Effort are shown to teammates in team feeds and standings.
-              </Text>
+              <Text style={s.body}>Type, name, date, duration, distance, elevation and Effort are shown to teammates in feeds and standings.</Text>
               <Text style={s.required}>Required for teams</Text>
             </View>
           </View>
+          {ROUTE_MAPS_ENABLED && (
+            <View style={[s.row, rb.rule]}>
+              <View style={rb.badge}><RivalIcon name="distance" size={16} color={RivalColors.accentText} /></View>
+              <View style={s.rowText}>
+                <View style={s.switchHead}>
+                  <Text style={s.rowTitle}>Route maps</Text>
+                  <Switch
+                    value={shareRoutes}
+                    onValueChange={setShareRoutes}
+                    trackColor={{ false: RivalColors.surfaceContainerHigh, true: RivalColors.accentFill }}
+                    thumbColor="#ffffff"
+                    {...(Platform.OS === 'web' ? ({ activeThumbColor: '#ffffff' } as any) : {})}
+                    accessibilityLabel="Share route maps with teams"
+                  />
+                </View>
+                <Text style={s.body}>Show the route of each activity to teammates. A route can reveal where a person lives or trains. Off unless turned on.</Text>
+              </View>
+            </View>
+          )}
         </View>
 
-        {ROUTE_MAPS_ENABLED && <View style={rm.card}>
-          <View style={s.row}>
-            <View style={rm.iconCircle}>
-              <RivalIcon name="distance" size={20} color={RivalColors.accentText} />
-            </View>
-            <View style={s.rowText}>
-              <View style={s.switchHead}>
-                <Text style={s.rowTitle}>Route maps</Text>
-                <Switch
-                  value={shareRoutes}
-                  onValueChange={setShareRoutes}
-                  trackColor={{ false: RivalColors.surfaceContainerHigh, true: RivalColors.accentFill }}
-                  thumbColor="#ffffff"
-                  {...(Platform.OS === 'web' ? ({ activeThumbColor: '#ffffff' } as any) : {})}
-                  accessibilityLabel="Share route maps with teams"
-                />
-              </View>
-              <Text style={rm.body}>
-                Show the route of each activity to teammates. A route can reveal where a person lives or trains.
-              </Text>
-              <Text style={rm.hint}>
-                Off unless turned on. Check Strava privacy zones before sharing. This can be changed at any time in Settings.
-              </Text>
-            </View>
-          </View>
-        </View>}
-
-        <TouchableOpacity
-          style={[rm.primary, saving && rm.disabled]}
-          onPress={agree}
-          disabled={saving}
-          accessibilityRole="button"
-        >
-          <Text style={rm.primaryText}>{isReview ? 'Agree and save' : 'Agree and connect'}</Text>
+        <TouchableOpacity style={[s.primary, saving && { opacity: 0.5 }]} onPress={agree} disabled={saving} accessibilityRole="button">
+          <Text style={s.primaryText}>{isReview ? 'Agree and save' : 'Agree and connect Strava'}</Text>
         </TouchableOpacity>
         {error && <Text style={rm.error}>{error}</Text>}
-        <TouchableOpacity style={rm.ghost} onPress={leave} accessibilityRole="button">
-          <Text style={rm.ghostText}>Not now</Text>
+        <TouchableOpacity style={s.ghost} onPress={leave} accessibilityRole="button">
+          <Text style={s.ghostText}>Not now</Text>
         </TouchableOpacity>
         {isReview && (
-          <Text style={[rm.hint, s.center]}>
-            To stop sharing activities, disconnect Strava in Settings.
-          </Text>
+          <Text style={s.hint}>To stop sharing activities, disconnect Strava in Settings.</Text>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -120,12 +110,18 @@ export default function ConnectStravaScreen() {
 }
 
 const s = StyleSheet.create({
-  content: { maxWidth: 560, width: '100%', alignSelf: 'center' },
-  hero: { gap: 10 },
-  row: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  rowText: { flex: 1, gap: 6 },
-  rowTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: '#fff' },
+  content: { maxWidth: 560, width: '100%', alignSelf: 'center', paddingBottom: 120 },
+  list: { gap: 0, paddingVertical: 4 },
+  intro: { fontSize: 13, lineHeight: 18.5, color: RivalColors.textSecondary, paddingVertical: 10 },
+  row: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', paddingVertical: 12 },
+  rowText: { flex: 1, gap: 4 },
+  rowTitle: { fontSize: 14.5, fontWeight: '700', color: '#fff' },
+  body: { fontSize: 13, lineHeight: 18.5, color: RivalColors.textSecondary },
   switchHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  required: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalWarm.muted, marginTop: 2 },
-  center: { textAlign: 'center' },
+  required: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  primary: { paddingVertical: 14, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, marginTop: 4 },
+  primaryText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  ghost: { paddingVertical: 13, borderRadius: 999, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)' },
+  ghostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },
+  hint: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
 });

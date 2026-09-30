@@ -78,19 +78,36 @@ serve(async (req) => {
 
     const posterName = formatDisplayName(message.users as any, 'Someone')
 
-    const minutesUntil = message.scheduled_at
-      ? Math.round((new Date(message.scheduled_at).getTime() - Date.now()) / 60000)
-      : null
-    const whenText = minutesUntil == null
-      ? 'now'
-      : minutesUntil <= 1 ? 'right now' : `in ${minutesUntil} min`
+    // Within two hours it reads as an invitation ("training soon"); further
+    // out it gives the day and time. It used to say "in 2880 min" for a plan
+    // two days away. Times are shown in each teammate's own time zone.
+    const { data: zones } = await supabase.from('users').select('id, timezone').in('id', mateIds)
+    const zoneFor = new Map((zones || []).map((z: any) => [z.id, z.timezone as string | null]))
 
-    const locationText = message.location ? ` at ${message.location}` : ''
+    const at = message.scheduled_at ? new Date(message.scheduled_at) : null
+    const minutesUntil = at ? Math.round((at.getTime() - Date.now()) / 60000) : null
+    const soon = minutesUntil != null && minutesUntil <= 120
+    const activity = message.activity_type || 'Training'
+    const place = message.location ? `, ${message.location}` : ''
+    const countdown = minutesUntil == null || minutesUntil <= 1
+      ? 'Starting now.'
+      : minutesUntil < 60 ? `Starts in ${minutesUntil} min.` : `Starts in ${Math.floor(minutesUntil / 60)} hr${minutesUntil % 60 ? ` ${minutesUntil % 60} min` : ''}.`
+    const title = soon ? `${posterName} is training soon` : `${posterName} planned an activity`
+
+    const bodyFor = (userId: string) => {
+      if (!at) return `${activity}${place}. ${countdown}`
+      let timeZone = zoneFor.get(userId) || undefined
+      try { new Intl.DateTimeFormat('en', { timeZone }) } catch { timeZone = undefined }
+      const time = at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone }).replace(' AM', ' am').replace(' PM', ' pm')
+      if (soon) return `${activity} at ${time}${place}. ${countdown}`
+      const day = at.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone })
+      return `${activity} on ${day} at ${time}${place}.`
+    }
 
     const messages = (tokens || []).map((t: any) => ({
       to: t.token,
-      title: `${posterName} planned an activity`,
-      body: `${message.activity_type || 'Training'} ${whenText}${locationText}.`,
+      title,
+      body: bodyFor(t.user_id),
       data: { screen: 'league', leagueId: message.league_id, tab: 'sessions' },
       sound: 'default',
     }))

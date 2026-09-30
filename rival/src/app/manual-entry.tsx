@@ -1,17 +1,17 @@
 import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
 import { defaultActivityName } from '../lib/activityName';
 import { useEffect, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig, ScoringConfig } from '../lib/effort';
-import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
+import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { formatDuration } from '../lib/format';
 import { confirmAction } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
-import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField } from '../components/rival';
+import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG } from '../components/rival';
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors } from '../constants/rivalTheme';
@@ -36,6 +36,16 @@ const TYPE_OPTIONS: Array<{ type: string; label: string }> = [
   { type: 'HIIT', label: 'HIIT' },
 ];
 
+// Phone tiles, as in the review mockup; See all adds the rest.
+const PHONE_TILES = ['Run', 'Ride', 'Swim', 'CrossFit', 'Hike', 'WeightTraining', 'HIIT'];
+const MORE_TYPES = ['Walk', 'TrailRun', 'Rowing', 'Hyrox', 'Bootcamp', 'Yoga', 'Pilates', 'Workout'];
+const TILE_NAMES: Record<string, string> = { WeightTraining: 'Weights', Hyrox: 'HYROX', TrailRun: 'Trail run', HIIT: 'HIIT', CrossFit: 'CrossFit', VirtualRun: 'Treadmill', VirtualRide: 'Indoor ride' };
+function tileLabel(t: string): string {
+  if (TILE_NAMES[t]) return TILE_NAMES[t];
+  const words = t.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 // Class-based formats are almost always a full ~45-60min session; mirror the
 // scan screen's floor so a 15-min WOD isn't logged as a 15-min session.
 const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
@@ -58,6 +68,8 @@ export default function ManualEntryScreen() {
   const isEditMode = !!editId;
 
   const [workoutType, setWorkoutType] = useState('Run');
+  const [showAllTypes, setShowAllTypes] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [dateStr, setDateStr] = useState(() => (prefillDateIso ? isoToDisplayDate(prefillDateIso) || todayDisplay() : todayDisplay()));
   const [durationMin, setDurationMin] = useState('');
@@ -266,6 +278,7 @@ export default function ManualEntryScreen() {
         durationSeconds,
         elevation,
         await loadScoringConfig(),
+        distance * 1000,
       );
 
       const [y, m, d] = isoDate.split('-').map(Number);
@@ -539,7 +552,7 @@ export default function ManualEntryScreen() {
       {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
       {durationSeconds > 0 && (
         <Text style={styles.effortPreview}>
-          ≈ {Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig))} Effort · {formatDuration(durationSeconds)}
+          ≈ {Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))} Effort · {formatDuration(durationSeconds)}
         </Text>
       )}
       {CLASS_BASED_TYPES.has(workoutType) && durationSeconds >= CLASS_DURATION_FLOOR_SECONDS && durationMin.trim() !== '' && Number(durationMin) * 60 < 30 * 60 && (
@@ -696,8 +709,20 @@ export default function ManualEntryScreen() {
   // button is always at the bottom of the screen rather than halfway down,
   // above half the form. Desktop keeps its two-column layout (mobile-only
   // phase); both share every piece of state and every handler.
+  // What counts toward Effort for this sport, so the form can say so: distance
+  // only where the sport has a distance rate, climbing only where it has an
+  // elevation rate. Mixed sessions (HYROX, CrossFit) are scored on time.
+  const scoresDistance = (scoringConfig?.distanceRates?.[workoutType] ?? 0) > 0;
+  const scoresClimb = (scoringConfig?.elevationRates?.[workoutType] ?? 0) > 0;
+  const enteredKm = distanceKm.trim() === '' ? 0 : Number(distanceKm) || 0;
+  const enteredClimb = elevationM.trim() === '' ? 0 : Number(elevationM) || 0;
+  const effortParts = [
+    formatDuration(durationSeconds),
+    ...(scoresDistance && enteredKm > 0 ? [`${enteredKm} ${distanceUnit()}`] : []),
+    ...(scoresClimb && enteredClimb > 0 ? [`${enteredClimb} ${elevationUnit()} climbed`] : []),
+  ].join(' + ');
   const effortNow = durationSeconds > 0
-    ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig))
+    ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))
     : null;
 
   // An activity can be a type this list doesn't offer (a Walk from Strava);
@@ -810,104 +835,121 @@ export default function ManualEntryScreen() {
           no card around it. Type and date have their own fields below, and
           Effort lives in the save bar, where it stays on screen while the
           numbers that change it are being edited. */}
+      {/* Name and activity together, no card title (the review note). */}
       <View style={m.card}>
-        <Text style={m.cardLabel}>Name</Text>
-        {/* A visible field, like every other editable thing on the page —
-            big italic text on its own read as a heading, not an input. */}
-        <View style={m.nameField}>
-          <TextInput
-            style={m.nameInput}
-            value={workoutName}
-            onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
-            placeholder={namePlaceholder}
-            placeholderTextColor="rgba(255,255,255,0.3)"
-          />
-        </View>
+        <Text style={m.fieldLabel}>Name</Text>
+        <TextInput
+          style={m.nameField}
+          value={workoutName}
+          onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
+          placeholder={namePlaceholder}
+          placeholderTextColor="rgba(255,255,255,0.3)"
+        />
         {fieldError?.field === 'name' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
-      </View>
-
-      {/* Type: one scrolling row instead of a grid that filled the screen. */}
-      <View>
-        <Text style={m.label}>Activity</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={m.chips}>
-          {typeChoices.map((opt) => {
-            const on = workoutType === opt.type;
+        {/* Seven tiles with round badges plus See all, four to a row; See
+            all opens the rest in the same grid. A pick outside the seven
+            shows in the eighth tile. */}
+        <View style={m.tiles}>
+          {(showAllTypes ? [...PHONE_TILES, ...MORE_TYPES] : PHONE_TILES).map((t) => {
+            const on = workoutType === t;
             return (
-              <TouchableOpacity key={opt.type} style={[m.chip, on && m.chipOn]} onPress={() => setWorkoutType(opt.type)} activeOpacity={0.8}>
-                <RivalIcon name={activityIconName(opt.type)} size={16} color={on ? RivalButtonColors.label(RivalColors.onAccentFill) : RivalColors.textSecondary} />
-                <Text style={[m.chipText, on && m.chipTextOn]}>{opt.label}</Text>
+              <TouchableOpacity key={t} style={[m.tile, on && m.tileOn]} onPress={() => setWorkoutType(t)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                <View style={[m.badge, on && m.badgeOn]}>
+                  <RivalIcon name={activityIconName(t)} size={16} color={on ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
+                </View>
+                <Text style={[m.tileText, on && m.tileTextOn]} numberOfLines={1}>{tileLabel(t)}</Text>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+          {(() => {
+            const outside = !PHONE_TILES.includes(workoutType) && !(showAllTypes && MORE_TYPES.includes(workoutType));
+            return (
+              <TouchableOpacity style={[m.tile, outside ? m.tileOn : m.tileAll]} onPress={() => setShowAllTypes((v) => !v)} activeOpacity={0.8} accessibilityRole="button">
+                <View style={[m.badge, outside ? m.badgeOn : m.badgeAll]}>
+                  <RivalIcon name={outside ? activityIconName(workoutType) : 'apps'} size={16} color={outside ? RivalColors.surfaceLowest : RivalColors.accentText} />
+                </View>
+                <Text style={[m.tileText, outside ? m.tileTextOn : m.tileAllText]} numberOfLines={1}>
+                  {outside ? tileLabel(workoutType) : showAllTypes ? 'Fewer' : 'See all'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
+        </View>
       </View>
 
       {/* The numbers. Duration gets the full width — min and sec side by
           side were cramped into a third of a phone. */}
-      <View style={m.card}>
-        <Text style={m.cardLabel}>Stats</Text>
-        <View style={m.durationBox}>
-          <View style={m.durationPart}>
-            <TextInput
-              style={m.durationInput}
-              value={durationMin}
-              onChangeText={(v) => { setDurationMin(v.replace(/\D/g, '')); if (fieldError?.field === 'duration') setFieldError(null); }}
-              placeholder="0"
-              placeholderTextColor="rgba(255,255,255,0.25)"
-              keyboardType="numeric"
-            />
-            <Text style={m.durationUnit}>min</Text>
-          </View>
-          <Text style={m.durationColon}>:</Text>
-          <View style={m.durationPart}>
-            <TextInput
-              style={m.durationInput}
-              value={durationSec}
-              onChangeText={(v) => {
-                // Clamped as you type: 75 sec is 1:15, and belongs in minutes.
-                const n = v.replace(/\D/g, '').slice(0, 2);
-                setDurationSec(n === '' ? '' : String(Math.min(59, Number(n))));
-                if (fieldError?.field === 'duration') setFieldError(null);
-              }}
-              placeholder="00"
-              placeholderTextColor="rgba(255,255,255,0.25)"
-              keyboardType="numeric"
-              maxLength={2}
-            />
-            <Text style={m.durationUnit}>sec</Text>
-          </View>
-        </View>
+      {/* Time, distance and climb as labelled rows, like the Plan an
+          activity details card. No card title (the review note). */}
+      <View>
+        <GreyRows>
+          <GreyRow icon="timer" label="Time">
+            <View style={m.timeRow}>
+              <TextInput
+                style={m.rowInput}
+                value={durationMin}
+                onChangeText={(v) => { setDurationMin(v.replace(/\D/g, '')); if (fieldError?.field === 'duration') setFieldError(null); }}
+                placeholder="0"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                keyboardType="numeric"
+              />
+              <Text style={m.rowUnit}>min</Text>
+              <TextInput
+                style={[m.rowInput, m.secInput]}
+                value={durationSec}
+                onChangeText={(v) => {
+                  // Clamped as you type: 75 sec is 1:15, and belongs in minutes.
+                  const n = v.replace(/\D/g, '').slice(0, 2);
+                  setDurationSec(n === '' ? '' : String(Math.min(59, Number(n))));
+                  if (fieldError?.field === 'duration') setFieldError(null);
+                }}
+                placeholder="00"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+              <Text style={m.rowUnit}>sec</Text>
+            </View>
+          </GreyRow>
+          <GreyRow icon="distance" label="Distance">
+            <View style={m.timeRow}>
+              <TextInput style={[m.rowInput, m.wideInput]} value={distanceKm} onChangeText={setDistanceKm} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" />
+              {distanceKm ? <Text style={m.rowUnit}>{distanceUnit()}</Text> : null}
+            </View>
+          </GreyRow>
+          <GreyRow icon="elevation" label="Elevation">
+            <View style={m.timeRow}>
+              <TextInput style={[m.rowInput, m.wideInput]} value={elevationM} onChangeText={setElevationM} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="numeric" />
+              {elevationM ? <Text style={m.rowUnit}>{elevationUnit()}</Text> : null}
+            </View>
+          </GreyRow>
+          <GreyRow icon="calendar" label="Date" value={friendlyDate(dateStr)} onPress={() => setCalOpen(true)} />
+        </GreyRows>
         {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
-        <View style={m.statRow}>
-          <View style={m.stat}>
-            <Text style={m.statLabel}>Distance</Text>
-            <View style={m.statValueRow}>
-              <TextInput style={m.statInput} value={distanceKm} onChangeText={setDistanceKm} placeholder="0.0" placeholderTextColor="rgba(255,255,255,0.25)" keyboardType="decimal-pad" />
-              <Text style={m.statUnit}>{distanceUnit()}</Text>
-            </View>
-          </View>
-          <View style={m.stat}>
-            <Text style={m.statLabel}>Elevation</Text>
-            <View style={m.statValueRow}>
-              <TextInput style={m.statInput} value={elevationM} onChangeText={setElevationM} placeholder="0" placeholderTextColor="rgba(255,255,255,0.25)" keyboardType="numeric" />
-              <Text style={m.statUnit}>{elevationUnit()}</Text>
-            </View>
-          </View>
-        </View>
+        {fieldError?.field === 'date' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
+        {scoringConfig && ((enteredKm > 0 && !scoresDistance) || (enteredClimb > 0 && !scoresClimb)) && (
+          <Text style={styles.classHint}>
+            {!scoresDistance && enteredKm > 0 && !scoresClimb && enteredClimb > 0
+              ? 'Distance and elevation are saved, but this activity is scored on time.'
+              : !scoresDistance && enteredKm > 0
+                ? 'Distance is saved, but this activity is scored on time.'
+                : 'Elevation is saved, but not scored for this activity.'}
+          </Text>
+        )}
         {CLASS_BASED_TYPES.has(workoutType) && durationSeconds >= CLASS_DURATION_FLOOR_SECONDS && durationMin.trim() !== '' && Number(durationMin) * 60 < 30 * 60 && (
           <Text style={styles.classHint}>CrossFit, Hyrox, Bootcamp and HIIT activities count as a full 45-minute class, including warm-up and skill work.</Text>
         )}
       </View>
 
-      <View style={m.card}>
-        <Text style={m.cardLabel}>Date</Text>
-        <RivalDateField
-          value={dateStr}
-          onChangeText={(v) => { setDateStr(v); if (fieldError?.field === 'date') setFieldError(null); }}
-          inputStyle={m.dateInput}
-        />
-        {fieldError?.field === 'date' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
-      </View>
+      <Modal visible={calOpen} transparent animationType="fade" onRequestClose={() => setCalOpen(false)}>
+        <View style={{ flex: 1 }}>
+          <GreyCalendar
+            value={displayToIsoDate(dateStr)}
+            onChange={(iso) => { setDateStr(isoToDisplayDate(iso)); if (fieldError?.field === 'date') setFieldError(null); setCalOpen(false); }}
+            onClose={() => setCalOpen(false)}
+          />
+        </View>
+      </Modal>
 
       {/* Photos inline, Instagram-style: numbered in posting order, tap one
           to rearrange, the last tile adds more. */}
@@ -995,7 +1037,7 @@ export default function ManualEntryScreen() {
                 <Text style={m.effortNum}>{effortNow}</Text>
                 <Text style={m.effortUnit}>Effort</Text>
               </View>
-              <Text style={m.effortSub}>{formatDuration(durationSeconds)}</Text>
+              <Text style={m.effortSub} numberOfLines={1}>{effortParts}</Text>
             </>
           ) : (
             <Text style={m.effortEmpty}>Add a time{'\n'}to see Effort</Text>
@@ -1029,11 +1071,11 @@ export default function ManualEntryScreen() {
             </Text>
           </>
         ) : (
-          <View style={m.header}>
-            <RivalBackButton onPress={() => router.back()} />
-            <Text style={m.title}>{isEditMode ? 'Edit activity' : 'Log an activity'}</Text>
-            {heroDate ? <Text style={m.headerDate}>{heroDate}</Text> : null}
-          </View>
+          <GreyPageHead
+            kicker={isEditMode ? 'EDIT' : 'LOG'}
+            title={isEditMode ? 'Edit activity' : 'Log an activity'}
+            onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))}
+          />
         )}
 
         {loadingEdit && <Text style={styles.subtitle}>Loading activity…</Text>}
@@ -1101,10 +1143,12 @@ function calculateEffortScorePreview(
   durationSeconds: number,
   elevationM: string,
   config: ScoringConfig | null,
+  distanceShown = '',
 ): number {
   if (!config) return 0;
   const elevation = elevationM.trim() === '' ? 0 : fromDisplayElevation(Number(elevationM));
-  return calculateEffortScore(type, durationSeconds, elevation, config);
+  const km = distanceShown.trim() === '' ? 0 : fromDisplayDistance(Number(distanceShown));
+  return calculateEffortScore(type, durationSeconds, elevation, config, (km || 0) * 1000);
 }
 
 const styles = StyleSheet.create({
@@ -1209,20 +1253,49 @@ const styles = StyleSheet.create({
 // looking at one.
 const WARM_CARD = '#1d1714';
 const m = StyleSheet.create({
-  page: { backgroundColor: '#110e0c' },
-  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
+  page: { backgroundColor: GREY_PAGE_BG },
+  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 32 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, marginBottom: 6 },
   // Small, so it labels the page without competing with the session's own
   // name, which is the real title just below.
   title: { flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText },
   headerDate: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
-  nameField: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  fieldLabel: { fontSize: 12.5, fontWeight: '600', color: RivalColors.textSecondary, marginBottom: -4 },
+  nameField: {
+    backgroundColor: RivalColors.surfaceContainer, borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    paddingHorizontal: 13, paddingVertical: 11, color: '#fff', fontSize: 15, fontWeight: '500',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+  },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tile: {
+    width: '23.2%', alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8,
+    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+  } as any,
+  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
+  badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  badgeOn: {
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.5)' },
+  tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' } as any,
+  tileTextOn: { color: '#fff' },
+  tileAllText: { color: RivalColors.accentText },
+  timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
+  rowInput: {
+    width: 44, textAlign: 'right', paddingVertical: 8, paddingHorizontal: 0, color: '#fff', fontSize: 15, fontWeight: '500',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+  },
+  secInput: { width: 28, marginLeft: 6 },
+  wideInput: { width: 110 },
+  rowUnit: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
   nameInput: {
     padding: 0, fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', color: '#fff', lineHeight: 30,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
   },
 
-  stack: { gap: 14 },
+  stack: { gap: 12 },
 
 
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText, marginBottom: 8, marginLeft: 2 },
@@ -1236,9 +1309,9 @@ const m = StyleSheet.create({
   chipText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.textSecondary },
   chipTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
-  card: { backgroundColor: WARM_CARD, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, gap: 12 },
+  card: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 12 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+  cardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   cardHint: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
 
   durationBox: {
@@ -1285,7 +1358,7 @@ const m = StyleSheet.create({
   },
   addTileText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
 
-  journal: { borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 16, paddingVertical: 14 },
+  journal: { borderRadius: 16, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 14, paddingVertical: 14 },
   journalRule: {
     width: 60, height: 1, marginTop: 6, marginBottom: 10,
     ...(Platform.OS === 'web' ? {
@@ -1343,7 +1416,7 @@ const m = StyleSheet.create({
 
   saveBar: {
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 8,
-    backgroundColor: '#110e0c', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: GREY_PAGE_BG, borderTopWidth: 1, borderTopColor: RivalColors.surfaceBright,
   },
   saveBarError: { textAlign: 'center' },
   saveRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },

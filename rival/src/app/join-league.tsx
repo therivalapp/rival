@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
-import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalRowLink, RivalTopNav, rm } from '../components/rival';
+import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalRowLink, RivalTopNav, rm, GreySheet, GreyNote, GreyLabel, GreyField, GreyRows, GreyRow, GreyPrimary } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,58 +62,41 @@ export default function JoinLeagueScreen() {
   }
 
   if (!wide) {
+    // Phone: a short form, so a pop-up over the screen it came from (the
+    // route is a transparent modal on phone, see _layout.tsx).
+    const close = () => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'));
     return (
-      <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
-        <RivalTopNav active="teams" />
-        <ScrollView contentContainerStyle={rm.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <RivalMobileHeader title="Join a team" onBack={() => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'))} />
-
-          <View style={rm.hero}>
-            <View style={ms.heroTop}>
-              <View style={rm.iconCircle}>
-                <RivalIcon name="key" size={20} color={RivalColors.accentText} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={rm.label}>Invite code</Text>
-                <Text style={rm.serifTitleSm}>Enter the code</Text>
-              </View>
-            </View>
-            <Text style={rm.hint}>Codes are shared by a team's admin. A code also works for a public team.</Text>
-
-            <TextInput
-              style={[rm.field, rm.input, ms.code]}
-              placeholder="UXXOKL"
-              placeholderTextColor="rgba(255,255,255,0.25)"
-              value={code}
-              onChangeText={(t) => { setCode(t.toUpperCase()); if (error) setError(''); }}
-              maxLength={8}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              autoFocus
-              onSubmitEditing={handleJoin}
-              returnKeyType="go"
-            />
-
-            {error ? <Text style={rm.error}>{error}</Text> : null}
-
-            <TouchableOpacity
-              style={[rm.primary, (loading || code.trim().length < 4) && rm.disabled]}
-              onPress={handleJoin}
-              disabled={loading || code.trim().length < 4}
-              activeOpacity={0.85}
-            >
-              <BusyText busy={!!(loading)} style={rm.primaryText}>{loading ? 'Joining…' : 'Join team'}</BusyText>
-            </TouchableOpacity>
-          </View>
-
-          <RivalRowLink
-            icon="globe"
-            title="Browse public teams"
-            body="Request to join a team open to new members"
-            onPress={() => router.replace('/discover-leagues')}
+      <View style={ms.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+        <GreySheet
+          kicker="TEAMS"
+          title="Join a team"
+          onClose={close}
+          footer={<GreyPrimary label={loading ? 'Joining…' : 'Join team'} busy={loading} disabled={loading || code.trim().length < 4} onPress={handleJoin} />}
+        >
+          <GreyNote>Codes are shared by a team's admin. A code also works for a public team.</GreyNote>
+          <GreyLabel>Invite code</GreyLabel>
+          <GreyField
+            style={ms.code}
+            placeholder="UXXOKL"
+            value={code}
+            onChangeText={(t) => { setCode(t.toUpperCase()); if (error) setError(''); }}
+            maxLength={8}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoFocus
+            onSubmitEditing={handleJoin}
+            returnKeyType="go"
           />
-        </ScrollView>
-      </SafeAreaView>
+          {error ? <Text style={[rm.error, { marginTop: 8 }]}>{error}</Text> : null}
+          <View style={{ height: 12 }} />
+          <GreyRows>
+            <GreyRow icon="globe" label="Browse public teams" onPress={() => router.replace('/discover-leagues')}>
+              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+            </GreyRow>
+          </GreyRows>
+        </GreySheet>
+      </View>
     );
   }
 
@@ -240,6 +223,7 @@ const styles = StyleSheet.create({
 
 // Mobile only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   code: { fontSize: 26, fontWeight: '800', letterSpacing: 8, textAlign: 'center', paddingVertical: 16 },
 });

@@ -10,7 +10,7 @@ import { getLevel } from '../lib/xp';
 import { notify } from '../lib/notify';
 import { fetchReactionsOn, impactTotals, type ImpactTotals } from '../lib/reactions';
 import { inLocalYear, buildYearReview, activityDisplayName, formatMinutes, type YearReview } from '../lib/yearReview';
-import { RivalIcon, RivalTopNav, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName } from '../components/rival';
+import { RivalIcon, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, activityIconName, type RivalIconName } from '../components/rival';
 import { RivalColors, RivalFontFamily, RivalSerifFamily, RANK_LEVEL_COLORS } from '../constants/rivalTheme';
 import { goToTab } from '../lib/tabNav';
 
@@ -101,23 +101,23 @@ export default function YearReviewScreen() {
   const shortDate = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
   return (
-    <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
       <RivalTopNav active="today" />
-      <ScrollView contentContainerStyle={[rm.content, s.content]}>
-        <RivalMobileHeader title="Year in review" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
+      <ScrollView contentContainerStyle={[rb.content, s.content]}>
+        <GreyPageHead kicker={isCurrent ? 'SO FAR THIS YEAR' : String(year)} title="Year in review" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
         {error ? <Text style={rm.error}>{error}</Text> : null}
         {!review && !error ? <Text style={[rm.hint, { textAlign: 'center', marginTop: 40 }]}>Loading…</Text> : null}
 
         {review && rank && (
           <>
-            <View style={[rm.hero, s.hero]}>
+            <View style={[rb.card, s.hero]}>
               <View style={s.ruleRow}>
                 <View style={[s.rule, s.ruleLeft]} />
                 <Text style={s.ruleText}>{isCurrent ? 'So far this year' : 'Year in review'}</Text>
                 <View style={[s.rule, s.ruleRight]} />
               </View>
-              <Text style={s.title}>Your {year}</Text>
+              <Text style={s.title}>{year}</Text>
               <Text style={[s.rank, { color: rankColor }]}>{rank.name}</Text>
               <Text style={s.caps}>{isCurrent ? 'Rank so far' : 'Final rank'}</Text>
               <Text style={s.effort}>{review.effort.toLocaleString()}</Text>
@@ -125,7 +125,7 @@ export default function YearReviewScreen() {
             </View>
 
             {review.count === 0 ? (
-              <View style={[rm.card, { alignItems: 'center' }]}>
+              <View style={[rb.card, { alignItems: 'center' }]}>
                 <Text style={rm.serifTitleSm}>No activities in {year}</Text>
                 <Text style={[rm.hint, { textAlign: 'center' }]}>Activities logged or synced in {year} will appear here.</Text>
               </View>
@@ -133,7 +133,7 @@ export default function YearReviewScreen() {
               <>
                 <View style={s.grid}>
                   {stats.map((st) => (
-                    <View key={st.label} style={[rm.card, s.statCard]}>
+                    <View key={st.label} style={[rb.card, s.statCard]}>
                       <RivalIcon name={st.icon} size={17} color={RivalColors.accentFill} />
                       <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>{st.value}</Text>
                       <Text style={s.statLabel}>{st.label}</Text>
@@ -142,10 +142,10 @@ export default function YearReviewScreen() {
                 </View>
 
                 {review.topActivity && (
-                  <View style={[rm.card, s.rowCard]}>
+                  <View style={[rb.card, s.rowCard]}>
                     <View style={rm.iconCircle}><RivalIcon name={activityIconName(review.topActivity.type)} size={20} color={RivalColors.accentText} /></View>
                     <View style={{ flex: 1 }}>
-                      <Text style={rm.label}>Top activity</Text>
+                      <Text style={rb.label}>Top activity</Text>
                       <Text style={rm.serifTitleSm}>{activityDisplayName(review.topActivity.type)}</Text>
                       <Text style={rm.hint}>
                         {review.topActivity.count.toLocaleString()} {review.topActivity.count === 1 ? 'activity' : 'activities'} · {formatMinutes(review.topActivity.minutes)}
@@ -155,8 +155,8 @@ export default function YearReviewScreen() {
                 )}
 
                 {impact && impact.respect + impact.inspired > 0 && (
-                  <View style={[rm.card, { gap: 12 }]}>
-                    <Text style={rm.label}>Recognition</Text>
+                  <View style={[rb.card, { gap: 12 }]}>
+                    <Text style={rb.label}>Recognition</Text>
                     <View style={{ flexDirection: 'row' }}>
                       {[
                         { icon: 'respect' as const, value: impact.respect, label: 'Respect' },
@@ -173,8 +173,8 @@ export default function YearReviewScreen() {
                   </View>
                 )}
 
-                <View style={[rm.card, { gap: 14 }]}>
-                  <Text style={rm.label}>Highlights</Text>
+                <View style={[rb.card, { gap: 14 }]}>
+                  <Text style={rb.label}>Highlights</Text>
                   {review.bestWeek && (
                     <Highlight icon="trophy" title="Best week" value={`${review.bestWeek.effort.toLocaleString()} Effort`} note={`Week of ${shortDate(review.bestWeek.start)}`} />
                   )}
@@ -196,8 +196,8 @@ export default function YearReviewScreen() {
                   )}
                 </View>
 
-                <View style={[rm.card, { gap: 12 }]}>
-                  <Text style={rm.label}>By activity</Text>
+                <View style={[rb.card, { gap: 12 }]}>
+                  <Text style={rb.label}>By activity</Text>
                   {review.byActivity.map((b, i) => (
                     <View key={b.type} style={[s.typeRow, i > 0 && s.typeRowBorder]}>
                       <RivalIcon name={activityIconName(b.type)} size={18} color={RivalColors.accentFill} />
@@ -246,12 +246,12 @@ const s = StyleSheet.create({
   ruleRight: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.5) 0%, rgba(255,181,158,0) 100%)' } as any)
     : { backgroundColor: 'rgba(255,181,158,0.3)' },
-  ruleText: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,181,158,0.8)' },
+  ruleText: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 34, lineHeight: 40, color: '#fff', marginTop: 6 },
   rank: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, lineHeight: 30, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 14 },
   caps: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '700', letterSpacing: 1.6, textTransform: 'uppercase', color: RivalWarm.muted },
   effort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 46, lineHeight: 52, color: '#f3c3b1', marginTop: 16 },
-  capsAccent: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentFill },
+  capsAccent: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { flexBasis: '47%', flexGrow: 1, alignItems: 'center', gap: 6, paddingVertical: 16 },
   statValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, lineHeight: 28, color: '#fff' },

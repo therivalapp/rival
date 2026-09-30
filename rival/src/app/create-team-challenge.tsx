@@ -19,7 +19,7 @@ import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, Tou
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm } from '../components/rival';
+import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyPageHead } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
@@ -215,7 +215,7 @@ export default function CreateTeamChallenge() {
 
     if (mode === 'race') {
       if (!selectedRaceId) {
-        setError('Choose a race.');
+        setError('Choose an event.');
         return;
       }
       setSaving(true);
@@ -274,6 +274,17 @@ export default function CreateTeamChallenge() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {mob ? (
+            // Phone: the blend header instead of the photo.
+            <View style={{ paddingHorizontal: 16 }}>
+              <GreyPageHead
+                kicker="TEAM CHALLENGE"
+                title={editing ? 'Edit team challenge' : 'Start a team challenge'}
+                sub="One shared target. All member activity counts toward it."
+                onBack={() => router.back()}
+              />
+            </View>
+          ) : (
           <ImageBackground source={HERO_PHOTO} style={styles.hero} resizeMode="cover">
             <View style={styles.heroShade} pointerEvents="none" />
             <View style={styles.topRow}>
@@ -285,6 +296,7 @@ export default function CreateTeamChallenge() {
               <Text style={styles.heroSub}>One shared target. All member activity counts toward it.</Text>
             </View>
           </ImageBackground>
+          )}
 
           <View style={styles.body}>
             {/* Live preview: the challenge as it will read, updating as you
@@ -308,8 +320,8 @@ export default function CreateTeamChallenge() {
                   </>
                 ) : (
                   <>
-                    <Text style={styles.previewKicker}>RACE</Text>
-                    <Text style={[styles.previewValue, mob && ms.previewValue]} numberOfLines={2}>{selectedRace ? selectedRace.name : 'Choose a race'}</Text>
+                    <Text style={styles.previewKicker}>EVENT</Text>
+                    <Text style={[styles.previewValue, mob && ms.previewValue]} numberOfLines={2}>{selectedRace ? selectedRace.name : 'Choose an event'}</Text>
                     {!!selectedRace && <Text style={styles.previewDue}>{fmt(new Date(selectedRace.race_date + 'T00:00:00'))}</Text>}
                   </>
                 )}
@@ -317,11 +329,11 @@ export default function CreateTeamChallenge() {
             </View>
 
             <View style={[styles.modeRow, mob && ms.modeRow]}>
-              <TouchableOpacity style={[styles.modeTab, mode === 'target' && styles.modeTabActive, mob && mode === 'target' && ms.gradient]} onPress={() => setMode('target')}>
-                <Text style={[styles.modeTabText, mode === 'target' && styles.modeTabTextActive, mob && mode === 'target' && ms.onGradient]}>{sc('Team Target')}</Text>
+              <TouchableOpacity style={[styles.modeTab, mode === 'target' && styles.modeTabActive, mob && mode === 'target' && ms.modeOn]} onPress={() => setMode('target')}>
+                <Text style={[styles.modeTabText, mode === 'target' && styles.modeTabTextActive, mob && mode === 'target' && ms.modeOnText]}>{sc('Team Target')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modeTab, mode === 'race' && styles.modeTabActive, mob && mode === 'race' && ms.gradient]} onPress={() => setMode('race')}>
-                <Text style={[styles.modeTabText, mode === 'race' && styles.modeTabTextActive, mob && mode === 'race' && ms.onGradient]}>{sc('Race Goal')}</Text>
+              <TouchableOpacity style={[styles.modeTab, mode === 'race' && styles.modeTabActive, mob && mode === 'race' && ms.modeOn]} onPress={() => setMode('race')}>
+                <Text style={[styles.modeTabText, mode === 'race' && styles.modeTabTextActive, mob && mode === 'race' && ms.modeOnText]}>{sc('Event Goal')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -387,9 +399,9 @@ export default function CreateTeamChallenge() {
                 </Step>
               </>
             ) : (
-              <Step n={1} title="Race" mob={mob}>
+              <Step n={1} title="Event" mob={mob}>
                 {myRaces.length === 0 ? (
-                  <Text style={styles.emptyRaceText}>No upcoming races. Add one from Races first.</Text>
+                  <Text style={styles.emptyRaceText}>No upcoming events. Add one from Events first.</Text>
                 ) : (
                   <View style={{ gap: 8 }}>
                     {myRaces.map((r) => (
@@ -554,19 +566,22 @@ const styles = StyleSheet.create({
   createBtnText: { fontSize: 16, fontWeight: '800', letterSpacing: 0.2, color: '#1a1411' },
 });
 
-// Phone only — the RIVAL look (see RivalMobile.tsx).
+// Phone only — the blend (grey page, recessed cards, grey switch).
 const ms = StyleSheet.create({
-  screen: { backgroundColor: RivalWarm.page },
+  screen: { backgroundColor: RivalColors.surfaceContainer },
   // The app-wide terracotta→salmon gradient, not this page's own orange.
   gradient: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' },
   onGradient: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
-  preview: { backgroundColor: RivalWarm.card, borderColor: 'rgba(255,181,158,0.22)' },
+  preview: { backgroundColor: RivalColors.surfaceLowest, borderColor: 'rgba(255,181,158,0.35)' },
   previewValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  modeRow: { backgroundColor: RivalWarm.field, borderColor: RivalWarm.cardBorder },
-  step: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder },
-  tile: { backgroundColor: RivalWarm.field, borderColor: RivalWarm.cardBorder },
-  tileOn: { backgroundColor: 'rgba(255,209,190,0.10)', borderColor: 'rgba(255,181,158,0.55)' },
-  well: { backgroundColor: RivalWarm.field, borderColor: RivalWarm.cardBorder },
+  modeRow: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
+  step: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
+  tile: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
+  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  well: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
   targetInput: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  chip: { backgroundColor: RivalWarm.field, borderColor: RivalWarm.cardBorder },
+  chip: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
+  // The chosen half of the Team target / Event goal switch: lifted grey.
+  modeOn: { backgroundColor: RivalColors.surfaceBright, ...RivalButtonColors.noGradient, borderColor: 'transparent' },
+  modeOnText: { color: '#fff' },
 });

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fitPhoto } from '../lib/imageResize';
 import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
-import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
+import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead, GREY_PAGE_BG } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { notify } from '../lib/notify';
@@ -188,7 +188,7 @@ export default function WeeklyScanScreen() {
         const workoutType = workout.workoutType || 'Workout';
         const duration = applyClassDurationFloor(workoutType, workout.duration || 0);
         const distance = workout.distance || 0;
-        const effortScore = calculateEffortScore(workoutType, duration, workout.elevation || 0, await loadScoringConfig());
+        const effortScore = calculateEffortScore(workoutType, duration, workout.elevation || 0, await loadScoringConfig(), distance * 1000);
 
         const raceId = await findMatchingRaceId(user.id, day.date.toISOString());
 
@@ -391,10 +391,10 @@ export default function WeeklyScanScreen() {
             <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} color={RivalColors.accentFill} />
           </View>
         ) : (
-          <RivalMobileHeader title="Weekly scan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} />
+          <GreyPageHead kicker="THIS WEEK" title="Weekly scan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} />
         )}
 
-        <Text style={st.title}>{wide ? 'Scan Your Week' : 'This week'}</Text>
+        {wide ? <Text style={st.title}>Scan Your Week</Text> : null}
         <Text style={st.subtitle}>Add photos to each training day. All days are scanned together.</Text>
 
         {/* Not tied to one specific day/field — a permission or upload
@@ -613,19 +613,19 @@ const styles = StyleSheet.create({
   doneBtnText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontSize: 16, fontWeight: '800' },
 });
 
-// Mobile: the RIVAL look over the same markup.
+// Mobile: the blend (grey page, recessed cards) over the same markup.
 const mobileStyles = {
   ...styles,
   ...StyleSheet.create({
-    container: { flex: 1, backgroundColor: RivalWarm.page },
-    content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 48 },
+    container: { flex: 1, backgroundColor: GREY_PAGE_BG },
+    content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 120 },
     title: { fontFamily: rm.serifTitle.fontFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', color: '#fff', marginTop: 4, marginBottom: 6 },
-    subtitle: { fontSize: 14, color: RivalWarm.soft, marginBottom: 18, lineHeight: 20 },
+    subtitle: { fontSize: 13, color: RivalColors.textSecondary, marginBottom: 14, lineHeight: 18, textAlign: 'center' },
     inlineErrorBar: { backgroundColor: 'rgba(255,107,107,0.08)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,143,143,0.35)', marginBottom: 14 },
     floatingErrorText: { color: '#ff8f8f', fontSize: 13, fontWeight: '600' },
 
     daysGrid: { flexDirection: 'row', gap: 6, marginBottom: 18 },
-    dayCard: { flex: 1, minWidth: 0, aspectRatio: 0.72, backgroundColor: RivalWarm.card, borderRadius: 14, borderWidth: 1, borderColor: RivalWarm.cardBorder },
+    dayCard: { flex: 1, minWidth: 0, aspectRatio: 0.72, backgroundColor: RivalColors.surfaceLowest, borderRadius: 14, borderWidth: 1, borderColor: RivalColors.surfaceBright },
     dayCardActive: { backgroundColor: 'rgba(255,209,190,0.10)', borderColor: 'rgba(255,181,158,0.55)' },
     dayCardTouchable: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
     dayLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, color: RivalWarm.muted, textTransform: 'uppercase' },
@@ -635,8 +635,8 @@ const mobileStyles = {
     dayPhotoCount: { fontSize: 11, fontWeight: '800', color: RivalColors.accentText },
 
     thumbsSection: { gap: 10, marginBottom: 18 },
-    thumbsRow: { gap: 8, backgroundColor: RivalWarm.card, borderRadius: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder, padding: 14 },
-    thumbsRowLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+    thumbsRow: { gap: 8, backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14 },
+    thumbsRowLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
     thumb: { width: 76, height: 76, borderRadius: 12, backgroundColor: RivalWarm.field },
     thumbRemove: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 11, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
 
@@ -645,8 +645,8 @@ const mobileStyles = {
     scanAllBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontSize: 15.5, fontWeight: '800' },
 
     resultsSection: { gap: 10 },
-    resultRowCard: { backgroundColor: RivalWarm.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder, gap: 10 },
-    resultLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+    resultRowCard: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: RivalColors.surfaceBright, gap: 10 },
+    resultLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
     resultStatusPending: { fontSize: 13, color: RivalWarm.muted },
     resultStatusError: { fontSize: 12.5, color: '#ff8f8f', fontWeight: '600', flexShrink: 1, textAlign: 'right' },
     resultNameInput: {

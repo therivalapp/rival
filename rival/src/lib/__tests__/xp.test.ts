@@ -18,10 +18,10 @@ describe('LEVELS ladder', () => {
 describe('getLevel', () => {
   it('returns the right level at exact boundaries (min is inclusive)', () => {
     expect(getLevel(0).name).toBe('Rookie');
-    expect(getLevel(1499).name).toBe('Rookie');
-    expect(getLevel(1500).name).toBe('Hustler'); // boundary belongs to the higher level
-    expect(getLevel(29999).name).toBe('God');
-    expect(getLevel(30000).name).toBe('Unrivaled');
+    expect(getLevel(1999).name).toBe('Rookie');
+    expect(getLevel(2000).name).toBe('Hustler'); // boundary belongs to the higher level
+    expect(getLevel(38999).name).toBe('God');
+    expect(getLevel(39000).name).toBe('Unrivaled');
     expect(getLevel(1_000_000).name).toBe('Unrivaled');
   });
 
@@ -32,9 +32,9 @@ describe('getLevel', () => {
 
 describe('xpProgressInLevel', () => {
   it('reports progress within the current level', () => {
-    const p = xpProgressInLevel(2125); // Hustler: 1,500–4,000
-    expect(p.current).toBe(625);
-    expect(p.needed).toBe(2500);
+    const p = xpProgressInLevel(2812.5); // Hustler: 2,000–5,250
+    expect(p.current).toBe(812.5);
+    expect(p.needed).toBe(3250);
     expect(p.pct).toBeCloseTo(0.25);
   });
 

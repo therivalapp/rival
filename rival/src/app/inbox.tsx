@@ -1,6 +1,7 @@
 import { useSnapState } from '../lib/snapState';
 import { useCallback, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import {
@@ -14,7 +15,7 @@ import {
   type InboxItem,
 } from '@/lib/inbox';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
-import { RivalBackButton, RivalIcon, RivalTopNav } from '@/components/rival';
+import { RivalBackButton, RivalIcon, RivalTopNav, GreySheet, GreyLabel } from '@/components/rival';
 import { INBOX_ICON_FOR, goToInboxSubject, inboxTimeAgo } from '@/components/rival/NotificationsMenu';
 import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalType } from '@/constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
@@ -30,6 +31,7 @@ export default function InboxScreen() {
   const [loading, setLoading] = useSnapState('inbox.loading', true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorFor, setErrorFor] = useState<Record<string, string>>({});
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
 
   const load = useCallback(async () => {
     const rows = await fetchInbox();
@@ -70,6 +72,110 @@ export default function InboxScreen() {
     if (aOpen !== bOpen) return aOpen - bOpen;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+
+  // The answer buttons for an item still waiting on a decision.
+  const actionsFor = (item: InboxItem) => {
+    const busy = busyId === item.id;
+    const pair = (no: string, yes: string, yesBusy: string, respond: (ok: boolean) => Promise<{ ok: boolean; error?: string }>) => (
+      <View style={styles.actions}>
+        <TouchableOpacity style={[styles.secondary, m.secondary]} disabled={busy} onPress={() => act(item, () => respond(false))}>
+          <BusyText busy={busy} style={styles.secondaryText}>{busy ? '…' : no}</BusyText>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.primary, m.primary]} disabled={busy} onPress={() => act(item, () => respond(true))}>
+          <BusyText busy={busy} style={styles.primaryText}>{busy ? yesBusy : yes}</BusyText>
+        </TouchableOpacity>
+      </View>
+    );
+    if (item.kind === 'join_request') return pair('Decline', 'Approve', '…', (ok) => respondToJoinRequest(item, ok));
+    if (item.kind === 'short_activity') return pair('Remove', 'Keep', '…', (ok) => respondToShortActivity(item, ok));
+    if (item.kind === 'activity_tag') return pair('Decline', 'Confirm', 'Confirming…', (ok) => respondToActivityTag(item, ok));
+    return null;
+  };
+
+  if (phone) {
+    const open = unresolvedFirst.filter(isActionable);
+    const earlier = unresolvedFirst.filter((i) => !isActionable(i));
+    const close = () => (router.canGoBack() ? router.back() : goToTab('/home'));
+    return (
+      <View style={m.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+        <GreySheet kicker="INBOX" title="Notifications" onClose={close} footer={null}>
+          <View style={m.content}>
+            {(stravaPending || open.length > 0) && <GreyLabel>Needs a reply</GreyLabel>}
+            {stravaPending && (
+              <TouchableOpacity style={[m.card, m.cardOpen]} onPress={STRAVA_SHARING_NOTICE.open} activeOpacity={0.8}>
+                <View style={[styles.cardMain, { alignItems: 'center' }]}>
+                  <View style={m.badge}><RivalIcon name="link" size={16} color={RivalColors.accentText} /></View>
+                  <View style={styles.textWrap}>
+                    <Text style={styles.cardTitle}>{STRAVA_SHARING_NOTICE.title}</Text>
+                    <Text style={styles.cardBody} numberOfLines={2}>{STRAVA_SHARING_NOTICE.body}</Text>
+                  </View>
+                  <View style={m.tag}><Text style={m.tagText}>Review</Text></View>
+                </View>
+              </TouchableOpacity>
+            )}
+            {open.map((item) => (
+              <View key={item.id} style={[m.card, m.cardOpen]}>
+                <View style={styles.cardMain}>
+                  <View style={m.badge}><RivalIcon name={INBOX_ICON_FOR[item.kind]} size={16} color={RivalColors.accentText} /></View>
+                  <View style={styles.textWrap}>
+                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    {item.body ? <Text style={styles.cardBody}>{item.body}</Text> : null}
+                    <Text style={styles.cardWhen}>{inboxTimeAgo(item.created_at)}</Text>
+                  </View>
+                </View>
+                {actionsFor(item)}
+                {errorFor[item.id] ? <Text style={styles.error}>{errorFor[item.id]}</Text> : null}
+              </View>
+            ))}
+
+            {loading ? (
+              <Text style={styles.state}>Loading…</Text>
+            ) : earlier.length > 0 ? (
+              <>
+                <GreyLabel>{open.length > 0 || stravaPending ? 'Earlier' : 'Recent'}</GreyLabel>
+                <View style={m.list}>
+                  {earlier.map((item, i) => (
+                    <View key={item.id} style={[m.row, i > 0 && m.rowRule]}>
+                      <TouchableOpacity style={m.rowMain} activeOpacity={0.7} onPress={() => goToInboxSubject(item)}>
+                        <View style={m.badge}>
+                          <RivalIcon name={INBOX_ICON_FOR[item.kind]} size={15} color={RivalColors.accentText} />
+                          {!item.read_at && <View style={m.dot} />}
+                        </View>
+                        <View style={styles.textWrap}>
+                          <Text style={m.rowTitle} numberOfLines={2}>{item.title}</Text>
+                          {item.body ? <Text style={m.rowBody} numberOfLines={2}>{item.body}</Text> : null}
+                        </View>
+                        <Text style={m.when}>{inboxTimeAgo(item.created_at)}</Text>
+                      </TouchableOpacity>
+                      {!item.resolved_at ? (
+                        <TouchableOpacity
+                          style={m.clear}
+                          hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+                          onPress={() => act(item, () => resolveItem(item.id, 'dismissed'))}
+                          accessibilityLabel="Clear"
+                        >
+                          <RivalIcon name="close" size={14} color="rgba(255,255,255,0.35)" />
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : !stravaPending && open.length === 0 ? (
+              <View style={m.empty}>
+                <View style={m.badge}><RivalIcon name="notificationsOutline" size={16} color={RivalColors.accentText} /></View>
+                <View style={styles.textWrap}>
+                  <Text style={styles.cardTitle}>No notifications</Text>
+                  <Text style={styles.cardBody}>Reactions, comments and requests appear here.</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        </GreySheet>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -252,4 +358,43 @@ const styles = StyleSheet.create({
   error: { fontSize: 12, color: '#ff8f8f' },
   clear: { alignSelf: 'flex-start' },
   clearText: { fontSize: 12, color: 'rgba(255,255,255,0.45)', textDecorationLine: 'underline' },
+});
+
+// Phone: the pop-up style (see RivalGreySheet).
+const m = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  content: { gap: 8, paddingBottom: 4 },
+  card: {
+    backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
+    borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 13, gap: 12,
+  },
+  cardOpen: { borderColor: 'rgba(255,181,158,0.35)' },
+  badge: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  dot: {
+    position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: 4,
+    backgroundColor: RivalColors.accentFill, borderWidth: 1.5, borderColor: RivalColors.surfaceLowest,
+  },
+  primary: { borderRadius: 999 },
+  tag: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(217,119,87,0.15)' },
+  tagText: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  secondary: { borderRadius: 999 },
+  list: {
+    backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
+    borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  rowRule: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
+  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 },
+  rowTitle: { fontSize: 13.5, fontWeight: '600', color: '#fff' },
+  rowBody: { fontSize: 12.5, color: RivalColors.textSecondary },
+  when: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
+  clear: { paddingLeft: 4, paddingVertical: 8 },
+  empty: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8,
+    backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
+    borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14,
+  },
 });

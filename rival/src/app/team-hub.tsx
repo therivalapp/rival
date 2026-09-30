@@ -21,7 +21,9 @@ import { formatActivityDistance } from '../lib/units';
 import { useEffect, useState, useId } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { RivalMiniTile, RivalStartTiles, GreySheet, GreyPrimary, GreyNote, GreyField, GreyLabel, GreyRows } from '../components/rival/RivalGreySheet';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -242,6 +244,7 @@ type SessionRow = {
 };
 
 export default function TeamHub() {
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   const { id } = useLocalSearchParams<{ id: string }>();
   // The data below is remembered per team (lib/snapState.ts), so returning to
   // a team draws its last state at once and refreshes behind it.
@@ -278,6 +281,8 @@ export default function TeamHub() {
   const [expandedBoardComments, setExpandedBoardComments] = useState<Set<string>>(new Set());
   const [recentActivity, setRecentActivity] = useSnapState<ActivityRow[]>(`hub.${id}.recentActivity`, []);
   const [sessions, setSessions] = useSnapState<SessionRow[]>(`hub.${id}.sessions`, []);
+  // Teammates' next events (races), soonest first.
+  const [teamEvents, setTeamEvents] = useSnapState<{ id: string; user_id: string; name: string; race_date: string; location: string | null }[]>(`hub.${id}.events`, []);
   const [sessionRsvps, setSessionRsvps] = useSnapState<Record<string, string[]>>(`hub.${id}.sessionRsvps`, {});
   // Every session ever planned, not just the three shown — so "See all" can
   // appear when there's history to see even though nothing is coming up.
@@ -455,6 +460,12 @@ export default function TeamHub() {
 
     const memberIds = memberList.map(m => m.user_id);
     if (memberIds.length > 0) {
+      const t = new Date();
+      const todayIso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      supabase.from('races').select('id, user_id, name, race_date, location')
+        .in('user_id', memberIds).gte('race_date', todayIso)
+        .order('race_date', { ascending: true }).limit(3)
+        .then(({ data }) => setTeamEvents((data ?? []) as any));
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       const { start: weekStart, end: weekEnd } = getWeekWindow();
@@ -868,7 +879,7 @@ export default function TeamHub() {
         <RivalTopNav active="teams" hideBar />
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} {...pullProps}>
           {pullIndicator}
-          <HeroPhoto style={[styles.hero, activeTab === 'Posts' && styles.heroFit]}>
+          <HeroPhoto style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
             <View style={[styles.heroScrim, heroScrimWeb]} />
 
             <View style={styles.header}>
@@ -885,7 +896,7 @@ export default function TeamHub() {
                 <Image source={{ uri: league.logo_url }} style={styles.teamLogo} />
               ) : (
                 <View style={styles.teamLogoPlaceholder}>
-                  <Text style={styles.teamLogoPlaceholderText}>🏟️</Text>
+                  <RivalIcon name="groups" size={26} color={RivalColors.accentText} />
                 </View>
               )}
               <Text style={styles.teamName}>{formatTeamName(league.name)}</Text>
@@ -1025,12 +1036,14 @@ export default function TeamHub() {
                 </View>
               </View>
             ) : (
-              <View style={styles.heroTextBlockNoGoal}>
-                {isAdmin && (
+              <View style={[styles.heroTextBlockNoGoal, phone && styles.heroTextBlockNoGoalFit]}>
+                {isAdmin && !phone && (
+                  (
                   <TouchableOpacity style={styles.startChallengeBtn} onPress={() => router.push({ pathname: '/create-team-challenge', params: { id } })}>
                     <RivalIcon name="target" size={16} color={RivalColors.accentText} />
                     <Text style={styles.startChallengeBtnText}>Start a Team Challenge</Text>
                   </TouchableOpacity>
+                  )
                 )}
               </View>
             )}
@@ -1039,6 +1052,17 @@ export default function TeamHub() {
           <View style={styles.body}>
             {activeTab === 'Overview' && (
               <>
+                {/* Phone: what isn't set up yet, as tiles at the top. Each one
+                    becomes its own titled section below once it exists. */}
+                {phone && (
+                  <RivalStartTiles
+                    tiles={[
+                      ...(isAdmin && !hasGoal ? [{ key: 'challenge', icon: 'target' as const, label: 'Team challenge', onPress: () => router.push({ pathname: '/create-team-challenge', params: { id } }) }] : []),
+                      ...(sessions.length === 0 ? [{ key: 'plan', icon: 'calendar' as const, label: 'Plan activity', onPress: () => setPlanning(true) }] : []),
+                      ...(teamEvents.length === 0 ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => router.push('/races?add=true') }] : []),
+                    ]}
+                  />
+                )}
                 {league.description ? <Text style={styles.teamAbout}>{league.description}</Text> : null}
                 {hasGoal && (
                   <>
@@ -1192,14 +1216,22 @@ export default function TeamHub() {
                   <RivalIcon name="chevronRight" size={18} color={RivalColors.textSecondary} />
                 </TouchableOpacity>
 
+                {(!phone || sessions.length > 0) && (
+                <>
                 {/* Above Recent Activity on purpose: what the team is about to
                     do is more actionable than what it already did. */}
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionTitle}>Upcoming</Text>
+                  {phone ? (
+                    <TouchableOpacity onPress={() => setPlanning(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={styles.seeAllText}>Plan activity</Text>
+                    </TouchableOpacity>
+                  ) : (
                   <TouchableOpacity style={styles.planBtn} onPress={() => setPlanning(true)}>
                     <RivalIcon name="calendar" size={14} color={RivalColors.accentText} />
                     <Text style={styles.planBtnText}>Plan activity</Text>
                   </TouchableOpacity>
+                  )}
                 </View>
                 {sessions.length === 0 ? (
                   <Text style={styles.emptyText}>No activities planned.</Text>
@@ -1237,6 +1269,46 @@ export default function TeamHub() {
                     </Text>
                     <RivalIcon name="chevronRight" size={16} color={RivalColors.accentText} />
                   </TouchableOpacity>
+                )}
+
+                </>
+                )}
+
+                {/* Teammates' events, once there are any. */}
+                {phone && teamEvents.length > 0 && (
+                  <>
+                    <View style={styles.sectionHead}>
+                      <Text style={styles.sectionTitle}>Events</Text>
+                      <TouchableOpacity onPress={() => router.push('/races?add=true')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={styles.seeAllText}>Add event</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ gap: 8 }}>
+                      {teamEvents.map((ev) => {
+                        const d = new Date(ev.race_date + 'T00:00:00');
+                        const days = Math.max(0, Math.round((d.getTime() - new Date(new Date().toDateString()).getTime()) / 86400000));
+                        return (
+                          <TouchableOpacity key={ev.id} style={styles.evTicket} activeOpacity={0.85} onPress={() => router.push('/races')}>
+                            <View style={styles.evMain}>
+                              <Text style={styles.evWho} numberOfLines={1}>{ev.user_id === currentUserId ? 'You' : memberName(ev.user_id)}</Text>
+                              <Text style={styles.evName} numberOfLines={1}>{ev.name}</Text>
+                              <Text style={styles.evDate} numberOfLines={1}>
+                                {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{ev.location ? ` · ${ev.location}` : ''}
+                              </Text>
+                            </View>
+                            <View style={styles.evStub}>
+                              <Text style={styles.evDays}>{days === 0 ? 'Today' : days}</Text>
+                              {days > 0 && <Text style={styles.evDaysLabel}>{days === 1 ? 'DAY' : 'DAYS'}</Text>}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    <TouchableOpacity style={styles.seeAllRow} onPress={() => router.push('/races')}>
+                      <Text style={styles.seeAllText}>See all events</Text>
+                      <RivalIcon name="chevronRight" size={16} color={RivalColors.accentText} />
+                    </TouchableOpacity>
+                  </>
                 )}
 
                 <View style={styles.sectionHead}>
@@ -1315,6 +1387,7 @@ export default function TeamHub() {
                   detail: `${league.goal_target.toLocaleString()} ${GOAL_METRIC_UNIT[league.goal_metric]} · Due ${new Date(league.goal_target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`,
                 } : null}
                 onEditTeamGoal={() => router.push({ pathname: '/create-team-challenge', params: { id } })}
+                onOpenMembers={() => setActiveTab('Members')}
                 onEndTeamGoal={endTeamGoal}
               />
             )}
@@ -1365,6 +1438,91 @@ export default function TeamHub() {
         // Latest two by default. Comments load oldest-first, so slice from the end.
         const shownComments = noteCommentsExpanded ? comments : comments.slice(-2);
         const canExpand = comments.length > 2;
+        if (phone) {
+          // Phone: the grey pop-up. Instead of a star, "Seen": a quiet way
+          // to show the note has been noticed (same data as the old like).
+          return (
+            <Modal visible transparent animationType="slide" onRequestClose={closeNote}>
+              <View style={nm.backdrop}>
+                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeNote} accessibilityLabel="Close" />
+                <GreySheet
+                  kicker="TEAM NOTE"
+                  title={name}
+                  onClose={closeNote}
+                  footer={editingNote ? (
+                    <GreyPrimary label={savingNote ? 'Saving…' : 'Save'} busy={savingNote} onPress={saveNoteEdit} />
+                  ) : (
+                    <View style={nm.actions}>
+                      <TouchableOpacity style={nm.action} onPress={() => togglePinBoardPost(note.id, note.pinned)}>
+                        <RivalIcon name="pin" size={15} color={note.pinned ? RivalColors.accentGold : RivalColors.textSecondary} />
+                        <Text style={nm.actionText}>{note.pinned ? 'Unpin' : 'Pin to top'}</Text>
+                      </TouchableOpacity>
+                      {mine && (
+                        <TouchableOpacity style={nm.action} onPress={() => deleteBoardPost(note.id)}>
+                          <RivalIcon name="delete" size={15} color="#ff9b8f" />
+                          <Text style={[nm.actionText, { color: '#ff9b8f' }]}>Delete</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                >
+                  <GreyNote>{timeAgo(note.created_at)}{note.pinned ? ' · Pinned' : ''}</GreyNote>
+                  <View style={{ height: 10 }} />
+                  {editingNote ? (
+                    <View style={{ gap: 8 }}>
+                      <GreyField value={noteTitleDraft} onChangeText={setNoteTitleDraft} placeholder="Title" />
+                      <GreyField value={noteBodyDraft} onChangeText={setNoteBodyDraft} placeholder="Message" multiline autoFocus style={{ minHeight: 110, textAlignVertical: 'top' } as any} />
+                      <TouchableOpacity onPress={() => setEditingNote(false)} style={nm.cancel}><Text style={nm.actionText}>Cancel</Text></TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <TouchableOpacity style={nm.note} activeOpacity={mine ? 0.8 : 1} disabled={!mine} onPress={() => startEditingNote(note)} accessibilityLabel={mine ? 'Edit note' : undefined}>
+                        {!!note.title && <Text style={nm.noteTitle}>{note.title}</Text>}
+                        <Text style={nm.noteBody} selectable={!mine}>{note.body}</Text>
+                        {mine && <Text style={nm.editHint}>Tap to edit</Text>}
+                      </TouchableOpacity>
+                      <View style={nm.seenRow}>
+                        <TouchableOpacity style={[nm.seenBtn, iLiked && nm.seenBtnOn]} onPress={() => toggleBoardLike(note.id)} accessibilityRole="button">
+                          <RivalIcon name="check" size={15} color={iLiked ? RivalColors.accentText : RivalColors.textSecondary} />
+                          <Text style={[nm.seenText, iLiked && { color: RivalColors.accentText }]}>{iLiked ? 'Seen' : 'Mark as seen'}</Text>
+                        </TouchableOpacity>
+                        {reactions.length > 0 ? <Text style={nm.seenCount}>Seen by {reactions.length}</Text> : null}
+                      </View>
+                      <GreyLabel>Comments{comments.length ? ` · ${comments.length}` : ''}</GreyLabel>
+                      {shownComments.length > 0 ? (
+                        <GreyRows>
+                          {shownComments.map((c) => (
+                            <View key={c.id} style={nm.comment}>
+                              <Text style={nm.commentName}>{memberName(c.user_id)}</Text>
+                              <Text style={nm.commentBody}>{c.body}</Text>
+                            </View>
+                          ))}
+                        </GreyRows>
+                      ) : null}
+                      {canExpand ? (
+                        <TouchableOpacity onPress={() => setNoteCommentsExpanded((v) => !v)} style={nm.cancel}>
+                          <Text style={nm.more}>{noteCommentsExpanded ? 'Show fewer' : `Show all ${comments.length}`}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      <View style={nm.inputRow}>
+                        <GreyField
+                          value={draft}
+                          onChangeText={(v) => setBoardCommentDrafts(prev => ({ ...prev, [key]: v }))}
+                          placeholder="Add a comment"
+                          onSubmitEditing={() => postBoardComment(note.id)}
+                          style={{ flex: 1 }}
+                        />
+                        <TouchableOpacity onPress={() => postBoardComment(note.id)} disabled={!draft.trim()} accessibilityLabel="Post comment" style={nm.post}>
+                          <Text style={[nm.postText, !draft.trim() && { opacity: 0.4 }]}>Post</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
+                </GreySheet>
+              </View>
+            </Modal>
+          );
+        }
         return (
           <Modal visible transparent animationType="fade" onRequestClose={closeNote}>
             <View style={styles.noteBackdrop}>
@@ -1765,6 +1923,9 @@ const styles = StyleSheet.create({
 
   heroTextBlock: { alignItems: 'center', marginTop: 20, paddingHorizontal: 20 },
   heroTextBlockNoGoal: { alignItems: 'center', marginTop: 32, paddingHorizontal: 20 },
+  // Phone, no challenge: the hero hugs its content, so the button sits just
+  // under the tabs instead of at the foot of a tall, empty photo.
+  heroTextBlockNoGoalFit: { marginTop: 16, alignItems: 'flex-start' },
   boardWrap: { marginTop: 24, paddingHorizontal: 20, gap: 10 },
   boardHeadRow: { alignItems: 'center' },
   boardTitle: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
@@ -1933,6 +2094,14 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: RivalColors.accentFill, borderColor: 'transparent' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  evTicket: { flexDirection: 'row', backgroundColor: RivalColors.surfaceLowest, borderRadius: 14, borderWidth: 1, borderColor: RivalColors.surfaceBright, overflow: 'hidden' },
+  evMain: { flex: 1, minWidth: 0, paddingVertical: 10, paddingHorizontal: 12, gap: 2 },
+  evWho: { fontSize: 11.5, color: RivalColors.textSecondary },
+  evName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 15, color: '#fff' },
+  evDate: { fontSize: 11.5, color: RivalColors.textSecondary },
+  evStub: { width: 64, alignItems: 'center', justifyContent: 'center', borderLeftWidth: 2, borderStyle: 'dashed', borderLeftColor: 'rgba(255,209,190,0.15)' },
+  evDays: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: RivalColors.accentText, lineHeight: 22 },
+  evDaysLabel: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
   planBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
@@ -2059,4 +2228,29 @@ const styles = StyleSheet.create({
   redirectCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 16, padding: 14 },
   redirectTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
   redirectSub: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
+});
+
+// Phone team note pop-up (the blend).
+const nm = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  note: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 6 },
+  noteTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18, color: '#fff' },
+  noteBody: { fontSize: 14.5, lineHeight: 21, color: 'rgba(255,255,255,0.85)' },
+  editHint: { fontSize: 11.5, color: 'rgba(255,255,255,0.35)' },
+  seenRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
+  seenBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  seenBtnOn: { borderColor: 'rgba(255,181,158,0.5)', backgroundColor: 'rgba(217,119,87,0.10)' },
+  seenText: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary },
+  seenCount: { fontSize: 12.5, color: RivalColors.textSecondary },
+  comment: { paddingVertical: 10, gap: 2 },
+  commentName: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  commentBody: { fontSize: 13.5, lineHeight: 19, color: '#fff' },
+  more: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  cancel: { alignSelf: 'flex-start', paddingVertical: 8 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  post: { paddingHorizontal: 6, paddingVertical: 8 },
+  postText: { fontSize: 14, fontWeight: '800', color: RivalColors.accentText },
+  actions: { flexDirection: 'row', justifyContent: 'center', gap: 24, paddingVertical: 4 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
+  actionText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.textSecondary },
 });

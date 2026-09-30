@@ -257,7 +257,7 @@ const ms = StyleSheet.create({
   head: { alignItems: 'center', gap: 8, marginBottom: 4 },
   title: { fontSize: 30, lineHeight: 36, textAlign: 'center' },
   kicker: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  kickerText: { fontSize: 11, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: 'rgba(255,181,158,0.8)' },
+  kickerText: { fontSize: 11, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText },
   rule: { width: 36, height: 1 },
   ruleLeft: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,181,158,0.55))' } as any) : { backgroundColor: 'rgba(255,181,158,0.4)' },
   ruleRight: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55), transparent)' } as any) : { backgroundColor: 'rgba(255,181,158,0.4)' },

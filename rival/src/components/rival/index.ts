@@ -22,5 +22,6 @@ export type { DiaryActivity } from './ActivityDiaryViewer';
 export type { RivalIconName } from './RivalIcon';
 export { PlanSessionSheet } from './PlanSessionSheet';
 export { TrainingPartners } from './TrainingPartners';
-export { RivalMobileHeader, RivalRowLink, RivalHairline, RivalWarm, rm } from './RivalMobile';
+export { RivalMobileHeader, RivalRowLink, RivalHairline, RivalWarm, rm, RivalSheet, RivalSheetCard, RivalTiles, RivalMoreRow } from './RivalMobile';
 export { RouteMap } from './RouteMap';
+export { GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyNote, GreyPrimary, GreyCalendar, RivalActionPill, RivalActionTile, RivalMiniTile, RivalStartTiles, GreyPageHead, GREY_PAGE_BG, rb, GreySegment } from './RivalGreySheet';

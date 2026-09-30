@@ -1,6 +1,6 @@
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { Animated, Modal, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -17,6 +17,8 @@ import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaIm
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
+import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
+import { RivalSerifFamily } from '../constants/rivalTheme';
 import { goToTab } from '../lib/tabNav';
 
 const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
@@ -43,10 +45,23 @@ type TabId = 'personal' | 'preferences' | 'apps' | 'notifications' | 'account';
 const TABS: Array<{ id: TabId; label: string; icon: RivalIconName }> = [
   { id: 'personal', label: 'Personal Info', icon: 'person' },
   { id: 'preferences', label: 'Preferences', icon: 'tune' },
-  { id: 'apps', label: 'Connected Apps', icon: 'link' },
+  { id: 'apps', label: 'Connected devices', icon: 'link' },
   { id: 'notifications', label: 'Notifications', icon: 'notifications' },
   { id: 'account', label: 'Account', icon: 'settings' },
 ];
+
+// A switch in the Settings menu's row style.
+function MenuSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Switch
+      value={value}
+      onValueChange={onChange}
+      trackColor={{ false: RivalColors.surfaceContainerHigh, true: RivalColors.accentFill }}
+      thumbColor="#ffffff"
+      {...(Platform.OS === 'web' ? ({ activeThumbColor: '#ffffff' } as any) : {})}
+    />
+  );
+}
 
 export default function ProfileScreen() {
   const { userId: viewedUserId, tab: tabParam } = useLocalSearchParams<{ userId?: string; tab?: TabId }>();
@@ -114,6 +129,7 @@ export default function ProfileScreen() {
   }, [importingHistory, importPulse]);
   const [syncing, setSyncing] = useState(false);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+  const [removeImported, setRemoveImported] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -472,7 +488,7 @@ export default function ProfileScreen() {
     const typed = Platform.OS === 'web'
       ? window.prompt(
           'This permanently deletes your account: all activities, teams you\'re in, ' +
-          'photos, races, goals, and history. Teams you created will be handed to ' +
+          'photos, events, goals, and history. Teams you created will be handed to ' +
           'another member (or deleted if empty). This cannot be undone.\n\n' +
           'Type DELETE to confirm.'
         )
@@ -600,7 +616,7 @@ export default function ProfileScreen() {
       {/* Link to stats */}
       <TouchableOpacity style={styles.statsLink} onPress={() => router.push('/stats')}>
         <RivalIcon name="stats" size={16} color={RivalColors.textPrimary} />
-        <Text style={styles.statsLinkText}>Stats: rank, milestones and Impact</Text>
+        <Text style={styles.statsLinkText}>Statistics: rank, milestones and Impact</Text>
         <Text style={styles.statsLinkArrow}>→</Text>
       </TouchableOpacity>
 
@@ -678,12 +694,12 @@ export default function ProfileScreen() {
 
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
-      {wide && <Text style={styles.panelTitle}>Connected Apps</Text>}
+      {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
       <Text style={styles.panelSub}>Sync training automatically from connected services.</Text>
 
       <View style={styles.appRow}>
         <View style={styles.appRowLeft}>
-          <Text style={styles.appIcon}>🟠</Text>
+          <View style={styles.appDot} />
           <View>
             <Text style={styles.appName}>Strava</Text>
             <Text style={styles.appStatus}>
@@ -737,10 +753,36 @@ export default function ProfileScreen() {
               style={styles.actionBtn}
             />
           </Animated.View>
-          {!confirmingDisconnect ? (
+          {/* Phone: the choice opens as the grey pop-up. */}
+          {!wide ? (
+            <Modal visible={confirmingDisconnect} transparent animationType="slide" onRequestClose={() => setConfirmingDisconnect(false)}>
+              <View style={styles.mSheetBackdrop}>
+                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !disconnecting && setConfirmingDisconnect(false)} accessibilityLabel="Close" />
+                <GreySheet
+                  kicker="CONNECTED DEVICES"
+                  title="Disconnect Strava"
+                  onClose={() => setConfirmingDisconnect(false)}
+                  footer={<GreyPrimary label={disconnecting ? 'Disconnecting…' : removeImported ? 'Disconnect and remove' : 'Disconnect'} busy={disconnecting} disabled={disconnecting} onPress={() => disconnectStrava(removeImported)} />}
+                >
+                  <GreyNote>New activities stop syncing. Linked the wrong account? Remove its imported activities too.</GreyNote>
+                  <GreyLabel>Imported activities</GreyLabel>
+                  <GreyTiles
+                    columns={2}
+                    options={[
+                      { value: 'keep' as const, label: 'Keep them', icon: 'check' as const },
+                      { value: 'remove' as const, label: 'Remove them', icon: 'delete' as const },
+                    ]}
+                    value={removeImported ? 'remove' : 'keep'}
+                    onChange={(v) => setRemoveImported(v === 'remove')}
+                  />
+                </GreySheet>
+              </View>
+            </Modal>
+          ) : null}
+          {!confirmingDisconnect || !wide ? (
             <RivalButton
               label="Disconnect Strava"
-              onPress={() => setConfirmingDisconnect(true)}
+              onPress={() => { setRemoveImported(false); setConfirmingDisconnect(true); }}
               variant="destructive"
               style={styles.actionBtn}
             />
@@ -858,7 +900,7 @@ export default function ProfileScreen() {
 
       <View style={styles.subSection}>
         <Text style={styles.subSectionTitle}>YOUR DATA</Text>
-        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, goals, races, teams, messages and recognition, as one file.</Text>
+        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, goals, events, teams, messages and recognition, as one file.</Text>
         <RivalButton busy={exporting} label={exporting ? 'Preparing…' : 'Download my data'} onPress={downloadData} disabled={exporting} variant="secondary" style={styles.actionBtn} />
         {exportMsg && <Text style={exportMsg.ok ? styles.okText : styles.errorText}>{exportMsg.text}</Text>}
       </View>
@@ -922,6 +964,63 @@ export default function ProfileScreen() {
     </View>
   );
 
+  // Phone menu: the grey pop-up style — centred title, grouped rows with the
+  // current value on the right, no photo.
+  const open = (t: TabId) => { setActiveTab(t); setPanelOpen(true); };
+  const phoneMenu = (
+    <View>
+      <View style={styles.mHead}>
+        <View style={styles.mGlow} pointerEvents="none" />
+        <Text style={styles.mKicker}>ACCOUNT</Text>
+        <Text style={styles.mTitle}>Settings</Text>
+        <Text style={styles.mSub}>Profile, preferences and connected apps.</Text>
+      </View>
+      <GreyLabel>Profile</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="person" label="Personal info" value={displayName} onPress={() => open('personal')} />
+        <GreyRow icon="tune" label="Preferences" value={prefs.units === 'imperial' ? 'Imperial' : 'Metric'} onPress={() => open('preferences')} />
+        <GreyRow icon="stats" label="Statistics" onPress={() => router.push('/stats')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+        <GreyRow icon="target" label="Goals" onPress={() => router.push('/goals')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+      </GreyRows>
+      <GreyLabel>Connections</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="link" label="Connected devices" value={stravaConnected ? 'Strava' : 'None'} onPress={() => open('apps')} />
+        {/* The switch turns every notification on or off at once; the row
+            itself opens the full list to choose them one by one. */}
+        <GreyRow icon="notifications" label="Notifications" onPress={() => open('notifications')}>
+          <MenuSwitch
+            value={Object.values(prefs.notify).some(Boolean)}
+            onChange={(v) => savePref({ notify: Object.fromEntries(Object.keys(prefs.notify).map((k) => [k, v])) as Record<NotifyKey, boolean> })}
+          />
+        </GreyRow>
+        {/* Route maps are switched off app-wide for now (ROUTE_MAPS_ENABLED);
+            the row appears with them. */}
+        {ROUTE_MAPS_ENABLED && stravaConnected && sharingAgreed && (
+          <GreyRow icon="distance" label="Share route maps">
+            <MenuSwitch value={shareRoutes} onChange={toggleShareRoutes} />
+          </GreyRow>
+        )}
+      </GreyRows>
+      {prefError ? <Text style={styles.mError}>{prefError}</Text> : null}
+      <GreyLabel>More</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="flag" label="How RIVAL works" onPress={() => router.push('/getting-started')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+        <GreyRow icon="bolt" label="How Effort works" onPress={() => router.push('/effort')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+        <GreyRow icon="settings" label="Account" onPress={() => open('account')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+      </GreyRows>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <RivalTopNav />
@@ -941,7 +1040,7 @@ export default function ProfileScreen() {
             color={RivalColors.accentFill}
           />
           <Text style={styles.headerTitle}>
-            {!wide && panelOpen ? (TABS.find(t => t.id === activeTab)?.label ?? 'Profile') : 'Profile'}
+            {!wide && panelOpen ? (TABS.find(t => t.id === activeTab)?.label ?? 'Settings') : wide ? 'Settings' : ''}
           </Text>
           <View style={{ width: 48 }} />
         </View>
@@ -954,7 +1053,7 @@ export default function ProfileScreen() {
         ) : panelOpen ? (
           panelFor[activeTab]
         ) : (
-          sidebar
+          phoneMenu
         )}
       </ScrollView>
 
@@ -992,6 +1091,20 @@ const styles = StyleSheet.create({
   back: { color: RivalColors.accentText, fontSize: 16, width: 48 },
   headerTitle: { ...RivalType.titleMd, color: RivalColors.textPrimary },
 
+  appDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#fc4c02', marginRight: 4 },
+  mError: { fontSize: 12.5, color: RivalColors.error, marginTop: 8, marginHorizontal: 4 },
+  mSheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  mHead: { alignItems: 'center', marginTop: -44, marginBottom: 8 },
+  // The pop-up glow behind the title (GreyPageHead), as in the blend mockup.
+  mGlow: {
+    position: 'absolute', top: -110, left: -24, right: -24, height: 240,
+    ...(Platform.OS === 'web'
+      ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }
+      : { backgroundColor: 'rgba(217,119,87,0.05)' }),
+  } as any,
+  mKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, color: RivalColors.accentText },
+  mTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff', marginTop: 3 },
+  mSub: { fontSize: 13, color: RivalColors.textSecondary, marginTop: 4 },
   wideRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
   wideContent: { flex: 1 },
 

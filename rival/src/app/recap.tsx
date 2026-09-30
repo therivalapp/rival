@@ -6,8 +6,8 @@ import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { ACTIVITY_ICONS } from '../constants/activityIcons';
-import { RivalIcon, RivalTopNav, RivalBackButton, RivalMobileHeader, RivalWarm, rm, activityIconName } from '../components/rival';
+import { goToTab } from '../lib/tabNav';
+import { RivalIcon, RivalTopNav, RivalBackButton, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, activityIconName } from '../components/rival';
 
 type RecapData = {
   type: string;
@@ -65,11 +65,11 @@ export default function RecapScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, m && rm.page]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, m && rb.page]} edges={['top', 'left', 'right']}>
       <RivalTopNav active="today" />
       <ScrollView contentContainerStyle={[styles.content, m && ms.content]}>
         {m ? (
-          <RivalMobileHeader title="Recap" onBack={() => router.back()} />
+          <GreyPageHead kicker={recap?.label ? String(recap.label).toUpperCase() : 'RECAP'} title="Recap" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
         ) : (
           <View style={styles.header}>
             <RivalBackButton onPress={() => router.back()} color={RivalColors.accentFill} />
@@ -93,7 +93,7 @@ export default function RecapScreen() {
                 <>
                   {m ? <View style={rm.iconCircle}><RivalIcon name="star" size={20} color={RivalColors.accentText} /></View> : <Text style={styles.heroEmoji}>🎄</Text>}
                   <Text style={[styles.heroTitle, m && ms.heroTitle]}>{m ? 'Christmas wrap-up' : 'Christmas Wrap Up'}</Text>
-                  <Text style={[styles.heroSub, m && rm.label]}>{recap.label}</Text>
+                  <Text style={[styles.heroSub, m && rb.label]}>{recap.label}</Text>
                 </>
               ) : (
                 <>
@@ -105,7 +105,7 @@ export default function RecapScreen() {
 
             {/* Time Earned — big headline */}
             {(recap.total_hours > 0 || recap.total_minutes_remainder > 0) && (
-              <View style={[styles.timeHeroCard, m && [rm.hero, ms.timeHero]]}>
+              <View style={[styles.timeHeroCard, m && [rb.card, ms.timeHero]]}>
                 <Text style={styles.timeHeroLabel}>{m ? 'Time earned' : '⏱ Time Earned'}</Text>
                 <Text style={[styles.timeHeroValue, m && ms.timeValue]}>
                   {recap.total_hours > 0 ? `${recap.total_hours.toLocaleString()}h ` : ''}{recap.total_minutes_remainder}m
@@ -152,14 +152,17 @@ export default function RecapScreen() {
             {/* Top sport */}
             {recap.top_sport && (
               <View style={[styles.highlightCard, m && [ms.card, ms.highlight]]}>
-                <Text style={m ? rm.label : styles.highlightLabel}>Top sport this period</Text>
+                <Text style={m ? rb.label : styles.highlightLabel}>Top sport this period</Text>
                 {m ? (
                   <View style={ms.sportRow}>
                     <View style={rm.iconCircle}><RivalIcon name={activityIconName(recap.top_sport)} size={20} color={RivalColors.accentText} /></View>
                     <Text style={[styles.highlightValue, ms.serifNum]}>{recap.top_sport}</Text>
                   </View>
                 ) : (
-                  <Text style={styles.highlightValue}>{ACTIVITY_ICONS[recap.top_sport] ?? '🏅'} {recap.top_sport}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <RivalIcon name={activityIconName(recap.top_sport)} size={22} color={RivalColors.accentText} />
+                    <Text style={styles.highlightValue}>{recap.top_sport}</Text>
+                  </View>
                 )}
               </View>
             )}
@@ -167,7 +170,7 @@ export default function RecapScreen() {
             {/* Best week (yearly only) */}
             {recap.type === 'yearly' && recap.best_week_label && (
               <View style={[styles.highlightCard, m && [ms.card, ms.highlight]]}>
-                <Text style={m ? rm.label : styles.highlightLabel}>{m ? 'Best week of the year' : '🔥 Best week of the year'}</Text>
+                <Text style={m ? rb.label : styles.highlightLabel}>{m ? 'Best week of the year' : '🔥 Best week of the year'}</Text>
                 <Text style={[styles.highlightValue, m && ms.serifNum]}>w/c {recap.best_week_label}</Text>
                 <Text style={styles.highlightSub}>{recap.best_week_effort.toLocaleString()} Effort</Text>
               </View>
@@ -231,9 +234,9 @@ const ms = StyleSheet.create({
   heroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 36 },
   timeHero: { alignItems: 'center' },
   timeValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  card: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 16 },
+  card: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16 },
   serifNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
   highlight: { gap: 10 },
   sportRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  closing: { fontFamily: RivalSerifFamily, fontSize: 16, lineHeight: 24, color: RivalWarm.soft },
+  closing: { fontFamily: RivalSerifFamily, fontSize: 16, lineHeight: 24, color: 'rgba(255,255,255,0.75)' },
 });

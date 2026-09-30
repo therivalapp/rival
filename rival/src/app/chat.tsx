@@ -1058,30 +1058,30 @@ const styles = StyleSheet.create({
   emptyBody: { fontSize: 14, color: RivalColors.textSecondary, textAlign: 'center', lineHeight: 20 },
 });
 
-// Mobile only — the RIVAL look (see RivalMobile.tsx) on the screen's chrome.
+// Mobile only — the blend (grey page, the pop-up glow at the top, recessed
+// bubbles) on the screen's chrome.
 const ms = StyleSheet.create({
-  // A low warm glow in the corners, so the thread isn't a flat black sheet.
   container: {
-    backgroundColor: RivalWarm.page,
+    backgroundColor: RivalColors.surfaceContainer,
     ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'radial-gradient(ellipse 110% 45% at 100% 0%, rgba(217,119,87,0.12) 0%, rgba(17,14,12,0) 60%), radial-gradient(ellipse 100% 40% at 0% 100%, rgba(255,181,158,0.05) 0%, rgba(17,14,12,0) 60%)' } as any)
+      ? ({ backgroundImage: 'radial-gradient(ellipse 80% 22% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.05) 55%, rgba(32,32,31,0) 100%)' } as any)
       : {}),
   },
-  // Your own messages in the brand gradient rather than one flat colour.
+  // Your own messages keep the brand gradient.
   bubbleMe: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(135deg, #e6927a 0%, #D97757 100%)' } as any)
     : {},
-  header: { borderBottomColor: RivalWarm.hairline },
-  headerLogo: { borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder },
+  header: { borderBottomColor: RivalColors.surfaceBright },
+  headerLogo: { borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright },
   headerTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', lineHeight: 24 },
-  headerSub: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 2 },
-  band: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.hairline },
-  sepText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalWarm.muted },
+  headerSub: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 2 },
+  band: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
+  sepText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   // The 1px border is taken back out of the padding so text keeps the exact
   // position the avatar nudge is measured against.
-  bubbleThem: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, paddingHorizontal: 13, paddingVertical: 8 },
-  composer: { backgroundColor: RivalWarm.page, borderTopColor: RivalWarm.hairline },
+  bubbleThem: { backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13, paddingVertical: 8 },
+  composer: { backgroundColor: RivalColors.surfaceContainer, borderTopColor: RivalColors.surfaceBright },
   // No border: it would make the field 46 tall against the 44 send button.
-  field: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  field: { backgroundColor: RivalColors.surfaceLowest },
   emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700' },
 });

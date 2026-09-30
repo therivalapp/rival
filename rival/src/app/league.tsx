@@ -14,10 +14,9 @@ import { getSeasonStartISO, daysUntilSeasonEnd } from '../lib/season';
 import { matchCanonicalLift } from '../lib/lifts';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { ACTIVITY_ICONS } from '../constants/activityIcons';
 import { formatDuration } from '../lib/format';
 import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../lib/activityInsights';
-import { RivalIcon, RivalFixedBackground, RivalTopNav, RivalProgressBar, RivalAvatar, RivalBackButton, RivalDateField } from '../components/rival';
+import { RivalIcon, RivalFixedBackground, RivalTopNav, RivalProgressBar, RivalAvatar, RivalBackButton, RivalDateField, activityIconName } from '../components/rival';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
@@ -899,7 +898,7 @@ export default function LeagueScreen() {
     const target = parseFloat(goalTargetDraft);
     if (!target || target <= 0) { notify('Set a target', 'Enter a positive number.'); return; }
     const iso = displayToIsoDate(goalDateDraft);
-    if (!iso) { notify('Set a target date', 'Use YYYY-MM-DD.'); return; }
+    if (!iso) { notify('Set a target date', 'Use DD/MM/YYYY.'); return; }
     setSavingGoal(true);
     const { error } = await supabase
       .from('leagues')
@@ -1450,9 +1449,10 @@ export default function LeagueScreen() {
           </TouchableOpacity>
           <Text style={styles.feedTimeAgo}>{timeAgo(msg.created_at)}</Text>
         </View>
-        <Text style={styles.sessionCardTitle}>
-          {ACTIVITY_ICONS[msg.activity_type || ''] || '🏅'} {msg.body || `${msg.activity_type} activity`}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <RivalIcon name={activityIconName(msg.activity_type)} size={16} color={RivalColors.accentText} style={{ marginTop: 4 }} />
+          <Text style={styles.sessionCardTitle}>{msg.body || `${msg.activity_type} activity`}</Text>
+        </View>
         {msg.body && <Text style={styles.sessionCardSubtype}>{msg.activity_type}</Text>}
         <Text style={styles.sessionCardWhen}>{msg.scheduled_at ? formatDateTime(msg.scheduled_at) : ''}</Text>
         {msg.location && (
@@ -1540,7 +1540,7 @@ export default function LeagueScreen() {
             <Text style={styles.journeyBannerIcon}>🚩</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.journeyBannerTitle}>
-                {(() => { const d = daysUntilRace(journeyRace.race_date); return d === 0 ? 'Race day' : d > 0 ? `${d} days to ${journeyRace.name}` : `${journeyRace.name} — done!`; })()}
+                {(() => { const d = daysUntilRace(journeyRace.race_date); return d === 0 ? 'Event day' : d > 0 ? `${d} days to ${journeyRace.name}` : `${journeyRace.name} — done!`; })()}
               </Text>
               <Text style={styles.journeyBannerSub}>Everyone here is training toward this together — different goals, same destination.</Text>
             </View>
@@ -1829,7 +1829,7 @@ export default function LeagueScreen() {
                         onPress={(e) => { e.stopPropagation?.(); setGoalDraft(member.personal_goal ?? ''); setEditingGoal(true); }}
                       >
                         <Text style={styles.goalText}>
-                          🎯 {member.personal_goal || 'Set your goal for this race'}
+                          🎯 {member.personal_goal || 'Set your goal for this event'}
                         </Text>
                       </TouchableOpacity>
                     )
@@ -1879,9 +1879,10 @@ export default function LeagueScreen() {
                   style={[styles.typeChip, quickTrainType === t && styles.typeChipActive]}
                   onPress={() => setQuickTrainType(t)}
                 >
-                  <Text style={[styles.typeChipText, quickTrainType === t && styles.typeChipTextActive]}>
-                    {ACTIVITY_ICONS[t] || '🏅'} {t}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <RivalIcon name={activityIconName(t)} size={14} color={quickTrainType === t ? RivalColors.accentFill : RivalColors.textSecondary} />
+                    <Text style={[styles.typeChipText, quickTrainType === t && styles.typeChipTextActive]}>{t}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -2063,7 +2064,6 @@ export default function LeagueScreen() {
               );
 
               if (item.kind === 'activity') {
-                const icon = ACTIVITY_ICONS[item.activityType] ?? '🏅';
                 const distKm = item.distanceMeters > 100
                   ? ` · ${(item.distanceMeters / 1000).toFixed(1)} km`
                   : '';
@@ -2076,7 +2076,7 @@ export default function LeagueScreen() {
                       </View>
                     )}
                     <View style={styles.feedActivityRow}>
-                      <Text style={styles.feedActivityIcon}>{icon}</Text>
+                      <RivalIcon name={activityIconName(item.activityType)} size={26} color={RivalColors.accentText} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.feedActivityType}>{item.activityName || item.activityType}</Text>
                         <Text style={styles.feedActivityMeta}>{formatDuration(item.durationSeconds)}{distKm}</Text>
@@ -2131,7 +2131,7 @@ export default function LeagueScreen() {
                 return (
                   <View key={`race-${item.id}`} style={[styles.feedCard, styles.feedCardRace]}>
                     {userRow}
-                    <Text style={styles.feedRaceAction}>🏁 signed up for a race</Text>
+                    <Text style={styles.feedRaceAction}>🏁 signed up for an event</Text>
                     <Text style={styles.feedRaceName}>{item.raceName}</Text>
                     <Text style={styles.feedRaceDate}>{raceDateLabel}</Text>
                     {renderFeedSocialRow('race', item.id, item.userId)}
@@ -2188,9 +2188,10 @@ export default function LeagueScreen() {
                         style={[styles.typeChip, sessionType === t && styles.typeChipActive]}
                         onPress={() => setSessionType(t)}
                       >
-                        <Text style={[styles.typeChipText, sessionType === t && styles.typeChipTextActive]}>
-                          {ACTIVITY_ICONS[t] || '🏅'} {t}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <RivalIcon name={activityIconName(t)} size={14} color={sessionType === t ? RivalColors.accentFill : RivalColors.textSecondary} />
+                          <Text style={[styles.typeChipText, sessionType === t && styles.typeChipTextActive]}>{t}</Text>
+                        </View>
                       </TouchableOpacity>
                     ))}
                   </View>

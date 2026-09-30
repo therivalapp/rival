@@ -6,6 +6,8 @@ import { RivalColors, RivalRadius } from '../../constants/rivalTheme';
 import { RivalIcon } from './RivalIcon';
 import { confirmAction } from '../../lib/notify';
 import { CoverImage } from './CoverImage';
+import { GreySheet, GreyNote, GreyPrimary } from './RivalGreySheet';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 
 // Choosing photos and videos the way Instagram does: every item carries a
 // number showing the order it will post in, the number follows the order you
@@ -276,6 +278,57 @@ export function MediaPicker({
   const sheetWidth = Math.min(width, 520);
   const cell = Math.floor((sheetWidth - gap * (columns - 1)) / columns);
 
+  const doneOff = order.length === 0 && !pool.some((m) => m.existingId);
+
+  // Phone: the grey pop-up. Numbered thumbnails in posting order, Add more
+  // as the last tile, Done pinned; tapping outside cancels.
+  if (width < BREAKPOINT_WIDE_LAYOUT) {
+    const pcols = 3;
+    const pgap = 7;
+    const pcell = Math.floor((width - 36 - pgap * (pcols - 1)) / pcols);
+    return (
+      <View style={[styles.overlay, pm.overlay]}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onCancel} accessibilityLabel="Cancel" />
+        <GreySheet
+          kicker="PHOTOS"
+          title={title}
+          onClose={onCancel}
+          footer={<GreyPrimary label={doneLabel} disabled={doneOff} onPress={finish} />}
+        >
+          <GreyNote>
+            {order.length === 0 ? 'Tap photos in the order they should appear.' : `${order.length} selected, numbered in posting order. The first is the cover.`}
+          </GreyNote>
+          {notice ? <Text style={[styles.notice, { paddingHorizontal: 4, marginTop: 6 }]}>{notice}</Text> : null}
+          <View style={[pm.grid, { gap: pgap }]}>
+            {pool.map((item) => {
+              const n = order.indexOf(item.uri) + 1;
+              return (
+                <TouchableOpacity key={item.uri} activeOpacity={0.85} onPress={() => toggle(item)} style={[pm.cell, { width: pcell, height: pcell }, n > 0 && pm.cellOn]}>
+                  {item.type === 'video'
+                    ? <WebVideo uri={item.uri} style={{ width: pcell, height: pcell }} />
+                    : <Image source={{ uri: item.uri }} style={{ width: pcell, height: pcell }} />}
+                  {item.type === 'video' ? (
+                    <View style={styles.videoTag} pointerEvents="none"><RivalIcon name="video" size={13} color="#fff" /></View>
+                  ) : null}
+                  {n === 1 && item.type === 'photo' ? (
+                    <View style={pm.cover} pointerEvents="none"><Text style={pm.coverText}>Cover</Text></View>
+                  ) : null}
+                  <View style={[styles.badge, n > 0 && styles.badgeOn]} pointerEvents="none">
+                    {n > 0 ? <Text style={styles.badgeText}>{n}</Text> : null}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity style={[pm.cell, pm.add, { width: pcell, height: pcell }]} onPress={addMore} activeOpacity={0.8}>
+              <RivalIcon name="add" size={24} color={RivalColors.accentText} />
+              <Text style={styles.addMoreText}>Add more</Text>
+            </TouchableOpacity>
+          </View>
+        </GreySheet>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.overlay}>
       <View style={[styles.sheet, { width: sheetWidth, paddingTop: insets.top }]}>
@@ -419,4 +472,15 @@ const styles = StyleSheet.create({
     borderRadius: RivalRadius.sm,
   },
   addMoreText: { fontSize: 11.5, fontWeight: '600', color: RivalColors.accentText },
+});
+
+// Phone: the grey pop-up version.
+const pm = StyleSheet.create({
+  overlay: { backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end', alignItems: 'stretch' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 },
+  cell: { borderRadius: 12, overflow: 'hidden', backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  cellOn: { borderColor: 'rgba(255,181,158,0.6)' },
+  add: { alignItems: 'center', justifyContent: 'center', gap: 4, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
+  cover: { position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.55)' },
+  coverText: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.4, color: '#fff' },
 });

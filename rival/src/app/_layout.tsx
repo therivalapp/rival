@@ -6,7 +6,8 @@ import { invalidateActivityCache } from '../lib/fetchAllActivities';
 // it cannot be orphaned by removing a screen again.
 import '../global.css';
 import { useEffect, useState } from 'react';
-import { AppState, AppStateStatus, Platform, View } from 'react-native';
+import { AppState, AppStateStatus, Platform, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { Stack, router, usePathname } from 'expo-router';
 import { setCurrentPath } from '../lib/tabNav';
 import { StatusBar } from 'expo-status-bar';
@@ -28,6 +29,10 @@ export default function RootLayout() {
   // Rendering is deliberately not gated on this: a brief native fallback-font
   // flash beats a blank splash.
   useAppFonts();
+  // Short pages open on phone as a pop-up over the screen they came from,
+  // rather than a whole page with empty space under a few rows.
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const popUp = phone ? { presentation: 'transparentModal' as const, animation: 'slide_from_bottom' as const } : {};
 
   useEffect(() => {
     registerForPushNotifications();
@@ -150,7 +155,10 @@ export default function RootLayout() {
           ? { position: 'fixed', top: 0, left: 0, right: 0, height: viewportHeight ?? '100vh', overflow: 'hidden' } as any
           : { flex: 1 }}
       >
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="inbox" options={popUp} />
+          <Stack.Screen name="join-league" options={popUp} />
+        </Stack>
       </View>
       {/* Once a day, over whichever page opens first — it loads underneath. */}
       <DailyQuoteSplash />

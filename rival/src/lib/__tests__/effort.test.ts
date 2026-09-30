@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 // pure formula.
 vi.mock('../supabase', () => ({ supabase: {} }));
 
-import { calculateEffortScore } from '../effort';
+import { calculateEffortScore, effortBreakdown } from '../effort';
 
 // Mirrors the shape of the live scoring_config table: a multiplier for every
 // sport, and an elevation rate only where climbing is real work done under
@@ -27,7 +27,7 @@ describe('calculateEffortScore', () => {
   it('uses the server default 0.8 for unknown types (NOT 1.0)', () => {
     // Regression: the old client copies defaulted to 1.0, so scanned workouts
     // of unlisted types scored 25% higher than Strava-imported ones.
-    expect(calculateEffortScore('UnknownSport', 60 * 60, 0, CONFIG)).toBe(48); // 60 × 0.8
+    expect(calculateEffortScore('UnknownSport', 60 * 60, 0, CONFIG)).toBe(60); // 60 × 1.0
   });
 
   it('ignores distance entirely — the old +0.5/km past 5km bonus is gone', () => {
@@ -85,5 +85,72 @@ describe('calculateEffortScore', () => {
 
   it('rounds to one decimal place', () => {
     expect(calculateEffortScore('Run', 17 * 60, 0, CONFIG)).toBe(20.4);
+  });
+});
+
+// Mostly distance (2026-10): distance sports with a distance recorded score
+// minutes x distance time rate + km x distance rate, km capped by pace.
+describe('calculateEffortScore with distance', () => {
+  const D = {
+    multipliers: { Run: 1.5, Ride: 1.25, WeightTraining: 1.25 },
+    elevationRates: { Run: 0.05, Ride: 0.05 },
+    distanceTimeRates: { Run: 0.3, Ride: 0.25 },
+    distanceRates: { Run: 8, Ride: 2.7 },
+    minPaces: { Run: 2.5, Ride: 1.0 },
+  };
+
+  it('rewards more ground in the same time', () => {
+    expect(calculateEffortScore('Run', 41 * 60, 0, D, 5000)).toBe(52.3); // 12.3 + 40
+    expect(calculateEffortScore('Run', 40 * 60, 0, D, 7500)).toBe(72); // 12 + 60
+  });
+
+  it('adds climbing on top', () => {
+    expect(calculateEffortScore('Run', 41 * 60, 18, D, 6400)).toBe(64.4); // 12.3 + 51.2 + 0.9
+  });
+
+  it('scores a distance sport with no distance on time alone', () => {
+    expect(calculateEffortScore('Ride', 60 * 60, 0, D, 0)).toBe(75); // spin: 60 × 1.25
+    expect(calculateEffortScore('Run', 30 * 60, 0, D)).toBe(45); // treadmill, no data
+  });
+
+  it('credits distance only up to the fastest believable pace', () => {
+    // 20 km typed into 30 minutes: capped at 30 / 2.5 = 12 km.
+    expect(calculateEffortScore('Run', 30 * 60, 0, D, 20000)).toBe(105); // 9 + 96
+  });
+
+  it('leaves sports without a distance rate on time', () => {
+    expect(calculateEffortScore('WeightTraining', 60 * 60, 0, D, 5000)).toBe(75);
+  });
+});
+
+describe('effortBreakdown', () => {
+  const D = {
+    multipliers: { Run: 1.5, WeightTraining: 1.25 },
+    elevationRates: { Run: 0.05 },
+    distanceTimeRates: { Run: 0.3 },
+    distanceRates: { Run: 8 },
+    minPaces: { Run: 2.5 },
+  };
+
+  it('splits a run into time, distance and climbing that add up to the score', () => {
+    const b = effortBreakdown('Run', 41 * 60, 18, D, 6400);
+    expect(b.basis).toBe('distance');
+    expect(b.timeScore).toBeCloseTo(12.3);
+    expect(b.distanceScore).toBeCloseTo(51.2);
+    expect(b.climbScore).toBeCloseTo(0.9);
+    expect(b.total).toBe(calculateEffortScore('Run', 41 * 60, 18, D, 6400));
+  });
+
+  it('falls back to time when no distance is recorded', () => {
+    const b = effortBreakdown('Run', 60 * 60, 0, D, 0);
+    expect(b.basis).toBe('time');
+    expect(b.distanceScore).toBe(0);
+    expect(b.total).toBe(90);
+  });
+
+  it('ignores distance for time-scored activities', () => {
+    const b = effortBreakdown('WeightTraining', 60 * 60, 0, D, 5000);
+    expect(b.basis).toBe('time');
+    expect(b.total).toBe(75);
   });
 });

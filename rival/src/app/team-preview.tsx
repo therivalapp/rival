@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Image, ScrollView, TouchableOpacity, ActivityIn
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
+import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { formatTeamName } from '../lib/identity';
@@ -152,12 +152,12 @@ export default function TeamPreviewScreen() {
               <RivalIcon name="groups" size={34} color={RivalColors.accentText} />
             </View>
           )}
-          <Text style={[styles.teamName, mob && ms.teamName]}>{formatTeamName(preview.name)}</Text>
-          <Text style={[styles.founded, mob && rm.label]}>Together since {foundedLabel(preview.created_at)}</Text>
+          {!mob && <Text style={styles.teamName}>{formatTeamName(preview.name)}</Text>}
+          <Text style={[styles.founded, mob && rb.label]}>Together since {foundedLabel(preview.created_at)}</Text>
         </View>
 
         {/* The aliveness signal, given the most weight on the screen. */}
-        <RivalCard glass style={[styles.statCard, mob && [rm.hero, ms.statCard]]}>
+        <RivalCard glass style={[styles.statCard, mob && [rb.card, ms.statCard]]}>
           <Text style={[styles.statValue, mob && ms.statValue]}>{sessions}</Text>
           <Text style={[styles.statLabel, mob && ms.statLabel]}>
             {sessions === 1 ? 'activity logged this week' : 'activities logged this week'}
@@ -170,8 +170,8 @@ export default function TeamPreviewScreen() {
         </RivalCard>
 
         {names.length > 0 && (
-          <RivalCard glass style={[styles.peopleCard, mob && [rm.card, ms.peopleCard]]}>
-            <Text style={mob ? rm.label : styles.peopleTitle}>Members</Text>
+          <RivalCard glass style={[styles.peopleCard, mob && [rb.card, ms.peopleCard]]}>
+            <Text style={mob ? rb.label : styles.peopleTitle}>Members</Text>
             <Text style={[styles.peopleNames, mob && ms.peopleNames]}>
               {names.join(', ')}
               {preview.member_count > names.length ? ` and ${preview.member_count - names.length} more` : ''}
@@ -211,11 +211,15 @@ export default function TeamPreviewScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, mob && rm.page]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, mob && rb.page]} edges={['top', 'left', 'right']}>
       <RivalTopNav />
       <ScrollView contentContainerStyle={[styles.content, mob && ms.content]}>
         {mob ? (
-          <RivalMobileHeader title="Team" onBack={() => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'))} />
+          <GreyPageHead
+            kicker="TEAM"
+            title={preview ? formatTeamName(preview.name) : 'Team'}
+            onBack={() => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'))}
+          />
         ) : (
         <View style={styles.header}>
           <RivalBackButton
@@ -296,20 +300,20 @@ const styles = StyleSheet.create({
 
 // Phone only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingTop: 8 },
-  hero: { gap: 10, marginTop: 8 },
+  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 120 },
+  hero: { gap: 8, marginTop: 0, marginBottom: 14 },
   crest: { borderWidth: 2, borderColor: 'rgba(255,181,158,0.35)' },
   teamName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 36 },
   statCard: { alignItems: 'center', marginBottom: 12 },
   statValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 56, lineHeight: 62 },
-  statLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+  statLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   peopleCard: { gap: 8, marginBottom: 12 },
   peopleNames: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, lineHeight: 23 },
   primaryBtn: { marginTop: 8 },
-  pending: { flexDirection: 'row', justifyContent: 'center', gap: 8, borderRadius: 999, backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder },
-  pendingText: { color: RivalWarm.soft },
+  pending: { flexDirection: 'row', justifyContent: 'center', gap: 8, borderRadius: 999, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  pendingText: { color: RivalColors.textSecondary },
   ghostBtn: { paddingHorizontal: 22, marginTop: 8 },
   emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22 },
-  emptyBody: { color: RivalWarm.soft },
-  privacyNote: { color: RivalWarm.muted },
+  emptyBody: { color: RivalColors.textSecondary },
+  privacyNote: { color: RivalColors.textSecondary },
 });

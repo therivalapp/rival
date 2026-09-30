@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { RivalColors, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
+import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead } from '../components/rival';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Platform, ActivityIndicator, Image, Animated, Easing, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -30,7 +30,7 @@ const LOADING_MESSAGES = [
   'Mixing the colour grade…',
   'Repainting the sky…',
   'Burning your route into the ground…',
-  'Etching your stats in neon…',
+  'Adding the statistics…',
   'Adding the RIVAL glow…',
   'Rendering the final image…',
 ];
@@ -911,9 +911,9 @@ export default function AiShareScreen() {
     ctx.drawImage(img, 0, 0, W, H);
 
     const days = daysUntil(race.race_date);
-    const fmtDate = new Date(race.race_date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+    const fmtDate = new Date(`${race.race_date.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
     const metaLine = [race.race_type?.trim() ? race.race_type.trim().toUpperCase() : null, fmtDate].filter(Boolean).join(' · ');
-    const daysLine = days === 0 ? "RACE DAY — LET'S GO" : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO ${race.name.toUpperCase()}`;
+    const daysLine = days === 0 ? "EVENT DAY — LET'S GO" : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO ${race.name.toUpperCase()}`;
 
     const scale = W / 1024;
     const PAD_X = 28 * scale, PAD_Y = 18 * scale;
@@ -1043,7 +1043,7 @@ export default function AiShareScreen() {
         ctx.font = `900 64px -apple-system, BlinkMacSystemFont, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
         ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 12;
-        ctx.fillText('RACE DAY', PAD, y + NUM_H * 0.7);
+        ctx.fillText('EVENT DAY', PAD, y + NUM_H * 0.7);
         y += NUM_H + 8;
         ctx.font = `700 ${SUB_H}px -apple-system, BlinkMacSystemFont, sans-serif`;
         ctx.fillStyle = '#E91E8C';
@@ -1082,7 +1082,7 @@ export default function AiShareScreen() {
         ctx.fillStyle = '#FFFFFF';
         ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 10;
         ctx.fillText(
-          days === 0 ? 'RACE DAY' : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO GO`,
+          days === 0 ? 'EVENT DAY' : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO GO`,
           PAD, y + M_DAYS * 0.82,
         );
         y += M_DAYS + M_GAP;
@@ -1115,7 +1115,7 @@ export default function AiShareScreen() {
     <SafeAreaView style={[styles.container, mob && ms.container]}>
       <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, mob && ms.content]}>
         {mob ? (
-          <RivalMobileHeader title="AI share" onBack={goBack} />
+          <GreyPageHead kicker="SHARE" title="Share with AI" onBack={goBack} />
         ) : (
           <View style={styles.header}>
             <RivalBackButton onPress={goBack} color={RivalColors.accentFill} />
@@ -1133,7 +1133,7 @@ export default function AiShareScreen() {
             </Text>
             {activity.route_polyline
               ? <Text style={styles.routeTag}>{em('✓ Route data will be used in the artwork')}</Text>
-              : <Text style={styles.noRouteTag}>No route data. Sync Strava to include a GPS route.</Text>
+              : <Text style={styles.noRouteTag}>No route data. Sync a connected device to include a GPS route.</Text>
             }
           </View>
         )}
@@ -1281,7 +1281,7 @@ export default function AiShareScreen() {
             {selectedRaceIds.length > 0 && (
               <TouchableOpacity style={mob ? rm.ghost : styles.regenerateBtn} onPress={stampCountdownOnGenerated}>
                 {mob && <RivalIcon name="timer" size={17} color={RivalColors.accentText} />}
-                <Text style={mob ? rm.ghostText : styles.regenerateBtnText}>{em('⏳ Stamp race countdown on this image')}</Text>
+                <Text style={mob ? rm.ghostText : styles.regenerateBtnText}>{em('⏳ Stamp event countdown on this image')}</Text>
               </TouchableOpacity>
             )}
             <Text style={styles.shareHint}>Save image to share on social media.</Text>
@@ -1356,12 +1356,12 @@ export default function AiShareScreen() {
             >
               {mob && <View style={rm.iconCircle}><RivalIcon name="timer" size={19} color={RivalColors.accentText} /></View>}
               <View style={mob ? ms.stampText : undefined}>
-              <Text style={styles.stampBtnText}>{em('⏳ Download race countdown stamp')}</Text>
+              <Text style={styles.stampBtnText}>{em('⏳ Download event countdown stamp')}</Text>
               <Text style={[styles.stampBtnSub, mob && ms.stampSub]}>
                 {(() => {
                   const sel = upcomingRaces.filter(x => selectedRaceIds.includes(x.id));
-                  if (sel.length === 0) return 'Tap a race above to include it';
-                  if (sel.length > 1) return `${sel.length} race countdowns on one stamp — drop it on any photo`;
+                  if (sel.length === 0) return 'Tap an event above to include it';
+                  if (sel.length > 1) return `${sel.length} event countdowns on one stamp — drop it on any photo`;
                   const d = daysUntil(sel[0].race_date);
                   return d === 0 ? `${sel[0].name} is today, stamp it!` : `${d} day${d === 1 ? '' : 's'} until ${sel[0].name} — drop it on any photo`;
                 })()}
@@ -1485,22 +1485,22 @@ const styles = StyleSheet.create({
   shareHint: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
 });
 
-// Phone only — the RIVAL look (see RivalMobile.tsx).
+// Phone only — the blend (grey page, recessed cards).
 const ms = StyleSheet.create({
-  container: { backgroundColor: RivalWarm.page },
-  content: { paddingHorizontal: 16, paddingTop: 8 },
-  card: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 16, gap: 6 },
-  sectionLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: RivalColors.accentText },
-  chip: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 14 },
-  chipOn: { backgroundColor: 'rgba(255,209,190,0.10)', borderColor: 'rgba(255,181,158,0.55)' },
-  thumb: { borderRadius: 12, borderColor: RivalWarm.cardBorder },
-  picker: { backgroundColor: RivalWarm.card, borderColor: 'rgba(255,181,158,0.22)', borderStyle: 'dashed', borderWidth: 1.5, gap: 10 },
+  container: { backgroundColor: RivalColors.surfaceContainer },
+  content: { paddingHorizontal: 16, paddingTop: 0 },
+  card: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16, gap: 6 },
+  sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  chip: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 14 },
+  chipOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  thumb: { borderRadius: 12, borderColor: RivalColors.surfaceBright },
+  picker: { backgroundColor: RivalColors.surfaceLowest, borderColor: 'rgba(255,181,158,0.35)', borderStyle: 'dashed', borderWidth: 1.5, gap: 10 },
   pickerText: { color: RivalColors.accentText },
-  styleCard: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 14 },
-  styleCardOn: { backgroundColor: 'rgba(255,209,190,0.10)', borderColor: 'rgba(255,181,158,0.55)' },
+  styleCard: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 14 },
+  styleCardOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
   styleLabel: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16 },
-  caption: { fontFamily: RivalSerifFamily, fontSize: 15, lineHeight: 21, color: RivalWarm.soft },
-  stamp: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 16, paddingVertical: 14 },
+  caption: { fontFamily: RivalSerifFamily, fontSize: 15, lineHeight: 21, color: 'rgba(255,255,255,0.8)' },
+  stamp: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16, paddingVertical: 14 },
   stampText: { flex: 1, gap: 2 },
   stampSub: { textAlign: 'left', fontSize: 12 },
   generate: { paddingVertical: 16, marginBottom: 28 },

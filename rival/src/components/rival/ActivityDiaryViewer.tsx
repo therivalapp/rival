@@ -14,6 +14,7 @@ import { RivalBackButton } from './RivalBackButton';
 import { WebVideo } from './MediaPicker';
 import { TrainingPartners } from './TrainingPartners';
 import { BusyText } from './BusyText';
+import { EffortBreakdownSheet } from './EffortBreakdownSheet';
 
 // Full-screen, tap-through "diary" viewer for a single activity — the photo
 // dominates (70% of the screen), stats overlay its bottom edge, and a
@@ -105,6 +106,7 @@ export function ActivityDiaryViewer({
   const [index, setIndex] = useState(startIndex);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [breakdownFor, setBreakdownFor] = useState<DiaryActivity | null>(null);
   const activity = activities[index];
   const insets = useSafeAreaInsets();
   // Mobile-only redesign of the header (back arrow instead of X, date moved to
@@ -291,6 +293,7 @@ export function ActivityDiaryViewer({
 
   return (
     <Animated.View style={[styles.overlay, { transform: [{ translateY: dragY }] }]}>
+      <EffortBreakdownSheet activity={breakdownFor} onClose={() => setBreakdownFor(null)} />
       <View style={styles.dragHandleArea} {...panResponder.panHandlers}>
         <View style={styles.dragHandle} />
       </View>
@@ -402,16 +405,25 @@ export function ActivityDiaryViewer({
 
           {/* Bottom scrim + overlaid stats — 3 chips left, effort pill right. */}
           <View style={[styles.photoBottomScrim, scrimStyle('toBottom')]} pointerEvents="none" />
-          <View style={styles.photoStats}>
-            <View style={styles.photoChips}>
+          {/* Above the tap zones, so the Effort pill opens its breakdown;
+              box-none leaves the rest of the strip to the tap zones. */}
+          <View style={[styles.photoStats, { zIndex: 3 }]} pointerEvents="box-none">
+            <View style={styles.photoChips} pointerEvents="none">
               {duration && <View style={styles.photoChip}><Text style={styles.photoChipText}>{duration}</Text></View>}
               {distance && <View style={styles.photoChip}><Text style={styles.photoChipText}>{distance}</Text></View>}
               {elevation && <View style={styles.photoChip}><Text style={styles.photoChipText}>{elevation}</Text></View>}
             </View>
-            <View style={styles.photoEffort}>
+            <TouchableOpacity
+              style={styles.photoEffort}
+              onPress={() => setBreakdownFor(activity)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`${activity.effort_score} Effort. Show breakdown`}
+            >
               <Text style={styles.photoEffortNum}>{activity.effort_score}</Text>
               <Text style={styles.photoEffortUnit}>Effort</Text>
-            </View>
+              {!wide && <RivalIcon name="chevronRight" size={13} color="rgba(255,255,255,0.6)" style={{ alignSelf: 'center', marginRight: -4 }} />}
+            </TouchableOpacity>
           </View>
 
           {/* Tap zones over the photo — left/right step through this

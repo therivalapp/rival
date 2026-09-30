@@ -890,7 +890,7 @@ function PostCard({
           </TouchableOpacity>
           <Text style={styles.postMeta}>
             {post.kind === 'race'
-              ? 'Signed up for a race'
+              ? 'Signed up for an event'
               : post.kind === 'dayRoll'
                 ? `${post.count} ${post.typeLabel}`
                 : (post.activityName || post.activityType)} · {timeAgo(post.ts)}
@@ -944,7 +944,7 @@ function PostCard({
       ) : post.kind === 'race' ? (
         <View style={styles.noPhotoPanel}>
           <RivalIcon name="flag" size={28} color="#ff5c5c" />
-          <Text style={styles.eventAction}>Signed up for a race</Text>
+          <Text style={styles.eventAction}>Signed up for an event</Text>
           <Text style={styles.eventName}>{formatRaceName(post.raceName)}</Text>
           <Text style={styles.eventDate}>{new Date(post.raceDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
         </View>

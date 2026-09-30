@@ -1,21 +1,25 @@
 import { getMyTeamIds } from '../lib/myTeams';
 import { useState, useCallback } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, Linking, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, Linking, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { confirmAction, notify } from '../lib/notify';
 import { formatDisplayName, formatRaceName } from '../lib/identity';
-import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
+import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
 import { formatGoalTimeMask } from '../lib/format';
-import { RivalTopNav, RivalPageHeader, RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm } from '../components/rival';
+import { RivalTopNav, RivalPageHeader, RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, GreySegment, RivalSheet, RivalSheetCard, RivalTiles, RivalMoreRow, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import type { RivalIconName } from '../components/rival';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 
-const RACE_TYPES = ['Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Other', 'Custom'];
+const RACE_TYPES = ['Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Custom', 'Other'];
+const EVENT_TYPE_ICONS: Record<string, RivalIconName> = {
+  Run: 'run', Ride: 'ride', Swim: 'swim', Triathlon: 'eventTriathlon',
+  HYROX: 'eventHyrox', CrossFit: 'crossfit', Other: 'moreHoriz', Custom: 'eventCustom',
+};
 
 type RaceDirectory = { name: string; description: string; url: string; types: string[] };
 
@@ -119,7 +123,7 @@ function getFinishMessage(actualTime: string, goalTime: string | null): string {
   if (diff >= -60) return "Right on target — that's not luck, that's discipline.";
   if (diff >= -300) return "Just shy of the goal, but you crossed that line. That takes everything.";
   if (diff >= -900) return "The time doesn't define the effort. You were out there when it counted.";
-  return "Some races are harder than others. The fact you showed up, toed the line, and finished — that's the real achievement.";
+  return "Some events are harder than others. The fact you showed up, toed the line, and finished — that's the real achievement.";
 }
 
 function parseDateLocal(dateStr: string): Date {
@@ -154,7 +158,7 @@ function TrainingBar({ avgWeeklyKm, distanceKm }: { avgWeeklyKm: number; distanc
   return (
     <View style={styles.trainingSection}>
       <View style={styles.trainingLabelRow}>
-        <Text style={styles.trainingLabel}>Weekly avg vs race distance</Text>
+        <Text style={styles.trainingLabel}>Weekly avg vs event distance</Text>
         <Text style={[styles.trainingPct, done && { color: RivalColors.accentGold }]}>{displayPct}%</Text>
       </View>
       <View style={styles.trainingTrack}>
@@ -167,6 +171,12 @@ function TrainingBar({ avgWeeklyKm, distanceKm }: { avgWeeklyKm: number; distanc
   );
 }
 
+// On mobile, a group of fields sits in its own card inside the sheet; on
+// desktop the fields run on as before.
+function SheetGroup({ m, children }: { m: boolean; children: React.ReactNode }) {
+  return m ? <RivalSheetCard>{children}</RivalSheetCard> : <>{children}</>;
+}
+
 export default function RacesScreen() {
   const { add } = useLocalSearchParams<{ add?: string }>();
   const [races, setRaces] = useState<Race[]>([]);
@@ -175,6 +185,9 @@ export default function RacesScreen() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState('');
   const [showAdd, setShowAdd] = useState(add === 'true');
+  // The optional fields (link, goal time) wait behind "Add details" on mobile.
+  const [showDetails, setShowDetails] = useState(false);
+  const [eventCalOpen, setEventCalOpen] = useState(false);
   const [showFind, setShowFind] = useState(false);
   const [findFilter, setFindFilter] = useState<string | null>(null);
   const [editingRace, setEditingRace] = useState<Race | null>(null);
@@ -190,7 +203,7 @@ export default function RacesScreen() {
   const [triSwim, setTriSwim] = useState('');
   const [triBike, setTriBike] = useState('');
   const [triRun, setTriRun] = useState('');
-  const [hyroxCategory, setHyroxCategory] = useState('Men');
+  const [hyroxCategory, setHyroxCategory] = useState('Women');
   const [crossfitFormat, setCrossfitFormat] = useState('Open');
   const [goalFinishTime, setGoalFinishTime] = useState('');
   const [finishModalRace, setFinishModalRace] = useState<Race | null>(null);
@@ -313,7 +326,7 @@ export default function RacesScreen() {
         // Clear the spinner and leave the modal open with their input intact,
         // rather than returning past setSaving(false) below.
         setSaving(false);
-        notify("Couldn't save that race", updErr.message);
+        notify("Couldn't save that event", updErr.message);
         return;
       }
     } else {
@@ -324,7 +337,7 @@ export default function RacesScreen() {
         .single();
       if (newErr) {
         setSaving(false);
-        notify("Couldn't add that race", newErr.message);
+        notify("Couldn't add that event", newErr.message);
         return;
       }
       if (newRace) notifyLeagueMatesOfNewRace(newRace.id);
@@ -357,6 +370,7 @@ export default function RacesScreen() {
     setRaceName(race.name); setRaceType(race.race_type); setRaceDate(isoToDisplayDate(race.race_date));
     setLocation(race.location || ''); setRegUrl(race.registration_url || '');
     setGoalFinishTime(race.goal_finish_time || '');
+    setShowDetails(!!(race.registration_url || race.goal_finish_time));
     if (race.race_type === 'Triathlon' && race.disciplines) {
       setTriSwim(String(race.disciplines.find((d) => d.name === 'Swim')?.distance_km ?? ''));
       setTriBike(String(race.disciplines.find((d) => d.name === 'Bike')?.distance_km ?? ''));
@@ -378,16 +392,16 @@ export default function RacesScreen() {
     setRaceName(''); setDistanceKm(''); setRaceDate('');
     setLocation(''); setRegUrl(''); setRaceType('Run');
     setTriSwim(''); setTriBike(''); setTriRun('');
-    setHyroxCategory('Singles'); setCrossfitFormat('Open');
-    setGoalFinishTime('');
+    setHyroxCategory('Women'); setCrossfitFormat('Open');
+    setGoalFinishTime(''); setShowDetails(false);
     setCustomDisciplines([{ name: '', distance: '' }]);
   }
 
   async function deleteRace(id: string) {
-    if (!(await confirmAction({ title: 'Delete this race?', confirmLabel: 'Delete', destructive: true }))) return;
+    if (!(await confirmAction({ title: 'Delete this event?', confirmLabel: 'Delete', destructive: true }))) return;
     const { error } = await supabase.from('races').delete().eq('id', id);
     if (error) {
-      notify("Couldn't delete that race", error.message);
+      notify("Couldn't delete that event", error.message);
       return;
     }
     setRaces((prev) => prev.filter((r) => r.id !== id));
@@ -414,36 +428,45 @@ export default function RacesScreen() {
 
   // Shared by both layouts; on mobile the sheets take the warm palette.
   const inp = m ? [rm.field, rm.input] : styles.modalInput;
-  const modals = (
+  // The Add / Edit event form, shared by the mobile sheet and the desktop modal.
+  const addEventForm = (
     <>
-        {/* Add / Edit Race Modal */}
-        <Modal visible={showAdd} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <ScrollView style={[styles.modalScroll, m && ms.sheetScroll]} contentContainerStyle={[styles.modalCard, m && ms.sheet]}>
-              <Text style={m ? rm.serifTitleSm : styles.modalTitle}>{editingRace ? (m ? 'Edit race' : 'Edit Race') : (m ? 'Add race' : 'Add a Race')}</Text>
+      {!m && <Text style={styles.modalTitle}>{editingRace ? 'Edit Event' : 'Add an Event'}</Text>}
 
-              <Text style={m ? rm.label : styles.modalLabel}>Race name</Text>
+              <SheetGroup m={m}>
+              {m && <Text style={rm.label}>The event</Text>}
+              <Text style={m ? rm.fieldLabel : styles.modalLabel}>{m ? 'Name' : 'Event name'}</Text>
               <TextInput style={inp} placeholder="Auckland Half Marathon" placeholderTextColor={RivalColors.textSecondary} value={raceName} onChangeText={setRaceName} />
 
-              <Text style={m ? rm.label : styles.modalLabel}>Type</Text>
+              <Text style={m ? rm.fieldLabel : styles.modalLabel}>Type</Text>
+              {m ? (
+                // Eight equal tiles, four across, each with an icon: tidier
+                // than a wrapping row of pills of different widths.
+                <RivalTiles
+                  options={RACE_TYPES.map((t) => ({ value: t, label: t, icon: EVENT_TYPE_ICONS[t] ?? 'moreHoriz' }))}
+                  value={raceType}
+                  onChange={setRaceType}
+                />
+              ) : (
               <View style={styles.segmentRow}>
                 {RACE_TYPES.map((t) => (
-                  <TouchableOpacity key={t} style={[styles.segment, m && ms.chip, raceType === t && styles.segmentActive]} onPress={() => setRaceType(t)}>
+                  <TouchableOpacity key={t} style={[styles.segment, raceType === t && styles.segmentActive]} onPress={() => setRaceType(t)}>
                     <Text style={[styles.segmentText, raceType === t && styles.segmentTextActive]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              )}
 
               {raceType !== 'Triathlon' && raceType !== 'HYROX' && raceType !== 'CrossFit' && raceType !== 'Custom' && (
                 <>
-                  <Text style={m ? rm.label : styles.modalLabel}>Distance (km)</Text>
+                  <Text style={m ? rm.fieldLabel : styles.modalLabel}>Distance (km)</Text>
                   <TextInput style={inp} placeholder="21.1" placeholderTextColor={RivalColors.textSecondary} value={distanceKm} onChangeText={setDistanceKm} keyboardType="decimal-pad" />
                 </>
               )}
 
               {raceType === 'Triathlon' && (
                 <>
-                  <Text style={m ? rm.label : styles.modalLabel}>Disciplines</Text>
+                  <Text style={m ? rm.fieldLabel : styles.modalLabel}>Disciplines</Text>
                   {[['Swim (km)', triSwim, setTriSwim, '1.9'], ['Bike (km)', triBike, setTriBike, '90'], ['Run (km)', triRun, setTriRun, '21.1']].map(([label, val, setter, ph]: any) => (
                     <View key={label} style={styles.disciplineInputRow}>
                       <Text style={styles.disciplineInputLabel}>{label}</Text>
@@ -456,7 +479,7 @@ export default function RacesScreen() {
 
               {raceType === 'Custom' && (
                 <>
-                  <Text style={m ? rm.label : styles.modalLabel}>Disciplines</Text>
+                  <Text style={m ? rm.fieldLabel : styles.modalLabel}>Disciplines</Text>
                   {customDisciplines.map((d, i) => (
                     <View key={i} style={styles.customDisciplineRow}>
                       <TextInput style={[inp, { flex: 1 }]} placeholder="Kayak" placeholderTextColor={RivalColors.textSecondary} value={d.name} onChangeText={(v) => updateCustomDiscipline(i, 'name', v)} />
@@ -475,14 +498,18 @@ export default function RacesScreen() {
 
               {raceType === 'HYROX' && (
                 <>
-                  <Text style={m ? rm.label : styles.modalLabel}>Category</Text>
+                  <Text style={m ? rm.fieldLabel : styles.modalLabel}>Category</Text>
+                  {m ? (
+                    <RivalTiles options={HYROX_CATEGORIES.map((c) => ({ value: c, label: c }))} value={hyroxCategory} onChange={setHyroxCategory} columns={2} />
+                  ) : (
                   <View style={styles.segmentRow}>
                     {HYROX_CATEGORIES.map((c) => (
-                      <TouchableOpacity key={c} style={[styles.segment, m && ms.chip, hyroxCategory === c && styles.segmentActive]} onPress={() => setHyroxCategory(c)}>
+                      <TouchableOpacity key={c} style={[styles.segment, hyroxCategory === c && styles.segmentActive]} onPress={() => setHyroxCategory(c)}>
                         <Text style={[styles.segmentText, hyroxCategory === c && styles.segmentTextActive]}>{c}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
+                  )}
                   <View style={styles.infoBox}>
                     <Text style={styles.infoBoxTitle}>{m ? 'Standard HYROX format' : '⚡ Standard HYROX Format'}</Text>
                     <Text style={styles.infoBoxText}>8 × 1km Run · SkiErg 1km · Sled Push · Sled Pull · Burpee Broad Jump · Row 1km · Farmers Carry · Sandbag Lunges · Wall Balls</Text>
@@ -493,14 +520,18 @@ export default function RacesScreen() {
 
               {raceType === 'CrossFit' && (
                 <>
-                  <Text style={m ? rm.label : styles.modalLabel}>Format</Text>
+                  <Text style={m ? rm.fieldLabel : styles.modalLabel}>Format</Text>
+                  {m ? (
+                    <RivalTiles options={CROSSFIT_FORMATS.map((f) => ({ value: f, label: f }))} value={crossfitFormat} onChange={setCrossfitFormat} columns={2} />
+                  ) : (
                   <View style={styles.segmentRow}>
                     {CROSSFIT_FORMATS.map((f) => (
-                      <TouchableOpacity key={f} style={[styles.segment, m && ms.chip, crossfitFormat === f && styles.segmentActive]} onPress={() => setCrossfitFormat(f)}>
+                      <TouchableOpacity key={f} style={[styles.segment, crossfitFormat === f && styles.segmentActive]} onPress={() => setCrossfitFormat(f)}>
                         <Text style={[styles.segmentText, crossfitFormat === f && styles.segmentTextActive]}>{f}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
+                  )}
                   <View style={styles.infoBox}>
                     <Text style={styles.infoBoxTitle}>{m ? 'CrossFit competition' : '🏋️ CrossFit Competition'}</Text>
                     <Text style={styles.infoBoxText}>Multiple WODs over the event period. Add a registration link for teammates.</Text>
@@ -508,42 +539,165 @@ export default function RacesScreen() {
                 </>
               )}
 
-              <Text style={m ? rm.label : styles.modalLabel}>Race date (YYYY-MM-DD)</Text>
-              <RivalDateField value={raceDate} onChangeText={setRaceDate} placeholder="2026-10-18" inputStyle={inp as any} />
+              </SheetGroup>
 
-              <Text style={m ? rm.label : styles.modalLabel}>Location (optional)</Text>
-              <TextInput style={inp} placeholder="Auckland, NZ" placeholderTextColor={RivalColors.textSecondary} value={location} onChangeText={setLocation} />
+              {m ? (
+                <SheetGroup m={m}>
+                  <Text style={rm.label}>Date and location</Text>
+                  <View style={ms.pair}>
+                    <View style={ms.pairWide}>
+                      <Text style={rm.fieldLabel}>Date</Text>
+                      <RivalDateField value={raceDate} onChangeText={setRaceDate} placeholder="18/10/2026" inputStyle={inp as any} />
+                    </View>
+                    <View style={ms.pairHalf}>
+                      <Text style={rm.fieldLabel}>Location</Text>
+                      <TextInput style={inp} placeholder="Auckland" placeholderTextColor={RivalColors.textSecondary} value={location} onChangeText={setLocation} />
+                    </View>
+                  </View>
+                </SheetGroup>
+              ) : (
+                <>
+                  <Text style={styles.modalLabel}>Event date (DD/MM/YYYY)</Text>
+                  <RivalDateField value={raceDate} onChangeText={setRaceDate} placeholder="18/10/2026" inputStyle={inp as any} />
+                  <Text style={styles.modalLabel}>Location (optional)</Text>
+                  <TextInput style={inp} placeholder="Auckland, NZ" placeholderTextColor={RivalColors.textSecondary} value={location} onChangeText={setLocation} />
+                </>
+              )}
 
-              <Text style={m ? rm.label : styles.modalLabel}>Registration link (optional)</Text>
+              {m && !showDetails ? (
+                <RivalMoreRow text="Registration link, goal time" action="Add details +" onPress={() => setShowDetails(true)} />
+              ) : (
+              <SheetGroup m={m}>
+              {m && <Text style={rm.label}>Details</Text>}
+              <Text style={m ? rm.fieldLabel : styles.modalLabel}>{m ? 'Registration link' : 'Registration link (optional)'}</Text>
               <TextInput style={inp} placeholder="https://…" placeholderTextColor={RivalColors.textSecondary} value={regUrl} onChangeText={setRegUrl} autoCapitalize="none" />
 
-              <Text style={m ? rm.label : styles.modalLabel}>Goal finish time (optional)</Text>
+              <Text style={m ? rm.fieldLabel : styles.modalLabel}>{m ? 'Goal time' : 'Goal finish time (optional)'}</Text>
               <TextInput style={inp} placeholder="00:00:00" placeholderTextColor={RivalColors.textSecondary} value={goalFinishTime} onChangeText={v => setGoalFinishTime(formatGoalTimeMask(v))} keyboardType="number-pad" autoCapitalize="none" />
               <Text style={styles.goalTimeHint}>
                 {goalFinishTime.trim()
                   ? `Goal: ${goalFinishTime.trim()}.`
                   : 'A time to aim for. It can be changed later.'}
               </Text>
+              </SheetGroup>
+              )}
+    </>
+  );
 
-              {m ? (
-                <View style={ms.sheetActions}>
-                  <TouchableOpacity
-                    style={[rm.primary, (!isFormValid() || saving) && rm.disabled]}
-                    onPress={saveRace} disabled={!isFormValid() || saving} activeOpacity={0.85}
-                  >
-                    <BusyText busy={!!(saving)} style={rm.primaryText}>{saving ? 'Saving…' : editingRace ? 'Save changes' : 'Add race'}</BusyText>
+  // Phone Add / Edit event: the grey pop-up style from Plan an activity.
+  // Sized to its content, and closed with the X, so there's no Cancel button.
+  const eventSheet = (
+    <GreySheet
+      kicker="EVENTS"
+      title={editingRace ? 'Edit event' : 'Add event'}
+      onClose={() => { setEventCalOpen(false); closeModal(); }}
+      footer={<>
+        <GreyPrimary
+          label={saving ? 'Saving…' : editingRace ? 'Save changes' : 'Add event'}
+          busy={saving}
+          disabled={!isFormValid() || saving}
+          onPress={saveRace}
+        />
+        {editingRace && (
+          <TouchableOpacity style={ms.deleteLink} onPress={() => { const id = editingRace.id; closeModal(); deleteRace(id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <RivalIcon name="delete" size={15} color={RivalColors.error} />
+            <Text style={ms.deleteLinkText}>Delete event</Text>
+          </TouchableOpacity>
+        )}
+      </>}
+      overlay={eventCalOpen ? (
+        <GreyCalendar
+          value={displayToIsoDate(raceDate)}
+          onChange={(iso) => { setRaceDate(isoToDisplayDate(iso)); setEventCalOpen(false); }}
+          onClose={() => setEventCalOpen(false)}
+        />
+      ) : null}
+    >
+      <GreyLabel>Event</GreyLabel>
+      <GreyField placeholder="Event name" value={raceName} onChangeText={setRaceName} />
+
+      <GreyLabel>Type</GreyLabel>
+      <GreyTiles
+        options={RACE_TYPES.map((t) => ({ value: t, label: t, icon: EVENT_TYPE_ICONS[t] ?? 'moreHoriz' }))}
+        value={raceType}
+        onChange={setRaceType}
+      />
+
+      {raceType === 'HYROX' && (
+        <>
+          <GreyLabel>Category</GreyLabel>
+          <GreyTiles options={HYROX_CATEGORIES.map((c) => ({ value: c, label: c }))} value={hyroxCategory} onChange={setHyroxCategory} columns={2} />
+          <GreyNote>Standard format: 8 × 1 km run with 8 stations between. 8 km run in total.</GreyNote>
+        </>
+      )}
+
+      {raceType === 'CrossFit' && (
+        <>
+          <GreyLabel>Format</GreyLabel>
+          <GreyTiles options={CROSSFIT_FORMATS.map((f) => ({ value: f, label: f }))} value={crossfitFormat} onChange={setCrossfitFormat} columns={2} />
+          <GreyNote>Multiple workouts over the event. Add a registration link for teammates.</GreyNote>
+        </>
+      )}
+
+      {raceType === 'Triathlon' && (
+        <>
+          <GreyLabel>Distances</GreyLabel>
+          <GreyRows>
+            <GreyRow icon="swim" label="Swim (km)"><GreyRowInput placeholder="1.9" value={triSwim} onChangeText={setTriSwim} keyboardType="decimal-pad" /></GreyRow>
+            <GreyRow icon="ride" label="Bike (km)"><GreyRowInput placeholder="90" value={triBike} onChangeText={setTriBike} keyboardType="decimal-pad" /></GreyRow>
+            <GreyRow icon="run" label="Run (km)"><GreyRowInput placeholder="21.1" value={triRun} onChangeText={setTriRun} keyboardType="decimal-pad" /></GreyRow>
+          </GreyRows>
+          {computedDistance() > 0 && <GreyNote>Total: {computedDistance().toFixed(1)} km</GreyNote>}
+        </>
+      )}
+
+      {raceType === 'Custom' && (
+        <>
+          <GreyLabel>Disciplines</GreyLabel>
+          <GreyRows>
+            {customDisciplines.map((d, i) => (
+              <View key={i} style={ms.discRow}>
+                <TextInput style={ms.discName} placeholder="Kayak" placeholderTextColor="rgba(255,255,255,0.28)" value={d.name} onChangeText={(v) => updateCustomDiscipline(i, 'name', v)} />
+                <TextInput style={ms.discKm} placeholder="km" placeholderTextColor="rgba(255,255,255,0.28)" value={d.distance} onChangeText={(v) => updateCustomDiscipline(i, 'distance', v)} keyboardType="decimal-pad" />
+                {customDisciplines.length > 1 && (
+                  <TouchableOpacity onPress={() => removeCustomDiscipline(i)} accessibilityLabel="Remove discipline" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <RivalIcon name="close" size={15} color={RivalColors.textSecondary} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={rm.ghost} onPress={closeModal} activeOpacity={0.85}>
-                    <Text style={rm.ghostText}>Cancel</Text>
-                  </TouchableOpacity>
-                  {editingRace && (
-                    <TouchableOpacity style={ms.deleteLink} onPress={() => { const id = editingRace.id; closeModal(); deleteRace(id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <RivalIcon name="delete" size={15} color={RivalColors.error} />
-                      <Text style={ms.deleteLinkText}>Delete race</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ) : (
+                )}
+              </View>
+            ))}
+            <TouchableOpacity style={ms.discAdd} onPress={addCustomDiscipline}>
+              <RivalIcon name="add" size={16} color={RivalColors.accentText} />
+              <Text style={ms.discAddText}>Add discipline</Text>
+            </TouchableOpacity>
+          </GreyRows>
+          {computedDistance() > 0 && <GreyNote>Total: {computedDistance().toFixed(1)} km</GreyNote>}
+        </>
+      )}
+
+      <GreyLabel>Details</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="calendar" label="Date" value={raceDate && displayToIsoDate(raceDate) ? friendlyDate(raceDate) : ''} placeholder="Choose a date" onPress={() => setEventCalOpen(true)} />
+        <GreyRow icon="location" label="Location"><GreyRowInput placeholder="Optional" value={location} onChangeText={setLocation} /></GreyRow>
+        {raceType !== 'Triathlon' && raceType !== 'HYROX' && raceType !== 'CrossFit' && raceType !== 'Custom' ? (
+          <GreyRow icon="distance" label="Distance (km)"><GreyRowInput placeholder="21.1" value={distanceKm} onChangeText={setDistanceKm} keyboardType="decimal-pad" /></GreyRow>
+        ) : null}
+        <GreyRow icon="link" label="Registration"><GreyRowInput placeholder="Optional" value={regUrl} onChangeText={setRegUrl} autoCapitalize="none" keyboardType="url" /></GreyRow>
+        <GreyRow icon="timer" label="Goal time"><GreyRowInput placeholder="Optional" value={goalFinishTime} onChangeText={(v) => setGoalFinishTime(formatGoalTimeMask(v))} keyboardType="number-pad" /></GreyRow>
+      </GreyRows>
+    </GreySheet>
+  );
+
+  const modals = (
+    <>
+        {/* Add / Edit Race Modal */}
+        <Modal visible={showAdd} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            {m ? (
+              eventSheet
+            ) : (
+              <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalCard}>
+                {addEventForm}
                 <View style={styles.modalButtons}>
                   <TouchableOpacity style={styles.cancelButton} onPress={closeModal}>
                     <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -552,23 +706,55 @@ export default function RacesScreen() {
                     style={[styles.saveButton, (!isFormValid() || saving) && styles.saveButtonDisabled]}
                     onPress={saveRace} disabled={!isFormValid() || saving}
                   >
-                    <BusyText busy={!!(saving)} style={styles.saveButtonText}>{saving ? 'Saving…' : editingRace ? 'Save Changes' : 'Add Race'}</BusyText>
+                    <BusyText busy={!!(saving)} style={styles.saveButtonText}>{saving ? 'Saving…' : editingRace ? 'Save Changes' : 'Add Event'}</BusyText>
                   </TouchableOpacity>
                 </View>
-              )}
-            </ScrollView>
+              </ScrollView>
+            )}
           </View>
         </Modal>
 
         {/* Find a Race Modal */}
-        <Modal visible={showFind} transparent animationType="slide">
+        {m ? (
+          // Phone: the grey pop-up. Type tiles, directories as one list.
+          <Modal visible={showFind} transparent animationType="slide" onRequestClose={() => setShowFind(false)}>
+            <View style={ms.backdrop}>
+              <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowFind(false)} accessibilityLabel="Close" />
+              <GreySheet kicker="EVENTS" title="Find an event" onClose={() => setShowFind(false)} footer={null}>
+                <GreyNote>Sea to Sky · BC · Canada</GreyNote>
+                <View style={{ height: 10 }} />
+                <GreyTiles
+                  options={['All', 'Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Other'].map((t) => ({ value: t, label: t }))}
+                  value={findFilter ?? 'All'}
+                  onChange={(t) => setFindFilter(t === 'All' ? null : t)}
+                />
+                <GreyLabel>Directories</GreyLabel>
+                <GreyRows>
+                  {RACE_DIRECTORIES.filter((d) => !findFilter || d.types.includes(findFilter)).map((dir) => (
+                    <TouchableOpacity key={dir.name} style={ms.dirRow} onPress={() => Linking.openURL(dir.url)} activeOpacity={0.8}>
+                      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                        <Text style={ms.dirName}>{dir.name}</Text>
+                        <Text style={ms.dirDesc} numberOfLines={2}>{dir.description}</Text>
+                      </View>
+                      <RivalIcon name="openInNew" size={15} color="rgba(255,255,255,0.4)" />
+                    </TouchableOpacity>
+                  ))}
+                </GreyRows>
+              </GreySheet>
+            </View>
+          </Modal>
+        ) : (
+        <Modal visible={showFind} transparent animationType="slide" onRequestClose={() => setShowFind(false)}>
           <View style={styles.modalOverlay}>
+            {m && <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowFind(false)} accessibilityLabel="Close" />}
             <View style={[styles.findModalCard, m && ms.sheet, m && { paddingBottom: 0 }]}>
               <View style={styles.findModalHeader}>
-                <Text style={m ? rm.serifTitleSm : styles.modalTitle}>{m ? 'Find a race' : 'Find a Race'}</Text>
-                <TouchableOpacity onPress={() => setShowFind(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  {m ? <RivalIcon name="close" size={22} color={RivalWarm.soft} /> : <Text style={styles.findModalClose}>✕</Text>}
-                </TouchableOpacity>
+                <Text style={m ? rm.serifTitleSm : styles.modalTitle}>{m ? 'Find an event' : 'Find an Event'}</Text>
+                {!m && (
+                  <TouchableOpacity onPress={() => setShowFind(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Text style={styles.findModalClose}>✕</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <Text style={styles.findModalSub}>Sea to Sky · BC · Canada</Text>
 
@@ -619,8 +805,38 @@ export default function RacesScreen() {
             </View>
           </View>
         </Modal>
+        )}
 
         {/* Log Finish Time Modal */}
+        {m ? (
+          // Phone: the grey pop-up. Goal and finish time as rows; Save only.
+          <Modal visible={!!finishModalRace} transparent animationType="slide" onRequestClose={() => { setFinishModalRace(null); setActualFinishInput(''); }}>
+            <View style={ms.backdrop}>
+              <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { setFinishModalRace(null); setActualFinishInput(''); }} accessibilityLabel="Close" />
+              <GreySheet
+                kicker="EVENTS"
+                title="Log finish time"
+                onClose={() => { setFinishModalRace(null); setActualFinishInput(''); }}
+                footer={<GreyPrimary label={savingFinish ? 'Saving…' : 'Save finish time'} busy={savingFinish} disabled={!actualFinishInput.trim() || savingFinish} onPress={saveActualFinishTime} />}
+              >
+                <Text style={ms.finishRace}>{formatRaceName(finishModalRace?.name)}</Text>
+                <GreyRows>
+                  {finishModalRace?.goal_finish_time ? (
+                    <GreyRow icon="flag" label="Goal time" value={finishModalRace.goal_finish_time} />
+                  ) : null}
+                  <GreyRow icon="timer" label="Finish time">
+                    <GreyRowInput value={actualFinishInput} onChangeText={setActualFinishInput} placeholder="1:52:34" autoCapitalize="none" autoFocus />
+                  </GreyRow>
+                </GreyRows>
+                <GreyNote>
+                  {actualFinishInput.trim()
+                    ? getFinishMessage(actualFinishInput.trim(), finishModalRace?.goal_finish_time ?? null)
+                    : 'Every finish counts.'}
+                </GreyNote>
+              </GreySheet>
+            </View>
+          </Modal>
+        ) : (
         <Modal visible={!!finishModalRace} transparent animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={[styles.finishModalCard, m && ms.sheet]}>
@@ -652,7 +868,7 @@ export default function RacesScreen() {
               )}
 
               {m ? (
-                <View style={ms.sheetActions}>
+                <View style={[ms.sheetActions, { marginTop: 10 }]}>
                   <TouchableOpacity
                     style={[rm.primary, (!actualFinishInput.trim() || savingFinish) && rm.disabled]}
                     onPress={saveActualFinishTime} disabled={!actualFinishInput.trim() || savingFinish} activeOpacity={0.85}
@@ -679,6 +895,7 @@ export default function RacesScreen() {
             </View>
           </View>
         </Modal>
+        )}
     </>
   );
 
@@ -689,49 +906,44 @@ export default function RacesScreen() {
       { key: 'completed', label: 'Completed', count: completedRaces.length },
     ];
     const emptyText = activeTab === 'mine'
-      ? 'No races added yet.'
+      ? 'No events added yet.'
       : activeTab === 'completed'
-      ? 'No completed races yet.'
+      ? 'No completed events yet.'
       : leagueMateIds.size === 0
-      ? 'Join a team to see teammates’ races.'
-      : 'No teammate races yet.';
+      ? 'Join a team to see teammates’ events.'
+      : 'No teammate events yet.';
 
     return (
-      <SafeAreaView style={rm.page} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
         <RivalTopNav active="today" />
-        <ScrollView contentContainerStyle={[rm.content, ms.content]}>
-          <RivalMobileHeader title="Races" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
+        <ScrollView contentContainerStyle={[rb.content, ms.content]}>
+          <GreyPageHead kicker="RACES AND COMPETITIONS" title="Events" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
           <View style={ms.actions}>
             <TouchableOpacity style={[rm.primary, { flex: 1 }]} onPress={() => setShowAdd(true)} activeOpacity={0.85}>
               <RivalIcon name="add" size={18} color={rm.primaryText.color as string} />
-              <Text style={rm.primaryText}>Add race</Text>
+              <Text style={rm.primaryText}>Add event</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[rm.ghost, { flex: 1 }]} onPress={() => { setFindFilter(null); setShowFind(true); }} activeOpacity={0.85}>
               <RivalIcon name="search" size={17} color={RivalColors.accentText} />
-              <Text style={rm.ghostText}>Find races</Text>
+              <Text style={rm.ghostText}>Find events</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={ms.tabs}>
-            {tabs.map((t) => {
-              const on = activeTab === t.key;
-              return (
-                <TouchableOpacity key={t.key} style={[ms.tab, on && ms.tabOn]} onPress={() => setActiveTab(t.key)} activeOpacity={0.85}>
-                  <Text style={[ms.tabText, on && ms.tabTextOn]} numberOfLines={1}>{t.label} {t.count}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <GreySegment
+            options={tabs.map((t) => ({ value: t.key, label: t.count > 0 ? `${t.label} ${t.count}` : t.label }))}
+            value={activeTab}
+            onChange={setActiveTab}
+          />
 
-          {loading && <Text style={[rm.hint, { textAlign: 'center', paddingVertical: 24 }]}>Loading…</Text>}
+          {loading && <Text style={ms.loadingText}>Loading…</Text>}
 
           {!loading && displayed.length === 0 && (
-            <View style={[rm.card, ms.empty]}>
-              <View style={rm.iconCircle}>
-                <RivalIcon name="flag" size={20} color={RivalColors.accentText} />
+            <View style={[rb.card, ms.emptyRow]}>
+              <View style={rb.badge}>
+                <RivalIcon name="flag" size={16} color={RivalColors.accentText} />
               </View>
-              <Text style={[rm.hint, { textAlign: 'center' }]}>{emptyText}</Text>
+              <Text style={ms.emptyText}>{emptyText}</Text>
             </View>
           )}
 
@@ -753,38 +965,30 @@ export default function RacesScreen() {
                 activeOpacity={isOwn ? 0.85 : 1}
                 disabled={!isOwn}
                 onPress={() => openEdit(race)}
-                style={hero ? rm.hero : rm.card}
+                style={[rb.card, hero && ms.heroCard]}
               >
-                <View style={ms.top}>
-                  <View style={rm.iconCircle}>
-                    <RivalIcon name={RACE_TYPE_ICONS[race.race_type] ?? 'flag'} size={20} color={RivalColors.accentText} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={rm.label} numberOfLines={1}>{typeLine}</Text>
-                    <Text style={rm.serifTitleSm} numberOfLines={2}>{formatRaceName(race.name)}</Text>
+                {/* Ticket: the event on the left, the countdown on the right
+                    past a dashed tear line (the ticket on Today). */}
+                <View style={ms.ticket}>
+                  <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                    <Text style={[rb.label, hero && { color: RivalColors.accentText }]} numberOfLines={1}>{hero ? 'Next event' : typeLine}</Text>
+                    <Text style={ms.ticketName} numberOfLines={2}>{formatRaceName(race.name)}</Text>
+                    <Text style={ms.ticketMeta} numberOfLines={1}>
+                      {[formatRaceDate(race.race_date), race.location].filter(Boolean).join(' · ')}
+                    </Text>
+                    {hero && typeLine ? <Text style={ms.ticketType} numberOfLines={1}>{typeLine}</Text> : null}
                     {!isOwn && ownerName ? <Text style={ms.owner}>{ownerName}</Text> : null}
                   </View>
-                  {!past ? (
-                    <View style={ms.countdown}>
-                      <Text style={ms.countdownNum}>{days}</Text>
-                      <Text style={ms.countdownLabel}>{days === 1 ? 'DAY' : 'DAYS'}</Text>
-                    </View>
-                  ) : (
-                    <RivalIcon name="checkCircle" size={22} color={RivalColors.accentGold} />
-                  )}
-                </View>
-
-                <View style={ms.metaRow}>
-                  <View style={ms.metaItem}>
-                    <RivalIcon name="calendar" size={13} color={RivalWarm.muted} />
-                    <Text style={ms.metaText}>{formatRaceDate(race.race_date)}</Text>
+                  <View style={ms.stub}>
+                    {!past ? (
+                      <>
+                        <Text style={ms.stubNum}>{days}</Text>
+                        <Text style={rb.label}>{days === 1 ? 'Day' : 'Days'}</Text>
+                      </>
+                    ) : (
+                      <RivalIcon name="checkCircle" size={24} color={RivalColors.accentGold} />
+                    )}
                   </View>
-                  {race.location ? (
-                    <View style={ms.metaItem}>
-                      <RivalIcon name="location" size={13} color={RivalWarm.muted} />
-                      <Text style={ms.metaText} numberOfLines={1}>{race.location}</Text>
-                    </View>
-                  ) : null}
                 </View>
 
                 {race.disciplines && race.disciplines.length > 0 && (
@@ -874,7 +1078,7 @@ export default function RacesScreen() {
         </View>
 
         <View style={styles.titleRow}>
-          <RivalPageHeader title="Races" subtitle="Races and events." rules={false} />
+          <RivalPageHeader title="Events" subtitle="Races, competitions and more." rules={false} />
           <View style={styles.titleButtons}>
             <TouchableOpacity style={styles.findBtn} onPress={() => { setFindFilter(null); setShowFind(true); }}>
               <Text style={styles.findBtnText}>Find</Text>
@@ -919,12 +1123,12 @@ export default function RacesScreen() {
             <Text style={styles.emptyIcon}>🏁</Text>
             <Text style={styles.emptyText}>
               {activeTab === 'mine'
-                ? "You haven't added any races yet."
+                ? "You haven't added any events yet."
                 : activeTab === 'completed'
-                ? "No completed races yet."
+                ? "No completed events yet."
                 : leagueMateIds.size === 0
-                ? "Join a team to see your friends' races here."
-                : "None of your teammates have added a race yet."}
+                ? "Join a team to see your friends' events here."
+                : "None of your teammates have added an event yet."}
             </Text>
           </View>
         )}
@@ -944,7 +1148,7 @@ export default function RacesScreen() {
                   <View style={styles.raceMeta}>
                     <Text style={styles.raceTypeLabel}>{race.race_type.toUpperCase()}</Text>
                     {!isOwn && <Text style={styles.raceOwner}>{ownerName}</Text>}
-                    {isOwn && <Text style={styles.raceOwnerYou}>Race</Text>}
+                    {isOwn && <Text style={styles.raceOwnerYou}>Event</Text>}
                   </View>
                 </View>
                 {isOwn && (
@@ -1006,7 +1210,7 @@ export default function RacesScreen() {
 
               {past && (
                 <View style={styles.completedBadge}>
-                  <Text style={styles.completedBadgeText}>✓ Race completed</Text>
+                  <Text style={styles.completedBadgeText}>✓ Event completed</Text>
                 </View>
               )}
 
@@ -1137,7 +1341,7 @@ const styles = StyleSheet.create({
   raceTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   raceTypeIcon: { fontSize: 28 },
   raceMeta: { gap: 2 },
-  raceTypeLabel: { fontSize: 11, fontWeight: '800', color: RivalColors.accentFill, letterSpacing: 1 },
+  raceTypeLabel: { fontSize: 11, fontWeight: '800', color: RivalColors.accentText, letterSpacing: 1 },
   raceOwner: { fontSize: 12, color: RivalColors.textSecondary },
   raceOwnerYou: { fontSize: 12, color: RivalColors.accentText, fontWeight: '600' },
   ownActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -1236,6 +1440,24 @@ const styles = StyleSheet.create({
 
 // Mobile only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  dirRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11 },
+  dirName: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  dirDesc: { fontSize: 12, lineHeight: 16, color: RivalColors.textSecondary },
+  finishRace: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 12 },
+  loadingText: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
+  heroCard: { borderColor: 'rgba(255,181,158,0.35)' },
+  ticket: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  ticketName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, lineHeight: 24, color: '#fff' },
+  ticketMeta: { fontSize: 12.5, color: RivalColors.textSecondary },
+  ticketType: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
+  stub: { alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minWidth: 64, paddingLeft: 12, borderLeftWidth: 1.5, borderStyle: 'dashed', borderLeftColor: 'rgba(255,209,190,0.18)' },
+  stubNum: {
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 34, color: '#fff',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : {}),
+  } as any,
   content: { paddingBottom: 120 },
   actions: { flexDirection: 'row', gap: 10 },
   tabs: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 999, backgroundColor: RivalWarm.field, borderWidth: 1, borderColor: RivalWarm.cardBorder },
@@ -1268,9 +1490,23 @@ const ms = StyleSheet.create({
   registerText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
 
   sheetScroll: { flexGrow: 0 },
-  sheet: { backgroundColor: RivalWarm.card, borderTopWidth: 1, borderColor: RivalWarm.cardBorder, padding: 22, paddingBottom: 36, gap: 12 },
+  // Find and Log finish sheets: the same page background and sand edge as the
+  // shared form sheet (RivalSheet).
+  sheet: {
+    backgroundColor: RivalWarm.page, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,209,190,0.18)',
+    paddingHorizontal: 16, paddingTop: 22, paddingBottom: 36, gap: 10,
+  },
+  pair: { flexDirection: 'row', gap: 10 },
+  pairWide: { flex: 1.15, gap: 10 },
+  pairHalf: { flex: 1, gap: 10 },
   chip: { borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 14 },
-  sheetActions: { gap: 10, marginTop: 10 },
+  sheetActions: { gap: 10 },
   deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
   deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.error },
+  discRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46 },
+  discName: { flex: 1, minWidth: 0, color: RivalColors.textPrimary, fontSize: 15, fontWeight: '500', paddingVertical: 8, backgroundColor: 'transparent', borderWidth: 0 },
+  discKm: { width: 64, color: RivalColors.textPrimary, fontSize: 15, fontWeight: '500', textAlign: 'right', paddingVertical: 8, backgroundColor: 'transparent', borderWidth: 0 },
+  discAdd: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
+  discAddText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
 });

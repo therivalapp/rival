@@ -97,9 +97,16 @@ type ActivityRow = {
   started_at: string;
 };
 
+// Goal dates are plain days (YYYY-MM-DD). new Date('2026-09-30') reads them
+// as midnight UTC, which is the wrong day away from UTC, so read them as
+// local midnight instead.
+export function localDay(ymd: string): Date {
+  return new Date(`${ymd.slice(0, 10)}T00:00:00`);
+}
+
 export function computeGoalProgress(goal: GoalRow, activities: ActivityRow[]): number {
-  const start = new Date(goal.start_date);
-  const end = new Date(goal.end_date);
+  const start = localDay(goal.start_date);
+  const end = localDay(goal.end_date);
   end.setHours(23, 59, 59, 999);
 
   let relevant = activities.filter((a) => {
@@ -135,8 +142,8 @@ export function goalTitle(goal: GoalRow): string {
 /** The activities that counted toward a goal, newest first, each with the
  *  amount it added (km, metres, or 1 for a gym activity). */
 export function goalContributions(goal: GoalRow, activities: ActivityRow[]): { startedAt: string; amount: number }[] {
-  const start = new Date(goal.start_date);
-  const end = new Date(goal.end_date);
+  const start = localDay(goal.start_date);
+  const end = localDay(goal.end_date);
   end.setHours(23, 59, 59, 999);
   return activities
     .filter((a) => {

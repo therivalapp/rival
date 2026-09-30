@@ -1,13 +1,13 @@
 import { useSnapState } from '../lib/snapState';
 import { LB_PER_KG, toDisplayWeight, weightUnit } from '../lib/units';
 import { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, ImageBackground, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, ImageBackground, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { notify } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
-import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm } from '../components/rival';
+import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm, rb, GreyPageHead, GreySheet, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
@@ -196,6 +196,157 @@ export default function LiftsScreen() {
     ...cards.filter(c => c.history.length > 0),
     ...cards.filter(c => c.history.length === 0 && MAJOR_LIFTS.includes(c.name)),
   ];
+
+  // Phone: the blend. No photo; the PB is the hero, the lifts are tiles
+  // with their bests (not a list), and logging opens the grey pop-up.
+  if (!wide) {
+    const tiles = [...chips];
+    return (
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+        <RivalTopNav active="activity" />
+        <ScrollView contentContainerStyle={[rb.content, { paddingBottom: 120 }]}>
+          <GreyPageHead kicker="LIFTS" title="Personal bests" onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} />
+
+          {loading && <Text style={pb.muted}>Loading…</Text>}
+
+          {!loading && active && (
+            <View style={[rb.card, pb.hero]}>
+              <View style={pb.glow} pointerEvents="none" />
+              <Text style={pb.focus}>{active.name}</Text>
+              {hasEntries ? (
+                <>
+                  <View style={pb.pbRow}>
+                    <Text style={pb.pbValue}>{active.pb}</Text>
+                    <Text style={pb.pbUnit}>{weightUnit()}</Text>
+                  </View>
+                  {prDate(active.history, active.pb) ? <Text style={pb.muted}>Best set on {prDate(active.history, active.pb)}</Text> : null}
+                  {progress !== null && active.goal !== null ? (
+                    <View style={pb.goalBlock}>
+                      <View style={pb.goalHead}>
+                        <Text style={rb.label}>Goal {active.goal} {weightUnit()}</Text>
+                        <Text style={pb.goalPct}>{Math.round(progress * 100)}%</Text>
+                      </View>
+                      <View style={rb.bar}>
+                        <View style={[rb.barFill, { width: `${Math.max(2, progress * 100)}%` as any }]} />
+                      </View>
+                      {milestones.length > 0 ? (
+                        <View style={pb.checkRow}>
+                          {milestones.map((m) => (
+                            <View key={m} style={[pb.check, active.pb >= m && pb.checkOn]}>
+                              <RivalIcon name="check" size={11} color={active.pb >= m ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.4)'} />
+                              <Text style={[pb.checkText, active.pb >= m && { color: RivalColors.surfaceLowest }]}>{m}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  <View style={pb.stats}>
+                    <View style={pb.stat}>
+                      <Text style={pb.statValue}>{lastEntry!.weight_kg}</Text>
+                      <Text style={pb.statLabel}>Last</Text>
+                      {trendPct !== null ? <Text style={[pb.trend, { color: trendPct >= 0 ? RivalColors.success : RivalColors.textSecondary }]}>{trendPct >= 0 ? '+' : ''}{trendPct.toFixed(1)}%</Text> : null}
+                    </View>
+                    <View style={pb.statRule} />
+                    <View style={pb.stat}>
+                      <Text style={pb.statValue}>{active.history.length}</Text>
+                      <Text style={pb.statLabel}>Logged</Text>
+                    </View>
+                    <View style={pb.statRule} />
+                    <View style={pb.stat}>
+                      <Text style={pb.statValue}>{fmtVolume(totalVolume)}</Text>
+                      <Text style={pb.statLabel}>Volume</Text>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <Text style={pb.empty}>No best logged yet. Log a first {active.name.toLowerCase()} to start the record.</Text>
+              )}
+              <View style={pb.actions}>
+                <TouchableOpacity style={[pb.primary, { flex: 1 }]} onPress={() => openLogModal(active.name)} activeOpacity={0.85}>
+                  <Text style={pb.primaryText}>Log lift</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[pb.ghost, { flex: 1 }]} onPress={() => openGoalModal(active.name, active.goal, active.pb)} activeOpacity={0.85}>
+                  <Text style={pb.ghostText}>{active.goal ? 'Edit goal' : 'Set goal'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {!loading && (
+            <>
+              <Text style={rb.section}>Lifts</Text>
+              <View style={pb.grid}>
+                {tiles.map((c) => {
+                  const on = c.name === focused;
+                  const has = c.history.length > 0;
+                  return (
+                    <TouchableOpacity key={c.name} style={[pb.tile, on && pb.tileOn]} onPress={() => setFocused(c.name)} activeOpacity={0.85}>
+                      <Text style={[pb.tileValue, !has && pb.tileValueEmpty]}>{has ? c.pb : '–'}</Text>
+                      <Text style={pb.tileName} numberOfLines={2}>{c.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity style={[pb.tile, pb.tileAdd]} onPress={() => openLogModal('Other')} activeOpacity={0.85}>
+                  <RivalIcon name="add" size={20} color={RivalColors.accentText} />
+                  <Text style={[pb.tileName, { color: RivalColors.accentText }]}>Another lift</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </ScrollView>
+
+        <Modal visible={!!logModalFor} transparent animationType="slide" onRequestClose={() => setLogModalFor(null)}>
+          <View style={pb.backdrop}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setLogModalFor(null)} accessibilityLabel="Close" />
+            <GreySheet
+              kicker="PERSONAL BESTS"
+              title={`Log ${logModalFor === 'Other' ? 'a lift' : (logModalFor ?? '').toLowerCase()}`}
+              onClose={() => setLogModalFor(null)}
+              footer={<GreyPrimary label={saving ? 'Saving…' : 'Save lift'} busy={saving} disabled={saving || !parseFloat(logWeight)} onPress={saveLog} />}
+            >
+              <GreyRows>
+                {logModalFor === 'Other' ? (
+                  <GreyRow icon="workout" label="Exercise">
+                    <GreyRowInput value={customName} onChangeText={setCustomName} placeholder="Name" />
+                  </GreyRow>
+                ) : null}
+                <GreyRow icon="workout" label="Weight">
+                  <GreyRowInput value={logWeight} onChangeText={setLogWeight} placeholder={weightUnit()} keyboardType="decimal-pad" autoFocus />
+                </GreyRow>
+                <GreyRow icon="refresh" label="Reps">
+                  <GreyRowInput value={logReps} onChangeText={setLogReps} placeholder="Optional" keyboardType="number-pad" />
+                </GreyRow>
+              </GreyRows>
+              {(() => {
+                const card = cards.find((c) => c.name === logModalFor);
+                return card && card.pb > 0 ? <GreyNote>Current best: {card.pb} {weightUnit()}</GreyNote> : null;
+              })()}
+            </GreySheet>
+          </View>
+        </Modal>
+
+        <Modal visible={!!goalModalFor} transparent animationType="slide" onRequestClose={() => setGoalModalFor(null)}>
+          <View style={pb.backdrop}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setGoalModalFor(null)} accessibilityLabel="Close" />
+            <GreySheet
+              kicker="PERSONAL BESTS"
+              title={`Goal for ${(goalModalFor ?? '').toLowerCase()}`}
+              onClose={() => setGoalModalFor(null)}
+              footer={<GreyPrimary label={savingGoal ? 'Saving…' : 'Save goal'} busy={savingGoal} disabled={savingGoal || !parseFloat(goalWeight)} onPress={saveGoal} />}
+            >
+              <GreyRows>
+                <GreyRow icon="target" label="Target">
+                  <GreyRowInput value={goalWeight} onChangeText={setGoalWeight} placeholder={weightUnit()} keyboardType="decimal-pad" autoFocus />
+                </GreyRow>
+              </GreyRows>
+              {goalModalCurrentPb > 0 ? <GreyNote>Current best: {goalModalCurrentPb} {weightUnit()}. Progress is measured from here.</GreyNote> : null}
+            </GreySheet>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -538,4 +689,56 @@ const ms = StyleSheet.create({
   modalBox: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22, gap: 10 },
   modalTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', marginBottom: 4 },
   modalInput: { marginBottom: 0 },
+});
+
+// Phone: the blend.
+const pb = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  muted: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center' },
+  hero: { alignItems: 'center', paddingVertical: 20, gap: 6, overflow: 'hidden' },
+  glow: {
+    position: 'absolute', top: -60, left: 0, right: 0, height: 200,
+    ...(Platform.OS === 'web'
+      ? { backgroundImage: 'radial-gradient(ellipse 70% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.06) 45%, rgba(217,119,87,0) 100%)' }
+      : { backgroundColor: 'rgba(217,119,87,0.05)' }),
+  } as any,
+  focus: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: RivalColors.accentText },
+  pbRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  pbValue: {
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 76, lineHeight: 84, color: '#fff',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : {}),
+  } as any,
+  pbUnit: { fontSize: 16, fontWeight: '800', color: RivalColors.textSecondary },
+  goalBlock: { alignSelf: 'stretch', gap: 8, marginTop: 10 },
+  goalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  goalPct: { fontSize: 12.5, fontWeight: '800', color: RivalColors.accentText },
+  checkRow: { flexDirection: 'row', gap: 6, justifyContent: 'center' },
+  check: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)' },
+  checkOn: {
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  checkText: { fontSize: 11.5, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+  stats: { flexDirection: 'row', alignSelf: 'stretch', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
+  stat: { flex: 1, alignItems: 'center', gap: 2 },
+  statRule: { width: 1, backgroundColor: 'rgba(50,50,50,0.8)' },
+  statValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff' },
+  statLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  trend: { fontSize: 11, fontWeight: '700' },
+  empty: { fontSize: 13.5, lineHeight: 19, color: RivalColors.textSecondary, textAlign: 'center', paddingHorizontal: 12, marginVertical: 8 },
+  actions: { flexDirection: 'row', gap: 8, alignSelf: 'stretch', marginTop: 12 },
+  primary: { paddingVertical: 12, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  primaryText: { fontSize: 14.5, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  ghost: { paddingVertical: 12, borderRadius: 999, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)' },
+  ghostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tile: {
+    width: '31.9%', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 12, paddingHorizontal: 4, minHeight: 78,
+    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+  } as any,
+  tileOn: { borderColor: 'rgba(255,181,158,0.6)', backgroundColor: 'rgba(217,119,87,0.10)' },
+  tileAdd: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
+  tileValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, color: '#fff' },
+  tileValueEmpty: { color: 'rgba(255,255,255,0.3)' },
+  tileName: { fontSize: 11, lineHeight: 14, fontWeight: '700', color: RivalColors.textSecondary, textAlign: 'center' },
 });

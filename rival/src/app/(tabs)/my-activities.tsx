@@ -12,10 +12,12 @@ import { formatDuration, formatDurationClock } from '../../lib/format';
 import { calculateStreak } from '../../lib/streak';
 import { displayToIsoDate, isoToDisplayDate } from '../../lib/dateFormat';
 import { fetchAllActivities } from '../../lib/fetchAllActivities';
+import { QUOTES, hashStr } from '../../lib/quotes';
+import { getMyTeamIds } from '../../lib/myTeams';
 import { computeActivityInsight, InsightTone } from '../../lib/activityInsights';
 import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../../lib/effort';
 import { rm } from '../../components/rival/RivalMobile';
-import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage } from '../../components/rival';
+import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage, RivalStartTiles } from '../../components/rival';
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaRow } from '../../lib/activityMedia';
 import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
@@ -152,6 +154,36 @@ function formatWeekRangeCompact(weekStart: number) {
 // `activities`, always including the current month even when it has no
 // activities yet, ascending (oldest first) so "previous month" sits to the
 // left of the current one in the swipeable pager.
+// The week's Effort counting up from 0 when the page opens. Counts once per
+// mount; a later refresh shows the new figure straight away.
+function CountUpNumber({ value, style }: { value: number; style: any }) {
+  const [shown, setShown] = useState(Platform.OS === 'web' ? 0 : value);
+  const done = useRef(Platform.OS !== 'web');
+  useEffect(() => {
+    if (done.current) { setShown(value); return; }
+    // Nothing loaded yet: wait for the real figure rather than "counting" to 0.
+    if (value === 0) { setShown(0); return; }
+    const start = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const p = Math.min(1, (performance.now() - start) / 1200);
+      setShown(value * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else done.current = true;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  const decimals = Number.isInteger(value) ? 0 : 1;
+  return <Text style={style}>{shown.toFixed(decimals)}</Text>;
+}
+
+// Activity cards rise in one after another (web; keyframes in global.css).
+const cardIn = (i: number): any => (Platform.OS === 'web' ? {
+  animationName: 'rivalRowIn', animationDuration: '450ms', animationTimingFunction: 'ease-out',
+  animationDelay: `${150 + Math.min(i, 8) * 60}ms`, animationFillMode: 'both',
+} : null);
+
 function computeMonthGroups(activities: Activity[]): MonthGroup[] {
   const keys = new Set<string>();
   const now = new Date();
@@ -285,6 +317,11 @@ export default function MyActivitiesScreen() {
   const [pbs, setPbs] = useSnapState<Record<string, string>>('journal.pbs', {});
   const [loading, setLoading] = useSnapState('journal.loading', true);
   const [userId, setUserId] = useSnapState('journal.userId', '');
+  // Training toward: the next event you're entered in, beside Personal bests.
+  // First visit (no activities yet): which getting-started steps are done.
+  const [hasTeam, setHasTeam] = useSnapState('journal.hasTeam', false);
+  const [hasFocus, setHasFocus] = useSnapState('journal.hasFocus', false);
+  const [nextEvent, setNextEvent] = useSnapState<{ name: string; race_date: string; location: string | null } | null>('journal.nextEvent', null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadErrorActivityId, setUploadErrorActivityId] = useState<string | null>(null);
@@ -382,7 +419,10 @@ export default function MyActivitiesScreen() {
   const [calGridWidth, setCalGridWidth] = useState(0);
   const calCellSize = calGridWidth > 0 ? (calGridWidth - 24 - 6 * 6) / 7 : 0;
 
+  // Bumped on every visit; keys the week's Effort so it counts up each time.
+  const [journalVisit, setJournalVisit] = useState(0);
   useFocusEffect(useCallback(() => {
+    setJournalVisit((v) => v + 1);
     loadActivities();
   }, []));
 
@@ -394,6 +434,13 @@ export default function MyActivitiesScreen() {
     }
     if (!user) { setLoading(false); return; }
     setUserId(user.id);
+    const todayIso = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+    getMyTeamIds(user.id).then((ids) => setHasTeam(ids.length > 0)).catch(() => {});
+    supabase.from('goals').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('end_date', todayIso)
+      .then(({ count }) => setHasFocus((count ?? 0) > 0));
+    supabase.from('races').select('name, race_date, location').eq('user_id', user.id)
+      .gte('race_date', todayIso).order('race_date', { ascending: true }).limit(1).maybeSingle()
+      .then(({ data }) => setNextEvent(data ?? null));
 
     // The whole history, not a slice. This page groups activities into weekly,
     // month and year views entirely client-side, so anything not fetched simply
@@ -587,6 +634,78 @@ export default function MyActivitiesScreen() {
       race_id: a.race_id,
       isPb: !!pbs[a.id],
     };
+  }
+
+  // First visit: bring past training in from a device (the fastest way to a
+  // full page), or add one by scan or by hand; then a three-step list.
+  function renderFirstVisit() {
+    const steps = [
+      { key: 'first', title: 'Add the first activity', sub: 'Connect a device, scan or type it in', done: false, onPress: () => router.push('/add-workout') },
+      { key: 'team', title: 'Join a team', sub: 'Train alongside friends', done: hasTeam, onPress: () => router.push('/discover-leagues') },
+      { key: 'focus', title: 'Set a focus', sub: 'One goal for the next 4 weeks', done: hasFocus, onPress: () => router.push({ pathname: '/goals', params: { add: 'true' } }) },
+    ];
+    const doneCount = steps.filter((st) => st.done).length;
+    return (
+      <View style={styles.fvWrap}>
+        <View style={styles.fvHero}>
+          {Platform.OS === 'web' && <View pointerEvents="none" style={styles.fvHeroGlow} />}
+          <Text style={styles.fvTitle}>Past training counts.</Text>
+          <Text style={styles.fvSub}>Connect a device to import it, with Effort.</Text>
+          <View style={styles.fvStats}>
+            {['Effort', 'Activities', 'Hours'].map((l) => (
+              <View key={l} style={styles.fvStat}>
+                <Text style={styles.fvStatNum}>–</Text>
+                <Text style={styles.fvStatLabel}>{l.toUpperCase()}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.fvCta} activeOpacity={0.85} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
+            <Text style={styles.fvCtaText}>Connect a device</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.fvOr}>
+          <View style={styles.fvOrLine} /><Text style={styles.fvOrText}>OR</Text><View style={styles.fvOrLine} />
+        </View>
+        <View style={styles.fvTiles}>
+          {[
+            { key: 'scan', icon: 'camera' as const, label: 'Scan workout', to: '/scan-workout' },
+            { key: 'manual', icon: 'manual' as const, label: 'Manual entry', to: '/manual-entry' },
+          ].map((t) => (
+            <TouchableOpacity key={t.key} style={styles.fvTile} activeOpacity={0.85} onPress={() => router.push(t.to as any)}>
+              <View style={styles.fvBadge}><RivalIcon name={t.icon} size={17} color="#1a0d08" /></View>
+              <Text style={styles.fvTileText}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.fvListTitle}>Getting started</Text>
+        <View style={styles.fvBar}><View style={[styles.fvBarFill, { width: `${(doneCount / steps.length) * 100}%` as any }]} /></View>
+        <Text style={styles.fvCount}>{doneCount} of {steps.length} done</Text>
+        <View style={styles.fvSteps}>
+          {steps.map((st, i) => (
+            <TouchableOpacity
+              key={st.key}
+              style={[styles.fvStep, i > 0 && styles.fvStepBorder]}
+              activeOpacity={0.8}
+              onPress={st.done ? undefined : st.onPress}
+              disabled={st.done}
+            >
+              <View style={[styles.fvNum, st.done && styles.fvNumDone]}>
+                {st.done
+                  ? <RivalIcon name="check" size={15} color="#1a0d08" />
+                  : <Text style={styles.fvNumText}>{i + 1}</Text>}
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.fvStepTitle, st.done && styles.fvStepTitleDone]}>{st.title}</Text>
+                <Text style={styles.fvStepSub}>{st.done ? 'Done' : st.sub}</Text>
+              </View>
+              {!st.done && <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
   }
 
   function openDiary(flatActivities: Activity[], activityId: string) {
@@ -799,6 +918,28 @@ export default function MyActivitiesScreen() {
   // Empty-week comparison — shown in place of the (otherwise nonexistent)
   // grid when this week has no activities yet, so Monday reads as a fresh
   // scoreboard rather than a broken/blank page.
+  // Empty week (option C): a line for the new week, then the most recent
+  // activities, faded. Last week's if there were any; otherwise the last
+  // three whenever they were, so a quiet stretch still shows the rhythm.
+  const weekQuote = (() => {
+    const pool = QUOTES.filter((q) => q.category === 'consistency' || q.category === 'longterm' || q.category === 'progress');
+    const src = pool.length ? pool : QUOTES;
+    return src[hashStr(String(currentWeekStartForHero)) % src.length];
+  })();
+  const lastWeekActs = allActivities.filter((a) => {
+    const t = new Date(a.started_at).getTime();
+    return t >= currentWeekStartForHero - oneWeekMs && t < currentWeekStartForHero;
+  });
+  const recentActs = (lastWeekActs.length > 0
+    ? lastWeekActs
+    : allActivities.filter((a) => new Date(a.started_at).getTime() < currentWeekStartForHero)
+  ).slice().sort((a, b) => b.started_at.localeCompare(a.started_at)).slice(0, 3);
+  const recentLabel = lastWeekActs.length > 0
+    ? `Last week · ${Math.round(lastWk.effort).toLocaleString()} Effort`
+    : recentActs.length > 0
+      ? `Last active · ${new Date(recentActs[0].started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+      : null;
+
   const emptyWeekLine = lastWk.count > 0
     ? `Last week: ${Math.round(lastWk.effort)} Effort across ${lastWk.count} ${lastWk.count === 1 ? 'activity' : 'activities'}.`
     : 'Every week is a fresh start.';
@@ -899,12 +1040,25 @@ export default function MyActivitiesScreen() {
   // Title — rendered as leading content INSIDE each layout's own scrollable
   // region (rather than fixed above it) so the whole page, title included,
   // scrolls as one continuous unit under the true top nav.
+  // Page title in the Today style: white serif, one plain line under it.
   const journalTitle = (
-    <View style={styles.jTitleBlock}>
-      <Text style={styles.jTitle}>Activity Journal</Text>
-      <Text style={styles.jSubtitle}>Every Effort Tells A Story</Text>
+    <View style={styles.jTitleBlockB}>
+      <Text style={styles.jTitleB}>Activity</Text>
+      <View style={styles.jSubtitleRow}>
+        <View style={styles.jSubtitleRule} />
+        <Text style={styles.jSubtitleB}>Every effort tells a story</Text>
+        <View style={styles.jSubtitleRule} />
+      </View>
     </View>
   );
+
+  // This week's days with an activity (Monday = 0), for the dots in the week card.
+  const weekDaysDone = new Set(
+    allActivities
+      .filter((a) => getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
+      .map((a) => (new Date(a.started_at).getDay() + 6) % 7),
+  );
+  const todayIdx = (new Date().getDay() + 6) % 7;
 
   // 3-way layout switch (Rows/Week/Month) — sits directly below the stat
   // card (tight, via negative margin, matching the filterBarTight pattern
@@ -937,11 +1091,27 @@ export default function MyActivitiesScreen() {
 
   return (
     <View style={styles.root}>
-      <RivalFixedBackground
-        source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
-        focalPoint="50% 42%"
-      />
-      <View style={styles.scrim} />
+      {/* Phones: the photo only behind the top of the page, darkened and
+          fading into the page colour before the cards (Ricky's pick, option A,
+          2026-09-28). Desktop keeps the full-page photo. */}
+      {mobileNav ? (
+        <View pointerEvents="none" style={styles.photoBand}>
+          <Image
+            source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          <View style={[StyleSheet.absoluteFill, styles.photoBandFade]} />
+        </View>
+      ) : (
+        <>
+          <RivalFixedBackground
+            source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
+            focalPoint="50% 42%"
+          />
+          <View style={styles.scrim} />
+        </>
+      )}
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         {/* Today's mobile screen has no photo at all behind its top nav (flat
             #131313), so its translucent bar reads as solid dark. This screen's
@@ -1007,7 +1177,7 @@ export default function MyActivitiesScreen() {
                       <Text style={rm.primaryText}>Add activity</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[rm.ghost, styles.firstEmptyBtn]} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
-                      <Text style={rm.ghostText}>Connect Strava</Text>
+                      <Text style={rm.ghostText}>Connect a device</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -1021,6 +1191,20 @@ export default function MyActivitiesScreen() {
                 return <View key={group.weekStart} style={{ height: pagerHeight || 600 }} />;
               }
               const isCurrentWeek = group.weekStart === currentWeekStartForHero;
+              // Nothing logged yet: the first-visit page instead of an empty week.
+              if (isCurrentWeek && allActivities.length === 0) {
+                return (
+                  <ScrollView
+                    key={group.weekStart}
+                    style={pagerHeight ? { height: pagerHeight } : undefined}
+                    contentContainerStyle={styles.jWeekPage}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {journalTitle}
+                    {renderFirstVisit()}
+                  </ScrollView>
+                );
+              }
               return (
                 <ScrollView
                   key={group.weekStart}
@@ -1031,22 +1215,44 @@ export default function MyActivitiesScreen() {
                   {isCurrentWeek ? (
                     <>
                       {journalTitle}
+                      {/* What isn't set up yet, as tiles at the top. */}
+                      {SHOW_TRAINING_TOWARD && (
+                      <View style={styles.startWrap}>
+                        <RivalStartTiles
+                          tiles={[
+                            ...(!nextEvent ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => router.push('/races?add=true') }] : []),
+                          ]}
+                        />
+                      </View>
+                      )}
                       {/* Hero recap card — "This Week", 3-stat grid, quote. Matches the
                           mockup's .recap-card exactly. */}
-                      <View style={[styles.recapCard, !heroExpanded && styles.recapCardCollapsed]}>
-                        <TouchableOpacity style={styles.recapTitleRow} activeOpacity={0.7} onPress={() => setHeroExpanded((v) => !v)}>
-                          <View>
-                            <Text style={styles.recapTitle}>This Week</Text>
-                            <Text style={styles.jWeekDateRange}>{formatWeekRangeCompact(currentWeekStartForHero)}</Text>
+                      {/* This week: title and Effort on one row, a dot per day
+                          underneath. Tap it for the details (time, distance,
+                          filters). Add activity sits straight under the card. */}
+                      <View style={styles.weekHero}>
+                        {Platform.OS === 'web' && <View pointerEvents="none" style={styles.weekHeroEdge} />}
+                        <TouchableOpacity style={styles.weekHeroRow} activeOpacity={0.7} onPress={() => setHeroExpanded((v) => !v)}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.weekHeroTitle}>This week</Text>
+                            <Text style={styles.weekHeroSub}>
+                              {formatWeekRangeCompact(currentWeekStartForHero)} · {thisWeekCount === 1 ? '1 activity' : `${thisWeekCount} activities`}
+                            </Text>
                           </View>
-                          <View style={styles.recapEffortInline}>
-                            <View style={styles.recapEffortNumCol}>
-                              <Text style={styles.recapEffortNum}>{thisWeekTotal}</Text>
-                              <Text style={styles.recapEffortLabel}>Effort</Text>
-                            </View>
-                            <RivalIcon name="chevronDown" size={16} color={RivalColors.textSecondary} style={heroExpanded ? styles.recapChevronOpen : undefined} />
+                          <View style={styles.weekHeroEffort}>
+                            <CountUpNumber key={journalVisit} value={thisWeekTotal} style={styles.weekHeroNum} />
+                            <Text style={styles.weekHeroLabel}>Effort</Text>
                           </View>
+                          <RivalIcon name="chevronDown" size={16} color={RivalColors.textSecondary} style={heroExpanded ? styles.recapChevronOpen : undefined} />
                         </TouchableOpacity>
+                        <View style={styles.weekDots}>
+                          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                            <View key={i} style={styles.weekDotCol}>
+                              <View style={[styles.weekDot, weekDaysDone.has(i) ? styles.weekDotOn : i === todayIdx ? styles.weekDotToday : null]} />
+                              <Text style={styles.weekDotLabel}>{d}</Text>
+                            </View>
+                          ))}
+                        </View>
                         {heroExpanded && (
                         <>
                         <View style={styles.recapStatgrid}>
@@ -1109,6 +1315,60 @@ export default function MyActivitiesScreen() {
                         </>
                         )}
                       </View>
+                      <TouchableOpacity style={styles.weekHeroAdd} activeOpacity={0.85} onPress={() => router.push('/add-workout')}>
+                        <RivalIcon name="add" size={18} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
+                        <Text style={styles.weekHeroAddText}>Add activity</Text>
+                      </TouchableOpacity>
+                      {/* Training toward: the next event (or Add event), then
+                          Personal bests. Your own goals-to-come, kept off Today. */}
+                      {SHOW_TRAINING_TOWARD && <>
+                      <Text style={styles.towardLabel}>{nextEvent ? 'Training toward' : 'Records'}</Text>
+                      <View style={styles.towardCard}>
+                        {nextEvent && (
+                        <>
+                        <TouchableOpacity
+                          style={styles.towardRow}
+                          activeOpacity={0.8}
+                          onPress={() => router.push(nextEvent ? '/races' : '/races?add=true')}
+                        >
+                          <View style={[styles.towardBadge, !nextEvent && styles.towardBadgeQuiet]}>
+                            <RivalIcon name="flag" size={16} color={nextEvent ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
+                          </View>
+                          <View style={styles.towardText}>
+                            <Text style={styles.towardTitle} numberOfLines={1}>{nextEvent ? nextEvent.name : 'No event scheduled'}</Text>
+                            <Text style={styles.towardSub} numberOfLines={1}>
+                              {nextEvent
+                                ? `${new Date(nextEvent.race_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${nextEvent.location ? ` · ${nextEvent.location}` : ''}`
+                                : 'A race or competition to train for'}
+                            </Text>
+                          </View>
+                          {nextEvent ? (() => {
+                            const days = Math.max(0, Math.round((new Date(nextEvent.race_date + 'T00:00:00').getTime() - new Date(new Date().toDateString()).getTime()) / 86400000));
+                            return (
+                              <View style={styles.towardDays}>
+                                <Text style={styles.towardDaysNum}>{days === 0 ? 'Today' : days}</Text>
+                                {days > 0 && <Text style={styles.towardDaysLabel}>{days === 1 ? 'DAY' : 'DAYS'}</Text>}
+                              </View>
+                            );
+                          })() : (
+                            <Text style={styles.towardAdd}>Add event</Text>
+                          )}
+                        </TouchableOpacity>
+                        <View style={styles.towardDivider} />
+                        </>
+                        )}
+                        <TouchableOpacity style={styles.towardRow} activeOpacity={0.8} onPress={() => router.push('/lifts')}>
+                          <View style={[styles.towardBadge, styles.towardBadgeQuiet]}>
+                            <RivalIcon name="trophy" size={16} color="rgba(255,255,255,0.6)" />
+                          </View>
+                          <View style={styles.towardText}>
+                            <Text style={styles.towardTitle}>Personal bests</Text>
+                            <Text style={styles.towardSub}>Lifts and best times</Text>
+                          </View>
+                          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+                        </TouchableOpacity>
+                      </View>
+                      </>}
                       {renderJournalToggle(false)}
 
                       {(filterType !== 'All' || prOnly || dateFilter || showTypeFilter) && (
@@ -1163,11 +1423,11 @@ export default function MyActivitiesScreen() {
                                   style={[styles.typeFilterChip, !!dateFilter && styles.typeFilterChipActive]}
                                   onPress={() => {
                                     if (Platform.OS !== 'web') return;
-                                    const input = window.prompt('Search by date (YYYY-MM-DD)', dateFilter ? isoToDisplayDate(dateFilter) : '');
+                                    const input = window.prompt('Search by date (DD/MM/YYYY)', dateFilter ? isoToDisplayDate(dateFilter) : '');
                                     if (input === null) return;
                                     if (input.trim() === '') { setDateFilter(null); setShowTypeFilter(false); return; }
                                     const iso = displayToIsoDate(input);
-                                    if (!iso) { window.alert('Enter a valid date as YYYY-MM-DD.'); return; }
+                                    if (!iso) { window.alert('Enter a valid date as DD/MM/YYYY.'); return; }
                                     setDateFilter(iso);
                                     setShowTypeFilter(false);
                                   }}
@@ -1197,7 +1457,7 @@ export default function MyActivitiesScreen() {
                               <View key={pb.id} style={styles.monthlyPbEntry}>
                                 <Text style={styles.monthlyPbName} numberOfLines={1}>{pb.title}</Text>
                                 <View style={styles.monthlyPbValueRow}>
-                                  <Text style={styles.monthlyPbValue}>{pb.value}</Text>
+                                  <Text style={[styles.monthlyPbValue, styles.monthlyPbValueSerif]}>{pb.value}</Text>
                                   {!!pb.unit && <Text style={styles.monthlyPbUnit}>{pb.unit}</Text>}
                                 </View>
                               </View>
@@ -1223,23 +1483,42 @@ export default function MyActivitiesScreen() {
                       // read as broken. Show a real comparison to last week
                       // instead so the page still feels alive.
                       <View style={styles.jWeekEmptyWrap}>
-                        <View style={styles.jWeekEmptyCard}>
-                          <RivalIcon name="pulse" size={20} color={RivalColors.accentFill} />
-                          <Text style={styles.jWeekEmptyTitle}>No activities this week.</Text>
-                          <Text style={styles.jWeekEmptySub}>{emptyWeekLine}</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.jAddCard}
-                          activeOpacity={0.7}
-                          onPress={() => router.push('/add-workout')}
-                        >
-                          <RivalIcon name="add" size={22} color="rgba(255,255,255,0.6)" style={{ marginTop: -15 }} />
-                          <Text style={styles.jAddCardText}>Activity</Text>
-                        </TouchableOpacity>
+                        {SHOW_WEEK_QUOTE && (
+                          <>
+                            <Text style={styles.nwKicker}>A new week</Text>
+                            <Text style={styles.nwQuote}>{`\u201C${weekQuote.text}\u201D`}</Text>
+                          </>
+                        )}
+                        {recentLabel ? (
+                          <>
+                            <Text style={styles.nwLabel}>{recentLabel}</Text>
+                            <View style={styles.nwList}>
+                              {recentActs.map((a) => {
+                                const dist = formatDistance(a.distance_meters, a.activity_type);
+                                return (
+                                  <TouchableOpacity key={a.id} style={styles.nwRow} activeOpacity={0.8} onPress={() => openDiary(recentActs, a.id)}>
+                                    <View style={styles.nwTile}>
+                                      <RivalIcon name={activityIconName(a.activity_type)} size={18} color="#1a1411" />
+                                    </View>
+                                    <View style={styles.nwText}>
+                                      <Text style={styles.nwName} numberOfLines={1}>{a.name || a.activity_type}</Text>
+                                      <Text style={styles.nwMeta} numberOfLines={1}>
+                                        {new Date(a.started_at).toLocaleDateString(undefined, { weekday: 'short' })}{dist ? ` · ${dist}` : ''}
+                                      </Text>
+                                    </View>
+                                    <Text style={styles.nwEffort}>{Math.round(a.effort_score || 0)}</Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </>
+                        ) : (
+                          <Text style={styles.jWeekEmptySub}>Every activity you add or sync appears here, week by week.</Text>
+                        )}
                       </View>
                     ) : (
                     <View style={styles.jGrid}>
-                      {group.activities.map((activity) => {
+                      {group.activities.map((activity, ci) => {
                         const pbLabel = pbs[activity.id];
                         const badgeKind: 'pb' | 'race' | null = pbLabel ? 'pb' : activity.race_id ? 'race' : null;
                         const ringColor = badgeKind === 'pb' ? RivalColors.rankAnchors.unrivaled : badgeKind === 'race' ? '#ff5c5c' : 'transparent';
@@ -1248,7 +1527,7 @@ export default function MyActivitiesScreen() {
                         return (
                           <TouchableOpacity
                             key={activity.id}
-                            style={styles.jGridCard}
+                            style={[styles.jGridCard, cardIn(ci)]}
                             activeOpacity={0.85}
                             onPress={() => openDiary(flatOrdered, activity.id)}
                           >
@@ -1287,7 +1566,8 @@ export default function MyActivitiesScreen() {
                           </TouchableOpacity>
                         );
                       })}
-                      {isCurrentWeek && (
+                      {false && isCurrentWeek && (
+                        // Replaced by the Add activity pill in the week card; kept.
                         // Wrapped in a full grid-column slot (matches jGridCard's
                         // flexBasis) so it lands in whichever column the wrap
                         // naturally puts it — e.g. under the 2nd card when a lone
@@ -1457,11 +1737,11 @@ export default function MyActivitiesScreen() {
                         style={[styles.typeFilterChip, !!dateFilter && styles.typeFilterChipActive]}
                         onPress={() => {
                           if (Platform.OS !== 'web') return;
-                          const input = window.prompt('Search by date (YYYY-MM-DD)', dateFilter ? isoToDisplayDate(dateFilter) : '');
+                          const input = window.prompt('Search by date (DD/MM/YYYY)', dateFilter ? isoToDisplayDate(dateFilter) : '');
                           if (input === null) return;
                           if (input.trim() === '') { setDateFilter(null); setShowTypeFilter(false); return; }
                           const iso = displayToIsoDate(input);
-                          if (!iso) { window.alert('Enter a valid date as YYYY-MM-DD.'); return; }
+                          if (!iso) { window.alert('Enter a valid date as DD/MM/YYYY.'); return; }
                           setDateFilter(iso);
                           setShowTypeFilter(false);
                         }}
@@ -2184,10 +2464,81 @@ export default function MyActivitiesScreen() {
   );
 }
 
+// Activity tab "Training toward" card (next event + Personal bests) and its
+// start tiles. Off (Ricky, 2026-09-30): the page is back to how it was.
+const SHOW_TRAINING_TOWARD = false;
+// The weekly line above an empty week's recent activities. Off (Ricky, 2026-09-30).
+const SHOW_WEEK_QUOTE = false;
+
 const styles = StyleSheet.create({
+  startWrap: { marginTop: 4, marginBottom: 12 },
+  towardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, textTransform: 'uppercase', marginTop: 16, marginBottom: 8, marginLeft: 2 },
+  towardCard: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12, marginBottom: 6 },
+  towardRow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 58 },
+  towardDivider: { height: 1, backgroundColor: RivalColors.surfaceBright, opacity: 0.6 },
+  towardBadge: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  towardBadgeQuiet: { backgroundColor: 'rgba(255,255,255,0.06)', ...(Platform.OS === 'web' ? { backgroundImage: 'none' } : {}) } as any,
+  towardText: { flex: 1, minWidth: 0, gap: 2 },
+  towardTitle: { fontSize: 14.5, fontWeight: '600', color: '#fff' },
+  towardSub: { fontSize: 12, color: RivalColors.textSecondary },
+  towardDays: { alignItems: 'flex-end' },
+  towardDaysNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, color: RivalColors.accentText, lineHeight: 23 },
+  towardDaysLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  towardAdd: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   firstEmpty: { alignItems: 'center', marginTop: 24, paddingVertical: 24 },
   firstEmptyBtn: { alignSelf: 'stretch' },
   root: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  photoBand: { position: 'absolute', top: 0, left: 0, right: 0, height: 360, overflow: 'hidden' },
+  photoBandFade: {
+    backgroundColor: 'rgba(17,14,12,0.6)',
+    ...(Platform.OS === 'web' ? { backgroundColor: 'transparent', backgroundImage: 'linear-gradient(180deg, rgba(17,14,12,0.35) 0%, rgba(17,14,12,0.72) 55%, #131313 100%)' } : {}),
+  } as any,
+  jTitleBlockB: { alignItems: 'center', marginTop: 10, marginBottom: 4 },
+  jTitleB: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff' },
+  jSubtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
+  jSubtitleRule: { width: 26, height: 1, backgroundColor: 'rgba(255,181,158,0.4)' },
+  jSubtitleB: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText },
+  weekHero: {
+    borderRadius: 18, paddingTop: 14, paddingBottom: 14, paddingHorizontal: 16, overflow: 'hidden', gap: 12,
+    backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(217,119,87,0.14), rgba(217,119,87,0) 80%)',
+      borderWidth: 0,
+    } : {}),
+  } as any,
+  weekHeroEdge: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 18, padding: 1,
+    backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.30), rgba(255,209,190,0.09) 45%, rgba(255,209,190,0.05))',
+    WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+    WebkitMaskComposite: 'xor',
+    mask: 'linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0)',
+  } as any,
+  weekHeroRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  weekHeroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, color: '#fff' },
+  weekHeroSub: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  weekHeroEffort: { alignItems: 'flex-end' },
+  // Serif italic like every hero number on Today; the label is the plain caps.
+  weekHeroNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, lineHeight: 32, fontWeight: '700', color: '#fff' },
+  weekHeroLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 1 },
+  weekDots: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
+  weekDotCol: { alignItems: 'center', gap: 5 },
+  weekDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: 'rgba(255,255,255,0.12)' },
+  weekDotOn: {
+    backgroundColor: RivalColors.accentFill,
+    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})`, boxShadow: '0 0 8px rgba(217,119,87,0.5)' } : {}),
+  } as any,
+  weekDotToday: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.6)' },
+  weekDotLabel: { fontSize: 9.5, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
+  weekHeroAdd: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 13, borderRadius: 999,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+  } as any,
+  weekHeroAddText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   scrim: { position: 'fixed' as any, top: 0, left: 0, right: 0, height: '100vh' as any, backgroundColor: 'rgba(14,14,14,0.55)' },
   // Solid backing behind just the top nav strip on mobile — see the comment
   // where this is rendered. Matches home.tsx's mobile flat-background color
@@ -2239,6 +2590,7 @@ const styles = StyleSheet.create({
   monthlyPbName: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, color: RivalColors.textSecondary, textTransform: 'uppercase' },
   monthlyPbValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
   monthlyPbValue: { fontSize: 28, fontWeight: '800', color: RivalColors.textPrimary, lineHeight: 32 },
+  monthlyPbValueSerif: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
   monthlyPbUnit: { fontSize: 12, fontWeight: '700', fontStyle: 'italic', color: RivalColors.textSecondary },
   monthlyPbProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   monthlyPbProgress: { fontSize: 13, fontWeight: '700', letterSpacing: 0.4, color: RivalColors.rankAnchors.unrivaled },
@@ -2354,7 +2706,7 @@ const styles = StyleSheet.create({
   effortBadge: { backgroundColor: `${RivalColors.accentFill}22`, borderWidth: 1, borderColor: `${RivalColors.accentFill}55`, borderRadius: RivalRadius.md, paddingHorizontal: 20, paddingVertical: 26, alignItems: 'center', justifyContent: 'center', minWidth: 96 },
   effortBadgeBest: { backgroundColor: `${RivalColors.rankAnchors.unrivaled}22`, borderColor: `${RivalColors.rankAnchors.unrivaled}66` },
   points: { fontSize: 28, fontWeight: '800', color: RivalColors.accentText, lineHeight: 30 },
-  pointsUnit: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: RivalColors.accentText, opacity: 0.85, marginTop: 2 },
+  pointsUnit: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: RivalColors.accentText, marginTop: 2 },
   pointsLarge: { fontSize: 44, lineHeight: 48 },
   pointsUnitLarge: { fontSize: 13, letterSpacing: 2, marginTop: 4 },
   cameraBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: RivalRadius.DEFAULT },
@@ -2503,13 +2855,13 @@ const styles = StyleSheet.create({
   recapTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '500', fontSize: 20, color: RivalColors.textPrimary },
   recapEffortInline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recapEffortNumCol: { alignItems: 'flex-end' },
-  recapEffortNum: { fontSize: 19, fontWeight: '600', color: RivalColors.textPrimary },
-  recapEffortLabel: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 10, letterSpacing: 0.4, color: RivalColors.textPrimary, textTransform: 'uppercase' },
+  recapEffortNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, lineHeight: 28, fontWeight: '700', color: RivalColors.textPrimary },
+  recapEffortLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 1 },
   recapChevronOpen: { transform: [{ rotate: '180deg' }] },
   recapStatgrid: { flexDirection: 'row', backgroundColor: 'rgba(19,19,19,0.55)', borderWidth: 1, borderColor: '#323232', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 3 },
   recapStatcell: { flex: 1, alignItems: 'center', gap: 6, paddingHorizontal: 3 },
   recapStatcellDivider: { borderLeftWidth: 1, borderLeftColor: 'rgba(50,50,50,0.6)' },
-  recapStatValue: { fontSize: 20, fontWeight: '700', color: RivalColors.textPrimary, lineHeight: 20 },
+  recapStatValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 21, fontWeight: '700', color: RivalColors.textPrimary, lineHeight: 22 },
   recapStatUnit: { fontSize: 10, fontWeight: '700', color: RivalColors.textSecondary, marginLeft: 2 },
   recapStatTitle: { fontSize: 9, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase', color: RivalColors.textSecondary },
   recapQuote: { fontSize: 11, fontStyle: 'italic', fontWeight: '700', color: RivalColors.accentText, paddingTop: 7, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
@@ -2536,6 +2888,66 @@ const styles = StyleSheet.create({
   // card in place of the bare grid, so Monday reads as a scoreboard rather
   // than a broken page.
   jWeekEmptyWrap: { alignItems: 'center', paddingTop: 8 },
+  fvWrap: { paddingTop: 4, paddingBottom: 24 },
+  fvHero: {
+    borderRadius: 20, padding: 18, gap: 12, overflow: 'hidden',
+    backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.14)',
+  },
+  fvHeroGlow: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 200,
+    backgroundImage: 'radial-gradient(ellipse 80% 90% at 50% 0%, rgba(217,119,87,0.28), rgba(217,119,87,0) 70%)',
+  } as any,
+  fvTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 23, lineHeight: 28, color: '#fff', textAlign: 'center' },
+  fvSub: { fontSize: 13, lineHeight: 19, color: RivalColors.textSecondary, textAlign: 'center' },
+  fvStats: { flexDirection: 'row', gap: 7 },
+  fvStat: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.14)' },
+  fvStatNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: 'rgba(255,255,255,0.35)' },
+  fvStatLabel: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, marginTop: 2 },
+  fvCta: { borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  fvCtaText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  fvOr: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 14 },
+  fvOrLine: { flex: 1, height: 1, backgroundColor: '#2a2a2a' },
+  fvOrText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  fvTiles: { flexDirection: 'row', gap: 8 },
+  fvTile: {
+    flex: 1, alignItems: 'center', gap: 7, paddingVertical: 14, borderRadius: 16,
+    borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #2a1d18 0%, #1c1a19 70%)' } : { backgroundColor: '#241b17' }),
+  } as any,
+  fvBadge: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  fvTileText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  fvListTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: '#fff', marginTop: 24, marginBottom: 10 },
+  fvBar: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  fvBarFill: { height: '100%', backgroundColor: RivalColors.accentText, ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}) } as any,
+  fvCount: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 6, marginBottom: 10 },
+  fvSteps: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12 },
+  fvStep: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 60 },
+  fvStepBorder: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
+  fvNum: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.5)' },
+  fvNumDone: {
+    borderWidth: 0, backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  fvNumText: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 13, color: RivalColors.accentText },
+  fvStepTitle: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  fvStepTitleDone: { color: RivalColors.textSecondary, textDecorationLine: 'line-through' },
+  fvStepSub: { fontSize: 11.5, color: RivalColors.textSecondary, marginTop: 1 },
+  nwKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText, textTransform: 'uppercase', marginTop: 6 },
+  nwQuote: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '600', fontSize: 18, lineHeight: 25, color: 'rgba(255,255,255,0.88)', textAlign: 'center', marginTop: 8, marginBottom: 18, paddingHorizontal: 12 },
+  nwLabel: { alignSelf: 'flex-start', fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, textTransform: 'uppercase', marginBottom: 8, marginLeft: 2 },
+  nwList: { alignSelf: 'stretch', gap: 8, opacity: 0.6 },
+  nwRow: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 10, borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: '#2a2a2a' },
+  nwTile: {
+    width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' } : {}),
+  } as any,
+  nwText: { flex: 1, minWidth: 0, gap: 2 },
+  nwName: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  nwMeta: { fontSize: 12, color: RivalColors.textSecondary },
+  nwEffort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: RivalColors.accentText },
   jWeekEmptyCard: {
     width: '100%', borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)',
     paddingVertical: 22, paddingHorizontal: 20, alignItems: 'center', gap: 6, marginBottom: 4,
@@ -2571,8 +2983,8 @@ const styles = StyleSheet.create({
   jCardName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '800', fontSize: 16, letterSpacing: 0.3, color: '#fff', lineHeight: 19 },
   jCardStat: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   jCardEffort: { alignItems: 'center', gap: 1 },
-  jCardEffortNum: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.65)', lineHeight: 13 },
-  jCardEffortLabel: { fontSize: 7, fontWeight: '800', letterSpacing: 0.3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', opacity: 0.85 },
+  jCardEffortNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, fontWeight: '700', color: '#fff', lineHeight: 18 },
+  jCardEffortLabel: { fontSize: 7, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
   jCardPin: { position: 'absolute', top: 10, right: 10, zIndex: 4 },
   jCardRing: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2.5, borderRadius: 20 },
 });
