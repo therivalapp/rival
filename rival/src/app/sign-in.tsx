@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, Image, Platform, ScrollView } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, TextInput, Image, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { RivalButton, RivalIcon, RivalBackButton } from '../components/rival';
+import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 const REMEMBER_KEY = 'rival_remembered_email';
@@ -18,6 +20,8 @@ function loadRemembered(): { email: string; remember: boolean } {
 }
 
 export default function SignInScreen() {
+  const { width } = useWindowDimensions();
+  const mob = width < BREAKPOINT_WIDE_LAYOUT;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +40,7 @@ export default function SignInScreen() {
 
   async function handleSignIn() {
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError('Enter an email and password.');
       return;
     }
 
@@ -64,7 +68,7 @@ export default function SignInScreen() {
 
   async function handleForgotPassword() {
     if (!email) {
-      setError('Enter your email above first, then tap "Forgot password?"');
+      setError('Enter an email address, then select "Forgot password?"');
       return;
     }
     setResetLoading(true);
@@ -76,7 +80,7 @@ export default function SignInScreen() {
   }
 
   return (
-    <View style={styles.bg}>
+    <View style={[styles.bg, mob && ms.bg]}>
       <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" />
       <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" />
       <SafeAreaView style={styles.container}>
@@ -94,32 +98,34 @@ export default function SignInScreen() {
 
           <Text style={styles.logo}>RIVAL</Text>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Your effort is waiting.</Text>
+          <View style={[styles.card, mob && ms.card]}>
+            <Text style={[styles.title, mob && ms.title]}>Welcome back</Text>
+            <Text style={[styles.subtitle, mob && ms.subtitle]}>Your Effort is waiting.</Text>
 
             {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.errorBox, mob && ms.errorBox]}>
+                <Text style={[styles.errorText, mob && ms.errorText]}>{error}</Text>
               </View>
             ) : null}
 
             {resetSent ? (
-              <View style={styles.successBox}>
-                <Text style={styles.successText}>
-                  We've sent a password reset link to the supplied email of this account. Click it to set a new password.
+              <View style={[styles.successBox, mob && ms.successBox]}>
+                <Text style={[styles.successText, mob && ms.successText]}>
+                  A password reset link has been sent to {email.trim()}. Open it to set a new password.
                 </Text>
                 <TouchableOpacity onPress={() => setResetSent(false)}>
-                  <Text style={styles.successDismiss}>✕</Text>
+                  {mob
+                    ? <RivalIcon name="close" size={16} color={RivalWarm.soft} />
+                    : <Text style={styles.successDismiss}>✕</Text>}
                 </TouchableOpacity>
               </View>
             ) : null}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={[styles.label, mob && rm.label]}>Email</Text>
               <TextInput
-                style={styles.input}
-                placeholder="your@email.com"
+                style={[styles.input, mob && ms.input]}
+                placeholder="name@example.com"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={email}
                 onChangeText={setEmail}
@@ -128,11 +134,11 @@ export default function SignInScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordRow}>
+              <Text style={[styles.label, mob && rm.label]}>Password</Text>
+              <View style={[styles.passwordRow, mob && ms.field]}>
                 <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Your password"
+                  style={[styles.passwordInput, mob && ms.passwordInput]}
+                  placeholder="Password"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
@@ -146,25 +152,29 @@ export default function SignInScreen() {
 
             <View style={styles.rowBetween}>
               <TouchableOpacity style={styles.checkboxRow} onPress={() => setRememberMe(!rememberMe)}>
-                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked, mob && ms.checkbox, mob && rememberMe && ms.checkboxChecked]}>
+                  {rememberMe && (mob
+                    ? <RivalIcon name="check" size={14} color={RivalColors.onAccentFill} />
+                    : <Text style={styles.checkmark}>✓</Text>)}
                 </View>
-                <Text style={styles.checkboxLabel}>Remember me</Text>
+                <Text style={[styles.checkboxLabel, mob && ms.soft]}>Remember me</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setError(''); setResetSent(false); handleForgotPassword(); }} disabled={resetLoading}>
-                <Text style={styles.forgotLink}>{resetLoading ? 'Sending…' : 'Forgot password?'}</Text>
+                <BusyText busy={!!(resetLoading)} style={styles.forgotLink}>{resetLoading ? 'Sending…' : 'Forgot password?'}</BusyText>
               </TouchableOpacity>
             </View>
 
             <RivalButton
-              label={loading ? 'Signing in...' : 'Sign In'}
+              busy={loading}
+              label={loading ? 'Signing in…' : 'Sign in'}
               onPress={handleSignIn}
               disabled={loading}
-              style={styles.signInBtn}
+              style={[styles.signInBtn, mob && ms.primary]}
+              labelStyle={mob ? rm.primaryText : undefined}
             />
 
             <TouchableOpacity onPress={() => router.push('/sign-up')}>
-              <Text style={styles.link}>Don't have an account? Sign up</Text>
+              <Text style={[styles.link, mob && ms.soft]}>Don't have an account? <Text style={mob && ms.linkStrong}>Sign up</Text></Text>
             </TouchableOpacity>
           </View>
 
@@ -180,9 +190,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: RivalColors.surfaceLowest,
   },
-  // Same warm-smoke texture as the Today screen's Weekly Leader/Legacy
-  // sections — low opacity, faded on both edges so it reads as ambient
-  // atmosphere behind the logo/card rather than a cropped photo.
   // Same warm-smoke texture as the Today screen's Weekly Leader/Legacy
   // sections — low opacity, faded on both edges so it reads as ambient
   // atmosphere behind the logo/card rather than a cropped photo.
@@ -367,4 +374,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+});
+
+// Phone only — the RIVAL look (see RivalMobile.tsx).
+const ms = StyleSheet.create({
+  bg: { backgroundColor: RivalWarm.page },
+  card: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22 },
+  title: { ...rm.serifTitle, textTransform: 'none', letterSpacing: 0, textAlign: 'center' } as any,
+  subtitle: { color: RivalWarm.soft, marginTop: -10 },
+  errorBox: { backgroundColor: 'rgba(255,143,143,0.08)', borderWidth: 1, borderColor: 'rgba(255,143,143,0.25)', borderRadius: 12 },
+  errorText: { color: '#ff8f8f', fontSize: 13, lineHeight: 18 },
+  successBox: { backgroundColor: 'rgba(255,209,190,0.08)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.2)', borderRadius: 12, alignItems: 'center' },
+  successText: { color: RivalWarm.soft },
+  field: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder },
+  input: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder, paddingVertical: 13, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  passwordInput: { paddingVertical: 13, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  checkbox: { borderWidth: 1.5, borderColor: 'rgba(255,209,190,0.4)', borderRadius: 6 },
+  checkboxChecked: { borderColor: 'transparent', backgroundColor: RivalColors.accentFill },
+  soft: { color: RivalWarm.soft },
+  linkStrong: { color: RivalColors.accentText, fontWeight: '700' },
+  primary: { ...rm.primary, borderWidth: 0, marginTop: 6 } as any,
 });

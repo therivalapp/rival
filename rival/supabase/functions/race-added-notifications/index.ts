@@ -94,8 +94,8 @@ serve(async (req) => {
 
     const messages = (tokens || []).map((t: any) => ({
       to: t.token,
-      title: `${racerName} just signed up for a race 🏁`,
-      body: `${race.name} is on the calendar. Find your own race and go head-to-head.`,
+      title: `${racerName} signed up for an event`,
+      body: `${race.name} is on the calendar.`,
       data: { screen: 'races', tab: 'mine' },
       sound: 'default',
     }))

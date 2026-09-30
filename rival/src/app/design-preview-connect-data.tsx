@@ -8,7 +8,7 @@
 // built (still pending: where connect-data sits in the signup flow order).
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 
 export default function DesignPreviewConnectData() {
   return (
@@ -88,8 +88,8 @@ const styles = StyleSheet.create({
   deviceStatusLive: { fontSize: 11, color: RivalColors.accentText, fontWeight: '700', textAlign: 'center' },
 
   actions: { alignItems: 'center', gap: 14 },
-  primaryButton: { backgroundColor: RivalColors.accentFill, borderRadius: RivalRadius.full, paddingVertical: 16, paddingHorizontal: 48 },
-  primaryButtonText: { color: RivalColors.onAccentFill, fontWeight: '700', fontSize: 16 },
+  primaryButton: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: RivalRadius.full, paddingVertical: 16, paddingHorizontal: 48 },
+  primaryButtonText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '700', fontSize: 16 },
   skipLink: { ...RivalType.labelCaps, fontSize: 12, color: RivalColors.textSecondary },
   footerNote: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 8 },
 });

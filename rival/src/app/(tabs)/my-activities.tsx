@@ -1,19 +1,27 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { JournalYearView } from '../../components/rival/JournalYearView';
+import { useSnapState } from '../../lib/snapState';
+import { distanceUnit, formatActivityDistance, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { supabase, getAuthUser } from '../lib/supabase';
-import { notify } from '../lib/notify';
-import { formatDuration, formatDurationClock } from '../lib/format';
-import { calculateStreak } from '../lib/streak';
-import { displayToIsoDate, isoToDisplayDate } from '../lib/dateFormat';
-import { fetchAllActivities } from '../lib/fetchAllActivities';
-import { computeActivityInsight, InsightTone } from '../lib/activityInsights';
-import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../lib/effort';
-import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType, RivalSerifFamily } from '../constants/rivalTheme';
-import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV } from '../constants/breakpoints';
+import { supabase, getAuthUser } from '../../lib/supabase';
+import { notify } from '../../lib/notify';
+import { formatDuration, formatDurationClock } from '../../lib/format';
+import { calculateStreak } from '../../lib/streak';
+import { displayToIsoDate, isoToDisplayDate } from '../../lib/dateFormat';
+import { fetchAllActivities } from '../../lib/fetchAllActivities';
+import { QUOTES, hashStr } from '../../lib/quotes';
+import { getMyTeamIds } from '../../lib/myTeams';
+import { computeActivityInsight, InsightTone } from '../../lib/activityInsights';
+import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../../lib/effort';
+import { rm } from '../../components/rival/RivalMobile';
+import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage, RivalStartTiles } from '../../components/rival';
+import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
+import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaRow } from '../../lib/activityMedia';
+import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 
 type ExerciseEntry = {
   name: string;
@@ -41,10 +49,10 @@ type Activity = {
   notes: string | null;
   location: string | null;
   companions: string | null;
+  shared_from_activity_id: string | null;
   pinned: boolean;
 };
 
-type MediaRow = { id: string; activity_id: string; media_url: string; media_type: 'photo' | 'video' };
 
 type WeekGroup = {
   label: string;
@@ -146,6 +154,36 @@ function formatWeekRangeCompact(weekStart: number) {
 // `activities`, always including the current month even when it has no
 // activities yet, ascending (oldest first) so "previous month" sits to the
 // left of the current one in the swipeable pager.
+// The week's Effort counting up from 0 when the page opens. Counts once per
+// mount; a later refresh shows the new figure straight away.
+function CountUpNumber({ value, style }: { value: number; style: any }) {
+  const [shown, setShown] = useState(Platform.OS === 'web' ? 0 : value);
+  const done = useRef(Platform.OS !== 'web');
+  useEffect(() => {
+    if (done.current) { setShown(value); return; }
+    // Nothing loaded yet: wait for the real figure rather than "counting" to 0.
+    if (value === 0) { setShown(0); return; }
+    const start = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const p = Math.min(1, (performance.now() - start) / 1200);
+      setShown(value * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else done.current = true;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  const decimals = Number.isInteger(value) ? 0 : 1;
+  return <Text style={style}>{shown.toFixed(decimals)}</Text>;
+}
+
+// Activity cards rise in one after another (web; keyframes in global.css).
+const cardIn = (i: number): any => (Platform.OS === 'web' ? {
+  animationName: 'rivalRowIn', animationDuration: '450ms', animationTimingFunction: 'ease-out',
+  animationDelay: `${150 + Math.min(i, 8) * 60}ms`, animationFillMode: 'both',
+} : null);
+
 function computeMonthGroups(activities: Activity[]): MonthGroup[] {
   const keys = new Set<string>();
   const now = new Date();
@@ -246,8 +284,8 @@ function WeekStatPill({ title, dateRange, activities }: { title: string; dateRan
           <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
             <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <Text style={styles.recapStatValue}>{km >= 0.1 ? km.toFixed(1) : '0'}</Text>
-              <Text style={styles.recapStatUnit}>km</Text>
+              <Text style={styles.recapStatValue}>{km >= 0.1 ? toDisplayDistance(km).toFixed(1) : '0'}</Text>
+              <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
             </View>
             <Text style={styles.recapStatTitle}>Distance</Text>
           </View>
@@ -274,17 +312,24 @@ export default function MyActivitiesScreen() {
   // the only card that renders full-row is the LAST card of a week with an
   // odd activity count — that's decidable at render time, no measuring needed.
   const spaciousWindow = windowWidth >= BREAKPOINT_SPACIOUS_GALLERY;
-  const [allActivities, setAllActivities] = useState<Activity[]>([]);
-  const [thisWeekTotal, setThisWeekTotal] = useState(0);
-  const [pbs, setPbs] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState('');
+  const [allActivities, setAllActivities] = useSnapState<Activity[]>('journal.allActivities', []);
+  const [thisWeekTotal, setThisWeekTotal] = useSnapState('journal.thisWeekTotal', 0);
+  const [pbs, setPbs] = useSnapState<Record<string, string>>('journal.pbs', {});
+  const [loading, setLoading] = useSnapState('journal.loading', true);
+  const [userId, setUserId] = useSnapState('journal.userId', '');
+  // Training toward: the next event you're entered in, beside Personal bests.
+  // First visit (no activities yet): which getting-started steps are done.
+  const [hasTeam, setHasTeam] = useSnapState('journal.hasTeam', false);
+  const [hasFocus, setHasFocus] = useSnapState('journal.hasFocus', false);
+  const [nextEvent, setNextEvent] = useSnapState<{ name: string; race_date: string; location: string | null } | null>('journal.nextEvent', null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadErrorActivityId, setUploadErrorActivityId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [mediaMap, setMediaMap] = useState<Record<string, MediaRow[]>>({});
+  const [mediaMap, setMediaMap] = useSnapState<Record<string, MediaRow[]>>('journal.mediaMap', {});
+  // The ordering sheet, open between the phone's picker and the upload.
+  const [mediaPicker, setMediaPicker] = useState<{ activityId: string; items: MediaItem[]; notice?: string } | null>(null);
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
   // Effort badge height should track the stat column's height (not the photo's,
   // which can stand taller) — measured directly since flex stretch can't single
@@ -323,6 +368,11 @@ export default function MyActivitiesScreen() {
   // fills the screen and vertical swipe/scroll snaps to the next, retro-app
   // style. Falls back to a generous flex fill before the first layout pass.
   const [pagerHeight, setPagerHeight] = useState(0);
+  // Which week page the pager is on. Only pages near it are drawn in full;
+  // the rest are empty space of the same height. Drawing every week at once
+  // (a year or more of photo cards) held the phone for seconds on opening
+  // and on every switch back to Week.
+  const [weekPageIndex, setWeekPageIndex] = useState(0);
   // Mobile Activity Journal's 3-way layout switch — Rows (horizontal
   // per-week scroll), Weekly (full-screen one-week-per-page swipe, the
   // previous default), Month (calendar grid, swipe between months). Kept
@@ -369,7 +419,10 @@ export default function MyActivitiesScreen() {
   const [calGridWidth, setCalGridWidth] = useState(0);
   const calCellSize = calGridWidth > 0 ? (calGridWidth - 24 - 6 * 6) / 7 : 0;
 
+  // Bumped on every visit; keys the week's Effort so it counts up each time.
+  const [journalVisit, setJournalVisit] = useState(0);
   useFocusEffect(useCallback(() => {
+    setJournalVisit((v) => v + 1);
     loadActivities();
   }, []));
 
@@ -381,6 +434,13 @@ export default function MyActivitiesScreen() {
     }
     if (!user) { setLoading(false); return; }
     setUserId(user.id);
+    const todayIso = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+    getMyTeamIds(user.id).then((ids) => setHasTeam(ids.length > 0)).catch(() => {});
+    supabase.from('goals').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('end_date', todayIso)
+      .then(({ count }) => setHasFocus((count ?? 0) > 0));
+    supabase.from('races').select('name, race_date, location').eq('user_id', user.id)
+      .gte('race_date', todayIso).order('race_date', { ascending: true }).limit(1).maybeSingle()
+      .then(({ data }) => setNextEvent(data ?? null));
 
     // The whole history, not a slice. This page groups activities into weekly,
     // month and year views entirely client-side, so anything not fetched simply
@@ -389,7 +449,7 @@ export default function MyActivitiesScreen() {
     // active account) while the older data sat in the table untouched.
     const data = await fetchAllActivities(
       user.id,
-      'id, name, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, pinned',
+      'id, name, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, shared_from_activity_id, pinned',
     );
     if (data) {
       setAllActivities(data);
@@ -420,19 +480,30 @@ export default function MyActivitiesScreen() {
       const thisWeek = data.filter(a => getMondayStart(new Date(a.started_at)) === currentWeekStart);
       setThisWeekTotal(Math.round(thisWeek.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10);
 
+      // The journal can show now; photos fill in when they arrive.
+      setLoading(false);
+
       const activityIds = data.map(a => a.id);
       if (activityIds.length > 0) {
-        const { data: mediaData } = await supabase
+        // In batches: every id goes into the request's web address, and a long
+        // history (hundreds of ids) made one address too long to be accepted,
+        // so no photos loaded at all. Batches run side by side.
+        const batches: string[][] = [];
+        for (let i = 0; i < activityIds.length; i += 120) batches.push(activityIds.slice(i, i + 120));
+        const results = await Promise.all(batches.map((ids) => supabase
           .from('activity_media')
-          .select('id, activity_id, media_url, media_type')
-          .in('activity_id', activityIds)
-          .order('created_at', { ascending: true });
+          .select(MEDIA_COLUMNS)
+          .in('activity_id', ids)
+          .order('created_at', { ascending: true })));
+        const mediaData = results.flatMap((r) => (r.data as MediaRow[] | null) ?? []);
 
         const newMediaMap: Record<string, MediaRow[]> = {};
-        (mediaData || []).forEach((m: MediaRow) => {
+        mediaData.forEach((m: MediaRow) => {
           if (!newMediaMap[m.activity_id]) newMediaMap[m.activity_id] = [];
           newMediaMap[m.activity_id].push(m);
         });
+        // Saved order, not upload order — the order set in the picker.
+        Object.keys(newMediaMap).forEach((id) => { newMediaMap[id] = sortMedia(newMediaMap[id]); });
         setMediaMap(newMediaMap);
       }
     }
@@ -441,131 +512,75 @@ export default function MyActivitiesScreen() {
 
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => loadActivities());
 
-  const MAX_PHOTOS = 2;
-  const MAX_VIDEOS = 1;
-  const MAX_PHOTO_MB = 15;
-  const MAX_VIDEO_MB = 50;
+  // Size and count limits live in MediaPicker, shared with manual entry, so
+  // an activity has one limit however its photos arrive.
 
   function reportUploadError(activityId: string, msg: string) {
     setUploadErrorActivityId(activityId);
     setUploadError(msg);
   }
 
+  // Adding media is two steps, Instagram-style. First the phone's own picker,
+  // opened straight from the tap — mobile browsers refuse to open one that a
+  // tap did not start. Then the ordering sheet, where every item is numbered
+  // in the order it will post.
   async function uploadPhoto(activityId: string) {
-    if (Platform.OS !== 'web') return;
     setUploadError(null);
     setUploadErrorActivityId(null);
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,video/*';
-    input.multiple = true;
-    input.onchange = async () => {
-      const files = Array.from(input.files || []);
-      if (files.length === 0) return;
-      setUploading(activityId);
-      try {
-        const existing = mediaMap[activityId] || [];
-        let photoCount = existing.filter(m => m.media_type === 'photo').length;
-        let videoCount = existing.filter(m => m.media_type === 'video').length;
-        let firstNewPhotoUrl: string | null = null;
-        // Captured before any mutation below, so "Cancel" in the crop step
-        // can put the cover photo back exactly how it was rather than just
-        // accepting a default center crop of the new one.
-        const prevActivity = allActivities.find(a => a.id === activityId);
-        const previousUrl = prevActivity?.photo_url ?? null;
-        const previousFocalX = prevActivity?.photo_focal_x ?? null;
-        const previousFocalY = prevActivity?.photo_focal_y ?? null;
+    const { items, rejected } = await pickMediaFiles();
+    if (!items.length) {
+      if (rejected.length) reportUploadError(activityId, rejected[0]);
+      return;
+    }
+    // What is already posted comes first, selected and numbered in its saved
+    // order, with the new picks after it — so the whole set can be
+    // rearranged in one place, not just the part being added.
+    const cover = allActivities.find(a => a.id === activityId)?.photo_url ?? null;
+    const existing = existingAsItems(mediaMap[activityId] || [], cover);
+    setMediaPicker({ activityId, items: [...existing, ...items], notice: rejected[0] });
+  }
 
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const mediaType: 'photo' | 'video' = file.type.startsWith('video') ? 'video' : 'photo';
-          const sizeMb = file.size / (1024 * 1024);
+  // Reorder (or remove) what is already posted, without picking anything new.
+  function arrangeMedia(activityId: string) {
+    const cover = allActivities.find(a => a.id === activityId)?.photo_url ?? null;
+    setMediaPicker({ activityId, items: existingAsItems(mediaMap[activityId] || [], cover) });
+  }
 
-          if (mediaType === 'video' && sizeMb > MAX_VIDEO_MB) {
-            reportUploadError(activityId, `Video too large (max ${MAX_VIDEO_MB}MB)`);
-            continue;
-          }
-          if (mediaType === 'photo' && sizeMb > MAX_PHOTO_MB) {
-            reportUploadError(activityId, `Photo too large (max ${MAX_PHOTO_MB}MB)`);
-            continue;
-          }
-          if (mediaType === 'photo' && photoCount >= MAX_PHOTOS) {
-            reportUploadError(activityId, `Max ${MAX_PHOTOS} photos per workout`);
-            continue;
-          }
-          if (mediaType === 'video' && videoCount >= MAX_VIDEOS) {
-            reportUploadError(activityId, `Max ${MAX_VIDEOS} video per workout`);
-            continue;
-          }
+  // Saves the whole arranged set — removals, new uploads and the new order —
+  // and makes #1 the cover. See saveArrangement in lib/activityMedia.ts.
+  async function uploadMedia(activityId: string, items: MediaItem[]) {
+    if (!userId) return;
+    setUploading(activityId);
+    try {
+      const previousUrl = allActivities.find(a => a.id === activityId)?.photo_url ?? null;
 
-          const ext = file.name.split('.').pop() || (mediaType === 'video' ? 'mp4' : 'jpg');
-          const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          const path = `${userId}/${activityId}-${uniqueId}.${ext}`;
+      const result = await saveArrangement({
+        activityId,
+        userId,
+        items,
+        existing: mediaMap[activityId] || [],
+        currentCover: previousUrl,
+      });
+      if (result.errors.length) reportUploadError(activityId, result.errors[0]);
 
-          const { error: storageErr } = await supabase.storage
-            .from('activity-photos')
-            .upload(path, file, { contentType: file.type, upsert: true });
+      setMediaMap(prev => ({ ...prev, [activityId]: result.rows }));
 
-          if (storageErr) {
-            reportUploadError(activityId, `Storage: ${storageErr.message}`);
-            continue;
-          }
-
-          const { data: urlData } = supabase.storage.from('activity-photos').getPublicUrl(path);
-
-          const { data: inserted, error: dbErr } = await supabase
-            .from('activity_media')
-            .insert({ activity_id: activityId, media_url: urlData.publicUrl, media_type: mediaType })
-            .select('id, activity_id, media_url, media_type')
-            .single();
-
-          if (dbErr) {
-            reportUploadError(activityId, `DB: ${dbErr.message}`);
-            continue;
-          }
-
-          setMediaMap(prev => ({
-            ...prev,
-            [activityId]: [...(prev[activityId] || []), inserted as MediaRow],
-          }));
-
-          if (mediaType === 'photo') {
-            photoCount++;
-            if (!firstNewPhotoUrl) firstNewPhotoUrl = urlData.publicUrl;
-          } else {
-            videoCount++;
-          }
+      if (result.coverChanged) {
+        const patch = { photo_url: result.cover, photo_focal_x: null, photo_focal_y: null };
+        setAllActivities(prev => prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)));
+        // diaryList is a separate snapshot the open viewer renders from — it
+        // has to be patched too, or the viewer keeps showing the old cover.
+        setDiaryList(prev => prev ? prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)) : prev);
+        // A new cover gets the same crop step a first photo always has.
+        // Cancelling it now means "skip cropping", not "undo": the cover is
+        // whatever is #1, and the old one may have just been deleted.
+        if (result.cover) {
+          setPositioningPhoto({ activityId, url: result.cover, previousUrl: result.cover, previousFocalX: null, previousFocalY: null });
         }
-
-        // A newly uploaded photo always becomes the new cover, even if one
-        // already existed — this UI has nowhere else to show extra photos
-        // (the card grid and diary viewer both only ever render photo_url),
-        // so from the user's side "upload a photo" IS "set/replace the
-        // photo." The old `existingCount === 0` gate meant a SECOND upload
-        // silently landed in activity_media but never replaced what was
-        // shown — the crop/photo appeared not to "swap." Focal point resets
-        // to center since it was measured against the old image.
-        if (firstNewPhotoUrl) {
-          const { error: photoErr } = await supabase.from('activities').update({ photo_url: firstNewPhotoUrl, photo_focal_x: null, photo_focal_y: null }).eq('id', activityId);
-          if (photoErr) notify("Couldn't set that as the cover photo", photoErr.message);
-          setAllActivities(prev => prev.map(a =>
-            a.id === activityId ? { ...a, photo_url: firstNewPhotoUrl!, photo_focal_x: null, photo_focal_y: null } : a
-          ));
-          // diaryList is a separate snapshot the open viewer actually renders
-          // from (not derived live from allActivities) — without patching it
-          // too, an upload made while the viewer is open doesn't show until
-          // you close and reopen it, since the viewer keeps reading the
-          // stale snapshot captured when it was first opened.
-          setDiaryList(prev => prev ? prev.map(a =>
-            a.id === activityId ? { ...a, photo_url: firstNewPhotoUrl!, photo_focal_x: null, photo_focal_y: null } : a
-          ) : prev);
-          setPositioningPhoto({ activityId, url: firstNewPhotoUrl, previousUrl, previousFocalX, previousFocalY });
-        }
-      } finally {
-        setUploading(null);
       }
-    };
-    input.click();
+    } finally {
+      setUploading(null);
+    }
   }
 
   function startEditing(activity: Activity) {
@@ -591,7 +606,7 @@ export default function MyActivitiesScreen() {
   }
 
   // Patches a single activity in local state — used by the diary viewer so
-  // edits (name/location/companions/notes/pinned) reflect on the card grid
+  // edits (name/location/notes/pinned) reflect on the card grid
   // immediately, without waiting on a reload. The viewer does its own
   // (debounced) Supabase writes; this is purely local-state sync.
   function updateActivityLocal(id: string, patch: Partial<Activity>) {
@@ -614,10 +629,83 @@ export default function MyActivitiesScreen() {
       notes: a.notes,
       location: a.location,
       companions: a.companions,
+      shared_from_activity_id: a.shared_from_activity_id,
       pinned: a.pinned,
       race_id: a.race_id,
       isPb: !!pbs[a.id],
     };
+  }
+
+  // First visit: bring past training in from a device (the fastest way to a
+  // full page), or add one by scan or by hand; then a three-step list.
+  function renderFirstVisit() {
+    const steps = [
+      { key: 'first', title: 'Add the first activity', sub: 'Connect a device, scan or type it in', done: false, onPress: () => router.push('/add-workout') },
+      { key: 'team', title: 'Join a team', sub: 'Train alongside friends', done: hasTeam, onPress: () => router.push('/discover-leagues') },
+      { key: 'focus', title: 'Set a focus', sub: 'One goal for the next 4 weeks', done: hasFocus, onPress: () => router.push({ pathname: '/goals', params: { add: 'true' } }) },
+    ];
+    const doneCount = steps.filter((st) => st.done).length;
+    return (
+      <View style={styles.fvWrap}>
+        <View style={styles.fvHero}>
+          {Platform.OS === 'web' && <View pointerEvents="none" style={styles.fvHeroGlow} />}
+          <Text style={styles.fvTitle}>Past training counts.</Text>
+          <Text style={styles.fvSub}>Connect a device to import it, with Effort.</Text>
+          <View style={styles.fvStats}>
+            {['Effort', 'Activities', 'Hours'].map((l) => (
+              <View key={l} style={styles.fvStat}>
+                <Text style={styles.fvStatNum}>–</Text>
+                <Text style={styles.fvStatLabel}>{l.toUpperCase()}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.fvCta} activeOpacity={0.85} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
+            <Text style={styles.fvCtaText}>Connect a device</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.fvOr}>
+          <View style={styles.fvOrLine} /><Text style={styles.fvOrText}>OR</Text><View style={styles.fvOrLine} />
+        </View>
+        <View style={styles.fvTiles}>
+          {[
+            { key: 'scan', icon: 'camera' as const, label: 'Scan workout', to: '/scan-workout' },
+            { key: 'manual', icon: 'manual' as const, label: 'Manual entry', to: '/manual-entry' },
+          ].map((t) => (
+            <TouchableOpacity key={t.key} style={styles.fvTile} activeOpacity={0.85} onPress={() => router.push(t.to as any)}>
+              <View style={styles.fvBadge}><RivalIcon name={t.icon} size={17} color="#1a0d08" /></View>
+              <Text style={styles.fvTileText}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.fvListTitle}>Getting started</Text>
+        <View style={styles.fvBar}><View style={[styles.fvBarFill, { width: `${(doneCount / steps.length) * 100}%` as any }]} /></View>
+        <Text style={styles.fvCount}>{doneCount} of {steps.length} done</Text>
+        <View style={styles.fvSteps}>
+          {steps.map((st, i) => (
+            <TouchableOpacity
+              key={st.key}
+              style={[styles.fvStep, i > 0 && styles.fvStepBorder]}
+              activeOpacity={0.8}
+              onPress={st.done ? undefined : st.onPress}
+              disabled={st.done}
+            >
+              <View style={[styles.fvNum, st.done && styles.fvNumDone]}>
+                {st.done
+                  ? <RivalIcon name="check" size={15} color="#1a0d08" />
+                  : <Text style={styles.fvNumText}>{i + 1}</Text>}
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.fvStepTitle, st.done && styles.fvStepTitleDone]}>{st.title}</Text>
+                <Text style={styles.fvStepSub}>{st.done ? 'Done' : st.sub}</Text>
+              </View>
+              {!st.done && <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
   }
 
   function openDiary(flatActivities: Activity[], activityId: string) {
@@ -665,13 +753,15 @@ export default function MyActivitiesScreen() {
     return weekGroups;
   }
 
-  const activityTypes = Array.from(new Set(allActivities.map(a => a.activity_type))).sort();
-  const filteredActivities = allActivities.filter(a =>
+  // Worked out once per change of data or filter, not on every render: the
+  // page re-renders as you scroll, and each pass walked the whole history.
+  const activityTypes = useMemo(() => Array.from(new Set(allActivities.map(a => a.activity_type))).sort(), [allActivities]);
+  const filteredActivities = useMemo(() => allActivities.filter(a =>
     (filterType === 'All' || a.activity_type === filterType) &&
     (!prOnly || !!pbs[a.id]) &&
     (!dateFilter || localIsoDate(a.started_at) === dateFilter)
-  );
-  const groups = computeGroups(filteredActivities, sortOrder);
+  ), [allActivities, filterType, prOnly, pbs, dateFilter]);
+  const groups = useMemo(() => computeGroups(filteredActivities, sortOrder), [filteredActivities, sortOrder]);
   // Flat, continuously-ordered list matching the rows' own display order —
   // what the diary viewer tap-through navigates across.
   const flatOrdered = groups.flatMap((g) => g.activities);
@@ -684,13 +774,13 @@ export default function MyActivitiesScreen() {
   // Unfiltered, like Week's thisWk/thisWeekTotal — the "This Month" header
   // numbers stay put when a filter is toggled; only the calendar cells below
   // react (via filteredMonthByKey).
-  const monthGroups = computeMonthGroups(allActivities);
+  const monthGroups = useMemo(() => computeMonthGroups(allActivities), [allActivities]);
   // Type/PBs-only/date-filtered version, keyed by "year-month", so the
   // calendar day cells can react to the same corner-button filters as
   // Week's and Rows' card grids without touching the header stats above.
-  const filteredMonthByKey = new Map(
+  const filteredMonthByKey = useMemo(() => new Map(
     computeMonthGroups(filteredActivities).map((g) => [`${g.year}-${g.month}`, g])
-  );
+  ), [filteredActivities]);
 
   // Full-width paging (chevron buttons are the swipe affordance instead of
   // a peek carousel) — each month card is exactly the pager's width.
@@ -720,7 +810,7 @@ export default function MyActivitiesScreen() {
       candidates.push({ highlight: `${gap} Effort`, rest: ' until your strongest month.' });
     }
     if (candidates.length === 0) {
-      return { highlight: `You've earned ${earned}`, rest: ' this month. Every session counts.' };
+      return { highlight: `You've earned ${earned}`, rest: ' this month. Every activity counts.' };
     }
     const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (24 * 60 * 60 * 1000));
     return candidates[dayOfYear % candidates.length];
@@ -746,7 +836,7 @@ export default function MyActivitiesScreen() {
   const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
   // allActivities is capped at 100 most-recent rows (see loadActivities) — plenty
   // for a streak read, which only ever looks a handful of weeks back.
-  const streak = calculateStreak(allActivities);
+  const streak = useMemo(() => calculateStreak(allActivities), [allActivities]);
 
   // Weekly momentum — the hero tells a story (this week vs last), not just a number.
   function weekAgg(weekStart: number) {
@@ -817,7 +907,7 @@ export default function MyActivitiesScreen() {
     }
 
     if (candidates.length === 0) {
-      return { highlight: `You've earned ${earned}`, rest: ' this week. Every session counts.' };
+      return { highlight: `You've earned ${earned}`, rest: ' this week. Every activity counts.' };
     }
 
     const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / (24 * 60 * 60 * 1000));
@@ -828,6 +918,28 @@ export default function MyActivitiesScreen() {
   // Empty-week comparison — shown in place of the (otherwise nonexistent)
   // grid when this week has no activities yet, so Monday reads as a fresh
   // scoreboard rather than a broken/blank page.
+  // Empty week (option C): a line for the new week, then the most recent
+  // activities, faded. Last week's if there were any; otherwise the last
+  // three whenever they were, so a quiet stretch still shows the rhythm.
+  const weekQuote = (() => {
+    const pool = QUOTES.filter((q) => q.category === 'consistency' || q.category === 'longterm' || q.category === 'progress');
+    const src = pool.length ? pool : QUOTES;
+    return src[hashStr(String(currentWeekStartForHero)) % src.length];
+  })();
+  const lastWeekActs = allActivities.filter((a) => {
+    const t = new Date(a.started_at).getTime();
+    return t >= currentWeekStartForHero - oneWeekMs && t < currentWeekStartForHero;
+  });
+  const recentActs = (lastWeekActs.length > 0
+    ? lastWeekActs
+    : allActivities.filter((a) => new Date(a.started_at).getTime() < currentWeekStartForHero)
+  ).slice().sort((a, b) => b.started_at.localeCompare(a.started_at)).slice(0, 3);
+  const recentLabel = lastWeekActs.length > 0
+    ? `Last week · ${Math.round(lastWk.effort).toLocaleString()} Effort`
+    : recentActs.length > 0
+      ? `Last active · ${new Date(recentActs[0].started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+      : null;
+
   const emptyWeekLine = lastWk.count > 0
     ? `Last week: ${Math.round(lastWk.effort)} Effort across ${lastWk.count} ${lastWk.count === 1 ? 'activity' : 'activities'}.`
     : 'Every week is a fresh start.';
@@ -909,8 +1021,8 @@ export default function MyActivitiesScreen() {
     const parts: string[] = [];
     if (ex.sets) parts.push(`${ex.sets}x${ex.reps ?? ''}`.replace(/x$/, ''));
     else if (ex.reps) parts.push(`${ex.reps} reps`);
-    if (ex.weight) parts.push(`${ex.weight}kg`);
-    if (ex.distanceMeters) parts.push(`${(ex.distanceMeters / 1000).toFixed(1)}km`);
+    if (ex.weight) parts.push(formatWeight(ex.weight).replace(' ', ''));
+    if (ex.distanceMeters) parts.push(`${toDisplayDistance(ex.distanceMeters / 1000).toFixed(1)}${distanceUnit()}`);
     return `${ex.name}${parts.length > 0 ? ` — ${parts.join(' · ')}` : ''}`;
   }
 
@@ -918,30 +1030,35 @@ export default function MyActivitiesScreen() {
   // everything else as min/km.
   function formatPace(meters: number, seconds: number, activityType: string): string | null {
     if (!DISTANCE_SPORTS.has(activityType) || !meters || meters < 100 || !seconds) return null;
-    if (activityType === 'Ride' || activityType === 'VirtualRide') {
-      return `${((meters / 1000) / (seconds / 3600)).toFixed(1)} km/h`;
-    }
-    const per = activityType === 'Swim' ? seconds / (meters / 100) : seconds / (meters / 1000);
-    const m = Math.floor(per / 60);
-    const s = Math.round(per % 60);
-    return `${m}:${String(s).padStart(2, '0')} ${activityType === 'Swim' ? '/100m' : '/km'}`;
+    return formatSpeedOrPace(meters, seconds, activityType);
   }
 
   function formatDistance(meters: number, activityType?: string) {
-    if (!meters || meters < 100) return null;
-    if (activityType && METERS_SPORTS.has(activityType)) return `${Math.round(meters)} m`;
-    return `${(meters / 1000).toFixed(1)} km`;
+    return formatActivityDistance(meters, activityType, 100);
   }
 
   // Title — rendered as leading content INSIDE each layout's own scrollable
   // region (rather than fixed above it) so the whole page, title included,
   // scrolls as one continuous unit under the true top nav.
+  // Page title in the Today style: white serif, one plain line under it.
   const journalTitle = (
-    <View style={styles.jTitleBlock}>
-      <Text style={styles.jTitle}>Activity Journal</Text>
-      <Text style={styles.jSubtitle}>Every Effort Tells A Story</Text>
+    <View style={styles.jTitleBlockB}>
+      <Text style={styles.jTitleB}>Activity</Text>
+      <View style={styles.jSubtitleRow}>
+        <View style={styles.jSubtitleRule} />
+        <Text style={styles.jSubtitleB}>Every effort tells a story</Text>
+        <View style={styles.jSubtitleRule} />
+      </View>
     </View>
   );
+
+  // This week's days with an activity (Monday = 0), for the dots in the week card.
+  const weekDaysDone = new Set(
+    allActivities
+      .filter((a) => getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
+      .map((a) => (new Date(a.started_at).getDay() + 6) % 7),
+  );
+  const todayIdx = (new Date().getDay() + 6) % 7;
 
   // 3-way layout switch (Rows/Week/Month) — sits directly below the stat
   // card (tight, via negative margin, matching the filterBarTight pattern
@@ -974,11 +1091,27 @@ export default function MyActivitiesScreen() {
 
   return (
     <View style={styles.root}>
-      <RivalFixedBackground
-        source={require('../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
-        focalPoint="50% 42%"
-      />
-      <View style={styles.scrim} />
+      {/* Phones: the photo only behind the top of the page, darkened and
+          fading into the page colour before the cards (Ricky's pick, option A,
+          2026-09-28). Desktop keeps the full-page photo. */}
+      {mobileNav ? (
+        <View pointerEvents="none" style={styles.photoBand}>
+          <Image
+            source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          <View style={[StyleSheet.absoluteFill, styles.photoBandFade]} />
+        </View>
+      ) : (
+        <>
+          <RivalFixedBackground
+            source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
+            focalPoint="50% 42%"
+          />
+          <View style={styles.scrim} />
+        </>
+      )}
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         {/* Today's mobile screen has no photo at all behind its top nav (flat
             #131313), so its translucent bar reads as solid dark. This screen's
@@ -1018,6 +1151,12 @@ export default function MyActivitiesScreen() {
             pagingEnabled
             style={styles.jPager}
             onLayout={(e) => setPagerHeight(e.nativeEvent.layout.height)}
+            scrollEventThrottle={32}
+            onScroll={(e) => {
+              if (!pagerHeight) return;
+              const idx = Math.round(e.nativeEvent.contentOffset.y / pagerHeight);
+              setWeekPageIndex((cur) => (cur === idx ? cur : idx));
+            }}
             showsVerticalScrollIndicator={false}
           >
             {loading && (
@@ -1028,14 +1167,44 @@ export default function MyActivitiesScreen() {
 
             {!loading && groups.length === 0 && (
               <View style={[styles.jWeekPage, pagerHeight ? { height: pagerHeight } : null]}>
-                <Text style={styles.emptyText}>
-                  {allActivities.length === 0 ? 'No activities yet. Log a workout on Strava to get started.' : 'No activities match this filter.'}
-                </Text>
+                {allActivities.length === 0 ? (
+                  // A first-time visitor: say what goes here and give both ways in.
+                  <View style={[rm.card, styles.firstEmpty]}>
+                    <View style={rm.iconCircle}><RivalIcon name="pulse" size={20} color={RivalColors.accentText} /></View>
+                    <Text style={rm.serifTitleSm}>No activities yet</Text>
+                    <Text style={[rm.hint, { textAlign: 'center' }]}>Every activity you add or sync appears here, week by week, with the Effort it earned.</Text>
+                    <TouchableOpacity style={[rm.primary, styles.firstEmptyBtn]} onPress={() => router.push('/add-workout')}>
+                      <Text style={rm.primaryText}>Add activity</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[rm.ghost, styles.firstEmptyBtn]} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
+                      <Text style={rm.ghostText}>Connect a device</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text style={styles.emptyText}>No activities match this filter.</Text>
+                )}
               </View>
             )}
 
-            {!loading && groups.map((group) => {
+            {!loading && groups.map((group, gi) => {
+              if (Math.abs(gi - weekPageIndex) > 2) {
+                return <View key={group.weekStart} style={{ height: pagerHeight || 600 }} />;
+              }
               const isCurrentWeek = group.weekStart === currentWeekStartForHero;
+              // Nothing logged yet: the first-visit page instead of an empty week.
+              if (isCurrentWeek && allActivities.length === 0) {
+                return (
+                  <ScrollView
+                    key={group.weekStart}
+                    style={pagerHeight ? { height: pagerHeight } : undefined}
+                    contentContainerStyle={styles.jWeekPage}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {journalTitle}
+                    {renderFirstVisit()}
+                  </ScrollView>
+                );
+              }
               return (
                 <ScrollView
                   key={group.weekStart}
@@ -1046,22 +1215,44 @@ export default function MyActivitiesScreen() {
                   {isCurrentWeek ? (
                     <>
                       {journalTitle}
+                      {/* What isn't set up yet, as tiles at the top. */}
+                      {SHOW_TRAINING_TOWARD && (
+                      <View style={styles.startWrap}>
+                        <RivalStartTiles
+                          tiles={[
+                            ...(!nextEvent ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => router.push('/races?add=true') }] : []),
+                          ]}
+                        />
+                      </View>
+                      )}
                       {/* Hero recap card — "This Week", 3-stat grid, quote. Matches the
                           mockup's .recap-card exactly. */}
-                      <View style={[styles.recapCard, !heroExpanded && styles.recapCardCollapsed]}>
-                        <TouchableOpacity style={styles.recapTitleRow} activeOpacity={0.7} onPress={() => setHeroExpanded((v) => !v)}>
-                          <View>
-                            <Text style={styles.recapTitle}>This Week</Text>
-                            <Text style={styles.jWeekDateRange}>{formatWeekRangeCompact(currentWeekStartForHero)}</Text>
+                      {/* This week: title and Effort on one row, a dot per day
+                          underneath. Tap it for the details (time, distance,
+                          filters). Add activity sits straight under the card. */}
+                      <View style={styles.weekHero}>
+                        {Platform.OS === 'web' && <View pointerEvents="none" style={styles.weekHeroEdge} />}
+                        <TouchableOpacity style={styles.weekHeroRow} activeOpacity={0.7} onPress={() => setHeroExpanded((v) => !v)}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.weekHeroTitle}>This week</Text>
+                            <Text style={styles.weekHeroSub}>
+                              {formatWeekRangeCompact(currentWeekStartForHero)} · {thisWeekCount === 1 ? '1 activity' : `${thisWeekCount} activities`}
+                            </Text>
                           </View>
-                          <View style={styles.recapEffortInline}>
-                            <View style={styles.recapEffortNumCol}>
-                              <Text style={styles.recapEffortNum}>{thisWeekTotal}</Text>
-                              <Text style={styles.recapEffortLabel}>Effort</Text>
-                            </View>
-                            <RivalIcon name="chevronDown" size={16} color={RivalColors.textSecondary} style={heroExpanded ? styles.recapChevronOpen : undefined} />
+                          <View style={styles.weekHeroEffort}>
+                            <CountUpNumber key={journalVisit} value={thisWeekTotal} style={styles.weekHeroNum} />
+                            <Text style={styles.weekHeroLabel}>Effort</Text>
                           </View>
+                          <RivalIcon name="chevronDown" size={16} color={RivalColors.textSecondary} style={heroExpanded ? styles.recapChevronOpen : undefined} />
                         </TouchableOpacity>
+                        <View style={styles.weekDots}>
+                          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                            <View key={i} style={styles.weekDotCol}>
+                              <View style={[styles.weekDot, weekDaysDone.has(i) ? styles.weekDotOn : i === todayIdx ? styles.weekDotToday : null]} />
+                              <Text style={styles.weekDotLabel}>{d}</Text>
+                            </View>
+                          ))}
+                        </View>
                         {heroExpanded && (
                         <>
                         <View style={styles.recapStatgrid}>
@@ -1081,8 +1272,8 @@ export default function MyActivitiesScreen() {
                           <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
                             <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
                             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                              <Text style={styles.recapStatValue}>{thisWk.km >= 0.1 ? thisWk.km.toFixed(1) : '0'}</Text>
-                              <Text style={styles.recapStatUnit}>km</Text>
+                              <Text style={styles.recapStatValue}>{thisWk.km >= 0.1 ? toDisplayDistance(thisWk.km).toFixed(1) : '0'}</Text>
+                              <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
                             </View>
                             <Text style={styles.recapStatTitle}>Distance</Text>
                           </View>
@@ -1124,6 +1315,60 @@ export default function MyActivitiesScreen() {
                         </>
                         )}
                       </View>
+                      <TouchableOpacity style={styles.weekHeroAdd} activeOpacity={0.85} onPress={() => router.push('/add-workout')}>
+                        <RivalIcon name="add" size={18} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
+                        <Text style={styles.weekHeroAddText}>Add activity</Text>
+                      </TouchableOpacity>
+                      {/* Training toward: the next event (or Add event), then
+                          Personal bests. Your own goals-to-come, kept off Today. */}
+                      {SHOW_TRAINING_TOWARD && <>
+                      <Text style={styles.towardLabel}>{nextEvent ? 'Training toward' : 'Records'}</Text>
+                      <View style={styles.towardCard}>
+                        {nextEvent && (
+                        <>
+                        <TouchableOpacity
+                          style={styles.towardRow}
+                          activeOpacity={0.8}
+                          onPress={() => router.push(nextEvent ? '/races' : '/races?add=true')}
+                        >
+                          <View style={[styles.towardBadge, !nextEvent && styles.towardBadgeQuiet]}>
+                            <RivalIcon name="flag" size={16} color={nextEvent ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
+                          </View>
+                          <View style={styles.towardText}>
+                            <Text style={styles.towardTitle} numberOfLines={1}>{nextEvent ? nextEvent.name : 'No event scheduled'}</Text>
+                            <Text style={styles.towardSub} numberOfLines={1}>
+                              {nextEvent
+                                ? `${new Date(nextEvent.race_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${nextEvent.location ? ` · ${nextEvent.location}` : ''}`
+                                : 'A race or competition to train for'}
+                            </Text>
+                          </View>
+                          {nextEvent ? (() => {
+                            const days = Math.max(0, Math.round((new Date(nextEvent.race_date + 'T00:00:00').getTime() - new Date(new Date().toDateString()).getTime()) / 86400000));
+                            return (
+                              <View style={styles.towardDays}>
+                                <Text style={styles.towardDaysNum}>{days === 0 ? 'Today' : days}</Text>
+                                {days > 0 && <Text style={styles.towardDaysLabel}>{days === 1 ? 'DAY' : 'DAYS'}</Text>}
+                              </View>
+                            );
+                          })() : (
+                            <Text style={styles.towardAdd}>Add event</Text>
+                          )}
+                        </TouchableOpacity>
+                        <View style={styles.towardDivider} />
+                        </>
+                        )}
+                        <TouchableOpacity style={styles.towardRow} activeOpacity={0.8} onPress={() => router.push('/lifts')}>
+                          <View style={[styles.towardBadge, styles.towardBadgeQuiet]}>
+                            <RivalIcon name="trophy" size={16} color="rgba(255,255,255,0.6)" />
+                          </View>
+                          <View style={styles.towardText}>
+                            <Text style={styles.towardTitle}>Personal bests</Text>
+                            <Text style={styles.towardSub}>Lifts and best times</Text>
+                          </View>
+                          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+                        </TouchableOpacity>
+                      </View>
+                      </>}
                       {renderJournalToggle(false)}
 
                       {(filterType !== 'All' || prOnly || dateFilter || showTypeFilter) && (
@@ -1178,11 +1423,11 @@ export default function MyActivitiesScreen() {
                                   style={[styles.typeFilterChip, !!dateFilter && styles.typeFilterChipActive]}
                                   onPress={() => {
                                     if (Platform.OS !== 'web') return;
-                                    const input = window.prompt('Search by date (YYYY-MM-DD)', dateFilter ? isoToDisplayDate(dateFilter) : '');
+                                    const input = window.prompt('Search by date (DD/MM/YYYY)', dateFilter ? isoToDisplayDate(dateFilter) : '');
                                     if (input === null) return;
                                     if (input.trim() === '') { setDateFilter(null); setShowTypeFilter(false); return; }
                                     const iso = displayToIsoDate(input);
-                                    if (!iso) { window.alert('Enter a valid date as YYYY-MM-DD.'); return; }
+                                    if (!iso) { window.alert('Enter a valid date as DD/MM/YYYY.'); return; }
                                     setDateFilter(iso);
                                     setShowTypeFilter(false);
                                   }}
@@ -1212,7 +1457,7 @@ export default function MyActivitiesScreen() {
                               <View key={pb.id} style={styles.monthlyPbEntry}>
                                 <Text style={styles.monthlyPbName} numberOfLines={1}>{pb.title}</Text>
                                 <View style={styles.monthlyPbValueRow}>
-                                  <Text style={styles.monthlyPbValue}>{pb.value}</Text>
+                                  <Text style={[styles.monthlyPbValue, styles.monthlyPbValueSerif]}>{pb.value}</Text>
                                   {!!pb.unit && <Text style={styles.monthlyPbUnit}>{pb.unit}</Text>}
                                 </View>
                               </View>
@@ -1238,23 +1483,42 @@ export default function MyActivitiesScreen() {
                       // read as broken. Show a real comparison to last week
                       // instead so the page still feels alive.
                       <View style={styles.jWeekEmptyWrap}>
-                        <View style={styles.jWeekEmptyCard}>
-                          <RivalIcon name="pulse" size={20} color={RivalColors.accentFill} />
-                          <Text style={styles.jWeekEmptyTitle}>Your week is wide open.</Text>
-                          <Text style={styles.jWeekEmptySub}>{emptyWeekLine}</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.jAddCard}
-                          activeOpacity={0.7}
-                          onPress={() => router.push('/add-workout')}
-                        >
-                          <RivalIcon name="add" size={22} color="rgba(255,255,255,0.6)" style={{ marginTop: -15 }} />
-                          <Text style={styles.jAddCardText}>Activity</Text>
-                        </TouchableOpacity>
+                        {SHOW_WEEK_QUOTE && (
+                          <>
+                            <Text style={styles.nwKicker}>A new week</Text>
+                            <Text style={styles.nwQuote}>{`\u201C${weekQuote.text}\u201D`}</Text>
+                          </>
+                        )}
+                        {recentLabel ? (
+                          <>
+                            <Text style={styles.nwLabel}>{recentLabel}</Text>
+                            <View style={styles.nwList}>
+                              {recentActs.map((a) => {
+                                const dist = formatDistance(a.distance_meters, a.activity_type);
+                                return (
+                                  <TouchableOpacity key={a.id} style={styles.nwRow} activeOpacity={0.8} onPress={() => openDiary(recentActs, a.id)}>
+                                    <View style={styles.nwTile}>
+                                      <RivalIcon name={activityIconName(a.activity_type)} size={18} color="#1a1411" />
+                                    </View>
+                                    <View style={styles.nwText}>
+                                      <Text style={styles.nwName} numberOfLines={1}>{a.name || a.activity_type}</Text>
+                                      <Text style={styles.nwMeta} numberOfLines={1}>
+                                        {new Date(a.started_at).toLocaleDateString(undefined, { weekday: 'short' })}{dist ? ` · ${dist}` : ''}
+                                      </Text>
+                                    </View>
+                                    <Text style={styles.nwEffort}>{Math.round(a.effort_score || 0)}</Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </>
+                        ) : (
+                          <Text style={styles.jWeekEmptySub}>Every activity you add or sync appears here, week by week.</Text>
+                        )}
                       </View>
                     ) : (
                     <View style={styles.jGrid}>
-                      {group.activities.map((activity) => {
+                      {group.activities.map((activity, ci) => {
                         const pbLabel = pbs[activity.id];
                         const badgeKind: 'pb' | 'race' | null = pbLabel ? 'pb' : activity.race_id ? 'race' : null;
                         const ringColor = badgeKind === 'pb' ? RivalColors.rankAnchors.unrivaled : badgeKind === 'race' ? '#ff5c5c' : 'transparent';
@@ -1263,7 +1527,7 @@ export default function MyActivitiesScreen() {
                         return (
                           <TouchableOpacity
                             key={activity.id}
-                            style={styles.jGridCard}
+                            style={[styles.jGridCard, cardIn(ci)]}
                             activeOpacity={0.85}
                             onPress={() => openDiary(flatOrdered, activity.id)}
                           >
@@ -1302,7 +1566,8 @@ export default function MyActivitiesScreen() {
                           </TouchableOpacity>
                         );
                       })}
-                      {isCurrentWeek && (
+                      {false && isCurrentWeek && (
+                        // Replaced by the Add activity pill in the week card; kept.
                         // Wrapped in a full grid-column slot (matches jGridCard's
                         // flexBasis) so it lands in whichever column the wrap
                         // naturally puts it — e.g. under the 2nd card when a lone
@@ -1379,8 +1644,8 @@ export default function MyActivitiesScreen() {
                 <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
                   <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
                   <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                    <Text style={styles.recapStatValue}>{activeMg.km >= 0.1 ? activeMg.km.toFixed(1) : '0'}</Text>
-                    <Text style={styles.recapStatUnit}>km</Text>
+                    <Text style={styles.recapStatValue}>{activeMg.km >= 0.1 ? toDisplayDistance(activeMg.km).toFixed(1) : '0'}</Text>
+                    <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
                   </View>
                   <Text style={styles.recapStatTitle}>Distance</Text>
                 </View>
@@ -1472,11 +1737,11 @@ export default function MyActivitiesScreen() {
                         style={[styles.typeFilterChip, !!dateFilter && styles.typeFilterChipActive]}
                         onPress={() => {
                           if (Platform.OS !== 'web') return;
-                          const input = window.prompt('Search by date (YYYY-MM-DD)', dateFilter ? isoToDisplayDate(dateFilter) : '');
+                          const input = window.prompt('Search by date (DD/MM/YYYY)', dateFilter ? isoToDisplayDate(dateFilter) : '');
                           if (input === null) return;
                           if (input.trim() === '') { setDateFilter(null); setShowTypeFilter(false); return; }
                           const iso = displayToIsoDate(input);
-                          if (!iso) { window.alert('Enter a valid date as YYYY-MM-DD.'); return; }
+                          if (!iso) { window.alert('Enter a valid date as DD/MM/YYYY.'); return; }
                           setDateFilter(iso);
                           setShowTypeFilter(false);
                         }}
@@ -1506,7 +1771,11 @@ export default function MyActivitiesScreen() {
                 setVisibleMonthIndex(Math.max(0, Math.min(monthGroups.length - 1, idx)));
               }}
             >
-              {monthGroups.map((mg) => {
+              {monthGroups.map((mg, mi) => {
+                // Only the months beside the one showing are drawn in full.
+                if (Math.abs(mi - visibleMonthIndex) > 1) {
+                  return <View key={`${mg.year}-${mg.month}`} style={monthPageWidth ? { width: monthPageWidth } : styles.jMonthPageFallback} />;
+                }
                 const leadingBlanks = mg.startWeekday;
                 const dayCells: Array<{ day: number } | null> = [
                   ...Array.from({ length: leadingBlanks }, () => null),
@@ -1637,17 +1906,12 @@ export default function MyActivitiesScreen() {
           )}
 
           {journalLayout === 'year' && (
-          // Placeholder — the full year-in-review view (totals, monthly
-          // trend, PB timeline) is a future build; this just makes the tab
-          // real and navigable now instead of hiding it until that's done.
-          <ScrollView contentContainerStyle={styles.jWeekPage}>
+          // The year at a glance, from the activities already loaded here.
+          <ScrollView contentContainerStyle={styles.jWeekPage} {...pullProps}>
+            {pullIndicator}
             {journalTitle}
             {renderJournalToggle(false)}
-            <View style={styles.jYearComingSoon}>
-              <RivalIcon name="stats" size={32} color={RivalColors.accentText} />
-              <Text style={styles.jYearComingSoonTitle}>Your Year, coming soon</Text>
-              <Text style={styles.jYearComingSoonBody}>A full look back at everything you've put in this year — total Effort, your biggest months, and every PB along the way.</Text>
-            </View>
+            <JournalYearView activities={allActivities as any} />
           </ScrollView>
           )}
           </>
@@ -1670,7 +1934,7 @@ export default function MyActivitiesScreen() {
                       {effortDelta >= 0 ? '↑' : '↓'} {Math.abs(effortDelta)}% vs last week
                     </Text>
                   ) : (
-                    <Text style={styles.heroDeltaMuted}>{thisWk.count > 0 ? 'Momentum building' : 'Log your first this week'}</Text>
+                    <Text style={styles.heroDeltaMuted}>{thisWk.count > 0 ? 'Building momentum' : 'Log your first activity this week'}</Text>
                   )}
                 </View>
               </View>
@@ -1723,7 +1987,7 @@ export default function MyActivitiesScreen() {
                   )}
                 </View>
                 {monthlyPbs.length === 0 ? (
-                  <Text style={styles.monthlyPbEmpty}>No PBs yet this month — get after it.</Text>
+                  <Text style={styles.monthlyPbEmpty}>No PBs this month.</Text>
                 ) : (
                   <ScrollView style={styles.monthlyPbScroll} contentContainerStyle={styles.monthlyPbList} showsVerticalScrollIndicator={false}>
                     {monthlyPbs.map((pb) => (
@@ -1756,7 +2020,7 @@ export default function MyActivitiesScreen() {
           <View style={styles.toolbarRow}>
             {([
               { key: 'refresh', icon: 'check' as const, label: 'Refresh', active: false, onPress: () => loadActivities() },
-              { key: 'logweek', icon: 'calendar' as const, label: 'Log a week', active: false, onPress: () => router.push('/weekly-scan') },
+              { key: 'logweek', icon: 'calendar' as const, label: 'Weekly scan', active: false, onPress: () => router.push('/weekly-scan') },
               { key: 'filter', icon: 'search' as const, label: filterType === 'All' ? 'Filter by type' : `Filtered: ${filterType}`, active: filterType !== 'All', onPress: () => setShowTypeFilter(!showTypeFilter) },
               { key: 'sort', icon: sortOrder === 'latest' ? 'trendDown' as const : 'trendUp' as const, label: sortOrder === 'latest' ? 'Sorted: Latest first' : 'Sorted: Oldest first', active: false, onPress: () => setSortOrder(sortOrder === 'latest' ? 'oldest' : 'latest') },
               { key: 'prs', icon: 'fire' as const, label: 'PBs only', active: prOnly, onPress: () => setPrOnly(!prOnly) },
@@ -1833,7 +2097,7 @@ export default function MyActivitiesScreen() {
 
         {!loading && groups.length === 0 && (
           <Text style={styles.emptyText}>
-            {allActivities.length === 0 ? 'No activities yet. Log a workout on Strava to get started.' : 'No activities match this filter.'}
+            {allActivities.length === 0 ? 'No activities yet. Add an activity or connect a device.' : 'No activities match this filter.'}
           </Text>
         )}
 
@@ -2076,7 +2340,7 @@ export default function MyActivitiesScreen() {
                     </View>
 
                     {uploadErrorActivityId === activity.id && uploadError && (
-                      <Text style={styles.inlineUploadError}>⚠️ {uploadError}</Text>
+                      <Text style={styles.inlineUploadError}>{uploadError}</Text>
                     )}
 
                     {/* Media gallery — only stacked here on narrow cards; wide cards
@@ -2142,6 +2406,26 @@ export default function MyActivitiesScreen() {
               setDiaryList((prev) => prev ? prev.map((a) => a.id === id ? { ...a, ...patch } : a) : prev);
             }}
             onUploadPhoto={uploadPhoto}
+            onArrangeMedia={arrangeMedia}
+            mediaById={Object.fromEntries(Object.entries(mediaMap).map(([id, rows]) => [
+              id,
+              rows.map((m) => ({ url: m.media_url, type: m.media_type })),
+            ]))}
+          />
+        )}
+
+        {mediaPicker && (
+          <MediaPicker
+            initial={mediaPicker.items}
+            initialNotice={mediaPicker.notice}
+            title="Photos and videos"
+            doneLabel="Save"
+            onCancel={() => setMediaPicker(null)}
+            onDone={(items) => {
+              const { activityId } = mediaPicker;
+              setMediaPicker(null);
+              uploadMedia(activityId, items);
+            }}
           />
         )}
 
@@ -2180,8 +2464,81 @@ export default function MyActivitiesScreen() {
   );
 }
 
+// Activity tab "Training toward" card (next event + Personal bests) and its
+// start tiles. Off (Ricky, 2026-09-30): the page is back to how it was.
+const SHOW_TRAINING_TOWARD = false;
+// The weekly line above an empty week's recent activities. Off (Ricky, 2026-09-30).
+const SHOW_WEEK_QUOTE = false;
+
 const styles = StyleSheet.create({
+  startWrap: { marginTop: 4, marginBottom: 12 },
+  towardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, textTransform: 'uppercase', marginTop: 16, marginBottom: 8, marginLeft: 2 },
+  towardCard: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12, marginBottom: 6 },
+  towardRow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 58 },
+  towardDivider: { height: 1, backgroundColor: RivalColors.surfaceBright, opacity: 0.6 },
+  towardBadge: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  towardBadgeQuiet: { backgroundColor: 'rgba(255,255,255,0.06)', ...(Platform.OS === 'web' ? { backgroundImage: 'none' } : {}) } as any,
+  towardText: { flex: 1, minWidth: 0, gap: 2 },
+  towardTitle: { fontSize: 14.5, fontWeight: '600', color: '#fff' },
+  towardSub: { fontSize: 12, color: RivalColors.textSecondary },
+  towardDays: { alignItems: 'flex-end' },
+  towardDaysNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, color: RivalColors.accentText, lineHeight: 23 },
+  towardDaysLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  towardAdd: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
+  firstEmpty: { alignItems: 'center', marginTop: 24, paddingVertical: 24 },
+  firstEmptyBtn: { alignSelf: 'stretch' },
   root: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  photoBand: { position: 'absolute', top: 0, left: 0, right: 0, height: 360, overflow: 'hidden' },
+  photoBandFade: {
+    backgroundColor: 'rgba(17,14,12,0.6)',
+    ...(Platform.OS === 'web' ? { backgroundColor: 'transparent', backgroundImage: 'linear-gradient(180deg, rgba(17,14,12,0.35) 0%, rgba(17,14,12,0.72) 55%, #131313 100%)' } : {}),
+  } as any,
+  jTitleBlockB: { alignItems: 'center', marginTop: 10, marginBottom: 4 },
+  jTitleB: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff' },
+  jSubtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
+  jSubtitleRule: { width: 26, height: 1, backgroundColor: 'rgba(255,181,158,0.4)' },
+  jSubtitleB: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText },
+  weekHero: {
+    borderRadius: 18, paddingTop: 14, paddingBottom: 14, paddingHorizontal: 16, overflow: 'hidden', gap: 12,
+    backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(217,119,87,0.14), rgba(217,119,87,0) 80%)',
+      borderWidth: 0,
+    } : {}),
+  } as any,
+  weekHeroEdge: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 18, padding: 1,
+    backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.30), rgba(255,209,190,0.09) 45%, rgba(255,209,190,0.05))',
+    WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+    WebkitMaskComposite: 'xor',
+    mask: 'linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0)',
+  } as any,
+  weekHeroRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  weekHeroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, color: '#fff' },
+  weekHeroSub: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  weekHeroEffort: { alignItems: 'flex-end' },
+  // Serif italic like every hero number on Today; the label is the plain caps.
+  weekHeroNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, lineHeight: 32, fontWeight: '700', color: '#fff' },
+  weekHeroLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 1 },
+  weekDots: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
+  weekDotCol: { alignItems: 'center', gap: 5 },
+  weekDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: 'rgba(255,255,255,0.12)' },
+  weekDotOn: {
+    backgroundColor: RivalColors.accentFill,
+    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})`, boxShadow: '0 0 8px rgba(217,119,87,0.5)' } : {}),
+  } as any,
+  weekDotToday: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.6)' },
+  weekDotLabel: { fontSize: 9.5, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
+  weekHeroAdd: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 13, borderRadius: 999,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+  } as any,
+  weekHeroAddText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   scrim: { position: 'fixed' as any, top: 0, left: 0, right: 0, height: '100vh' as any, backgroundColor: 'rgba(14,14,14,0.55)' },
   // Solid backing behind just the top nav strip on mobile — see the comment
   // where this is rendered. Matches home.tsx's mobile flat-background color
@@ -2233,6 +2590,7 @@ const styles = StyleSheet.create({
   monthlyPbName: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, color: RivalColors.textSecondary, textTransform: 'uppercase' },
   monthlyPbValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
   monthlyPbValue: { fontSize: 28, fontWeight: '800', color: RivalColors.textPrimary, lineHeight: 32 },
+  monthlyPbValueSerif: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
   monthlyPbUnit: { fontSize: 12, fontWeight: '700', fontStyle: 'italic', color: RivalColors.textSecondary },
   monthlyPbProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   monthlyPbProgress: { fontSize: 13, fontWeight: '700', letterSpacing: 0.4, color: RivalColors.rankAnchors.unrivaled },
@@ -2348,7 +2706,7 @@ const styles = StyleSheet.create({
   effortBadge: { backgroundColor: `${RivalColors.accentFill}22`, borderWidth: 1, borderColor: `${RivalColors.accentFill}55`, borderRadius: RivalRadius.md, paddingHorizontal: 20, paddingVertical: 26, alignItems: 'center', justifyContent: 'center', minWidth: 96 },
   effortBadgeBest: { backgroundColor: `${RivalColors.rankAnchors.unrivaled}22`, borderColor: `${RivalColors.rankAnchors.unrivaled}66` },
   points: { fontSize: 28, fontWeight: '800', color: RivalColors.accentText, lineHeight: 30 },
-  pointsUnit: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: RivalColors.accentText, opacity: 0.85, marginTop: 2 },
+  pointsUnit: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: RivalColors.accentText, marginTop: 2 },
   pointsLarge: { fontSize: 44, lineHeight: 48 },
   pointsUnitLarge: { fontSize: 13, letterSpacing: 2, marginTop: 4 },
   cameraBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: RivalRadius.DEFAULT },
@@ -2369,8 +2727,8 @@ const styles = StyleSheet.create({
   // `absolute` here was relative to a container whose height grows with
   // scrollable content, so the button drifted upward as the page scrolled
   // instead of staying put. Same fix as RivalTopNav's bottom tab bar.
-  fab: { position: 'fixed' as any, bottom: 28, right: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 20, borderRadius: RivalRadius.full, backgroundColor: RivalColors.accentFill, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6, zIndex: 150 },
-  fabText: { fontSize: 15, fontWeight: '700', color: RivalColors.onAccentFill },
+  fab: { position: 'fixed' as any, bottom: 28, right: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 20, borderRadius: RivalRadius.full, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6, zIndex: 150 },
+  fabText: { fontSize: 15, fontWeight: '700', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
   // ===== Mobile Activity Journal (ported from the Claude mockup) =====
   // Full-screen weekly pager — see the render-site comment for how RNW's
@@ -2387,9 +2745,6 @@ const styles = StyleSheet.create({
   // jAddCard when it lands alone on the last line.
   jGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
   jSwipeHint: { alignItems: 'center', paddingTop: 4, opacity: 0.6 },
-  jYearComingSoon: { alignItems: 'center', gap: 10, paddingTop: 80, paddingHorizontal: 24 },
-  jYearComingSoonTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: RivalColors.textPrimary, marginTop: 4 },
-  jYearComingSoonBody: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', lineHeight: 19 },
   jTitleBlock: { alignSelf: 'center', marginTop: 16, marginBottom: 16, paddingVertical: 8, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)' },
   jTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '500', fontSize: 17, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   jSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.32)', textAlign: 'center', marginTop: 2 },
@@ -2500,13 +2855,13 @@ const styles = StyleSheet.create({
   recapTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '500', fontSize: 20, color: RivalColors.textPrimary },
   recapEffortInline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recapEffortNumCol: { alignItems: 'flex-end' },
-  recapEffortNum: { fontSize: 19, fontWeight: '600', color: RivalColors.textPrimary },
-  recapEffortLabel: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 10, letterSpacing: 0.4, color: RivalColors.textPrimary, textTransform: 'uppercase' },
+  recapEffortNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, lineHeight: 28, fontWeight: '700', color: RivalColors.textPrimary },
+  recapEffortLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 1 },
   recapChevronOpen: { transform: [{ rotate: '180deg' }] },
   recapStatgrid: { flexDirection: 'row', backgroundColor: 'rgba(19,19,19,0.55)', borderWidth: 1, borderColor: '#323232', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 3 },
   recapStatcell: { flex: 1, alignItems: 'center', gap: 6, paddingHorizontal: 3 },
   recapStatcellDivider: { borderLeftWidth: 1, borderLeftColor: 'rgba(50,50,50,0.6)' },
-  recapStatValue: { fontSize: 20, fontWeight: '700', color: RivalColors.textPrimary, lineHeight: 20 },
+  recapStatValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 21, fontWeight: '700', color: RivalColors.textPrimary, lineHeight: 22 },
   recapStatUnit: { fontSize: 10, fontWeight: '700', color: RivalColors.textSecondary, marginLeft: 2 },
   recapStatTitle: { fontSize: 9, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase', color: RivalColors.textSecondary },
   recapQuote: { fontSize: 11, fontStyle: 'italic', fontWeight: '700', color: RivalColors.accentText, paddingTop: 7, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
@@ -2533,6 +2888,66 @@ const styles = StyleSheet.create({
   // card in place of the bare grid, so Monday reads as a scoreboard rather
   // than a broken page.
   jWeekEmptyWrap: { alignItems: 'center', paddingTop: 8 },
+  fvWrap: { paddingTop: 4, paddingBottom: 24 },
+  fvHero: {
+    borderRadius: 20, padding: 18, gap: 12, overflow: 'hidden',
+    backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.14)',
+  },
+  fvHeroGlow: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 200,
+    backgroundImage: 'radial-gradient(ellipse 80% 90% at 50% 0%, rgba(217,119,87,0.28), rgba(217,119,87,0) 70%)',
+  } as any,
+  fvTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 23, lineHeight: 28, color: '#fff', textAlign: 'center' },
+  fvSub: { fontSize: 13, lineHeight: 19, color: RivalColors.textSecondary, textAlign: 'center' },
+  fvStats: { flexDirection: 'row', gap: 7 },
+  fvStat: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.14)' },
+  fvStatNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: 'rgba(255,255,255,0.35)' },
+  fvStatLabel: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, marginTop: 2 },
+  fvCta: { borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  fvCtaText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  fvOr: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 14 },
+  fvOrLine: { flex: 1, height: 1, backgroundColor: '#2a2a2a' },
+  fvOrText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  fvTiles: { flexDirection: 'row', gap: 8 },
+  fvTile: {
+    flex: 1, alignItems: 'center', gap: 7, paddingVertical: 14, borderRadius: 16,
+    borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #2a1d18 0%, #1c1a19 70%)' } : { backgroundColor: '#241b17' }),
+  } as any,
+  fvBadge: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  fvTileText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  fvListTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: '#fff', marginTop: 24, marginBottom: 10 },
+  fvBar: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  fvBarFill: { height: '100%', backgroundColor: RivalColors.accentText, ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}) } as any,
+  fvCount: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 6, marginBottom: 10 },
+  fvSteps: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12 },
+  fvStep: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 60 },
+  fvStepBorder: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
+  fvNum: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.5)' },
+  fvNumDone: {
+    borderWidth: 0, backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  fvNumText: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 13, color: RivalColors.accentText },
+  fvStepTitle: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  fvStepTitleDone: { color: RivalColors.textSecondary, textDecorationLine: 'line-through' },
+  fvStepSub: { fontSize: 11.5, color: RivalColors.textSecondary, marginTop: 1 },
+  nwKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText, textTransform: 'uppercase', marginTop: 6 },
+  nwQuote: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '600', fontSize: 18, lineHeight: 25, color: 'rgba(255,255,255,0.88)', textAlign: 'center', marginTop: 8, marginBottom: 18, paddingHorizontal: 12 },
+  nwLabel: { alignSelf: 'flex-start', fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, textTransform: 'uppercase', marginBottom: 8, marginLeft: 2 },
+  nwList: { alignSelf: 'stretch', gap: 8, opacity: 0.6 },
+  nwRow: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 10, borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: '#2a2a2a' },
+  nwTile: {
+    width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' } : {}),
+  } as any,
+  nwText: { flex: 1, minWidth: 0, gap: 2 },
+  nwName: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  nwMeta: { fontSize: 12, color: RivalColors.textSecondary },
+  nwEffort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: RivalColors.accentText },
   jWeekEmptyCard: {
     width: '100%', borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)',
     paddingVertical: 22, paddingHorizontal: 20, alignItems: 'center', gap: 6, marginBottom: 4,
@@ -2568,8 +2983,8 @@ const styles = StyleSheet.create({
   jCardName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '800', fontSize: 16, letterSpacing: 0.3, color: '#fff', lineHeight: 19 },
   jCardStat: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   jCardEffort: { alignItems: 'center', gap: 1 },
-  jCardEffortNum: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.65)', lineHeight: 13 },
-  jCardEffortLabel: { fontSize: 7, fontWeight: '800', letterSpacing: 0.3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', opacity: 0.85 },
+  jCardEffortNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, fontWeight: '700', color: '#fff', lineHeight: 18 },
+  jCardEffortLabel: { fontSize: 7, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
   jCardPin: { position: 'absolute', top: 10, right: 10, zIndex: 4 },
   jCardRing: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2.5, borderRadius: 20 },
 });

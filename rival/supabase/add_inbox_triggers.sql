@@ -74,7 +74,7 @@ begin
     new.target_id,
     -- Stored as the display copy, not the stored value: the database keeps
     -- 'respect' and 'inspired', the app says Respect and Inspired.
-    actor_name || (case when new.emoji = 'inspired' then ' was inspired by your effort' else ' respected your effort' end),
+    actor_name || (case when new.emoji = 'inspired' then ' was Inspired by an activity' else ' gave Respect' end),
     null
   )
   on conflict do nothing;
@@ -111,7 +111,7 @@ begin
     new.league_id,
     new.target_type,
     new.target_id,
-    actor_name || ' commented on your effort',
+    actor_name || ' commented on your Effort',
     left(new.body, 140)
   )
   on conflict do nothing;
@@ -149,7 +149,7 @@ begin
       values (
         admin_id, 'join_request', new.user_id, new.league_id,
         'league_member', new.id::text,
-        actor_name || ' asked to join ' || coalesce(team_name, 'your team'),
+        actor_name || ' asked to join ' || coalesce(team_name, 'the Team'),
         null
       )
       on conflict do nothing;
@@ -168,8 +168,8 @@ begin
     values (
       new.user_id, 'team_joined', null, new.league_id,
       'league', new.league_id::text,
-      'You joined ' || coalesce(team_name, 'a team'),
-      'Your effort now counts towards the team.'
+      'Joined ' || coalesce(team_name, 'a team'),
+      'Your Effort now counts towards the Team.'
     )
     on conflict do nothing;
   end if;

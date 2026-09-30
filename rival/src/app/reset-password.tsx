@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, Platform, Image as RNImage } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, TextInput, Platform, Image as RNImage, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Asset } from 'expo-asset';
-import { RivalButton } from '../components/rival';
+import { RivalButton, RivalIcon, RivalWarm, rm } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 
 export default function ResetPasswordScreen() {
+  const { width } = useWindowDimensions();
+  const mob = width < BREAKPOINT_WIDE_LAYOUT;
   const [status, setStatus] = useState<'verifying' | 'ready' | 'invalid'>('verifying');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -49,11 +52,11 @@ export default function ResetPasswordScreen() {
 
   async function handleSetNewPassword() {
     if (!newPassword || newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password must be at least 6 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Passwords don't match");
+      setError("Passwords don't match.");
       return;
     }
     setSaving(true);
@@ -88,40 +91,51 @@ export default function ResetPasswordScreen() {
           resizeMode="cover"
         />
       )}
-      <View style={styles.scrim} />
+      <View style={[styles.scrim, mob && ms.scrim]} />
       <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.logo}>RIVAL</Text>
+        <Text style={[styles.logo, mob && ms.logo]}>RIVAL</Text>
 
         {status === 'verifying' && (
-          <Text style={styles.status}>Verifying your reset link…</Text>
+          <Text style={[styles.status, mob && ms.status]}>Verifying reset link…</Text>
         )}
 
         {status === 'invalid' && (
-          <>
-            <Text style={styles.status}>
-              This reset link is invalid or has expired. Go back and request a new one.
+          <View style={mob ? [styles.card, ms.card, ms.invalidCard] : styles.fragment}>
+            {mob && <Text style={[styles.title, ms.title]}>Link expired</Text>}
+            <Text style={[styles.status, mob && ms.status]}>
+              This reset link is invalid or has expired. Request a new one from the sign-in screen.
             </Text>
-            <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/sign-in'))}>
-              <Text style={styles.link}>← Back to sign in</Text>
+            <TouchableOpacity
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/sign-in'))}
+              style={mob && ms.ghost}
+            >
+              {mob ? (
+                <>
+                  <RivalIcon name="back" size={16} color={RivalColors.accentText} />
+                  <Text style={rm.ghostText}>Back to sign in</Text>
+                </>
+              ) : (
+                <Text style={styles.link}>← Back to sign in</Text>
+              )}
             </TouchableOpacity>
-          </>
+          </View>
         )}
 
         {status === 'ready' && (
-          <View style={styles.card}>
-            <Text style={styles.title}>Set a new password</Text>
+          <View style={[styles.card, mob && ms.card]}>
+            <Text style={[styles.title, mob && ms.title]}>Set a new password</Text>
 
             {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.errorBox, mob && ms.errorBox]}>
+                <Text style={[styles.errorText, mob && ms.errorText]}>{error}</Text>
               </View>
             ) : null}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>New Password</Text>
+              <Text style={[styles.label, mob && rm.label]}>New password</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, mob && ms.input]}
                 placeholder="At least 6 characters"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={newPassword}
@@ -131,9 +145,9 @@ export default function ResetPasswordScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
+              <Text style={[styles.label, mob && rm.label]}>Confirm password</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, mob && ms.input]}
                 placeholder="Re-enter password"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={confirmPassword}
@@ -143,10 +157,12 @@ export default function ResetPasswordScreen() {
             </View>
 
             <RivalButton
-              label={saving ? 'Saving…' : 'Set New Password'}
+              busy={saving}
+              label={saving ? 'Saving…' : 'Set new password'}
               onPress={handleSetNewPassword}
               disabled={saving}
-              style={styles.submitBtn}
+              style={[styles.submitBtn, mob && ms.primary]}
+              labelStyle={mob ? rm.primaryText : undefined}
             />
           </View>
         )}
@@ -161,6 +177,9 @@ const styles = StyleSheet.create({
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(14,14,14,0.35)' },
   container: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 24, paddingHorizontal: 24 },
+  // Keeps the desktop layout as it was: the message and link sit directly in
+  // the column, spaced by its gap.
+  fragment: { alignItems: 'center', gap: 24 },
   logo: { fontSize: 32, fontWeight: '900', color: RivalColors.textPrimary, letterSpacing: 6 },
   status: { fontSize: 16, color: RivalColors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
   link: { color: RivalColors.accentFill, fontSize: 15, fontWeight: '600' },
@@ -183,4 +202,19 @@ const styles = StyleSheet.create({
   primaryButton: { backgroundColor: RivalColors.accentFill, paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   disabled: { opacity: 0.6 },
   primaryButtonText: { color: RivalColors.textPrimary, fontSize: 18, fontWeight: '700' },
+});
+
+// Phone only — the RIVAL look (see RivalMobile.tsx). Matches sign-in.tsx.
+const ms = StyleSheet.create({
+  scrim: { backgroundColor: 'rgba(17,14,12,0.55)' },
+  logo: { ...RivalType.titleMd, letterSpacing: 6 },
+  status: { color: RivalWarm.soft, fontSize: 15, lineHeight: 22 },
+  invalidCard: { alignItems: 'center' },
+  ghost: { ...rm.ghost, paddingHorizontal: 20 } as any,
+  card: { alignSelf: 'stretch', backgroundColor: 'rgba(29,23,20,0.94)', borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22 },
+  title: rm.serifTitle,
+  errorBox: { backgroundColor: 'rgba(255,143,143,0.08)', borderColor: 'rgba(255,143,143,0.25)', borderRadius: 12 },
+  errorText: { color: '#ff8f8f', fontSize: 13, lineHeight: 18 },
+  input: { backgroundColor: RivalWarm.field, borderColor: RivalWarm.cardBorder, paddingVertical: 13, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  primary: { ...rm.primary, borderWidth: 0, marginTop: 6 } as any,
 });

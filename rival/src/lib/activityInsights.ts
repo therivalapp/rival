@@ -31,13 +31,13 @@ const DISTANCE_SPORTS = new Set([
 const TYPE_NOUN: Record<string, string> = {
   Run: 'run', VirtualRun: 'run', Ride: 'ride', VirtualRide: 'ride',
   Swim: 'swim', Rowing: 'row', Walk: 'walk', Hike: 'hike',
-  WeightTraining: 'lift', Workout: 'session', CrossFit: 'CrossFit session',
-  Hyrox: 'Hyrox', HIIT: 'HIIT session', Bootcamp: 'bootcamp', Yoga: 'yoga session',
+  WeightTraining: 'lift', Workout: 'workout', CrossFit: 'CrossFit workout',
+  Hyrox: 'Hyrox', HIIT: 'HIIT workout', Bootcamp: 'bootcamp', Yoga: 'yoga practice',
   AlpineSki: 'ski', NordicSki: 'ski',
 };
 
 function typeNoun(type: string): string {
-  return TYPE_NOUN[type] ?? 'session';
+  return TYPE_NOUN[type] ?? 'activity';
 }
 
 const DAY = 86400000;

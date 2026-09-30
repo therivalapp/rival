@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,7 +12,9 @@ import { RivalTopNav } from '../components/rival/RivalTopNav';
 import { RivalIcon } from '../components/rival/RivalIcon';
 import { SessionCard } from '../components/rival/SessionCard';
 import { PlanSessionSheet, EditableSession } from '../components/rival/PlanSessionSheet';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { GreyPageHead, GreySegment, GREY_PAGE_BG, rb } from '../components/rival/RivalGreySheet';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
 // Every planned activity for one team, upcoming and past. Team Hub's Coming
 // Up shows the next three; its "See all" used to fall through to the old team
@@ -40,6 +42,9 @@ export default function TeamSessionsScreen() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
   const [editing, setEditing] = useState<EditableSession | null>(null);
+  // Phone: the RIVAL look (warm page, gradient on the chosen tab).
+  const { width } = useWindowDimensions();
+  const mob = width < BREAKPOINT_WIDE_LAYOUT;
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -94,7 +99,7 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
     const { error } = joined
       ? await supabase.from('league_session_rsvps').delete().eq('message_id', messageId).eq('user_id', currentUserId)
       : await supabase.from('league_session_rsvps').insert({ message_id: messageId, user_id: currentUserId });
-    if (error) { notify("Couldn't update your RSVP", error.message); return; }
+    if (error) { notify("Couldn't update RSVP", error.message); return; }
     setRsvps(prev => ({
       ...prev,
       [messageId]: joined ? (prev[messageId] || []).filter(u => u !== currentUserId) : [...(prev[messageId] || []), currentUserId],
@@ -108,32 +113,54 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: RivalColors.surfaceLow }}>
+    <View style={{ flex: 1, backgroundColor: mob ? GREY_PAGE_BG : RivalColors.surfaceLow }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         <RivalTopNav active="teams" hideBar />
-        <View style={styles.header}>
-          <RivalBackButton
-            onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))}
-            color={RivalColors.accentFill}
-          />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.title}>Planned Activities</Text>
-            {!!teamName && <Text style={styles.sub} numberOfLines={1}>{teamName}</Text>}
+        {mob ? (
+          // Phone: the blend. Team name over the title; one segmented
+          // toggle; planning is the button under the list, not a +.
+          <View style={ms.top}>
+            <GreyPageHead
+              kicker={(teamName || 'Team').toUpperCase()}
+              title="Planned activities"
+              onBack={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))}
+            />
+            <GreySegment
+              options={[
+                { value: 'upcoming' as const, label: `Upcoming (${upcoming.length})` },
+                { value: 'history' as const, label: `History (${history.length})` },
+              ]}
+              value={view}
+              onChange={setView}
+            />
           </View>
-          <TouchableOpacity style={styles.planBtn} onPress={() => { setEditing(null); setPlanning(true); }} accessibilityLabel="Plan an Activity">
-            <RivalIcon name="add" size={18} color={RivalColors.accentText} />
-          </TouchableOpacity>
-        </View>
+        ) : (
+          <>
+            <View style={styles.header}>
+              <RivalBackButton
+                onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/team-hub', params: { id } }))}
+                color={RivalColors.accentFill}
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.title}>Planned activities</Text>
+                {!!teamName && <Text style={styles.sub} numberOfLines={1}>{teamName}</Text>}
+              </View>
+              <TouchableOpacity style={styles.planBtn} onPress={() => { setEditing(null); setPlanning(true); }} accessibilityLabel="Plan an activity">
+                <RivalIcon name="add" size={18} color={RivalColors.accentText} />
+              </TouchableOpacity>
+            </View>
 
-        <View style={styles.segment}>
-          {(['upcoming', 'history'] as const).map(v => (
-            <TouchableOpacity key={v} style={[styles.segBtn, view === v && styles.segBtnOn]} onPress={() => setView(v)}>
-              <Text style={[styles.segText, view === v && styles.segTextOn]}>
-                {v === 'upcoming' ? `Upcoming (${upcoming.length})` : `History (${history.length})`}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            <View style={styles.segment}>
+              {(['upcoming', 'history'] as const).map(v => (
+                <TouchableOpacity key={v} style={[styles.segBtn, view === v && styles.segBtnOn]} onPress={() => setView(v)}>
+                  <Text style={[styles.segText, view === v && styles.segTextOn]}>
+                    {v === 'upcoming' ? `Upcoming (${upcoming.length})` : `History (${history.length})`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
 
         {loading ? (
           <View style={styles.center}><ActivityIndicator color={RivalColors.accentFill} /></View>
@@ -141,9 +168,20 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
           <ScrollView contentContainerStyle={styles.list} {...pullProps}>
             {pullIndicator}
             {shown.length === 0 ? (
+              mob ? (
+                <View style={[rb.card, ms.empty]}>
+                  <View style={rb.badge}>
+                    <RivalIcon name="calendar" size={16} color={RivalColors.accentText} />
+                  </View>
+                  <Text style={ms.emptyText}>
+                    {view === 'upcoming' ? 'No upcoming activities. Plan one and teammates can join.' : 'No past activities yet.'}
+                  </Text>
+                </View>
+              ) : (
               <Text style={styles.empty}>
                 {view === 'upcoming' ? 'No upcoming activities.' : 'No past activities yet.'}
               </Text>
+              )
             ) : shown.map(r => (
               <SessionCard
                 key={r.id}
@@ -158,6 +196,11 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
                 onToggleRsvp={() => toggleRsvp(r.id)}
               />
             ))}
+            {mob && view === 'upcoming' ? (
+              <TouchableOpacity style={ms.planBtn} onPress={() => { setEditing(null); setPlanning(true); }} activeOpacity={0.85} accessibilityRole="button">
+                <Text style={ms.planBtnText}>Plan an activity</Text>
+              </TouchableOpacity>
+            ) : null}
           </ScrollView>
         )}
       </SafeAreaView>
@@ -194,4 +237,13 @@ const styles = StyleSheet.create({
   // Clears the floating tab pill.
   list: { paddingHorizontal: 16, paddingBottom: 120, gap: 12 },
   empty: { fontSize: 14, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 40 },
+});
+
+// Phone only — the blend (see RivalGreySheet's rb).
+const ms = StyleSheet.create({
+  top: { paddingHorizontal: 16, paddingBottom: 12, gap: 4 },
+  empty: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
+  planBtn: { paddingVertical: 14, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  planBtnText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 });

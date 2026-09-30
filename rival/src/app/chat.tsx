@@ -1,7 +1,8 @@
+import { useSnapState } from '../lib/snapState';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
-  Image, ActivityIndicator, Platform, KeyboardAvoidingView,
+  Image, ActivityIndicator, Platform, KeyboardAvoidingView, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,11 +11,13 @@ import { notify } from '../lib/notify';
 import { formatDisplayName } from '../lib/identity';
 import { invalidateUnreadChats } from '../lib/unreadChats';
 import { copyText } from '../lib/clipboard';
-import { RivalIcon, RivalBackButton, PlanSessionSheet } from '../components/rival';
+import { RivalIcon, RivalBackButton, PlanSessionSheet, RivalWarm } from '../components/rival';
 import { SessionCard } from '../components/rival/SessionCard';
 import type { EditableSession } from '../components/rival/PlanSessionSheet';
 import { CalendarAddIcon } from '../components/rival/CalendarAddIcon';
-import { RivalColors, RivalRadius } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { goToTab } from '../lib/tabNav';
 
 // Dedicated team chat, laid out the way Messenger does it.
 //
@@ -124,25 +127,29 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
+  // Mobile takes the RIVAL look (warm surfaces, serif name); the message
+  // layout itself is shared and unchanged.
+  const { width } = useWindowDimensions();
+  const mob = width < BREAKPOINT_WIDE_LAYOUT;
 
-  const [teamName, setTeamName] = useState('');
-  const [teamLogo, setTeamLogo] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [rsvpMap, setRsvpMap] = useState<Record<string, string[]>>({});
-  const [currentUserId, setCurrentUserId] = useState('');
+  const [teamName, setTeamName] = useSnapState(`chat.${id}.teamName`, '');
+  const [teamLogo, setTeamLogo] = useSnapState<string | null>(`chat.${id}.teamLogo`, null);
+  const [messages, setMessages] = useSnapState<Msg[]>(`chat.${id}.messages`, []);
+  const [members, setMembers] = useSnapState<Member[]>(`chat.${id}.members`, []);
+  const [rsvpMap, setRsvpMap] = useSnapState<Record<string, string[]>>(`chat.${id}.rsvpMap`, {});
+  const [currentUserId, setCurrentUserId] = useSnapState(`chat.${id}.currentUserId`, '');
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useSnapState(`chat.${id}.loading`, true);
   const [error, setError] = useState('');
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
   const [showTimeFor, setShowTimeFor] = useState<string | null>(null);
   // messageId -> emoji -> userIds
-  const [reactions, setReactions] = useState<Record<string, Record<string, string[]>>>({});
+  const [reactions, setReactions] = useSnapState<Record<string, Record<string, string[]>>>(`chat.${id}.reactions`, {});
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   // userId -> the last message they have read, for the seen-by avatars.
-  const [seenBy, setSeenBy] = useState<Record<string, string[]>>({});
+  const [seenBy, setSeenBy] = useSnapState<Record<string, string[]>>(`chat.${id}.seenBy`, {});
   const [sessionsOnly, setSessionsOnly] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [editingSession, setEditingSession] = useState<EditableSession | null>(null);
@@ -206,11 +213,15 @@ export default function ChatScreen() {
       .from('league_messages')
       .select('id, user_id, kind, body, activity_type, scheduled_at, location, created_at')
       .eq('league_id', id)
-      .order('created_at', { ascending: true })
-      .limit(200);
+      // The NEWEST messages, shown oldest-first. Ascending with a limit
+      // returned the first 200 ever sent, so once a team passed 200 messages
+      // nothing new appeared. 100 also keeps the reactions lookup below (every
+      // id goes into its web address) comfortably short.
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (loadError) { setError(loadError.message); return []; }
-    const rows = (data ?? []) as Msg[];
+    const rows = ((data ?? []) as Msg[]).reverse();
     setMessages(rows);
 
     // Reactions, seen-by and RSVPs each depend only on the messages, so the
@@ -352,12 +363,12 @@ export default function ChatScreen() {
     if (joined) {
       const { error: outErr } = await supabase.from('league_session_rsvps')
         .delete().eq('message_id', messageId).eq('user_id', currentUserId);
-      if (outErr) { notify("Couldn't update your RSVP", outErr.message); loadMessages(); return; }
+      if (outErr) { notify("Couldn't update RSVP", outErr.message); loadMessages(); return; }
       setRsvpMap((p) => ({ ...p, [messageId]: (p[messageId] ?? []).filter((u) => u !== currentUserId) }));
     } else {
       const { error: inErr } = await supabase.from('league_session_rsvps')
         .insert({ message_id: messageId, user_id: currentUserId });
-      if (inErr) { notify("Couldn't update your RSVP", inErr.message); loadMessages(); return; }
+      if (inErr) { notify("Couldn't update RSVP", inErr.message); loadMessages(); return; }
       setRsvpMap((p) => ({ ...p, [messageId]: [...(p[messageId] ?? []), currentUserId] }));
     }
   }
@@ -426,26 +437,26 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, mob && ms.container]} edges={['top', 'left', 'right']}>
+      <View style={[styles.header, mob && ms.header]}>
         <RivalBackButton
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/messages'))}
+          onPress={() => (router.canGoBack() ? router.back() : goToTab('/messages'))}
           color={RivalColors.accentFill}
         />
         {/* Crest before the name: which conversation you're in should be
             recognisable at a glance, the way it is in the teams rail. */}
         <TouchableOpacity onPress={() => router.push({ pathname: '/team-hub', params: { id: String(id) } })}>
           {teamLogo ? (
-            <Image source={{ uri: teamLogo }} style={styles.headerLogo} />
+            <Image source={{ uri: teamLogo }} style={[styles.headerLogo, mob && ms.headerLogo]} />
           ) : (
-            <View style={[styles.headerLogo, styles.headerLogoFallback]}>
+            <View style={[styles.headerLogo, styles.headerLogoFallback, mob && ms.headerLogo]}>
               <Text style={styles.headerLogoText}>{teamName.slice(0, 1).toUpperCase()}</Text>
             </View>
           )}
         </TouchableOpacity>
         <View style={styles.headerMid}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{teamName}</Text>
-          <Text style={styles.headerSub}>{members.length} {members.length === 1 ? 'member' : 'members'}</Text>
+          <Text style={[styles.headerTitle, mob && ms.headerTitle]} numberOfLines={1}>{teamName}</Text>
+          <Text style={[styles.headerSub, mob && ms.headerSub]}>{members.length} {members.length === 1 ? 'member' : 'members'}</Text>
         </View>
         {/* Meet-ups are the one thing people come back to a chat to FIND, and
             scrolling a transcript for them is the worst way to look. */}
@@ -453,7 +464,7 @@ export default function ChatScreen() {
           <TouchableOpacity
             onPress={() => setSessionsOnly((v) => !v)}
             style={[styles.headerBtn, sessionsOnly && styles.headerBtnOn]}
-            accessibilityLabel={sessionsOnly ? 'Show all messages' : 'Show upcoming sessions'}
+            accessibilityLabel={sessionsOnly ? 'Show all messages' : 'Show upcoming activities'}
           >
             <RivalIcon
               name="calendar"
@@ -470,9 +481,9 @@ export default function ChatScreen() {
       </View>
 
       {sessionsOnly && (
-        <TouchableOpacity style={styles.filterBanner} onPress={() => setSessionsOnly(false)}>
+        <TouchableOpacity style={[styles.filterBanner, mob && ms.band]} onPress={() => setSessionsOnly(false)}>
           <Text style={styles.filterBannerText}>
-            Showing upcoming sessions · <Text style={styles.filterBannerAction}>Show everything</Text>
+            Showing upcoming activities · <Text style={styles.filterBannerAction}>Show everything</Text>
           </Text>
         </TouchableOpacity>
       )}
@@ -488,12 +499,12 @@ export default function ChatScreen() {
           <View style={styles.centered}><ActivityIndicator color={RivalColors.accentFill} /></View>
         ) : visible.length === 0 ? (
           <View style={styles.centered}>
-            <Text style={styles.emptyTitle}>
-              {sessionsOnly ? 'No upcoming sessions' : 'No messages yet'}
+            <Text style={[styles.emptyTitle, mob && ms.emptyTitle]}>
+              {sessionsOnly ? 'No upcoming activities' : 'No messages yet'}
             </Text>
             <Text style={styles.emptyBody}>
               {sessionsOnly
-                ? 'Completed sessions stay in the conversation. New ones appear here.'
+                ? 'Completed activities stay in the conversation. New ones appear here.'
                 : "Say something — it's how a team stops being a list of names."}
             </Text>
           </View>
@@ -533,7 +544,7 @@ export default function ChatScreen() {
                 <View key={msg.id}>
                   {showSeparator && (
                     <View style={styles.sepRow}>
-                      <Text style={styles.sepText}>{separatorLabel(msg.created_at)}</Text>
+                      <Text style={[styles.sepText, mob && ms.sepText]}>{separatorLabel(msg.created_at)}</Text>
                     </View>
                   )}
                   {firstUnreadId === msg.id && (
@@ -576,7 +587,7 @@ export default function ChatScreen() {
                                 {src ? nameFor(src.user_id) : 'Message'}
                               </Text>
                               <Text style={styles.quoteBody} numberOfLines={1}>
-                                {src ? (src.kind === 'session' ? 'Session' : src.body) : 'Deleted message'}
+                                {src ? (src.kind === 'session' ? 'Planned activity' : src.body) : 'Deleted message'}
                               </Text>
                             </View>
                           );
@@ -608,7 +619,7 @@ export default function ChatScreen() {
                         >
                           <View style={[
                             styles.bubble,
-                            isMe ? styles.bubbleMe : styles.bubbleThem,
+                            isMe ? [styles.bubbleMe, mob && ms.bubbleMe] : [styles.bubbleThem, mob && ms.bubbleThem],
                             // Tighten the corners that face another bubble in
                             // the same run, so the run reads as one block.
                             !isFirstOfGroup && (isMe ? styles.tightTopRight : styles.tightTopLeft),
@@ -686,11 +697,11 @@ export default function ChatScreen() {
         {/* Reply target sits above the composer, not inside it, so the text
             you're answering stays visible while you type. */}
         {replyTo && (
-          <View style={styles.replyBar}>
+          <View style={[styles.replyBar, mob && ms.band]}>
             <View style={styles.replyBarText}>
               <Text style={styles.replyBarName}>Replying to {nameFor(replyTo.user_id)}</Text>
               <Text style={styles.replyBarBody} numberOfLines={1}>
-                {replyTo.kind === 'session' ? 'Session' : replyTo.body}
+                {replyTo.kind === 'session' ? 'Planned activity' : replyTo.body}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyTo(null)} accessibilityLabel="Cancel reply">
@@ -699,7 +710,7 @@ export default function ChatScreen() {
           </View>
         )}
 
-        <View style={[styles.composer, { paddingBottom: keyboardInset > 0 ? 10 : Math.max(insets.bottom, 10) }]}>
+        <View style={[styles.composer, mob && ms.composer, { paddingBottom: keyboardInset > 0 ? 10 : Math.max(insets.bottom, 10) }]}>
           {/* Planning a meet-up starts in the conversation — "anyone free
               Saturday?" is where the idea appears, so the button to act on it
               belongs here, not two screens away on a Sessions tab. */}
@@ -720,13 +731,13 @@ export default function ChatScreen() {
               It does NOT attach to contenteditable regions, so the keyboard
               comes up clean. Native keeps the real TextInput. */}
           {Platform.OS === 'web' ? (
-            <View style={styles.inputWrap}>
-              {!input && <Text style={styles.placeholder} pointerEvents="none">Message your team</Text>}
+            <View style={[styles.inputWrap, mob && ms.field]}>
+              {!input && <Text style={styles.placeholder} pointerEvents="none">Message the team</Text>}
               {React.createElement('div', {
                 ref: editorRef,
                 contentEditable: true,
                 role: 'textbox',
-                'aria-label': 'Message your team',
+                'aria-label': 'Message the team',
                 'aria-multiline': 'true',
                 suppressContentEditableWarning: true,
                 onInput: (e: any) => setInput(e.currentTarget.textContent ?? ''),
@@ -746,10 +757,10 @@ export default function ChatScreen() {
             </View>
           ) : (
             <TextInput
-              style={styles.input}
+              style={[styles.input, mob && ms.field]}
               value={input}
               onChangeText={setInput}
-              placeholder="Message your team"
+              placeholder="Message the team"
               placeholderTextColor={RivalColors.textSecondary}
               onSubmitEditing={send}
               returnKeyType="send"
@@ -766,7 +777,7 @@ export default function ChatScreen() {
             <RivalIcon
               name="send"
               size={19}
-              color={canSend ? RivalColors.textPrimary : RivalColors.textSecondary}
+              color={canSend ? RivalButtonColors.label(RivalColors.textPrimary) : RivalColors.textSecondary}
               // MaterialIcons' paper-plane is drawn low-left inside its box;
               // this re-centres the ink rather than the glyph's advance box.
               style={styles.sendGlyph}
@@ -1023,12 +1034,12 @@ const styles = StyleSheet.create({
   sendBtn: {
     width: COMPOSER_H, height: COMPOSER_H, borderRadius: COMPOSER_H / 2,
     flexShrink: 0,
-    backgroundColor: RivalColors.accentFill,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
     alignItems: 'center', justifyContent: 'center',
   },
   // A washed-out 40%-opacity everything read as broken rather than waiting.
   // Muting the fill and the glyph separately keeps it deliberate.
-  sendBtnOff: { backgroundColor: RivalColors.surfaceContainerHigh },
+  sendBtnOff: { backgroundColor: RivalColors.surfaceContainerHigh, ...RivalButtonColors.noGradient },
   // Measured off the actual MaterialIcons outline, not eyeballed. In the
   // 512-unit em the send glyph's ink spans x 43-491, so its bounding box sits
   // 11 units RIGHT of the advance centre — but its centre of MASS is 55.5
@@ -1045,4 +1056,32 @@ const styles = StyleSheet.create({
 
   emptyTitle: { fontSize: 17, fontWeight: '700', color: RivalColors.textPrimary },
   emptyBody: { fontSize: 14, color: RivalColors.textSecondary, textAlign: 'center', lineHeight: 20 },
+});
+
+// Mobile only — the blend (grey page, the pop-up glow at the top, recessed
+// bubbles) on the screen's chrome.
+const ms = StyleSheet.create({
+  container: {
+    backgroundColor: RivalColors.surfaceContainer,
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'radial-gradient(ellipse 80% 22% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.05) 55%, rgba(32,32,31,0) 100%)' } as any)
+      : {}),
+  },
+  // Your own messages keep the brand gradient.
+  bubbleMe: Platform.OS === 'web'
+    ? ({ backgroundImage: 'linear-gradient(135deg, #e6927a 0%, #D97757 100%)' } as any)
+    : {},
+  header: { borderBottomColor: RivalColors.surfaceBright },
+  headerLogo: { borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  headerTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', lineHeight: 24 },
+  headerSub: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 2 },
+  band: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
+  sepText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  // The 1px border is taken back out of the padding so text keeps the exact
+  // position the avatar nudge is measured against.
+  bubbleThem: { backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13, paddingVertical: 8 },
+  composer: { backgroundColor: RivalColors.surfaceContainer, borderTopColor: RivalColors.surfaceBright },
+  // No border: it would make the field 46 tall against the 44 send button.
+  field: { backgroundColor: RivalColors.surfaceLowest },
+  emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700' },
 });

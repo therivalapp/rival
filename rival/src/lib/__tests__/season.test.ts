@@ -5,28 +5,27 @@ describe('season boundaries', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('season runs Jan 1 UTC to Jan 1 UTC', () => {
-    expect(getSeasonStartISO(2026)).toBe('2026-01-01T00:00:00.000Z');
-    expect(getSeasonEndISO(2026)).toBe('2027-01-01T00:00:00.000Z');
+  it('season runs from local midnight on 1 January to the next', () => {
+    expect(getSeasonStartISO(2026)).toBe(new Date(2026, 0, 1).toISOString());
+    expect(getSeasonEndISO(2026)).toBe(new Date(2027, 0, 1).toISOString());
   });
 
-  // KNOWN QUIRK (documenting current behavior, not endorsing it): season year
-  // comes from the device's LOCAL calendar year, but the season window is UTC
-  // Jan 1. In NZ (UTC+13 in January), activities logged between midnight and
-  // ~1pm on Jan 1 belong to the NEW local year but fall BEFORE the UTC season
-  // start — they credit the previous season. If this test starts failing
-  // because the boundary was made timezone-aware, that's an improvement:
-  // update the test, don't revert the code.
+  it('an activity on the evening of 31 December local time belongs to the old season', () => {
+    const evening = new Date(2026, 11, 31, 21, 0, 0);
+    expect(evening < new Date(getSeasonEndISO(2026))).toBe(true);
+    expect(new Date(2027, 0, 1, 0, 0, 1) >= new Date(getSeasonStartISO(2027))).toBe(true);
+  });
+
   it('uses the local calendar year for the current season', () => {
-    vi.setSystemTime(new Date('2026-06-15T12:00:00'));
+    vi.setSystemTime(new Date(2026, 5, 15, 12));
     expect(getCurrentSeasonYear()).toBe(2026);
-    expect(getSeasonStartISO()).toBe('2026-01-01T00:00:00.000Z');
+    expect(getSeasonStartISO()).toBe(new Date(2026, 0, 1).toISOString());
   });
 
-  it('counts days until season end', () => {
-    vi.setSystemTime(new Date('2026-12-31T00:00:00Z'));
+  it('counts calendar days until season end', () => {
+    vi.setSystemTime(new Date(2026, 11, 31, 23, 30));
     expect(daysUntilSeasonEnd()).toBe(1);
-    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    vi.setSystemTime(new Date(2026, 0, 1, 0, 5));
     expect(daysUntilSeasonEnd()).toBe(365);
   });
 });

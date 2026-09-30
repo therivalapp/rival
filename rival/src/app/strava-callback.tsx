@@ -5,7 +5,7 @@ import { runFullStravaImport } from '../lib/strava';
 import { StravaImportReveal } from '../components/rival';
 
 export default function StravaCallbackScreen() {
-  const [status, setStatus] = useState('Connecting to Strava...');
+  const [status, setStatus] = useState('Connecting to Strava…');
   // Reveal state — set once the import genuinely finishes (not on a partial/
   // error outcome, where the plain status text stays the honest message).
   const [reveal, setReveal] = useState<{ seconds: number; effort: number; activities: number } | null>(null);
@@ -20,7 +20,7 @@ export default function StravaCallbackScreen() {
     const error = urlParams.get('error');
 
     if (error || !code || !accessToken) {
-      setStatus('Connection cancelled or session expired.');
+      setStatus('The connection was cancelled or timed out. Try connecting again.');
       setTimeout(() => window.close(), 2000);
       return;
     }
@@ -30,7 +30,7 @@ export default function StravaCallbackScreen() {
 
   async function exchangeToken(code: string, accessToken: string) {
     try {
-      setStatus('Saving connection...');
+      setStatus('Saving connection…');
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/strava-token-exchange`,
@@ -49,7 +49,7 @@ export default function StravaCallbackScreen() {
 
       if (!response.ok || data.error) {
         console.error('Edge function error:', data);
-        setStatus(response.status === 409 && data.error ? data.error : 'Failed to connect Strava. Please try again.');
+        setStatus(response.status === 409 && data.error ? data.error : "Couldn't connect Strava. Try again.");
         setTimeout(() => window.close(), response.status === 409 ? 4000 : 2000);
         return;
       }
@@ -80,7 +80,7 @@ export default function StravaCallbackScreen() {
 
     } catch (err) {
       console.error('Exchange error:', err);
-      setStatus('Something went wrong. Please try again.');
+      setStatus('Something went wrong. Try again.');
       setTimeout(() => window.close(), 2000);
     }
   }
@@ -94,7 +94,7 @@ export default function StravaCallbackScreen() {
             seconds={reveal.seconds}
             effort={reveal.effort}
             activities={reveal.activities}
-            ctaLabel="Let's Go"
+            ctaLabel="Continue"
             onDone={() => window.close()}
           />
         ) : (

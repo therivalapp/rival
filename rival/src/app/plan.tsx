@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RivalColors } from '../constants/rivalTheme';
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal } from 'react-native';
+import { RivalColors, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
-import { ACTIVITY_ICONS } from '../constants/activityIcons';
-import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton} from '../components/rival';
+import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, activityIconName, RivalSheet, RivalSheetCard, rb, GreyPageHead, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
+import { activityTypeLabel } from '../components/rival/EffortBreakdownSheet';
+import { goToTab } from '../lib/tabNav';
 
 // Class-based types use sessions (1 session = 45 min) instead of free duration entry
 const SESSION_TYPES = new Set([
@@ -54,6 +56,10 @@ export default function PlanScreen() {
   const [selectedType, setSelectedType] = useState('Run');
   const [duration, setDuration] = useState('');
   const [sessions, setSessions] = useState(1);
+  const [showAllTypes, setShowAllTypes] = useState(false);
+
+  const { width } = useWindowDimensions();
+  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -201,16 +207,229 @@ export default function PlanScreen() {
   const totalPlannedXp = plannedActivities.reduce((s, a) => s + a.projected_xp, 0);
   const projectedTotal = Math.round((currentWeekXp + totalPlannedXp) * 10) / 10;
 
+  if (!wide) {
+    const fmt = (n: number) => Math.round(n * 10) / 10;
+    const durationOk = isSessionType(selectedType) || (!!duration && parseFloat(duration) > 0);
+    const plannedMeta = (a: PlannedActivity) => isSessionType(a.activity_type)
+      ? `${a.duration_minutes / SESSION_MINUTES} ${a.duration_minutes / SESSION_MINUTES === 1 ? 'activity' : 'activities'} · ${a.duration_minutes} min`
+      : `${a.duration_minutes} min`;
+
+    const PHONE_TILES = ['Run', 'Ride', 'Swim', 'CrossFit', 'Hike', 'WeightTraining', 'HIIT'];
+    const tiles = showAllTypes
+      ? [...PHONE_TILES, ...activityTypes.filter((t) => !PHONE_TILES.includes(t))]
+      : PHONE_TILES;
+    const outsidePick = !tiles.includes(selectedType);
+    const planMins = isSessionType(selectedType) ? sessions * SESSION_MINUTES : parseFloat(duration);
+
+    return (
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+        <RivalTopNav active="today" />
+        <ScrollView contentContainerStyle={[rb.content, ms.content]}>
+          <GreyPageHead kicker="THIS WEEK" title="Weekly plan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
+
+          {/* Where the week stands, and where it could. */}
+          <View style={rb.card}>
+            <Text style={rb.label}>Effort</Text>
+            <View style={ms.totals}>
+              <View style={ms.total}>
+                <Text style={ms.totalNum}>{fmt(currentWeekXp).toLocaleString()}</Text>
+                <Text style={ms.totalLabel}>Earned</Text>
+              </View>
+              <View style={ms.totalDivider} />
+              <View style={ms.total}>
+                <Text style={[ms.totalNum, { color: RivalColors.accentText }]}>+{fmt(totalPlannedXp).toLocaleString()}</Text>
+                <Text style={ms.totalLabel}>Planned</Text>
+              </View>
+              <View style={ms.totalDivider} />
+              <View style={ms.total}>
+                <Text style={ms.totalNum}>{projectedTotal.toLocaleString()}</Text>
+                <Text style={ms.totalLabel}>Projected</Text>
+              </View>
+            </View>
+            <Text style={ms.hintCenter}>Effort, Monday to Sunday.</Text>
+          </View>
+
+          <TouchableOpacity style={ms.planBtn} onPress={() => setShowAdd(true)} activeOpacity={0.85} accessibilityRole="button">
+            <Text style={ms.planBtnText}>Plan an activity</Text>
+          </TouchableOpacity>
+
+          <Text style={rb.section}>Planned activities</Text>
+          {plannedActivities.length === 0 ? (
+            <View style={[rb.card, ms.emptyRow]}>
+              <View style={rb.badge}><RivalIcon name="calendar" size={16} color={RivalColors.accentText} /></View>
+              <Text style={ms.emptyText}>Nothing planned yet. Add an activity to see the projected standing.</Text>
+            </View>
+          ) : (
+            <View style={[rb.card, ms.list]}>
+              {plannedActivities.map((a, i) => (
+                <View key={a.id} style={[ms.row, i > 0 && rb.rule]}>
+                  <View style={rb.badge}>
+                    <RivalIcon name={activityIconName(a.activity_type)} size={16} color={RivalColors.accentText} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={ms.rowTitle} numberOfLines={1}>{activityTypeLabel(a.activity_type)}</Text>
+                    <Text style={ms.rowMeta}>{plannedMeta(a)}</Text>
+                  </View>
+                  <Text style={ms.rowEffort}>+{a.projected_xp}</Text>
+                  <TouchableOpacity onPress={() => removePlanned(a.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Remove">
+                    <RivalIcon name="close" size={16} color="rgba(255,255,255,0.35)" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {leagues.length > 0 && (
+            <>
+              <Text style={rb.section}>Team impact</Text>
+              {leagues.map((league) => {
+                const moved = league.projectedRank < league.currentRank;
+                const dropped = league.projectedRank > league.currentRank;
+                return (
+                  <View key={league.league_id} style={rb.card}>
+                    <View style={rm.cardHead}>
+                      <Text style={ms.teamName} numberOfLines={1}>{league.league_name}</Text>
+                      {totalPlannedXp > 0 ? (
+                        <View style={[ms.rankPill, moved && ms.rankPillUp]}>
+                          {moved ? <RivalIcon name="trendUp" size={14} color={RivalColors.accentGold} /> : dropped ? <RivalIcon name="trendDown" size={14} color="#f87171" /> : null}
+                          <Text style={[ms.rankPillText, moved && { color: RivalColors.accentGold }]}>
+                            P{league.currentRank} → P{league.projectedRank}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={ms.rankNow}>P{league.currentRank}</Text>
+                      )}
+                    </View>
+                    <View style={{ gap: 2 }}>
+                      {/* Ranked by the projected week, so the position shown
+                          matches the P-number above it. */}
+                      {league.members
+                        .map((mem) => (mem.user_id === userId ? { ...mem, score: league.myProjectedScore } : mem))
+                        .sort((x, y) => y.score - x.score)
+                        .slice(0, 5)
+                        .map((member, idx) => {
+                        const isMe = member.user_id === userId;
+                        return (
+                          <View key={member.user_id} style={[ms.lbRow, isMe && ms.lbRowMe]}>
+                            <Text style={ms.lbRank}>{idx + 1}</Text>
+                            <Text style={[ms.lbName, isMe && ms.lbNameMe]} numberOfLines={1}>{member.name}</Text>
+                            {isMe && totalPlannedXp > 0 ? <Text style={ms.lbBonus}>+{fmt(totalPlannedXp)}</Text> : null}
+                            <Text style={[ms.lbScore, isMe && { color: RivalColors.accentText }]}>{fmt(member.score)}</Text>
+                          </View>
+                        );
+                      })}
+                      {league.members.length > 5 && (
+                        <Text style={ms.hintCenter}>+{league.members.length - 5} more</Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </>
+          )}
+
+          {!loading && leagues.length === 0 && (
+            <Text style={ms.hintCenter}>Join a team to see a projected position.</Text>
+          )}
+
+          <Text style={ms.hintCenter}>Estimates use the time and the activity's rate. Distance, once recorded, adds to the actual Effort.</Text>
+        </ScrollView>
+
+        {/* Plan an activity: the grey pop-up. Closes by tapping outside. */}
+        <Modal visible={showAdd} transparent animationType="slide" onRequestClose={closeAddModal}>
+          <View style={ms.backdrop}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeAddModal} accessibilityLabel="Close" />
+            <GreySheet
+              kicker="WEEKLY PLAN"
+              title="Plan an activity"
+              onClose={closeAddModal}
+              footer={<GreyPrimary label="Add to plan" disabled={!durationOk} onPress={addPlanned} />}
+            >
+              <View style={ms.tiles}>
+                {tiles.map((t) => {
+                  const on = selectedType === t;
+                  return (
+                    <TouchableOpacity key={t} style={[ms.tile, on && ms.tileOn]} onPress={() => setSelectedType(t)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                      <View style={[ms.badge, on && ms.badgeOn]}>
+                        <RivalIcon name={activityIconName(t)} size={16} color={on ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
+                      </View>
+                      <Text style={[ms.tileText, on && ms.tileTextOn]} numberOfLines={1}>{activityTypeLabel(t)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity style={[ms.tile, outsidePick ? ms.tileOn : ms.tileAll]} onPress={() => setShowAllTypes((v) => !v)} activeOpacity={0.8} accessibilityRole="button">
+                  <View style={[ms.badge, outsidePick ? ms.badgeOn : ms.badgeAll]}>
+                    <RivalIcon name={outsidePick ? activityIconName(selectedType) : 'apps'} size={16} color={outsidePick ? RivalColors.surfaceLowest : RivalColors.accentText} />
+                  </View>
+                  <Text style={[ms.tileText, outsidePick ? ms.tileTextOn : ms.tileAllText]} numberOfLines={1}>
+                    {outsidePick ? activityTypeLabel(selectedType) : showAllTypes ? 'Fewer' : 'See all'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <GreyLabel>Details</GreyLabel>
+              <GreyRows>
+                {isSessionType(selectedType) ? (
+                  <GreyRow icon="timer" label="Classes">
+                    <View style={ms.stepRow}>
+                      <TouchableOpacity style={ms.stepBtn} onPress={() => setSessions((n) => Math.max(1, n - 1))} accessibilityLabel="One fewer">
+                        <RivalIcon name="remove" size={16} color="#fff" />
+                      </TouchableOpacity>
+                      <Text style={ms.stepValue}>{sessions} · {sessions * SESSION_MINUTES} min</Text>
+                      <TouchableOpacity style={ms.stepBtn} onPress={() => setSessions((n) => n + 1)} accessibilityLabel="One more">
+                        <RivalIcon name="add" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </GreyRow>
+                ) : (
+                  <GreyRow icon="timer" label="Duration">
+                    <View style={ms.stepRow}>
+                      <GreyRowInput value={duration} onChangeText={setDuration} placeholder="45" keyboardType="decimal-pad" style={ms.durInput} />
+                      <Text style={ms.durUnit}>min</Text>
+                    </View>
+                  </GreyRow>
+                )}
+                <GreyRow icon="bolt" label="Estimated Effort">
+                  <Text style={ms.estimate}>{durationOk ? `+${estimateXp(selectedType, planMins)}` : '–'}</Text>
+                </GreyRow>
+              </GreyRows>
+
+              {plannedActivities.length > 0 && (
+                <>
+                  <GreyLabel>Added so far</GreyLabel>
+                  <GreyRows>
+                    {plannedActivities.map((a) => (
+                      <GreyRow key={a.id} icon={activityIconName(a.activity_type)} label={activityTypeLabel(a.activity_type)}>
+                        <View style={ms.stepRow}>
+                          <Text style={ms.addedMeta}>{plannedMeta(a)}</Text>
+                          <Text style={ms.addedEffort}>+{a.projected_xp}</Text>
+                          <TouchableOpacity onPress={() => removePlanned(a.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Remove">
+                            <RivalIcon name="close" size={15} color="rgba(255,255,255,0.35)" />
+                          </TouchableOpacity>
+                        </View>
+                      </GreyRow>
+                    ))}
+                  </GreyRows>
+                  <GreyNote>Total planned: +{fmt(totalPlannedXp)} Effort.</GreyNote>
+                </>
+              )}
+            </GreySheet>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <RivalTopNav active="today" />
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} color={RivalColors.accentFill} />
         </View>
 
-        <RivalPageHeader title="Plan Your Week" subtitle="See your projected team position." />
+        <RivalPageHeader title="Weekly Plan" subtitle="Projected team standing." />
 
         {/* Current vs projected Effort */}
         <View style={styles.xpCard}>
@@ -243,14 +462,14 @@ export default function PlanScreen() {
 
         {plannedActivities.length === 0 && (
           <View style={styles.emptyPlanned}>
-            <Text style={styles.emptyPlannedText}>No workouts planned yet.</Text>
-            <Text style={styles.emptyPlannedSub}>Add a workout to see your projected standing.</Text>
+            <Text style={styles.emptyPlannedText}>No workouts planned.</Text>
+            <Text style={styles.emptyPlannedSub}>Add a workout to see the projected standing.</Text>
           </View>
         )}
 
         {plannedActivities.map((a) => (
           <View key={a.id} style={styles.plannedRow}>
-            <Text style={styles.plannedIcon}>{ACTIVITY_ICONS[a.activity_type] ?? '🏅'}</Text>
+            <RivalIcon name={activityIconName(a.activity_type)} size={22} color={RivalColors.accentText} />
             <View style={styles.plannedInfo}>
               <Text style={styles.plannedType}>{a.activity_type}</Text>
               <Text style={styles.plannedMeta}>{a.duration_minutes} min · ×{scoringConfig[a.activity_type] ?? 1.0}</Text>
@@ -324,7 +543,7 @@ export default function PlanScreen() {
 
         {!loading && leagues.length === 0 && (
           <View style={styles.noLeagues}>
-            <Text style={styles.noLeaguesText}>Join a team to see your projected position here.</Text>
+            <Text style={styles.noLeaguesText}>Join a team to see a projected position.</Text>
           </View>
         )}
 
@@ -351,16 +570,17 @@ export default function PlanScreen() {
                   style={[styles.typeChip, selectedType === t && styles.typeChipActive]}
                   onPress={() => setSelectedType(t)}
                 >
-                  <Text style={[styles.typeChipText, selectedType === t && styles.typeChipTextActive]}>
-                    {ACTIVITY_ICONS[t] ?? '🏅'} {t}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <RivalIcon name={activityIconName(t)} size={14} color={selectedType === t ? RivalButtonColors.label(RivalColors.textPrimary) : RivalColors.textSecondary} />
+                    <Text style={[styles.typeChipText, selectedType === t && styles.typeChipTextActive]}>{t}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             {isSessionType(selectedType) ? (
               <>
-                <Text style={styles.modalLabel}>Sessions</Text>
+                <Text style={styles.modalLabel}>Activities</Text>
                 <View style={styles.stepperRow}>
                   <TouchableOpacity
                     style={styles.stepperBtn}
@@ -389,7 +609,7 @@ export default function PlanScreen() {
                 <Text style={styles.modalLabel}>Duration (minutes)</Text>
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="e.g. 45"
+                  placeholder="45"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={duration}
                   onChangeText={setDuration}
@@ -419,12 +639,12 @@ export default function PlanScreen() {
                 <Text style={styles.modalLabel}>Added so far</Text>
                 {plannedActivities.map((a) => (
                   <View key={a.id} style={styles.modalPlannedRow}>
-                    <Text style={styles.modalPlannedIcon}>{ACTIVITY_ICONS[a.activity_type] ?? '🏅'}</Text>
+                    <RivalIcon name={activityIconName(a.activity_type)} size={18} color={RivalColors.accentText} />
                     <View style={styles.modalPlannedInfo}>
                       <Text style={styles.modalPlannedType}>{a.activity_type}</Text>
                       <Text style={styles.modalPlannedMeta}>
                         {isSessionType(a.activity_type)
-                          ? `${a.duration_minutes / SESSION_MINUTES} session${a.duration_minutes / SESSION_MINUTES === 1 ? '' : 's'} · ${a.duration_minutes} min`
+                          ? `${a.duration_minutes / SESSION_MINUTES} ${a.duration_minutes / SESSION_MINUTES === 1 ? 'activity' : 'activities'} · ${a.duration_minutes} min`
                           : `${a.duration_minutes} min`}
                       </Text>
                     </View>
@@ -474,8 +694,8 @@ const styles = StyleSheet.create({
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: RivalColors.textPrimary },
-  addBtn: { backgroundColor: RivalColors.accentFill, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  addBtnText: { color: RivalColors.textPrimary, fontWeight: '700', fontSize: 14 },
+  addBtn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  addBtnText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontWeight: '700', fontSize: 14 },
 
   emptyPlanned: { paddingVertical: 28, alignItems: 'center', gap: 6 },
   emptyPlannedText: { fontSize: 14, color: RivalColors.textSecondary },
@@ -543,15 +763,15 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: RivalColors.surfaceContainer, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, gap: 14 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalTitle: { fontSize: 22, fontWeight: '900', color: RivalColors.textPrimary },
-  doneBtn: { backgroundColor: RivalColors.accentFill, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20 },
-  doneBtnText: { color: RivalColors.textPrimary, fontWeight: '700', fontSize: 15 },
+  doneBtn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20 },
+  doneBtnText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontWeight: '700', fontSize: 15 },
   modalLabel: { fontSize: 12, fontWeight: '700', color: RivalColors.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
   typeScroll: { flexGrow: 0 },
   typeRow: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
   typeChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: RivalColors.surfaceHigh, backgroundColor: RivalColors.surfaceContainer },
-  typeChipActive: { backgroundColor: RivalColors.accentFill, borderColor: RivalColors.accentFill },
+  typeChipActive: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: RivalButtonColors.fill },
   typeChipText: { fontSize: 13, color: RivalColors.textSecondary, fontWeight: '600' },
-  typeChipTextActive: { color: RivalColors.textPrimary },
+  typeChipTextActive: { color: RivalButtonColors.label(RivalColors.textPrimary) },
   modalInput: { backgroundColor: RivalColors.surfaceContainer, borderRadius: 10, padding: 14, color: RivalColors.textPrimary, fontSize: 18, borderWidth: 1, borderColor: RivalColors.surfaceHigh },
   previewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,181,158,0.07)', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: 'rgba(255,181,158,0.20)' },
   previewLabel: { fontSize: 13, color: RivalColors.textSecondary },
@@ -577,4 +797,83 @@ const styles = StyleSheet.create({
   modalTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: RivalColors.surfaceHigh },
   modalTotalLabel: { fontSize: 13, color: RivalColors.textSecondary, fontWeight: '600' },
   modalTotalXp: { fontSize: 16, fontWeight: '900', color: RivalColors.accentText },
+});
+
+// Mobile only — the RIVAL look (see RivalMobile.tsx).
+const ms = StyleSheet.create({
+  content: { paddingBottom: 120 },
+  totals: { flexDirection: 'row', alignItems: 'center' },
+  total: { flex: 1, alignItems: 'center', gap: 2 },
+  totalNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 30, fontWeight: '700', color: '#fff', lineHeight: 36 },
+  totalLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  totalDivider: { width: 1, height: 40, backgroundColor: 'rgba(50,50,50,0.8)' },
+  hintCenter: { fontSize: 12, lineHeight: 17, color: RivalColors.textSecondary, textAlign: 'center' },
+  planBtn: { paddingVertical: 14, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  planBtnText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
+  list: { paddingVertical: 0, gap: 0 },
+  rowMeta: { fontSize: 12, color: RivalColors.textSecondary },
+  teamName: { flex: 1, fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: '#fff' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 },
+  tile: {
+    width: '23.2%', alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8,
+    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: 'rgba(255,209,190,0.09)',
+  } as any,
+  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
+  badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  badgeOn: {
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.5)' },
+  tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' } as any,
+  tileTextOn: { color: '#fff' },
+  tileAllText: { color: RivalColors.accentText },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
+  stepBtn: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.surfaceBright },
+  stepValue: { fontSize: 14.5, fontWeight: '500', color: '#fff', fontVariant: ['tabular-nums'] },
+  durInput: { width: 70, alignSelf: 'auto' } as any,
+  durUnit: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
+  estimate: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 19, fontWeight: '700', color: RivalColors.accentText, textAlign: 'right' },
+  addedMeta: { fontSize: 12.5, color: RivalColors.textSecondary },
+  section: { marginTop: 6 },
+  empty: { alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  rowTitle: { fontSize: 15.5, fontWeight: '700', color: '#fff' },
+  rowEffort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: RivalColors.accentText },
+  rankPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: RivalWarm.field },
+  rankPillUp: { backgroundColor: 'rgba(245,183,89,0.12)' },
+  rankPillText: { fontSize: 12.5, fontWeight: '800', color: RivalWarm.soft },
+  rankNow: { fontSize: 13, fontWeight: '800', color: RivalWarm.muted },
+  lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10 },
+  lbRowMe: { backgroundColor: 'rgba(255,209,190,0.08)' },
+  lbRank: { width: 16, fontSize: 12, fontWeight: '800', color: RivalWarm.muted },
+  lbName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: RivalWarm.soft },
+  lbNameMe: { color: '#fff', fontWeight: '800' },
+  lbBonus: { fontSize: 11.5, fontWeight: '800', color: RivalColors.accentText },
+  lbScore: { fontSize: 13.5, fontWeight: '700', color: RivalWarm.soft },
+
+  sheetScroll: { flexGrow: 0 },
+  // The sheet takes the page's own look (as on Goals): page background, the
+  // fields grouped in cards, a soft sand edge along the rounded top.
+  sheet: {
+    backgroundColor: RivalWarm.page, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,209,190,0.18)',
+    paddingHorizontal: 16, paddingTop: 22, paddingBottom: 36, gap: 10,
+  },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 14 },
+  stepper: { backgroundColor: RivalWarm.field, borderColor: RivalWarm.cardBorder, marginBottom: 0 },
+  stepperBtn: { borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.06)' },
+  stepperValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 30, fontWeight: '700', color: '#fff' },
+  preview: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12, backgroundColor: 'rgba(255,209,190,0.07)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.16)' },
+  previewNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700', color: RivalColors.accentText },
+  sheetActions: { gap: 10, marginTop: 4 },
+  added: { gap: 8, marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderTopColor: RivalWarm.hairline },
+  addedRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addedName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#fff' },
+  addedEffort: { fontSize: 13.5, fontWeight: '800', color: RivalColors.accentText },
+  addedTotal: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6 },
 });

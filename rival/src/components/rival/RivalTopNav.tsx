@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,10 +7,13 @@ import { supabase, getAuthUser } from '../../lib/supabase';
 import { getLevel } from '../../lib/xp';
 import { getSeasonStartISO } from '../../lib/season';
 import { fetchInboxBadgeCount, onInboxChanged } from '../../lib/inbox';
+import { NotificationsMenu } from './NotificationsMenu';
+import { stravaSharingNeedsAnswer } from '../../lib/stravaSharing';
 import { getUnreadChats } from '../../lib/unreadChats';
 import { RivalColors, RivalType } from '../../constants/rivalTheme';
 import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 import { RivalIcon, RivalIconName } from './RivalIcon';
+import { goToTab, type TabRoute } from '../../lib/tabNav';
 
 // Shared persistent top navigation, matching the Stitch mockups. Drop it in at
 // the top of a screen (outside the ScrollView so it stays put) and pass the
@@ -31,6 +34,18 @@ const LINKS: Array<{ key: Section; label: string; route: string; icon: RivalIcon
   // the row so the three existing tabs don't move under anyone's thumb.
   { key: 'chat', label: 'Chat', route: '/messages', icon: 'chat' },
 ];
+
+// Avatar, name and rank for the bar, shared by every screen's copy of it.
+// A minute is short enough that a new photo or a rank change shows up soon,
+// and invalidateNavIdentity() refreshes it at once where that matters.
+const NAV_IDENTITY_MS = 60_000;
+let navIdentity: {
+  at: number; userId: string; avatarUrl: string | null; displayName: string; initial: string; rankName: string;
+} | null = null;
+
+export function invalidateNavIdentity() {
+  navIdentity = null;
+}
 
 export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   active?: Section;
@@ -57,11 +72,17 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   }, [pathname]);
 
   const [inboxCount, setInboxCount] = useState(0);
+  const bellRef = useRef<View>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const barRef = useRef<View>(null);
+  const [notifAnchor, setNotifAnchor] = useState<{ left: number; top: number; width: number; height: number; barBottom: number } | null>(null);
+  // A route change closes the dropdown.
+  useEffect(() => { setNotifOpen(false); }, [pathname]);
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      fetchInboxBadgeCount()
-        .then((n) => { if (!cancelled) setInboxCount(n); })
+      Promise.all([fetchInboxBadgeCount(), stravaSharingNeedsAnswer().catch(() => false)])
+        .then(([n, strava]) => { if (!cancelled) setInboxCount(n + (strava ? 1 : 0)); })
         .catch(() => {});
     };
     refresh();
@@ -135,22 +156,30 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
     window.addEventListener('scroll', onScroll, { capture: true, passive: true });
     return () => window.removeEventListener('scroll', onScroll, { capture: true } as any);
   }, [narrow]);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [initial, setInitial] = useState('?');
-  const [displayName, setDisplayName] = useState('');
-  const [rankName, setRankName] = useState<string | null>(null);
+  // Seeded from the shared cache, so a newly opened screen shows the avatar
+  // and rank at once instead of a "?" that fills in a moment later.
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(navIdentity?.avatarUrl ?? null);
+  const [initial, setInitial] = useState(navIdentity?.initial ?? '?');
+  const [displayName, setDisplayName] = useState(navIdentity?.displayName ?? '');
+  const [rankName, setRankName] = useState<string | null>(navIdentity?.rankName ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   async function handleSignOut() {
+    invalidateNavIdentity();
     await supabase.auth.signOut();
     router.replace('/');
   }
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const { data: { user } } = await getAuthUser();
-      if (!user) return;
+      if (!user || cancelled) return;
+      // Every screen has its own copy of this bar, so without a shared cache
+      // each navigation re-fetched the profile and the whole year's
+      // activities just to draw an avatar and a rank.
+      if (navIdentity && navIdentity.userId === user.id && Date.now() - navIdentity.at < NAV_IDENTITY_MS) return;
 
       const [{ data: profile }, { data: seasonActs }] = await Promise.all([
         supabase.from('users').select('avatar_url, display_name').eq('id', user.id).single(),
@@ -158,15 +187,24 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
         // (bounded) rather than all-time, so the nav stays light on every screen.
         supabase.from('activities').select('effort_score').eq('user_id', user.id).gte('started_at', getSeasonStartISO()),
       ]);
+      if (cancelled) return;
 
-      setAvatarUrl(profile?.avatar_url || null);
       const name = profile?.display_name || (user.user_metadata?.display_name as string) || '';
-      setDisplayName(name);
-      setInitial(name ? name[0].toUpperCase() : '?');
-
-      const seasonEffort = (seasonActs || []).reduce((s, a) => s + (a.effort_score || 0), 0);
-      setRankName(getLevel(seasonEffort).name);
+      const seasonEffort = (seasonActs || []).reduce((sum, a) => sum + (a.effort_score || 0), 0);
+      navIdentity = {
+        at: Date.now(),
+        userId: user.id,
+        avatarUrl: profile?.avatar_url || null,
+        displayName: name,
+        initial: name ? name[0].toUpperCase() : '?',
+        rankName: getLevel(seasonEffort).name,
+      };
+      setAvatarUrl(navIdentity.avatarUrl);
+      setDisplayName(navIdentity.displayName);
+      setInitial(navIdentity.initial);
+      setRankName(navIdentity.rankName);
     })();
+    return () => { cancelled = true; };
   }, []);
 
   // iOS Safari has a long-standing bug: `position: fixed` inside a nested
@@ -210,7 +248,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           return (
             <TouchableOpacity
               key={l.key}
-              onPress={() => router.push(l.route as any)}
+              onPress={() => goToTab(l.route as TabRoute)}
               style={[styles.bottomNavItem, isActive && styles.bottomNavItemActive, navShrunk && styles.bottomNavItemShrunk]}
             >
               <View>
@@ -246,10 +284,10 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
     // it back as internal padding instead, so the bar's own background runs
     // edge-to-edge under the status bar while its content stays clear of it.
     // insets.top is 0 in a browser tab, where this is a no-op.
-    <View style={[styles.bar, narrow && styles.barNarrow, insets.top > 0 && ({ marginTop: -insets.top, paddingTop: insets.top } as any)]}>
+    <View ref={barRef as any} style={[styles.bar, narrow && styles.barNarrow, insets.top > 0 && ({ marginTop: -insets.top, paddingTop: insets.top } as any)]}>
       <View style={[styles.row, narrow && styles.rowNarrow]}>
         <TouchableOpacity
-          onPress={() => router.push('/home')}
+          onPress={() => goToTab('/home')}
           style={narrow && centerSlot ? styles.logoWrapBalanced : undefined}
         >
           <Text style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</Text>
@@ -258,7 +296,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
         {!narrow && (
           <View style={[styles.links, Platform.OS === 'web' && (styles.linksCentered as any)]}>
             {LINKS.map((l) => (
-              <TouchableOpacity key={l.key} onPress={() => router.push(l.route as any)}>
+              <TouchableOpacity key={l.key} onPress={() => goToTab(l.route as TabRoute)}>
                 <Text style={[styles.link, active === l.key && styles.linkActive]}>{l.label}</Text>
               </TouchableOpacity>
             ))}
@@ -315,7 +353,25 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
               <RivalIcon name={action.icon} size={narrow ? 21 : 22} color={RivalColors.accentText} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => router.push('/inbox')} style={[styles.notifBtn, narrow && styles.notifBtnNarrow]}>
+          {/* Phones: the bell opens a dropdown of the latest notifications, with
+              See all leading to the full page. Desktop keeps going straight to
+              the page. */}
+          <TouchableOpacity
+            ref={bellRef as any}
+            onPress={() => {
+              if (!narrow) { router.push('/inbox'); return; }
+              // The dropdown grows out of the bell itself, so it needs to know
+              // exactly where the bell and the bottom of the bar are.
+              const bell = (bellRef.current as any)?.getBoundingClientRect?.();
+              const bar = (barRef.current as any)?.getBoundingClientRect?.();
+              if (bell && bar) {
+                setNotifAnchor({ left: bell.left, top: bell.top, width: bell.width, height: bell.height, barBottom: bar.bottom });
+              }
+              setNotifOpen(true);
+            }}
+            accessibilityLabel="Notifications"
+            style={[styles.notifBtn, narrow && styles.notifBtnNarrow]}
+          >
             {/* Mockup's mobile header uses the plain calm bell (ti-bell), not
                 the "ringing" bell desktop keeps for its own header. */}
             <RivalIcon name={narrow ? 'notificationsOutline' : 'notificationsActive'} size={narrow ? 21 : 22} color={RivalColors.accentText} />
@@ -345,11 +401,14 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
                 that strip belongs to `row`/`right` (not a descendant of
                 avatarWrap), so crossing it on the way down would fire
                 mouseleave and close the menu before the pointer reaches it. */}
-            {Platform.OS === 'web' && <View style={styles.avatarMenuBridge} />}
+            {Platform.OS === 'web' && <View style={[styles.avatarMenuBridge, narrow && { right: -8 }]} />}
             {Platform.OS === 'web' && (
               <View
                 style={[
                   styles.avatarMenu,
+                  // rowNarrow pads 8, not 20: -20 pushed the (hidden) menu
+                  // 12px past the screen edge on phones.
+                  narrow && { right: -8 },
                   {
                     transform: [{ scaleY: menuOpen ? 1 : 0 }],
                     opacity: menuOpen ? 1 : 0,
@@ -401,7 +460,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
                   {...(Platform.OS === 'web' ? { onMouseEnter: () => setHoveredItem('profile'), onMouseLeave: () => setHoveredItem(null) } as any : {})}
                 >
                   <RivalIcon name="person" size={16} color={RivalColors.accentText} />
-                  <Text style={styles.avatarMenuText}>Your Profile</Text>
+                  <Text style={styles.avatarMenuText}>Profile</Text>
                 </TouchableOpacity>
                 {/* No Friends entry: RIVAL's social unit is the Team. A one-way
                     follow makes an audience, not a training partner — and the
@@ -431,6 +490,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
         </View>
       </View>
       {narrow && isFocused && (bottomNavPortalTarget ? createPortal(bottomNav, bottomNavPortalTarget) : bottomNav)}
+      {narrow && isFocused && notifOpen && notifAnchor && <NotificationsMenu anchor={notifAnchor} onClose={() => setNotifOpen(false)} />}
     </View>
   );
 }

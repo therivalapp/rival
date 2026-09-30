@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { saveActivityRoute } from '../_shared/activityRoute.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveCanonicalActivityId, linkNewActivitySource } from '../_shared/activityDedup.ts'
 import { findMatchingRaceId } from '../_shared/raceMatch.ts'
@@ -51,7 +52,7 @@ async function notifyActivityLanded(
     messages.push({
       to: ownToken.token,
       title: `+${effort} Effort`,
-      body: `${activityName} is in — straight from Strava.`,
+      body: `${activityName} synced from Strava.`,
       data: { screen: 'home' },
       sound: 'default',
     })
@@ -120,7 +121,7 @@ async function notifyActivityLanded(
           if (!t.token) continue
           messages.push({
             to: t.token,
-            title: `${firstName} just trained`,
+            title: `${firstName} logged an activity`,
             body: `${activityName} — ${effort} Effort`,
             data: { screen: 'team-feed' },
             sound: 'default',
@@ -314,7 +315,7 @@ serve(async (req) => {
     // sport_type:"MountainBikeRide"), so reading `type` made the TrailRun /
     // MountainBikeRide / GravelRide / VirtualRow config rows unreachable.
     const canonicalType = normaliseActivityType(activity.sport_type ?? activity.type)
-    const effortScore = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig)
+    const effortScore = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig, activity.distance)
     console.log('Effort score:', effortScore)
 
     // Resolves same-source re-syncs AND cross-source duplicates (e.g. a Garmin watch
@@ -359,7 +360,6 @@ serve(async (req) => {
       started_at: activity.start_date,
       effort_score: effortScore,
       raw_effort_score: effortScore,
-      route_polyline: activity.map?.summary_polyline || null,
       // start_date_local (not start_date) — races.race_date is a bare calendar
       // date, so matching needs the athlete's local day, not the UTC one.
       race_id: await findMatchingRaceId(supabase, connection.user_id, activity.start_date_local),
@@ -376,7 +376,10 @@ serve(async (req) => {
 
       const { error: activityError } = await supabase.from('activities').update(updateFields).eq('id', canonicalId)
       if (activityError) console.log('Activity update error:', JSON.stringify(activityError))
-      else console.log('Activity saved successfully with effort score:', effortScore)
+      else {
+        await saveActivityRoute(supabase, canonicalId, connection.user_id, activity.map?.summary_polyline)
+        console.log('Activity saved successfully with effort score:', effortScore)
+      }
     } else {
       const { data: inserted, error: activityError } = await supabase
         .from('activities')
@@ -386,7 +389,10 @@ serve(async (req) => {
       if (activityError) {
         console.log('Activity insert error:', JSON.stringify(activityError))
       } else {
-        if (inserted) await linkNewActivitySource(supabase, connection.user_id, inserted.id, 'strava', stravaActivityId, sourceProvenance)
+        if (inserted) {
+          await linkNewActivitySource(supabase, connection.user_id, inserted.id, 'strava', stravaActivityId, sourceProvenance)
+          await saveActivityRoute(supabase, inserted.id, connection.user_id, activity.map?.summary_polyline)
+        }
         console.log('Activity saved successfully with effort score:', effortScore)
 
         // Only a genuine first-time insert is news. The update branch above
@@ -395,7 +401,7 @@ serve(async (req) => {
         // resolve to a canonical row and land there too.
         if (event.aspect_type === 'create') {
           try {
-            await notifyActivityLanded(supabase, connection.user_id, activity.name || 'A session', effortScore, activity.start_date ?? null)
+            await notifyActivityLanded(supabase, connection.user_id, activity.name || 'An activity', effortScore, activity.start_date ?? null)
           } catch (pushErr) {
             // Never let this reach the response — Strava disables a
             // subscription that stops returning 2xx, which would kill every

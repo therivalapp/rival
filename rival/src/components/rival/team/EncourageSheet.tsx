@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../../constants/breakpoints';
 import { supabase } from '../../../lib/supabase';
 import { RivalColors } from '../../../constants/rivalTheme';
 import { RivalIcon } from '../RivalIcon';
 import { sheet } from './sheetStyles';
+import { BusyText } from '../BusyText';
+import { GreySheet, GreyLabel, GreyRows, GreyRow, GreyField, GreyNote, GreyPrimary } from '../RivalGreySheet';
 
 // Send a teammate a word of encouragement. Ported from the old team page,
 // where it hung off each feed post. The send-encouragement function enforces
@@ -59,7 +62,7 @@ export function EncourageSheet({
       });
       if (res.status === 429) {
         onSent(toUser.id);
-        setError(`You've already encouraged ${toUser.name} today.`);
+        setError(`${toUser.name} has already been encouraged today.`);
         return;
       }
       const data = await res.json().catch(() => ({}));
@@ -75,6 +78,41 @@ export function EncourageSheet({
 
   const canSend = !!message.trim() && !sending;
 
+  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  // Phone: the grey pop-up. Ready messages as one-line rows (tiles wrapped
+  // them onto two lines), your own words below, Send pinned.
+  if (phoneSheet) {
+    return (
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={sheet.backdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel="Close" />
+          <GreySheet
+            kicker="ENCOURAGE"
+            title={`Encourage ${toUser?.name ?? ''}`}
+            onClose={onClose}
+            footer={<GreyPrimary label={sending ? 'Sending…' : 'Send'} busy={sending} disabled={!canSend} onPress={send} />}
+          >
+            <GreyNote>Sent as a notification. One per teammate per day.</GreyNote>
+            <GreyLabel>Suggested</GreyLabel>
+            <GreyRows>
+              {PRESETS.map((p) => (
+                <GreyRow key={p} icon="respect" label={p} onPress={() => setMessage(p)}>
+                  {message === p ? <RivalIcon name="check" size={17} color={RivalColors.accentText} /> : null}
+                </GreyRow>
+              ))}
+            </GreyRows>
+            <GreyLabel>Or your own words</GreyLabel>
+            <GreyField
+              value={PRESETS.includes(message) ? '' : message}
+              onChangeText={(v) => setMessage(v.slice(0, 140))}
+              placeholder="Message"
+            />
+            {!!error && <Text style={sheet.error}>{error}</Text>}
+          </GreySheet>
+        </View>
+      </Modal>
+    );
+  }
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheet.backdrop}>
@@ -84,14 +122,17 @@ export function EncourageSheet({
           <View style={sheet.head}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={sheet.title}>Encourage {toUser?.name ?? ''}</Text>
-              <Text style={sheet.sub}>They'll get it as a notification. One a day per teammate.</Text>
+              <Text style={sheet.sub}>Sent as a notification. One per teammate per day.</Text>
             </View>
-            <TouchableOpacity style={sheet.close} onPress={onClose} accessibilityLabel="Close">
-              <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
-            </TouchableOpacity>
+            {/* Phone pop-ups close by tapping outside, no X. */}
+            {!phoneSheet && (
+              <TouchableOpacity style={sheet.close} onPress={onClose} accessibilityLabel="Close">
+                <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          <Text style={sheet.label}>Quick message</Text>
+          <Text style={sheet.label}>Suggested messages</Text>
           <View style={sheet.chipRow}>
             {PRESETS.map(p => (
               <TouchableOpacity key={p} style={[sheet.chip, message === p && sheet.chipOn]} onPress={() => setMessage(p)}>
@@ -100,7 +141,7 @@ export function EncourageSheet({
             ))}
           </View>
 
-          <Text style={sheet.label}>Or write your own</Text>
+          <Text style={sheet.label}>Custom message</Text>
           <TextInput
             style={sheet.input}
             value={message}
@@ -115,7 +156,7 @@ export function EncourageSheet({
               <Text style={sheet.secondaryBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[sheet.primaryBtn, !canSend && sheet.primaryBtnOff]} onPress={send} disabled={!canSend}>
-              <Text style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send'}</Text>
+              <BusyText busy={!!(sending)} style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send'}</BusyText>
             </TouchableOpacity>
           </View>
         </View>

@@ -21,3 +21,130 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
 }
+
+/* Primary buttons on phones — see RivalButtonColors in constants/rivalTheme.ts.
+   639px matches BREAKPOINT_MOBILE_NAV (below 640 the app is the mobile app).
+   Unset on desktop, so every button falls back to its original colours. */
+@media (max-width: 639px) {
+  :root {
+    --rival-button-fill: #ffb59e;
+    --rival-button-label: #5c1902;
+    --rival-button-image: linear-gradient(135deg, #D97757 0%, #ffb59e 100%);
+  }
+}
+
+/* Home podium motion — see podiumRise/podiumSettle/podiumSheen in home.tsx.
+   Kept here because react-native-web drops inline animationKeyframes; the
+   components reference these by animationName instead. */
+@keyframes rivalPodiumRise {
+  0% { transform: scaleY(0.04); opacity: 0; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+@keyframes rivalPodiumSettle {
+  0% { transform: translateY(-14px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+/* The stage under the pillars fades in as they start to rise. */
+@keyframes rivalPodiumStageIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes rivalPodiumSheen {
+  0% { transform: translateX(-160%) skewX(-18deg); }
+  22% { transform: translateX(360%) skewX(-18deg); }
+  100% { transform: translateX(360%) skewX(-18deg); }
+}
+/* Sparkles rising out of the top face of the leader's podium pillar, bright
+   from the moment they appear so they're seen leaving the surface. Two drifts so
+   they don't all rise in a straight line. */
+@keyframes rivalSparkRiseL {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  3% { opacity: 1; }
+  70% { opacity: 0.9; }
+  100% { transform: translate(-12px, -215px) scale(1); opacity: 0; }
+}
+@keyframes rivalSparkRiseR {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  3% { opacity: 1; }
+  70% { opacity: 0.9; }
+  100% { transform: translate(12px, -204px) scale(1); opacity: 0; }
+}
+/* The halo behind the leader's picture. */
+@keyframes rivalHaloPulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+/* Stars bursting outward from behind the leader's picture, one direction each. */
+@keyframes rivalSparkBurst0 {
+  0% { transform: translate(-19.7px, -3.5px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-55.1px, -9.7px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst1 {
+  0% { transform: translate(-15.3px, -12.9px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-42.9px, -36.0px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst2 {
+  0% { transform: translate(-8.5px, -18.1px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-23.7px, -50.8px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst3 {
+  0% { transform: translate(0.0px, -20.0px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(0.0px, -56.0px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst4 {
+  0% { transform: translate(8.5px, -18.1px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(23.7px, -50.8px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst5 {
+  0% { transform: translate(15.3px, -12.9px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(42.9px, -36.0px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst6 {
+  0% { transform: translate(19.7px, -3.5px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(55.1px, -9.7px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst7 {
+  0% { transform: translate(19.3px, 5.2px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(54.1px, 14.5px) scale(1) rotate(120deg); opacity: 0; }
+}
+@keyframes rivalSparkBurst8 {
+  0% { transform: translate(-19.3px, 5.2px) scale(0.3) rotate(0deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-54.1px, 14.5px) scale(1) rotate(120deg); opacity: 0; }
+}
+/* The same sparkles starting at the foot of the pillar, rising up its face
+   and out past the top. */
+@keyframes rivalSparkRiseBaseL {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  8% { opacity: 0.9; }
+  75% { opacity: 0.85; }
+  100% { transform: translate(-12px, -215px) scale(1); opacity: 0; }
+}
+@keyframes rivalSparkRiseBaseR {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  8% { opacity: 0.9; }
+  75% { opacity: 0.85; }
+  100% { transform: translate(12px, -205px) scale(1); opacity: 0; }
+}
+/* Chat list rows easing in. */
+@keyframes rivalRowIn {
+  0% { transform: translateY(8px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+/* The notifications dropdown under the bell. */
+@keyframes rivalMenuIn {
+  0% { transform: scaleY(0.92); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="rivalPodium"], [style*="rivalMenuIn"], [style*="rivalHalo"], [style*="rivalRowIn"] { animation: none !important; }
+  [style*="rivalSpark"] { display: none !important; }
+}

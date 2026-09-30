@@ -34,7 +34,7 @@ begin
     null,
     'activity',
     new.id::text,
-    'That was a short one',
+    'Short activity recorded',
     coalesce(new.name, new.activity_type) || ' · ' || new.duration_seconds || ' seconds'
   )
   on conflict do nothing;

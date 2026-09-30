@@ -86,12 +86,12 @@ export function calculateStreak(activities: { started_at: string }[]): StreakRes
 }
 
 export function streakMessage(streak: StreakResult): string {
-  if (streak.current === 0) return "Log an activity this week to start your streak.";
-  if (!streak.activeThisWeek) return `${streak.current} week streak — don't break it now!`;
-  if (streak.current === 1) return "Streak started. Come back next week to keep it going.";
+  if (streak.current === 0) return 'Log an activity this week to start a streak.';
+  if (!streak.activeThisWeek) return `${streak.current} week streak, don't break it now!`;
+  if (streak.current === 1) return 'Streak started. Come back next week to keep it going.';
   if (streak.current < 4) return `${streak.current} weeks in a row. Stay consistent.`;
-  if (streak.current < 8) return `${streak.current} week streak. You're building a habit.`;
+  if (streak.current < 8) return `${streak.current} week streak. A consistent habit.`;
   if (streak.current < 12) return `${streak.current} weeks. Consistency is your superpower.`;
-  if (streak.current < 26) return `${streak.current} week streak. This is who you are now.`;
+  if (streak.current < 26) return `${streak.current} week streak. Consistent training.`;
   return `${streak.current} weeks. Unrivaled consistency.`;
 }

@@ -1,3 +1,4 @@
+import { invalidateActivityCache } from '../lib/fetchAllActivities';
 // The Manrope webfont lives here. It used to be imported only by
 // constants/theme.ts, a starter-template module whose consumers were deleted --
 // which silently dropped the stylesheet from the build entirely and fell every
@@ -5,14 +6,21 @@
 // it cannot be orphaned by removing a screen again.
 import '../global.css';
 import { useEffect, useState } from 'react';
-import { AppState, AppStateStatus, Platform, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { AppState, AppStateStatus, Platform, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { Stack, router, usePathname } from 'expo-router';
+import { setCurrentPath } from '../lib/tabNav';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAppFonts } from '../lib/useAppFonts';
 import { registerForPushNotifications } from '../lib/notifications';
 import { supabase } from '../lib/supabase';
+import { savePendingInvite } from '../lib/pendingInvite';
 import { RivalAlertHost } from '../components/rival';
+import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
+
+// Screens that make sense without an account.
+const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/strava-callback']);
 
 export default function RootLayout() {
   // Native registers Manrope from bundled .ttf files; web is a no-op because
@@ -21,10 +29,34 @@ export default function RootLayout() {
   // Rendering is deliberately not gated on this: a brief native fallback-font
   // flash beats a blank splash.
   useAppFonts();
+  // Short pages open on phone as a pop-up over the screen they came from,
+  // rather than a whole page with empty space under a few rows.
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const popUp = phone ? { presentation: 'transparentModal' as const, animation: 'slide_from_bottom' as const } : {};
 
   useEffect(() => {
     registerForPushNotifications();
   }, []);
+
+  // Signed-out visitors belong on the welcome screen. Without this, opening a
+  // bookmarked /home (or any screen) after signing out showed an empty app
+  // with zeros everywhere instead of asking them to sign in.
+  const pathname = usePathname();
+  setCurrentPath(pathname);
+  useEffect(() => {
+    if (PUBLIC_PATHS.has(pathname)) return;
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled || session) return;
+      // Keep an invite link's code for after they sign up or sign in.
+      if (pathname === '/join-league' && typeof window !== 'undefined') {
+        const code = new URLSearchParams(window.location.search).get('code');
+        if (code) savePendingInvite(code);
+      }
+      router.replace('/');
+    });
+    return () => { cancelled = true; };
+  }, [pathname]);
 
   // Pull fresh Strava activity on every app open/foreground, not just when
   // someone remembers to tap "Sync now" in Settings — that manual button
@@ -58,14 +90,16 @@ export default function RootLayout() {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
         },
-      }).catch(() => {});
+      }).then((r) => { if (r.ok) invalidateActivityCache(); }).catch(() => {});
     }
 
-    autoSyncStrava();
+    // A few seconds after opening, not during: the sync is a background
+    // refresh, and the screen's own data should get the connection first.
+    const first = setTimeout(autoSyncStrava, 4000);
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') autoSyncStrava();
     });
-    return () => sub.remove();
+    return () => { clearTimeout(first); sub.remove(); };
   }, []);
 
   // iOS standalone (home-screen) web apps report two different heights, and
@@ -121,8 +155,13 @@ export default function RootLayout() {
           ? { position: 'fixed', top: 0, left: 0, right: 0, height: viewportHeight ?? '100vh', overflow: 'hidden' } as any
           : { flex: 1 }}
       >
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="inbox" options={popUp} />
+          <Stack.Screen name="join-league" options={popUp} />
+        </Stack>
       </View>
+      {/* Once a day, over whichever page opens first — it loads underneath. */}
+      <DailyQuoteSplash />
       <RivalAlertHost />
     </SafeAreaProvider>
   );

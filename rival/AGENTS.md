@@ -41,6 +41,10 @@ RIVAL is a social fitness app: friends form **Teams**, log workouts (manual entr
 - **Always check `.error` (and `count` on deletes) from every Supabase write** before treating it as done or navigating away. RLS failures are silent no-ops (0 rows, no error thrown) — this has caused real shipped bugs (leave-team, kick-member).
 - **`RefreshControl` does nothing at all on web** — react-native-web renders it as a plain View and drops `onRefresh`, so pull-to-refresh never fires. Use `usePullToRefresh` from `src/components/rival/usePullToRefresh.tsx`, which implements the gesture against the scrolling element.
 - **`Alert.alert` does nothing at all on web** — react-native-web ships it as an empty function (`static alert() {}`), so EVERY call is silently discarded, not just ones with buttons. Never call it directly. Use `notify()` from `src/lib/notify.ts` (web → `window.alert`, native → the real Alert) for messages, `window.confirm` for confirmations, and inline error text (state + styled Text) where the error belongs next to the control. This has bitten silently before: four error paths in league-settings (approve/decline//remove member/change role) reported failures into the void.
+- **CSS animations on web: keyframes in `src/global.css`, `animationName` as an INLINE style.** react-native-web drops inline `animationKeyframes` objects, and its dev validation deletes `animationName` from anything inside `StyleSheet.create` (logging "Invalid style property of animationName"). Gate it on `Platform.OS === 'web'` and pass it inline, like `podiumRise()` in `home.tsx`.
+- **In-memory caches clear themselves on writes.** `lib/fetchAllActivities.ts` (whole activity history, shared by Home/Activity/Goals/Stats/year/achievements) and `lib/myTeams.ts` (the signed-in person's teams) are kept for a minute. `lib/supabase.ts` wraps `supabase.from(...).insert/update/upsert/delete` on `activities`, `activity_media`, `activity_participants`, `league_members` and `leagues`, plus every `rpc`, to clear them. Writes done server-side (edge functions such as Strava sync) must call `invalidateActivityCache()` afterwards. Screens remember their last data between visits with `useSnapState` (`lib/snapState.ts`), cleared when the account changes.
+- **Personal settings live in auth user metadata**, not a table: `lib/prefs.ts` (units, daily quote, notification switches, muted teams). Display units go through `lib/units.ts`; data is always stored metric.
+- **The four bottom-nav screens are real tabs** in `src/app/(tabs)/` (home, my-activities, team-feed, messages), kept mounted once opened. Go to them with `goToTab('/home')` from `src/lib/tabNav.ts`, never `router.push`/`replace` — from a stacked page those open a second copy of the whole tab set. (Sign-in/welcome flows still `router.replace('/home')` on purpose, to clear history.)
 - **PostgREST embedded-resource filters** (`.select('x, parent!inner(y)').eq('parent.y', …)`) can silently fail to filter. Use two plain sequential queries instead.
 - Dates are **typed** as `YYYY-MM-DD` (Canada's standard, and unambiguous where DD/MM and MM/DD disagree); convert with `src/lib/dateFormat.ts` helpers at input boundaries, store ISO `YYYY-MM-DD`. Dates are **displayed** with `toLocaleDateString(undefined, …)` so each user sees their own device's format — never hardcode a locale. Ricky is in Canada; the test suite still pins `TZ=Pacific/Auckland` for the NZ DST streak regressions.
 - Week boundaries are **Monday-start** (`streak.ts` has the canonical helper).
@@ -50,6 +54,13 @@ RIVAL is a social fitness app: friends form **Teams**, log workouts (manual entr
 User-facing copy says **Team, Effort, Respect, Inspired, Impact, Unrivaled**. The code/DB deliberately still says `leagues`, `league_members`, `xp`, `effort_score`, route paths `/league`, `/create-league`, etc. **Never rename DB columns, internal identifiers, or route paths to match display copy** — display strings only. Reactions are stored as the strings `'respect'` and `'inspired'` (old emoji rows were migrated to `'respect'`); only `'inspired'` feeds the Impact stat.
 
 Voice: always encourage, never pressure or shame. Streaks are pure consistency info — no bonus/penalty language. Gate new copy against the brand-voice bible (in Claude's memory: "RIVAL Brand Voice" / "Daily Perspectives").
+
+**Professional tone — every screen, including every new page.** Titles, labels and buttons are
+plain noun/verb phrases with no "your"/"my" ("Scan workout", "Manual entry", "Take photo").
+Descriptions are short factual sentences ("Details are extracted automatically."). No slang or
+cute phrasing ("snap it", "in one go", "catch up", "fastest"), no exclamation marks, no emoji.
+Errors say what happened and what to do. Encouragement stays but is understated. Run the
+`brand-check` skill on new copy — the full rules live there.
 
 ## Verification limits
 

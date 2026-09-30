@@ -6,18 +6,20 @@ import { Asset } from 'expo-asset';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { invalidateUnreadChats } from '../lib/unreadChats';
 import { notify } from '../lib/notify';
+import { squareImage } from '../lib/imageResize';
 import { getLevel } from '../lib/xp';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
 import { getSeasonStartISO, daysUntilSeasonEnd } from '../lib/season';
-import { matchCanonicalLift } from './scan-workout';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { matchCanonicalLift } from '../lib/lifts';
+import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { ACTIVITY_ICONS } from '../constants/activityIcons';
 import { formatDuration } from '../lib/format';
 import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../lib/activityInsights';
-import { RivalIcon, RivalFixedBackground, RivalTopNav, RivalProgressBar, RivalAvatar, RivalBackButton, RivalDateField } from '../components/rival';
+import { RivalIcon, RivalFixedBackground, RivalTopNav, RivalProgressBar, RivalAvatar, RivalBackButton, RivalDateField, activityIconName } from '../components/rival';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 const INSIGHT_ICON: Record<InsightTone, 'trophy' | 'fire' | 'trendUp'> = {
   record: 'trophy',
@@ -402,7 +404,7 @@ export default function LeagueScreen() {
   async function saveGoal() {
     const { error } = await supabase.from('league_members').update({ personal_goal: goalDraft.trim() || null }).eq('league_id', id).eq('user_id', currentUserId);
     if (error) {
-      notify("Couldn't save your goal", error.message);
+      notify("Couldn't save goal", error.message);
       return;
     }
     setMembers(prev => prev.map(m => m.user_id === currentUserId ? { ...m, personal_goal: goalDraft.trim() || null } : m));
@@ -421,7 +423,7 @@ export default function LeagueScreen() {
       notify("Couldn't leave team", error.message);
       return;
     }
-    router.replace('/home');
+    goToTab('/home');
   }
 
   async function loadLeague() {
@@ -432,7 +434,7 @@ export default function LeagueScreen() {
         .from('league_members').select('status').eq('league_id', id).eq('user_id', user.id).maybeSingle();
       if (myMembership?.status === 'pending') {
         notify('Request pending', "Your request to join this team hasn't been approved by an admin yet.");
-        router.replace('/home');
+        goToTab('/home');
         return;
       }
     }
@@ -775,13 +777,16 @@ export default function LeagueScreen() {
       if (!file) return;
       setUploadingLogo(true);
       try {
-        const ext = file.name.split('.').pop() || 'jpg';
+        const image = await squareImage(file);
+        const resized = image !== file;
+        const ext = resized ? 'jpg' : (file.name.split('.').pop() || 'jpg');
         const path = `leagues/${id}/logo.${ext}`;
         const { error: storageErr } = await supabase.storage
           .from('avatars')
-          .upload(path, file, { contentType: file.type, upsert: true });
+          .upload(path, image, { contentType: resized ? 'image/jpeg' : file.type, upsert: true });
         if (!storageErr) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+          urlData.publicUrl = `${urlData.publicUrl}?v=${Date.now()}`;
           const { error: logoErr } = await supabase.from('leagues').update({ logo_url: urlData.publicUrl }).eq('id', id);
           if (logoErr) notify("Couldn't update the team logo", logoErr.message);
           setLeague(prev => prev ? { ...prev, logo_url: urlData.publicUrl } : prev);
@@ -893,7 +898,7 @@ export default function LeagueScreen() {
     const target = parseFloat(goalTargetDraft);
     if (!target || target <= 0) { notify('Set a target', 'Enter a positive number.'); return; }
     const iso = displayToIsoDate(goalDateDraft);
-    if (!iso) { notify('Set a target date', 'Use YYYY-MM-DD.'); return; }
+    if (!iso) { notify('Set a target date', 'Use DD/MM/YYYY.'); return; }
     setSavingGoal(true);
     const { error } = await supabase
       .from('leagues')
@@ -1138,7 +1143,7 @@ export default function LeagueScreen() {
     setPostingSession(false);
 
     if (error || !inserted) {
-      notify("Couldn't post session", error?.message || 'Please try again.');
+      notify("Couldn't post the activity", error?.message || 'Please try again.');
       return;
     }
     // Auto-RSVP the creator to their own session. Non-fatal: the session
@@ -1166,7 +1171,7 @@ export default function LeagueScreen() {
       // Must clear the spinner too — an early return that skips it leaves the
       // button stuck in its posting state with no way back.
       setPostingQuickTrain(false);
-      notify("Couldn't create that session", insErr.message);
+      notify("Couldn't plan that activity", insErr.message);
       return;
     }
 
@@ -1202,11 +1207,11 @@ export default function LeagueScreen() {
     const joined = (rsvpMap[messageId] || []).includes(currentUserId);
     if (joined) {
       const { error: rsvpOutErr } = await supabase.from('league_session_rsvps').delete().eq('message_id', messageId).eq('user_id', currentUserId);
-      if (rsvpOutErr) { notify("Couldn't update your RSVP", rsvpOutErr.message); loadSessions(); return; }
+      if (rsvpOutErr) { notify("Couldn't update RSVP", rsvpOutErr.message); loadSessions(); return; }
       setRsvpMap(prev => ({ ...prev, [messageId]: (prev[messageId] || []).filter(u => u !== currentUserId) }));
     } else {
       const { error: rsvpInErr } = await supabase.from('league_session_rsvps').insert({ message_id: messageId, user_id: currentUserId });
-      if (rsvpInErr) { notify("Couldn't update your RSVP", rsvpInErr.message); loadSessions(); return; }
+      if (rsvpInErr) { notify("Couldn't update RSVP", rsvpInErr.message); loadSessions(); return; }
       setRsvpMap(prev => ({ ...prev, [messageId]: [...(prev[messageId] || []), currentUserId] }));
     }
   }
@@ -1392,7 +1397,7 @@ export default function LeagueScreen() {
                 onSubmitEditing={() => sendEncouragement(ownerId, key)}
               />
               <TouchableOpacity onPress={() => sendEncouragement(ownerId, key)} disabled={isSending || !(encourageDrafts[key] || '').trim()}>
-                <Text style={styles.commentSendText}>{isSending ? '…' : 'Send'}</Text>
+                <BusyText busy={!!(isSending)} style={styles.commentSendText}>{isSending ? '…' : 'Send'}</BusyText>
               </TouchableOpacity>
             </View>
             {!!encourageErrors[key] && <Text style={styles.encourageErrorText}>{encourageErrors[key]}</Text>}
@@ -1444,9 +1449,10 @@ export default function LeagueScreen() {
           </TouchableOpacity>
           <Text style={styles.feedTimeAgo}>{timeAgo(msg.created_at)}</Text>
         </View>
-        <Text style={styles.sessionCardTitle}>
-          {ACTIVITY_ICONS[msg.activity_type || ''] || '🏅'} {msg.body || `${msg.activity_type} session`}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <RivalIcon name={activityIconName(msg.activity_type)} size={16} color={RivalColors.accentText} style={{ marginTop: 4 }} />
+          <Text style={styles.sessionCardTitle}>{msg.body || `${msg.activity_type} activity`}</Text>
+        </View>
         {msg.body && <Text style={styles.sessionCardSubtype}>{msg.activity_type}</Text>}
         <Text style={styles.sessionCardWhen}>{msg.scheduled_at ? formatDateTime(msg.scheduled_at) : ''}</Text>
         {msg.location && (
@@ -1465,7 +1471,7 @@ export default function LeagueScreen() {
             onPress={() => toggleRsvp(msg.id)}
           >
             <Text style={[styles.rsvpBtnText, joined && styles.rsvpBtnTextLeave]}>
-              {joined ? "I'm out" : "I'm in!"}
+              {joined ? 'Leave' : 'Join'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1502,7 +1508,7 @@ export default function LeagueScreen() {
               no single hardcoded destination is right for all of them. Falls
               back to the Teams tab rather than Today — this screen belongs to
               that section. */}
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/team-feed'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/team-feed'))} color={RivalColors.accentFill} />
           {isAdmin && (
             <TouchableOpacity onPress={() => router.push({ pathname: '/league-settings', params: { id } })}>
               <Text style={styles.settingsLink}>⚙️ Settings</Text>
@@ -1534,7 +1540,7 @@ export default function LeagueScreen() {
             <Text style={styles.journeyBannerIcon}>🚩</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.journeyBannerTitle}>
-                {(() => { const d = daysUntilRace(journeyRace.race_date); return d === 0 ? 'Race day' : d > 0 ? `${d} days to ${journeyRace.name}` : `${journeyRace.name} — done!`; })()}
+                {(() => { const d = daysUntilRace(journeyRace.race_date); return d === 0 ? 'Event day' : d > 0 ? `${d} days to ${journeyRace.name}` : `${journeyRace.name} — done!`; })()}
               </Text>
               <Text style={styles.journeyBannerSub}>Everyone here is training toward this together — different goals, same destination.</Text>
             </View>
@@ -1607,14 +1613,14 @@ export default function LeagueScreen() {
                         </>
                       ) : paceDeltaPct >= 0 ? (
                         <>
-                          <Text style={styles.paceTitle}>Keep it up!</Text>
+                          <Text style={styles.paceTitle}>Ahead of pace</Text>
                           <Text style={styles.paceSub}>
                             <Text style={styles.paceSubBold}>{paceDeltaPct}% ahead</Text> of the pace needed to hit the goal.
                           </Text>
                         </>
                       ) : (
                         <>
-                          <Text style={styles.paceTitle}>Let's pick it up</Text>
+                          <Text style={styles.paceTitle}>Behind pace</Text>
                           <Text style={styles.paceSub}>
                             Needs <Text style={styles.paceSubBold}>{(Math.round(neededPerDay * 10) / 10).toLocaleString()} {unit}/day</Text> to hit the goal.
                           </Text>
@@ -1720,7 +1726,7 @@ export default function LeagueScreen() {
                 <Text style={styles.editCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.postSessionBtn} onPress={saveTeamGoal} disabled={savingGoal}>
-                <Text style={styles.postSessionBtnText}>{savingGoal ? 'Saving…' : 'Save Challenge'}</Text>
+                <BusyText busy={!!(savingGoal)} style={styles.postSessionBtnText}>{savingGoal ? 'Saving…' : 'Save Challenge'}</BusyText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1728,8 +1734,8 @@ export default function LeagueScreen() {
 
         {seasonDaysLeft <= 30 && seasonDaysLeft > 0 && (
           <View style={styles.seasonBanner}>
-            <Text style={styles.seasonBannerIcon}>⏳</Text>
-            <Text style={styles.seasonBannerText}>{seasonDaysLeft} days left — team resets Jan 1</Text>
+            <RivalIcon name="timerOutline" size={18} color={RivalColors.accentText} />
+            <Text style={styles.seasonBannerText}>{seasonDaysLeft === 1 ? 'Last day of the year' : `${seasonDaysLeft} days left in the year`} · ranks reset 1 January</Text>
           </View>
         )}
     </>
@@ -1823,7 +1829,7 @@ export default function LeagueScreen() {
                         onPress={(e) => { e.stopPropagation?.(); setGoalDraft(member.personal_goal ?? ''); setEditingGoal(true); }}
                       >
                         <Text style={styles.goalText}>
-                          🎯 {member.personal_goal || 'Set your goal for this race'}
+                          🎯 {member.personal_goal || 'Set your goal for this event'}
                         </Text>
                       </TouchableOpacity>
                     )
@@ -1860,7 +1866,7 @@ export default function LeagueScreen() {
     <>
         {/* Let's Train — instant invite */}
         <TouchableOpacity style={styles.letsTrainBtn} onPress={() => setShowQuickTrain(!showQuickTrain)}>
-          <Text style={styles.letsTrainBtnText}>{showQuickTrain ? '✕ Cancel' : "🟢 Let's Train"}</Text>
+          <Text style={styles.letsTrainBtnText}>{showQuickTrain ? 'Cancel' : 'Train together now'}</Text>
         </TouchableOpacity>
 
         {showQuickTrain && (
@@ -1873,9 +1879,10 @@ export default function LeagueScreen() {
                   style={[styles.typeChip, quickTrainType === t && styles.typeChipActive]}
                   onPress={() => setQuickTrainType(t)}
                 >
-                  <Text style={[styles.typeChipText, quickTrainType === t && styles.typeChipTextActive]}>
-                    {ACTIVITY_ICONS[t] || '🏅'} {t}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <RivalIcon name={activityIconName(t)} size={14} color={quickTrainType === t ? RivalColors.accentFill : RivalColors.textSecondary} />
+                    <Text style={[styles.typeChipText, quickTrainType === t && styles.typeChipTextActive]}>{t}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1896,7 +1903,7 @@ export default function LeagueScreen() {
             <Text style={styles.composerLabel}>Location (optional)</Text>
             <TextInput style={styles.composerInput} value={quickTrainLocation} onChangeText={setQuickTrainLocation} placeholder="e.g. Coastal Track car park, Mission Bay" placeholderTextColor="#555" />
             <TouchableOpacity style={styles.postSessionBtn} onPress={postQuickTrain} disabled={postingQuickTrain}>
-              <Text style={styles.postSessionBtnText}>{postingQuickTrain ? 'Sending…' : "Notify the team 🔔"}</Text>
+              <BusyText busy={!!(postingQuickTrain)} style={styles.postSessionBtnText}>{postingQuickTrain ? 'Sending…' : "Notify the team 🔔"}</BusyText>
             </TouchableOpacity>
           </View>
         )}
@@ -1916,7 +1923,7 @@ export default function LeagueScreen() {
             style={[styles.tabSwitchBtn, activeTab === 'sessions' && styles.tabSwitchBtnActive]}
             onPress={() => setActiveTab('sessions')}
           >
-            <Text style={[styles.tabSwitchText, activeTab === 'sessions' && styles.tabSwitchTextActive]}>📅 Sessions</Text>
+            <Text style={[styles.tabSwitchText, activeTab === 'sessions' && styles.tabSwitchTextActive]}>📅 Activities</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tabSwitchBtn, activeTab === 'challenges' && styles.tabSwitchBtnActive]}
@@ -1965,12 +1972,12 @@ export default function LeagueScreen() {
               <Text style={[styles.sideNavText, activeTab === 'feed' && styles.sideNavTextActive]}>Team Feed</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.sideNavItem, activeTab === 'sessions' && styles.sideNavItemActive]} onPress={() => setActiveTab('sessions')}>
-              <Text style={[styles.sideNavText, activeTab === 'sessions' && styles.sideNavTextActive]}>Sessions</Text>
+              <Text style={[styles.sideNavText, activeTab === 'sessions' && styles.sideNavTextActive]}>Activities</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.sideNavItem, activeTab === 'challenges' && styles.sideNavItemActive]} onPress={() => setActiveTab('challenges')}>
               <Text style={[styles.sideNavText, activeTab === 'challenges' && styles.sideNavTextActive]}>Challenges</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sideNavItem} onPress={() => router.push('/my-activities')}>
+            <TouchableOpacity style={styles.sideNavItem} onPress={() => goToTab('/my-activities')}>
               <Text style={styles.sideNavText}>Activity</Text>
             </TouchableOpacity>
 
@@ -1998,7 +2005,7 @@ export default function LeagueScreen() {
         {wide && (
           <View style={styles.centerHeader}>
             <Text style={styles.centerTitle}>
-              {activeTab === 'feed' ? 'Team Feed' : activeTab === 'sessions' ? 'Sessions' : 'Challenges'}
+              {activeTab === 'feed' ? 'Team Feed' : activeTab === 'sessions' ? 'Activities' : 'Challenges'}
             </Text>
             <Text style={styles.centerSub}>{formatTeamName(league.name)} · {members.length} {members.length === 1 ? 'member' : 'members'}</Text>
           </View>
@@ -2057,7 +2064,6 @@ export default function LeagueScreen() {
               );
 
               if (item.kind === 'activity') {
-                const icon = ACTIVITY_ICONS[item.activityType] ?? '🏅';
                 const distKm = item.distanceMeters > 100
                   ? ` · ${(item.distanceMeters / 1000).toFixed(1)} km`
                   : '';
@@ -2070,7 +2076,7 @@ export default function LeagueScreen() {
                       </View>
                     )}
                     <View style={styles.feedActivityRow}>
-                      <Text style={styles.feedActivityIcon}>{icon}</Text>
+                      <RivalIcon name={activityIconName(item.activityType)} size={26} color={RivalColors.accentText} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.feedActivityType}>{item.activityName || item.activityType}</Text>
                         <Text style={styles.feedActivityMeta}>{formatDuration(item.durationSeconds)}{distKm}</Text>
@@ -2125,7 +2131,7 @@ export default function LeagueScreen() {
                 return (
                   <View key={`race-${item.id}`} style={[styles.feedCard, styles.feedCardRace]}>
                     {userRow}
-                    <Text style={styles.feedRaceAction}>🏁 signed up for a race</Text>
+                    <Text style={styles.feedRaceAction}>🏁 signed up for an event</Text>
                     <Text style={styles.feedRaceName}>{item.raceName}</Text>
                     <Text style={styles.feedRaceDate}>{raceDateLabel}</Text>
                     {renderFeedSocialRow('race', item.id, item.userId)}
@@ -2182,9 +2188,10 @@ export default function LeagueScreen() {
                         style={[styles.typeChip, sessionType === t && styles.typeChipActive]}
                         onPress={() => setSessionType(t)}
                       >
-                        <Text style={[styles.typeChipText, sessionType === t && styles.typeChipTextActive]}>
-                          {ACTIVITY_ICONS[t] || '🏅'} {t}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <RivalIcon name={activityIconName(t)} size={14} color={sessionType === t ? RivalColors.accentFill : RivalColors.textSecondary} />
+                          <Text style={[styles.typeChipText, sessionType === t && styles.typeChipTextActive]}>{t}</Text>
+                        </View>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -2204,7 +2211,7 @@ export default function LeagueScreen() {
                   <TextInput style={styles.composerInput} value={sessionLocation} onChangeText={setSessionLocation} placeholder="e.g. Coastal Track car park, Mission Bay" placeholderTextColor="#555" />
                   <Text style={styles.composerHint}>Tappable in Maps — include the suburb/city so it finds the right spot.</Text>
                   <TouchableOpacity style={styles.postSessionBtn} onPress={async () => { await postSession(); loadSessions(); }} disabled={postingSession}>
-                    <Text style={styles.postSessionBtnText}>{postingSession ? 'Posting…' : 'Post session'}</Text>
+                    <BusyText busy={!!(postingSession)} style={styles.postSessionBtnText}>{postingSession ? 'Posting…' : 'Post activity'}</BusyText>
                   </TouchableOpacity>
                 </View>
               )}
@@ -2214,9 +2221,9 @@ export default function LeagueScreen() {
               ) : list.length === 0 ? (
                 <View style={styles.feedEmpty}>
                   <Text style={styles.feedEmptyIcon}>📅</Text>
-                  <Text style={styles.feedEmptyText}>{sessionsView === 'upcoming' ? 'No sessions planned' : 'No past sessions'}</Text>
+                  <Text style={styles.feedEmptyText}>{sessionsView === 'upcoming' ? 'No activities planned' : 'No past activities'}</Text>
                   <Text style={styles.feedEmptySubText}>
-                    {sessionsView === 'upcoming' ? 'Plan a run, ride, or workout together.' : 'Sessions move here a day after they happen.'}
+                    {sessionsView === 'upcoming' ? 'Plan a run, ride, or workout together.' : 'Activities move here a day after they happen.'}
                   </Text>
                 </View>
               ) : (
@@ -2267,7 +2274,7 @@ export default function LeagueScreen() {
                     <Text style={styles.editCancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.postSessionBtn} onPress={createChallenge} disabled={postingChallenge}>
-                    <Text style={styles.postSessionBtnText}>{postingChallenge ? 'Sending…' : 'Send Challenge'}</Text>
+                    <BusyText busy={!!(postingChallenge)} style={styles.postSessionBtnText}>{postingChallenge ? 'Sending…' : 'Send Challenge'}</BusyText>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2417,7 +2424,7 @@ export default function LeagueScreen() {
                     <Text style={styles.editCancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.postSessionBtn, (!lvlTargetLeague || postingLvl) && { opacity: 0.5 }]} onPress={sendLvlChallenge} disabled={!lvlTargetLeague || postingLvl}>
-                    <Text style={styles.postSessionBtnText}>{postingLvl ? 'Sending…' : 'Send Challenge'}</Text>
+                    <BusyText busy={!!(postingLvl)} style={styles.postSessionBtnText}>{postingLvl ? 'Sending…' : 'Send Challenge'}</BusyText>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2807,8 +2814,8 @@ const styles = StyleSheet.create({
   },
   inviteLabel: { fontSize: 13, color: RivalColors.textSecondary, textTransform: 'uppercase', letterSpacing: 2 },
   inviteCode: { fontSize: 36, fontWeight: '900', color: RivalColors.textPrimary, letterSpacing: 8 },
-  copyButton: { backgroundColor: RivalColors.accentFill, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 10, marginTop: 4 },
-  copyButtonText: { color: RivalColors.textPrimary, fontSize: 16, fontWeight: '700' },
+  copyButton: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 10, marginTop: 4 },
+  copyButtonText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontSize: 16, fontWeight: '700' },
   leaveTeamButton: { borderWidth: 1, borderColor: RivalColors.error, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   leaveTeamText: { color: RivalColors.error, fontSize: 15, fontWeight: '700' },
 
@@ -2828,8 +2835,8 @@ const styles = StyleSheet.create({
   sideInvite: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: 8 },
   sideInviteLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.2, color: RivalColors.textSecondary },
   sideInviteCode: { fontSize: 16, fontWeight: '800', letterSpacing: 3, color: RivalColors.textPrimary, marginTop: 2 },
-  sideAddBtn: { backgroundColor: RivalColors.accentFill, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginBottom: 6 },
-  sideAddBtnText: { color: RivalColors.onAccentFill, fontWeight: '700', fontSize: 14 },
+  sideAddBtn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginBottom: 6 },
+  sideAddBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '700', fontSize: 14 },
   sideQuiet: { paddingVertical: 8, paddingHorizontal: 14 },
   sideQuietText: { fontSize: 12, fontWeight: '600', color: RivalColors.textSecondary },
   centerScroll: { flex: 1 },
@@ -2871,8 +2878,8 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.accentFill },
   typeChipText: { fontSize: 12, fontWeight: '600', color: RivalColors.textSecondary },
   typeChipTextActive: { color: RivalColors.accentFill },
-  postSessionBtn: { backgroundColor: RivalColors.accentFill, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 16 },
-  postSessionBtnText: { color: RivalColors.textPrimary, fontWeight: '700', fontSize: 14 },
+  postSessionBtn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 16 },
+  postSessionBtnText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontWeight: '700', fontSize: 14 },
 
   chatScrollArea: { maxHeight: 420, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, borderRadius: 14, backgroundColor: RivalColors.surfaceContainer },
   unreadDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },

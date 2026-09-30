@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { RivalColors } from '../constants/rivalTheme';
+import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton} from '../components/rival';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { notify } from '../lib/notify';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 type ScoringRow = {
   activity_type: string;
@@ -33,7 +35,7 @@ export default function AdminScreen() {
 
   async function init() {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.replace('/home'); return; }
+    if (!user) { goToTab('/home'); return; }
 
     const { data: userData } = await supabase
       .from('users')
@@ -41,7 +43,7 @@ export default function AdminScreen() {
       .eq('id', user.id)
       .single();
 
-    if (!userData?.is_admin) { router.replace('/home'); return; }
+    if (!userData?.is_admin) { goToTab('/home'); return; }
     setIsAdmin(true);
 
     const { data } = await supabase
@@ -161,7 +163,7 @@ export default function AdminScreen() {
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} color={RivalColors.accentFill} />
         </View>
 
         <Text style={styles.title}>Scoring Config</Text>
@@ -203,9 +205,9 @@ export default function AdminScreen() {
                     disabled={saving === row.activity_type}
                   >
                     {saving === row.activity_type ? (
-                      <ActivityIndicator size="small" color={RivalColors.textPrimary} />
+                      <ActivityIndicator size="small" color={RivalButtonColors.label(RivalColors.textPrimary) } />
                     ) : (
-                      <RivalIcon name="check" size={16} color={RivalColors.textPrimary} />
+                      <RivalIcon name="check" size={16} color={RivalButtonColors.label(RivalColors.textPrimary) } />
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => cancelEdit(row.activity_type)} style={styles.cancelBtn}>
@@ -251,10 +253,10 @@ export default function AdminScreen() {
         </Text>
         <View style={styles.webhookRow}>
           <TouchableOpacity style={styles.webhookBtn} onPress={() => callSubscription('status')} disabled={webhookBusy}>
-            <Text style={styles.webhookBtnText}>{webhookBusy ? '…' : 'Check status'}</Text>
+            <BusyText busy={!!(webhookBusy)} style={styles.webhookBtnText}>{webhookBusy ? '…' : 'Check status'}</BusyText>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.webhookBtn, styles.webhookBtnPrimary]} onPress={() => callSubscription('create')} disabled={webhookBusy}>
-            <Text style={[styles.webhookBtnText, styles.webhookBtnPrimaryText]}>{webhookBusy ? '…' : 'Reconnect'}</Text>
+            <BusyText busy={!!(webhookBusy)} style={[styles.webhookBtnText, styles.webhookBtnPrimaryText]}>{webhookBusy ? '…' : 'Reconnect'}</BusyText>
           </TouchableOpacity>
         </View>
         {webhookStatus && <Text style={styles.webhookStatus}>{webhookStatus}</Text>}
@@ -374,7 +376,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   saveBtn: {
-    backgroundColor: RivalColors.accentFill,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,

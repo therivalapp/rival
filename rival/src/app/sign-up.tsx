@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, Image, Platform, ScrollView } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, TextInput, Image, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { displayToIsoDate, maskDateInput } from '../lib/dateFormat';
-import { RivalButton, RivalIcon, RivalBackButton } from '../components/rival';
+import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 
 export default function SignUpScreen() {
+  const { width } = useWindowDimensions();
+  const mob = width < BREAKPOINT_WIDE_LAYOUT;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dob, setDob] = useState('');
@@ -18,16 +21,17 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   async function handleSignUp() {
     if (!firstName.trim() || !lastName.trim() || !dob.trim() || !email || !password) {
-      setError('Please fill in all fields');
+      setError('Complete all fields.');
       return;
     }
 
     const dobIso = displayToIsoDate(dob.trim());
     if (!dobIso) {
-      setError('Enter your date of birth as YYYY-MM-DD');
+      setError('Enter a date of birth as DD/MM/YYYY.');
       return;
     }
 
@@ -57,11 +61,20 @@ export default function SignUpScreen() {
       await supabase.from('users').update({ date_of_birth: dobIso }).eq('id', data.user.id);
     }
 
-    router.replace('/home');
+    // With email confirmation switched on there is no session yet, and every
+    // screen past this one needs one — say what to do instead of moving on.
+    if (!data.session) {
+      setLoading(false);
+      setNotice('Check your email to confirm the account, then sign in.');
+      return;
+    }
+
+    // A new account starts on the introduction, not an empty Home.
+    router.replace('/getting-started?welcome=1');
   }
 
   return (
-    <View style={styles.bg}>
+    <View style={[styles.bg, mob && ms.bg]}>
       <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" />
       <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" />
       <SafeAreaView style={styles.container}>
@@ -79,18 +92,30 @@ export default function SignUpScreen() {
 
           <Text style={styles.logo}>RIVAL</Text>
 
-          <View style={styles.card}>
+          <View style={[styles.card, mob && ms.card]}>
+            {mob && (
+              <View style={ms.head}>
+                <Text style={ms.title}>Create account</Text>
+                <Text style={ms.subtitle}>Find your rivals. Get better together.</Text>
+              </View>
+            )}
+
             {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.errorBox, mob && ms.errorBox]}>
+                <Text style={[styles.errorText, mob && ms.errorText]}>{error}</Text>
+              </View>
+            ) : null}
+            {notice ? (
+              <View style={[styles.errorBox, ms.noticeBox]}>
+                <Text style={[styles.errorText, ms.noticeText]}>{notice}</Text>
               </View>
             ) : null}
 
             <View style={styles.nameRow}>
               <View style={[styles.inputGroup, styles.nameField]}>
-                <Text style={styles.label}>First Name</Text>
+                <Text style={[styles.label, mob && rm.label]}>First name</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, mob && ms.input]}
                   placeholder="First name"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={firstName}
@@ -99,9 +124,9 @@ export default function SignUpScreen() {
                 />
               </View>
               <View style={[styles.inputGroup, styles.nameField]}>
-                <Text style={styles.label}>Last Name</Text>
+                <Text style={[styles.label, mob && rm.label]}>Last name</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, mob && ms.input]}
                   placeholder="Last name"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={lastName}
@@ -112,10 +137,10 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Date of Birth</Text>
+              <Text style={[styles.label, mob && rm.label]}>Date of birth</Text>
               <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
+                style={[styles.input, mob && ms.input]}
+                placeholder="DD/MM/YYYY"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={dob}
                 onChangeText={(v) => setDob(maskDateInput(v))}
@@ -125,10 +150,10 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={[styles.label, mob && rm.label]}>Email</Text>
               <TextInput
-                style={styles.input}
-                placeholder="your@email.com"
+                style={[styles.input, mob && ms.input]}
+                placeholder="name@example.com"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={email}
                 onChangeText={setEmail}
@@ -138,11 +163,11 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordRow}>
+              <Text style={[styles.label, mob && rm.label]}>Password</Text>
+              <View style={[styles.passwordRow, mob && ms.field]}>
                 <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Min 6 characters"
+                  style={[styles.passwordInput, mob && ms.passwordInput]}
+                  placeholder="At least 6 characters"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
@@ -155,14 +180,16 @@ export default function SignUpScreen() {
             </View>
 
             <RivalButton
-              label={loading ? 'Creating account...' : 'Create Account'}
+              busy={loading}
+              label={loading ? 'Creating account…' : 'Create account'}
               onPress={handleSignUp}
               disabled={loading}
-              style={styles.submitBtn}
+              style={[styles.submitBtn, mob && ms.primary]}
+              labelStyle={mob ? rm.primaryText : undefined}
             />
 
             <TouchableOpacity onPress={() => router.push('/sign-in')}>
-              <Text style={styles.link}>Already have an account? Sign in</Text>
+              <Text style={[styles.link, mob && ms.soft]}>Already have an account? <Text style={mob && ms.linkStrong}>Sign in</Text></Text>
             </TouchableOpacity>
           </View>
 
@@ -310,4 +337,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+});
+
+// Phone only — the RIVAL look (see RivalMobile.tsx). Matches sign-in.tsx.
+const ms = StyleSheet.create({
+  bg: { backgroundColor: RivalWarm.page },
+  card: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22 },
+  head: { gap: 4, alignItems: 'center', marginBottom: 2 },
+  title: { ...rm.serifTitle, textAlign: 'center' } as any,
+  subtitle: { fontSize: 14, color: RivalWarm.soft, textAlign: 'center' },
+  errorBox: { backgroundColor: 'rgba(255,143,143,0.08)', borderWidth: 1, borderColor: 'rgba(255,143,143,0.25)', borderRadius: 12 },
+  errorText: { color: '#ff8f8f', fontSize: 13, lineHeight: 18 },
+  field: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder },
+  input: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, minWidth: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  passwordInput: { paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  soft: { color: RivalWarm.soft },
+  noticeBox: { backgroundColor: 'rgba(255,209,190,0.08)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.25)', borderRadius: 12 },
+  noticeText: { color: RivalColors.accentText },
+  linkStrong: { color: RivalColors.accentText, fontWeight: '700' },
+  primary: { ...rm.primary, borderWidth: 0, marginTop: 6 } as any,
 });

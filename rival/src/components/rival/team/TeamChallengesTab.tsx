@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { RivalStartTiles, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyField, GreyNote, GreyPrimary } from '../RivalGreySheet';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../../constants/breakpoints';
 import { supabase } from '../../../lib/supabase';
 import { notify } from '../../../lib/notify';
 import { formatTeamName } from '../../../lib/identity';
-import { RivalColors, RivalSerifFamily } from '../../../constants/rivalTheme';
-import { RivalIcon } from '../RivalIcon';
+import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../../constants/rivalTheme';
+import { RivalIcon, type RivalIconName } from '../RivalIcon';
 import { sheet } from './sheetStyles';
+import { BusyText } from '../BusyText';
 
 // Team Hub's Challenges tab: 1v1 challenges between teammates, and Team vs
 // Team. Ported from the old team page (league.tsx), which was the only place
@@ -23,7 +26,7 @@ export const CHALLENGE_METRICS: Array<{ value: ChallengeMetric; label: string; u
   { value: 'distance', label: 'Distance', unit: 'km' },
   { value: 'elevation', label: 'Elevation', unit: 'm' },
   { value: 'duration', label: 'Time', unit: 'hrs' },
-  { value: 'activities', label: 'Sessions', unit: 'sessions' },
+  { value: 'activities', label: 'Activities', unit: 'activities' },
 ];
 
 type Status = 'pending' | 'active' | 'declined' | 'completed';
@@ -119,6 +122,10 @@ export function TeamChallengesTab({
   isAdmin,
   nameFor,
   refreshKey = 0,
+  teamGoal = null,
+  onEditTeamGoal,
+  onOpenMembers,
+  onEndTeamGoal,
 }: {
   leagueId: string;
   teamName: string;
@@ -127,7 +134,14 @@ export function TeamChallengesTab({
   nameFor: (userId: string) => string;
   /** Bump to reload, e.g. after a challenge is sent from the Members tab. */
   refreshKey?: number;
+  /** The team's shared goal (the ring on the team page), if one is running. */
+  teamGoal?: { title: string; detail: string } | null;
+  onEditTeamGoal?: () => void;
+  /** Opens the Members tab, where a teammate is challenged. */
+  onOpenMembers?: () => void;
+  onEndTeamGoal?: () => void;
 }) {
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   const [loading, setLoading] = useState(true);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [scores, setScores] = useState<Record<string, Score>>({});
@@ -228,11 +242,57 @@ export function TeamChallengesTab({
   const teamActive = teamChallenges.filter(c => c.status === 'active');
   const teamDone = teamChallenges.filter(c => c.status === 'completed');
 
+  const noTeammate = !loading && pending.length + active.length + done.length === 0;
+  const noTeamVs = !loading && teamPending.length + teamActive.length + teamDone.length === 0;
   return (
     <View style={{ gap: 22 }}>
+      {/* Phone: challenges not started yet, as tiles at the top. Each becomes
+          its own section below once there's one. */}
+      {phone && (
+        <RivalStartTiles
+          tiles={[
+            ...(isAdmin && !teamGoal && onEditTeamGoal ? [{ key: 'team', icon: 'target' as const, label: 'Team challenge', onPress: onEditTeamGoal }] : []),
+            ...(noTeammate && onOpenMembers ? [{ key: 'mate', icon: 'person' as const, label: 'Challenge a teammate', onPress: onOpenMembers }] : []),
+            ...(noTeamVs ? [{ key: 'vs', icon: 'race' as const, label: 'Challenge a team', onPress: () => setTeamSheetOpen(true) }] : []),
+          ]}
+        />
+      )}
+      {/* ---- The team's shared challenge ----
+          Managed here, beside the other challenges, rather than from a tap on
+          the ring or from Team settings. Admins start, edit and end it;
+          everyone else sees what the team is working towards. */}
+      {(teamGoal || (isAdmin && !phone)) && (
+        <View style={{ gap: 10 }}>
+          <Text style={s.sectionTitle}>Team challenge</Text>
+          {teamGoal ? (
+            <View style={s.card}>
+              <Text style={s.cardKicker}>TOGETHER</Text>
+              <Text style={s.cardTitle}>{teamGoal.title}</Text>
+              <Text style={s.cardDetail}>{teamGoal.detail}</Text>
+              {isAdmin && (
+                <View style={s.btnRow}>
+                  <TouchableOpacity style={s.secondaryBtn} onPress={onEndTeamGoal}>
+                    <Text style={s.secondaryBtnText}>End challenge</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.primaryBtn} onPress={onEditTeamGoal}>
+                    <Text style={s.primaryBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity style={s.emptyCard} onPress={onEditTeamGoal} activeOpacity={0.8}>
+              <RivalIcon name="target" size={22} color={RivalColors.accentText} />
+              <Text style={s.emptyText}>Start a team challenge: one shared goal everyone's training counts towards.</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {/* ---- Teammate challenges ---- */}
+      {!(phone && noTeammate) && (
       <View style={{ gap: 10 }}>
-        <Text style={s.sectionTitle}>Teammate Challenges</Text>
+        <Text style={s.sectionTitle}>Teammate challenges</Text>
         {loading ? (
           <Text style={s.muted}>Loading…</Text>
         ) : pending.length + active.length + done.length === 0 ? (
@@ -296,19 +356,27 @@ export function TeamChallengesTab({
           </>
         )}
       </View>
+      )}
 
       {/* ---- Team vs Team ---- */}
+      {!(phone && noTeamVs) && (
       <View style={{ gap: 10 }}>
         <View style={s.sectionHead}>
           <Text style={s.sectionTitle}>Team vs Team</Text>
+          {phone ? (
+            <TouchableOpacity onPress={() => setTeamSheetOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.linkText}>Challenge a team</Text>
+            </TouchableOpacity>
+          ) : (
           <TouchableOpacity style={s.pillBtn} onPress={() => setTeamSheetOpen(true)}>
             <RivalIcon name="race" size={14} color={RivalColors.accentText} />
-            <Text style={s.pillBtnText}>Challenge a Team</Text>
+            <Text style={s.pillBtnText}>Challenge a team</Text>
           </TouchableOpacity>
+          )}
         </View>
 
         {!loading && teamPending.length + teamActive.length + teamDone.length === 0 && (
-          <Text style={s.muted}>Take on another team over a few days or a week.</Text>
+          <Text style={s.muted}>Compete against another team over a set period.</Text>
         )}
 
         {teamPending.map(t => {
@@ -330,7 +398,7 @@ export function TeamChallengesTab({
                 </View>
               ) : (
                 <Text style={s.muted}>
-                  {weSent ? "Waiting for their admin to respond." : 'Your team admin can accept or decline this.'}
+                  {weSent ? "Waiting for their admin to respond." : 'A team admin can accept or decline this.'}
                 </Text>
               )}
             </View>
@@ -367,6 +435,7 @@ export function TeamChallengesTab({
           );
         })}
       </View>
+      )}
 
       <ChallengeTeamSheet
         visible={teamSheetOpen}
@@ -442,6 +511,25 @@ export function ChallengeTeammateSheet({
     onClose();
   }
 
+  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  if (phoneSheet) {
+    return (
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={sheet.backdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel="Close" />
+          <GreySheet
+            kicker="TEAM CHALLENGE"
+            title={`Challenge ${opponent?.name ?? ''}`}
+            onClose={onClose}
+            footer={<GreyPrimary label={sending ? 'Sending…' : 'Send challenge'} busy={sending} disabled={!valid || sending} onPress={send} />}
+          >
+            <GreyNote>The higher total at the end wins.</GreyNote>
+            <GreyMetricAndDuration metric={metric} setMetric={setMetric} days={days} setDays={setDays} customDays={customDays} setCustomDays={setCustomDays} />
+          </GreySheet>
+        </View>
+      </Modal>
+    );
+  }
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheet.backdrop}>
@@ -451,11 +539,14 @@ export function ChallengeTeammateSheet({
           <View style={sheet.head}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={sheet.title}>Challenge {opponent?.name ?? ''}</Text>
-              <Text style={sheet.sub}>Whoever has more when it ends wins.</Text>
+              <Text style={sheet.sub}>The higher total at the end wins.</Text>
             </View>
-            <TouchableOpacity style={sheet.close} onPress={onClose} accessibilityLabel="Close">
-              <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
-            </TouchableOpacity>
+            {/* Phone pop-ups close by tapping outside, no X. */}
+            {!phoneSheet && (
+              <TouchableOpacity style={sheet.close} onPress={onClose} accessibilityLabel="Close">
+                <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
+              </TouchableOpacity>
+            )}
           </View>
           <MetricAndDuration
             metric={metric} setMetric={setMetric}
@@ -467,7 +558,7 @@ export function ChallengeTeammateSheet({
               <Text style={sheet.secondaryBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[sheet.primaryBtn, (!valid || sending) && sheet.primaryBtnOff]} onPress={send} disabled={!valid || sending}>
-              <Text style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send Challenge'}</Text>
+              <BusyText busy={!!(sending)} style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send challenge'}</BusyText>
             </TouchableOpacity>
           </View>
         </View>
@@ -522,6 +613,36 @@ function ChallengeTeamSheet({
     onClose();
   }
 
+  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  if (phoneSheet) {
+    return (
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={sheet.backdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel="Close" />
+          <GreySheet
+            kicker="TEAM CHALLENGE"
+            title="Challenge a team"
+            onClose={onClose}
+            footer={<GreyPrimary label={sending ? 'Sending…' : 'Send challenge'} busy={sending} disabled={!valid || sending} onPress={send} />}
+          >
+            <GreyNote>All member activity counts toward each team's total.</GreyNote>
+            <GreyLabel>Opponent</GreyLabel>
+            <GreyField value={search} onChangeText={setSearch} placeholder="Search teams" autoCorrect={false} />
+            <View style={{ height: 8 }} />
+            <GreyRows>
+              {shown.slice(0, 8).map((t) => (
+                <GreyRow key={t.id} icon="groups" label={t.name} onPress={() => setTarget(t.id)}>
+                  {target === t.id ? <RivalIcon name="check" size={17} color={RivalColors.accentText} /> : null}
+                </GreyRow>
+              ))}
+              {shown.length === 0 ? <GreyRow icon="search" label="No teams match that search." /> : null}
+            </GreyRows>
+            <GreyMetricAndDuration metric={metric} setMetric={setMetric} days={days} setDays={setDays} customDays={customDays} setCustomDays={setCustomDays} />
+          </GreySheet>
+        </View>
+      </Modal>
+    );
+  }
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheet.backdrop}>
@@ -530,12 +651,15 @@ function ChallengeTeamSheet({
           <View style={sheet.grabber} />
           <View style={sheet.head}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={sheet.title}>Challenge a Team</Text>
-              <Text style={sheet.sub}>Everyone's activity counts toward their team's total.</Text>
+              <Text style={sheet.title}>Challenge a team</Text>
+              <Text style={sheet.sub}>All member activity counts toward each team's total.</Text>
             </View>
-            <TouchableOpacity style={sheet.close} onPress={onClose} accessibilityLabel="Close">
-              <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
-            </TouchableOpacity>
+            {/* Phone pop-ups close by tapping outside, no X. */}
+            {!phoneSheet && (
+              <TouchableOpacity style={sheet.close} onPress={onClose} accessibilityLabel="Close">
+                <RivalIcon name="close" size={18} color={RivalColors.textSecondary} />
+              </TouchableOpacity>
+            )}
           </View>
           <ScrollView style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={sheet.label}>Team</Text>
@@ -567,12 +691,51 @@ function ChallengeTeamSheet({
               <Text style={sheet.secondaryBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[sheet.primaryBtn, (!valid || sending) && sheet.primaryBtnOff]} onPress={send} disabled={!valid || sending}>
-              <Text style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send Challenge'}</Text>
+              <BusyText busy={!!(sending)} style={sheet.primaryBtnText}>{sending ? 'Sending…' : 'Send challenge'}</BusyText>
             </TouchableOpacity>
           </View>
         </View>
       </View>
     </Modal>
+  );
+}
+
+// Phone: what counts and how long, as grey tiles.
+const METRIC_ICONS: Record<ChallengeMetric, RivalIconName> = { xp: 'bolt', distance: 'distance', elevation: 'elevation', duration: 'timer', activities: 'calendar' };
+function GreyMetricAndDuration({
+  metric, setMetric, days, setDays, customDays, setCustomDays,
+}: {
+  metric: ChallengeMetric; setMetric: (m: ChallengeMetric) => void;
+  days: number; setDays: (d: number) => void;
+  customDays: string; setCustomDays: (v: string) => void;
+}) {
+  return (
+    <>
+      <GreyLabel>Compete on</GreyLabel>
+      <GreyTiles
+        columns={3}
+        options={CHALLENGE_METRICS.map((m) => ({ value: m.value, label: m.label, icon: METRIC_ICONS[m.value] }))}
+        value={metric}
+        onChange={setMetric}
+      />
+      <GreyLabel>How long</GreyLabel>
+      <GreyTiles
+        options={[...DURATIONS.map((d) => ({ value: String(d), label: d === 7 ? '1 week' : d === 14 ? '2 weeks' : `${d} days` })), { value: '-1', label: 'Custom' }]}
+        value={String(days)}
+        onChange={(v) => { setDays(Number(v)); if (v !== '-1') setCustomDays(''); }}
+      />
+      {days === -1 ? (
+        <>
+          <View style={{ height: 8 }} />
+          <GreyField
+            value={customDays}
+            onChangeText={(v) => setCustomDays(v.replace(/\D/g, '').slice(0, 2))}
+            placeholder="Number of days (1–90)"
+            keyboardType="number-pad"
+          />
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -620,6 +783,7 @@ function MetricAndDuration({
 
 const s = StyleSheet.create({
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  linkText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   sectionTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff' },
   subTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, marginTop: 6 },
   muted: { fontSize: 13, color: RivalColors.textSecondary },
@@ -637,8 +801,8 @@ const s = StyleSheet.create({
   cardTitle: { fontSize: 15.5, fontWeight: '800', color: '#fff' },
   cardDetail: { fontSize: 13, color: RivalColors.textSecondary },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  primaryBtn: { flex: 1, minHeight: 44, borderRadius: 999, backgroundColor: RivalColors.accentFill, alignItems: 'center', justifyContent: 'center' },
-  primaryBtnText: { fontSize: 14, fontWeight: '800', color: RivalColors.surfaceLowest },
+  primaryBtn: { flex: 1, minHeight: 44, borderRadius: 999, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, alignItems: 'center', justifyContent: 'center' },
+  primaryBtnText: { fontSize: 14, fontWeight: '800', color: RivalButtonColors.label(RivalColors.surfaceLowest) },
   secondaryBtn: {
     flex: 1, minHeight: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',

@@ -41,6 +41,16 @@ describe('rollsUpIntoDayCard', () => {
     expect(rollsUpIntoDayCard({ activity_type: 'Walk', provider: 'rival_manual' })).toBe(false);
   });
 
+  it('gathers a walk you were added to, the same as your own', () => {
+    // The walk was just as incidental from this person's side — they confirmed
+    // a question rather than deciding to log a session.
+    expect(rollsUpIntoDayCard({ activity_type: 'Walk', provider: 'shared' })).toBe(true);
+  });
+
+  it('still leaves a shared RUN its own card', () => {
+    expect(rollsUpIntoDayCard({ activity_type: 'Run', provider: 'shared' })).toBe(false);
+  });
+
   it('never gathers anything that is not a walk, however short', () => {
     expect(rollsUpIntoDayCard({ activity_type: 'Run', provider: 'strava' })).toBe(false);
     expect(rollsUpIntoDayCard({ activity_type: 'Ride', provider: 'strava' })).toBe(false);

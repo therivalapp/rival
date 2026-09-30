@@ -1,21 +1,30 @@
-import { useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, Image, Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View, Text, Image, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { RivalButton } from '../components/rival';
-import { RivalColors, RivalType } from '../constants/rivalTheme';
+import { RivalColors, RivalType, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { rm } from '../components/rival/RivalMobile';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 
 export default function WelcomeScreen() {
+  const mobile = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  // Signed-in people go straight to Home. The welcome page stays hidden until
+  // the session check finishes, so it never flashes up on the way through.
+  const [checked, setChecked] = useState(false);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace('/home');
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session) router.replace('/home');
+        else setChecked(true);
+      })
+      .catch(() => setChecked(true));
   }, []);
+
+  if (!checked) return <View style={styles.pending} />;
 
   return (
     <View style={styles.page}>
@@ -26,20 +35,34 @@ export default function WelcomeScreen() {
           <Text style={styles.logo}>RIVAL</Text>
 
           <View style={styles.taglineWrap}>
-            <Text style={styles.tagline}>Fitness is better shared</Text>
+            <Text style={[styles.tagline, mobile && ms.tagline]}>We make each other better</Text>
+            {/* The one place the name is explained. Everywhere else the
+                product carries it: rivals as the people who lift you. */}
+            <Text style={styles.taglineSub}>A rival isn't someone you're against. It's someone who brings out your best.</Text>
           </View>
 
-          <View style={styles.buttons}>
-            <RivalButton
-              label="Let's Go"
-              onPress={() => router.push('/sign-up')}
-              labelStyle={{ textTransform: 'uppercase', letterSpacing: 2, fontWeight: '800' }}
-              style={{ paddingHorizontal: 19, paddingVertical: 11 }}
-            />
-            <TouchableOpacity onPress={() => router.push('/sign-in')} style={styles.signInLink}>
-              <Text style={styles.signInLinkText}>Sign In</Text>
-            </TouchableOpacity>
-          </View>
+          {mobile ? (
+            <View style={ms.buttons}>
+              <TouchableOpacity style={rm.primary} onPress={() => router.push('/sign-up')} accessibilityRole="button">
+                <Text style={rm.primaryText}>Get started</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/sign-in')} style={styles.signInLink} accessibilityRole="button">
+                <Text style={ms.signIn}>Already have an account? <Text style={ms.signInStrong}>Sign in</Text></Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.buttons}>
+              <RivalButton
+                label="Get started"
+                onPress={() => router.push('/sign-up')}
+                labelStyle={{ textTransform: 'uppercase', letterSpacing: 2, fontWeight: '800' }}
+                style={{ paddingHorizontal: 19, paddingVertical: 11 }}
+              />
+              <TouchableOpacity onPress={() => router.push('/sign-in')} style={styles.signInLink}>
+                <Text style={styles.signInLinkText}>Sign in</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </SafeAreaView>
       </View>
     </View>
@@ -52,6 +75,7 @@ const styles = StyleSheet.create({
   page: {
     backgroundColor: RivalColors.surfaceLow,
   },
+  pending: { flex: 1, minHeight: '100%', backgroundColor: RivalColors.surfaceLow },
   // minHeight, not height: fills at least one screen but is free to grow, same as
   // any ordinary hero section on a real webpage.
   // 100dvh, not 100vh: on iOS 100vh is the LARGE viewport (741px of an 852px
@@ -122,6 +146,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
   },
+  taglineSub: {
+    ...RivalType.bodyMd,
+    color: RivalColors.textSecondary,
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: 300,
+  },
   buttons: {
     gap: 4,
     alignItems: 'center',
@@ -134,4 +166,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+});
+
+// Phone: the tagline in the app's serif voice, and the one gradient pill.
+const ms = StyleSheet.create({
+  tagline: {
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700',
+    textTransform: 'none', letterSpacing: 0, fontSize: 30, lineHeight: 36,
+  },
+  buttons: { alignSelf: 'stretch', gap: 4 },
+  signIn: { textAlign: 'center', fontSize: 14, color: 'rgba(255,255,255,0.6)' },
+  signInStrong: { color: RivalColors.accentText, fontWeight: '700' },
 });

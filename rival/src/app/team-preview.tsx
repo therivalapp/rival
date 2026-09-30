@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead } from '../components/rival';
+import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { formatTeamName } from '../lib/identity';
+import { BusyText } from '../components/rival/BusyText';
 
 // What a stranger sees before joining a public team.
 //
@@ -39,6 +41,9 @@ export default function TeamPreviewScreen() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [signedIn, setSignedIn] = useState(true);
+  // Phone: the RIVAL look; same content and actions as desktop.
+  const { width } = useWindowDimensions();
+  const mob = width < BREAKPOINT_WIDE_LAYOUT;
 
   useEffect(() => {
     load();
@@ -108,12 +113,12 @@ export default function TeamPreviewScreen() {
     if (!preview && !signedIn) {
       return (
         <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>Sign in to see this team</Text>
-          <Text style={styles.emptyBody}>
+          <Text style={[styles.emptyTitle, mob && ms.emptyTitle]}>Sign in to see this team</Text>
+          <Text style={[styles.emptyBody, mob && ms.emptyBody]}>
             Team previews are for members of RIVAL. It takes a moment to join.
           </Text>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/sign-in')}>
-            <Text style={styles.secondaryBtnText}>Sign in</Text>
+          <TouchableOpacity style={mob ? [rm.ghost, ms.ghostBtn] : styles.secondaryBtn} onPress={() => router.push('/sign-in')}>
+            <Text style={mob ? rm.ghostText : styles.secondaryBtnText}>Sign in</Text>
           </TouchableOpacity>
         </View>
       );
@@ -122,12 +127,13 @@ export default function TeamPreviewScreen() {
     if (!preview) {
       return (
         <View style={styles.centered}>
-          <Text style={styles.emptyTitle}>This team isn't open to preview</Text>
-          <Text style={styles.emptyBody}>
+          <Text style={[styles.emptyTitle, mob && ms.emptyTitle]}>This team isn't open to preview</Text>
+          <Text style={[styles.emptyBody, mob && ms.emptyBody]}>
             It may be private — private teams are joined with an invite code from someone already inside.
           </Text>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/join-league')}>
-            <Text style={styles.secondaryBtnText}>Enter an invite code</Text>
+          <TouchableOpacity style={mob ? [rm.ghost, ms.ghostBtn] : styles.secondaryBtn} onPress={() => router.push('/join-league')}>
+            {mob && <RivalIcon name="key" size={16} color={RivalColors.accentText} />}
+            <Text style={mob ? rm.ghostText : styles.secondaryBtnText}>Enter an invite code</Text>
           </TouchableOpacity>
         </View>
       );
@@ -138,25 +144,25 @@ export default function TeamPreviewScreen() {
 
     return (
       <>
-        <View style={styles.hero}>
+        <View style={[styles.hero, mob && ms.hero]}>
           {preview.logo_url ? (
-            <Image source={{ uri: preview.logo_url }} style={styles.logo} />
+            <Image source={{ uri: preview.logo_url }} style={[styles.logo, mob && ms.crest]} />
           ) : (
-            <View style={styles.logoFallback}>
+            <View style={[styles.logoFallback, mob && ms.crest]}>
               <RivalIcon name="groups" size={34} color={RivalColors.accentText} />
             </View>
           )}
-          <Text style={styles.teamName}>{formatTeamName(preview.name)}</Text>
-          <Text style={styles.founded}>Together since {foundedLabel(preview.created_at)}</Text>
+          {!mob && <Text style={styles.teamName}>{formatTeamName(preview.name)}</Text>}
+          <Text style={[styles.founded, mob && rb.label]}>Together since {foundedLabel(preview.created_at)}</Text>
         </View>
 
         {/* The aliveness signal, given the most weight on the screen. */}
-        <RivalCard glass style={styles.statCard}>
-          <Text style={styles.statValue}>{sessions}</Text>
-          <Text style={styles.statLabel}>
-            {sessions === 1 ? 'session logged this week' : 'sessions logged this week'}
+        <RivalCard glass style={[styles.statCard, mob && [rb.card, ms.statCard]]}>
+          <Text style={[styles.statValue, mob && ms.statValue]}>{sessions}</Text>
+          <Text style={[styles.statLabel, mob && ms.statLabel]}>
+            {sessions === 1 ? 'activity logged this week' : 'activities logged this week'}
           </Text>
-          <Text style={styles.statSub}>
+          <Text style={[styles.statSub, mob && rm.hint]}>
             {sessions > 0
               ? `Across ${memberLabel(preview.member_count)}.`
               : `${memberLabel(preview.member_count)} — no one has logged yet this week.`}
@@ -164,9 +170,9 @@ export default function TeamPreviewScreen() {
         </RivalCard>
 
         {names.length > 0 && (
-          <RivalCard glass style={styles.peopleCard}>
-            <Text style={styles.peopleTitle}>Who's here</Text>
-            <Text style={styles.peopleNames}>
+          <RivalCard glass style={[styles.peopleCard, mob && [rb.card, ms.peopleCard]]}>
+            <Text style={mob ? rb.label : styles.peopleTitle}>Members</Text>
+            <Text style={[styles.peopleNames, mob && ms.peopleNames]}>
               {names.join(', ')}
               {preview.member_count > names.length ? ` and ${preview.member_count - names.length} more` : ''}
             </Text>
@@ -177,26 +183,27 @@ export default function TeamPreviewScreen() {
 
         {membership === 'active' ? (
           <TouchableOpacity
-            style={styles.primaryBtn}
+            style={mob ? [rm.primary, ms.primaryBtn] : styles.primaryBtn}
             onPress={() => router.push({ pathname: '/team-hub', params: { id: preview.id } })}
           >
-            <Text style={styles.primaryBtnText}>Open team</Text>
+            <Text style={mob ? rm.primaryText : styles.primaryBtnText}>Open team</Text>
           </TouchableOpacity>
         ) : membership === 'pending' ? (
-          <View style={styles.pendingPill}>
-            <Text style={styles.pendingText}>Request sent — an admin will let you in</Text>
+          <View style={[styles.pendingPill, mob && ms.pending]}>
+            {mob && <RivalIcon name="checkCircle" size={16} color={RivalColors.accentText} />}
+            <Text style={[styles.pendingText, mob && ms.pendingText]}>Request sent. An admin will review it.</Text>
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.primaryBtn, joining && styles.primaryBtnDisabled]}
+            style={[mob ? [rm.primary, ms.primaryBtn] : styles.primaryBtn, joining && styles.primaryBtnDisabled]}
             onPress={requestToJoin}
             disabled={joining}
           >
-            <Text style={styles.primaryBtnText}>{joining ? 'Sending…' : 'Request to join'}</Text>
+            <BusyText busy={!!(joining)} style={mob ? rm.primaryText : styles.primaryBtnText}>{joining ? 'Sending…' : 'Request to join'}</BusyText>
           </TouchableOpacity>
         )}
 
-        <Text style={styles.privacyNote}>
+        <Text style={[styles.privacyNote, mob && ms.privacyNote]}>
           You'll see the team's feed, chat and standings once you're in.
         </Text>
       </>
@@ -204,9 +211,16 @@ export default function TeamPreviewScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, mob && rb.page]} edges={['top', 'left', 'right']}>
       <RivalTopNav />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, mob && ms.content]}>
+        {mob ? (
+          <GreyPageHead
+            kicker="TEAM"
+            title={preview ? formatTeamName(preview.name) : 'Team'}
+            onBack={() => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'))}
+          />
+        ) : (
         <View style={styles.header}>
           <RivalBackButton
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'))}
@@ -215,6 +229,7 @@ export default function TeamPreviewScreen() {
           <Text style={styles.headerTitle}>Team</Text>
           <View style={{ width: 48 }} />
         </View>
+        )}
         {body()}
       </ScrollView>
     </SafeAreaView>
@@ -251,14 +266,14 @@ const styles = StyleSheet.create({
   error: { color: RivalColors.error, fontSize: 13, marginBottom: 12 },
 
   primaryBtn: {
-    backgroundColor: RivalColors.accentFill,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
     borderRadius: RivalRadius.DEFAULT,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },
   primaryBtnDisabled: { opacity: 0.6 },
-  primaryBtnText: { color: RivalColors.textPrimary, fontSize: 16, fontWeight: '700' },
+  primaryBtnText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontSize: 16, fontWeight: '700' },
 
   pendingPill: {
     borderRadius: RivalRadius.DEFAULT,
@@ -281,4 +296,24 @@ const styles = StyleSheet.create({
   emptyBody: { fontSize: 14, color: RivalColors.textSecondary, textAlign: 'center', lineHeight: 20 },
 
   privacyNote: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 16, lineHeight: 17 },
+});
+
+// Phone only — the RIVAL look (see RivalMobile.tsx).
+const ms = StyleSheet.create({
+  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 120 },
+  hero: { gap: 8, marginTop: 0, marginBottom: 14 },
+  crest: { borderWidth: 2, borderColor: 'rgba(255,181,158,0.35)' },
+  teamName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 36 },
+  statCard: { alignItems: 'center', marginBottom: 12 },
+  statValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 56, lineHeight: 62 },
+  statLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  peopleCard: { gap: 8, marginBottom: 12 },
+  peopleNames: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, lineHeight: 23 },
+  primaryBtn: { marginTop: 8 },
+  pending: { flexDirection: 'row', justifyContent: 'center', gap: 8, borderRadius: 999, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  pendingText: { color: RivalColors.textSecondary },
+  ghostBtn: { paddingHorizontal: 22, marginTop: 8 },
+  emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22 },
+  emptyBody: { color: RivalColors.textSecondary },
+  privacyNote: { color: RivalColors.textSecondary },
 });

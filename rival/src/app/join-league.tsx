@@ -1,19 +1,30 @@
-import { useState } from 'react';
-import { RivalColors } from '../constants/rivalTheme';
-import { RivalIcon, RivalBackButton} from '../components/rival';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalRowLink, RivalTopNav, rm, GreySheet, GreyNote, GreyLabel, GreyField, GreyRows, GreyRow, GreyPrimary } from '../components/rival';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { clearPendingInvite, readPendingInvite } from '../lib/pendingInvite';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { BusyText } from '../components/rival/BusyText';
 
 export default function JoinLeagueScreen() {
   const [code, setCode] = useState('');
+  // From an invite link, or one opened before signing in.
+  const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
+  useEffect(() => {
+    const invited = (codeParam || readPendingInvite() || '').trim().toUpperCase();
+    if (invited) setCode(invited);
+  }, [codeParam]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { width } = useWindowDimensions();
+  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
 
   async function handleJoin() {
     if (code.trim().length < 4) {
-      setError('Please enter a valid invite code.');
+      setError('Enter a valid invite code.');
       return;
     }
 
@@ -22,7 +33,7 @@ export default function JoinLeagueScreen() {
 
     const { data: { user } } = await getAuthUser();
     if (!user) {
-      setError('Not logged in.');
+      setError('Sign in to continue.');
       setLoading(false);
       return;
     }
@@ -38,15 +49,55 @@ export default function JoinLeagueScreen() {
       console.log('Join error:', JSON.stringify(joinError ?? result?.error));
       setError(
         result?.error === 'invalid_code'
-          ? 'Invalid invite code. Please check and try again.'
-          : 'Failed to join team. Please try again.'
+          ? 'Invalid invite code. Check it and try again.'
+          : "Couldn't join the team. Try again."
       );
       setLoading(false);
       return;
     }
 
     setLoading(false);
+    clearPendingInvite();
     router.replace({ pathname: '/team-hub', params: { id: result.league_id } });
+  }
+
+  if (!wide) {
+    // Phone: a short form, so a pop-up over the screen it came from (the
+    // route is a transparent modal on phone, see _layout.tsx).
+    const close = () => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'));
+    return (
+      <View style={ms.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+        <GreySheet
+          kicker="TEAMS"
+          title="Join a team"
+          onClose={close}
+          footer={<GreyPrimary label={loading ? 'Joining…' : 'Join team'} busy={loading} disabled={loading || code.trim().length < 4} onPress={handleJoin} />}
+        >
+          <GreyNote>Codes are shared by a team's admin. A code also works for a public team.</GreyNote>
+          <GreyLabel>Invite code</GreyLabel>
+          <GreyField
+            style={ms.code}
+            placeholder="UXXOKL"
+            value={code}
+            onChangeText={(t) => { setCode(t.toUpperCase()); if (error) setError(''); }}
+            maxLength={8}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoFocus
+            onSubmitEditing={handleJoin}
+            returnKeyType="go"
+          />
+          {error ? <Text style={[rm.error, { marginTop: 8 }]}>{error}</Text> : null}
+          <View style={{ height: 12 }} />
+          <GreyRows>
+            <GreyRow icon="globe" label="Browse public teams" onPress={() => router.replace('/discover-leagues')}>
+              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+            </GreyRow>
+          </GreyRows>
+        </GreySheet>
+      </View>
+    );
   }
 
   return (
@@ -66,13 +117,13 @@ export default function JoinLeagueScreen() {
         </View>
 
         <Text style={styles.title}>Join a Team</Text>
-        <Text style={styles.subtitle}>Enter the invite code your friend shared with you.</Text>
+        <Text style={styles.subtitle}>Enter the invite code shared with you.</Text>
 
         <View style={styles.form}>
           <Text style={styles.label}>Invite code</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. UXXOKL"
+            placeholder="UXXOKL"
             placeholderTextColor={RivalColors.textSecondary}
             value={code}
             onChangeText={(t) => setCode(t.toUpperCase())}
@@ -90,9 +141,9 @@ export default function JoinLeagueScreen() {
           onPress={handleJoin}
           disabled={loading}
         >
-          <Text style={styles.joinButtonText}>
-            {loading ? 'Joining...' : 'Join Team'}
-          </Text>
+          <BusyText busy={loading} style={styles.joinButtonText}>
+            {loading ? 'Joining…' : 'Join Team'}
+          </BusyText>
         </TouchableOpacity>
 
       </ScrollView>
@@ -154,7 +205,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   joinButton: {
-    backgroundColor: RivalColors.accentFill,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
     paddingVertical: 18,
     borderRadius: 12,
     alignItems: 'center',
@@ -164,8 +215,15 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   joinButtonText: {
-    color: RivalColors.textPrimary,
+    color: RivalButtonColors.label(RivalColors.textPrimary),
     fontSize: 18,
     fontWeight: '700',
   },
+});
+
+// Mobile only — the RIVAL look (see RivalMobile.tsx).
+const ms = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  code: { fontSize: 26, fontWeight: '800', letterSpacing: 8, textAlign: 'center', paddingVertical: 16 },
 });

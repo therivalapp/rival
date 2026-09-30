@@ -38,19 +38,25 @@ export type DayRollup = {
   ts: string;
 };
 
-const AUTO_SYNCED_PROVIDERS = new Set(['strava', 'garmin']);
+// Walks that arrived without anyone sitting down to log them: a watch
+// uploaded it, or a training partner said you were there and you confirmed.
+// 'shared' belongs here for the same reason the other two do — the walk itself
+// was incidental. Confirming it was one tap on a question, not a decision to
+// record a session, and a feed where your own walks gather but your walks with
+// Sandy sit apart is inconsistent in a way nobody could explain.
+const ROLLED_UP_PROVIDERS = new Set(['strava', 'garmin', 'shared']);
 
-// The line is intent, not length. A walk that arrived on its own because a
-// watch uploaded it is something the day happened to contain; a walk someone
-// opened the app and logged is something they decided was worth recording, so
-// it keeps its own card. Duration was tried as the test and was the wrong one
-// — it made a 19-minute walk and a 21-minute walk different kinds of thing,
-// which is not how anyone experiences them.
+// The line is intent, not length. A walk that arrived on its own is something
+// the day happened to contain; a walk someone opened the app and logged is
+// something they decided was worth recording, so it keeps its own card.
+// Duration was tried as the test and was the wrong one — it made a 19-minute
+// walk and a 21-minute walk different kinds of thing, which is not how anyone
+// experiences them.
 //
 // Only walks: a short auto-synced RUN is still a session someone set out to do.
 export function rollsUpIntoDayCard(a: Pick<RollupRow, 'activity_type' | 'provider'>): boolean {
   return (a.activity_type || '').toLowerCase() === 'walk'
-    && AUTO_SYNCED_PROVIDERS.has((a.provider || '').toLowerCase());
+    && ROLLED_UP_PROVIDERS.has((a.provider || '').toLowerCase());
 }
 
 // LIMITATION: activities store started_at as UTC and the athlete's own timezone

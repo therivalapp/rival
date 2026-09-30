@@ -1,42 +1,68 @@
-import { useState, useCallback } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal } from 'react-native';
+import { useSnapState } from '../lib/snapState';
+import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
+import { useState, useCallback, useEffect } from 'react';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { fetchAllActivities } from '../lib/fetchAllActivities';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { displayToIsoDate, isoToDisplayDate } from '../lib/dateFormat';
-import { computeGoalProgress } from '../lib/goalProgress';
+import { displayToIsoDate, isoToDisplayDate, friendlyDate } from '../lib/dateFormat';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { ALL_ACTIVITIES, computeGoalProgress, goalActivityLabel, goalContributions, GOAL_ACTIVITY_TYPES } from '../lib/goalProgress';
 import { confirmAction, notify } from '../lib/notify';
-import { RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField } from '../components/rival';
-import { RivalColors, RivalRadius, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 type Goal = {
   id: string;
   goal_type: 'distance' | 'elevation' | 'gym_sessions';
   target_value: number;
-  period_type: 'week' | 'month' | 'custom';
+  period_type: 'week' | 'month' | 'year' | 'custom';
   start_date: string;
   end_date: string;
   activity_filter: string | null;
   progress: number;
   pinned: boolean;
+  // The latest activities that counted toward it, in shown units (mobile).
+  recent?: { startedAt: string; amount: number }[];
 };
 
 const GOAL_LABELS: Record<string, string> = {
   distance: 'Distance',
   elevation: 'Elevation',
-  gym_sessions: 'Gym Sessions',
+  gym_sessions: 'Activities',
 };
 
-const GOAL_UNITS: Record<string, string> = {
+const GOAL_UNITS_METRIC: Record<string, string> = {
   distance: 'km',
   elevation: 'm',
-  gym_sessions: 'sessions',
+  gym_sessions: 'activities',
 };
+// Read at render time, so a change of units in Profile shows straight away.
+const GOAL_UNITS = new Proxy(GOAL_UNITS_METRIC, {
+  get: (t, k: string) => (k === 'distance' ? distanceUnit() : k === 'elevation' ? elevationUnit() : t[k]),
+}) as Record<string, string>;
+
+function toShownGoal(type: string, v: number): number {
+  return type === 'distance' ? toDisplayDistance(v) : type === 'elevation' ? toDisplayElevation(v) : v;
+}
+function fromShownGoal(type: string, v: number): number {
+  return type === 'distance' ? fromDisplayDistance(v) : type === 'elevation' ? fromDisplayElevation(v) : v;
+}
 
 const GOAL_ABBR: Record<string, string> = {
-  distance: 'KM',
+  distance: 'DIST',
   elevation: 'ELEV',
   gym_sessions: 'GYM',
+};
+
+const GOAL_ICON: Record<string, RivalIconName> = {
+  distance: 'distance',
+  elevation: 'elevation',
+  gym_sessions: 'weights',
 };
 
 const GOAL_BAR_COLOR: Record<string, string> = {
@@ -45,27 +71,16 @@ const GOAL_BAR_COLOR: Record<string, string> = {
   gym_sessions: RivalColors.accentFill,
 };
 
-// Activity types available as filters, with display names
-const DISTANCE_FILTERS = [
-  { value: null, label: 'All' },
-  { value: 'Run', label: 'Run' },
-  { value: 'Ride', label: 'Ride' },
-  { value: 'Swim', label: 'Swim' },
-  { value: 'Walk', label: 'Walk' },
-  { value: 'Hike', label: 'Hike' },
-];
-
-const ELEVATION_FILTERS = [
-  { value: null, label: 'All' },
-  { value: 'Run', label: 'Run' },
-  { value: 'Ride', label: 'Ride' },
-  { value: 'Hike', label: 'Hike' },
-];
-
-function activityLabel(filter: string | null) {
-  if (!filter) return 'All activities';
-  return filter;
-}
+// The quick picks shown for each goal type; every other activity is under
+// "More", with a custom activity at the end. "All" is null for Distance and
+// Elevation, and ALL_ACTIVITIES for an Activities goal (see goalProgress.ts).
+const QUICK_FILTERS: Record<string, string[]> = {
+  distance: ['Run', 'Ride', 'Swim', 'Walk', 'Hike'],
+  elevation: ['Run', 'Ride', 'Walk', 'Hike'],
+  gym_sessions: ['Gym', 'Run', 'Ride', 'Swim'],
+};
+const allValue = (type: string) => (type === 'gym_sessions' ? ALL_ACTIVITIES : null);
+const typeLabel = (v: string) => GOAL_ACTIVITY_TYPES.find((t) => t.value === v)?.label ?? v;
 
 function dateToLocalStr(d: Date): string {
   const y = d.getFullYear();
@@ -86,13 +101,12 @@ function getNiceInterval(target: number): number {
 }
 
 const ZERO_MESSAGES = [
-  "Let's do this! Time to get moving.",
-  "You got this. First one's always the hardest.",
-  "Goal set. Now go earn it.",
-  "Ready when you are. Let's get it.",
-  "Today's the day. No better time than now.",
+  "Goal set. The first activity is the start.",
+  "Every activity from here counts toward it.",
+  "Progress begins with the first step.",
+  "Ready when you are.",
+  "Today is a good day to begin.",
   "Your future self will thank you.",
-  "Go get those endorphins!",
 ];
 
 // A week/month goal whose end_date has passed without being hit — the DB row
@@ -110,7 +124,7 @@ function endedMessage(goal: Goal): string {
   const unit = GOAL_UNITS[goal.goal_type];
   const remaining = Math.round((goal.target_value - goal.progress) * 10) / 10;
   const period = goal.period_type === 'week' ? 'this week' : 'this month';
-  return `You were ${remaining} ${unit} away from finishing your previous goal. Let's try again ${period} — you got this.`;
+  return `The previous goal finished ${remaining} ${unit} short. A new goal period starts ${period}.`;
 }
 
 function getEncouragement(progress: number, target: number, unit: string, goalId: string): string | null {
@@ -122,12 +136,74 @@ function getEncouragement(progress: number, target: number, unit: string, goalId
   }
   const remaining = Math.round((target - progress) * 10) / 10;
   if (remaining <= 0) return null;
-  if (remaining <= target * 0.05) return `Almost there — just ${remaining} ${unit} to go!`;
-  if (remaining <= target * 0.15) return `So close! Only ${remaining} ${unit} left.`;
-  if (pct >= 0.75) return `Nearly there — ${remaining} ${unit} to go. Keep pushing!`;
-  if (pct >= 0.5) return `Great work, you're over halfway! ${remaining} ${unit} remaining.`;
-  if (pct >= 0.25) return `Good progress! ${remaining} ${unit} to go.`;
-  return `Keep it up — ${remaining} ${unit} to go!`;
+  if (remaining <= target * 0.15) return `Almost there. ${remaining} ${unit} to go.`;
+  if (pct >= 0.75) return `Three quarters done. ${remaining} ${unit} to go.`;
+  if (pct >= 0.5) return `Over halfway. ${remaining} ${unit} to go.`;
+  return `${remaining} ${unit} to go.`;
+}
+
+const easeOutCubic = (p: number) => 1 - Math.pow(1 - p, 3);
+
+function goalIcon(goal: Goal): RivalIconName {
+  const f = goal.activity_filter;
+  return f && f !== 'Gym' && f !== ALL_ACTIVITIES ? activityIconName(f) : GOAL_ICON[goal.goal_type];
+}
+
+function daysLeft(goal: Goal): number {
+  const end = new Date(goal.end_date + 'T23:59:59');
+  return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86400000));
+}
+
+function periodLabel(goal: Goal) {
+  const past = isGoalEnded(goal);
+  if (goal.period_type === 'week') return past ? 'Last week' : 'This week';
+  if (goal.period_type === 'month') return past ? 'Last month' : 'This month';
+  if (goal.period_type === 'year') return past ? 'Last year' : 'This year';
+  // An extended goal says so: the history stays honest about the dates.
+  const ext = Number((goal as any).extended_days ?? 0);
+  return `${formatDate(goal.start_date)} – ${formatDate(goal.end_date)}${ext > 0 ? ` · extended ${ext} ${ext === 1 ? 'day' : 'days'}` : ''}`;
+}
+
+// "Distance · This month" over the title; a gym goal's type is its title.
+function goalKind(goal: Goal): string {
+  return `${GOAL_LABELS[goal.goal_type]} · ${periodLabel(goal)}`;
+}
+function goalTitle(goal: Goal): string {
+  return goalActivityLabel(goal);
+}
+
+function shortDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+// Section heading in the Today style: serif title, spaced caps under it.
+function SectionHead({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <View style={ms.sectionHead}>
+      <Text style={ms.sectionTitle}>{title}</Text>
+      {subtitle ? <Text style={ms.sectionSub}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+// A slim progress bar that fills when the page opens (web).
+function SlimBar({ pct, done }: { pct: number; done: boolean }) {
+  const [shown, setShown] = useState(Platform.OS === 'web' ? 0 : pct);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setShown(pct));
+    return () => cancelAnimationFrame(raf);
+  }, [pct]);
+  return (
+    <View style={ms.slimTrack}>
+      <View
+        style={[
+          ms.slimFill,
+          { width: `${Math.max(pct > 0 ? 2 : 0, shown * 100)}%` },
+          done && { backgroundColor: RivalColors.accentGold, backgroundImage: 'none' } as any,
+        ]}
+      />
+    </View>
+  );
 }
 
 function ProgressBar({
@@ -135,11 +211,16 @@ function ProgressBar({
   target,
   color,
   unit,
+  trackColor,
+  hidePct = false,
 }: {
   progress: number;
   target: number;
   color: string;
   unit: string;
+  trackColor?: string;
+  // Mobile shows the percentage beside the big number instead.
+  hidePct?: boolean;
 }) {
   const rawPct = progress / target;
   const pct = Math.min(rawPct, 1);
@@ -177,7 +258,7 @@ function ProgressBar({
         </View>
       )}
 
-      <View style={styles.barTrack}>
+      <View style={[styles.barTrack, trackColor ? { backgroundColor: trackColor } : null]}>
         <View style={[styles.barFill, { width: done ? '100%' : `${pct * 100}%`, backgroundColor: color }]} />
 
         {checkpoints.map((cp) => {
@@ -196,23 +277,50 @@ function ProgressBar({
 
       <View style={styles.barLabels}>
         <Text style={styles.barLabelStart}>0</Text>
-        <Text style={[styles.barLabelProgress, { color: done ? RivalColors.accentGold : color }]}>{displayPct}%</Text>
+        {hidePct ? null : <Text style={[styles.barLabelProgress, { color: done ? RivalColors.accentGold : color }]}>{displayPct}%</Text>}
         <Text style={styles.barLabelEnd}>{target}</Text>
       </View>
     </View>
   );
 }
 
+// The Main focus ring on phone: small, with the percentage inside.
+function MiniRing({ pct, size = 76, thickness = 7 }: { pct: number; size?: number; thickness?: number }) {
+  const radius = (size - thickness) / 2;
+  const c = 2 * Math.PI * radius;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+        <Defs>
+          <LinearGradient id="goalMiniRing" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={RivalColors.accentFill} />
+            <Stop offset="100%" stopColor={RivalColors.accentText} />
+          </LinearGradient>
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="url(#goalMiniRing)" strokeWidth={thickness} fill="none" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0, Math.min(1, pct)))} />
+      </Svg>
+      <Text style={ms.ringPct}>{Math.round(pct * 100)}%</Text>
+    </View>
+  );
+}
+
 export default function GoalsScreen() {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [userId, setUserId] = useState('');
+  const [goals, setGoals] = useSnapState<Goal[]>('goals.goals', []);
+  const [loading, setLoading] = useSnapState('goals.loading', true);
+  // ?add=true (from Today's Custom goal tile) opens the form straight away.
+  const { add } = useLocalSearchParams<{ add?: string }>();
+  const [showAdd, setShowAdd] = useState(add === 'true');
+  const [userId, setUserId] = useSnapState('goals.userId', '');
 
   const [goalType, setGoalType] = useState<'distance' | 'elevation' | 'gym_sessions'>('distance');
   const [targetValue, setTargetValue] = useState('');
-  const [periodType, setPeriodType] = useState<'week' | 'month' | 'custom'>('month');
+  const [periodType, setPeriodType] = useState<'week' | 'month' | 'year' | 'custom'>('month');
+  // The full activity list under "More", and the custom activity being typed.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [customActivity, setCustomActivity] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [endCalOpen, setEndCalOpen] = useState(false);
   const [activityFilter, setActivityFilter] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Non-null while the modal is editing an existing goal rather than creating
@@ -221,30 +329,41 @@ export default function GoalsScreen() {
   // recomputed — see saveGoal.
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
 
-  useFocusEffect(useCallback(() => { load(); }, []));
+  const { width } = useWindowDimensions();
+  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+
+  // Bumped on every visit; keys the Main focus ring so it fills each time.
+  const [visit, setVisit] = useState(0);
+  useFocusEffect(useCallback(() => { setVisit((v) => v + 1); load(); }, []));
 
   async function load() {
     const { data: { user } } = await getAuthUser();
     if (!user) return;
     setUserId(user.id);
 
-    const { data: goalsData } = await supabase
-      .from('goals')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    // Together rather than one after the other. The full history, paged: a
+    // plain select stops at 1,000 rows, which would under-count a goal for
+    // anyone with a long imported history.
+    const [{ data: goalsData }, activities] = await Promise.all([
+      supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+      fetchAllActivities(user.id, 'activity_type, name, distance_meters, elevation_meters, started_at'),
+    ]);
 
     if (!goalsData) { setLoading(false); return; }
 
-    const { data: activities } = await supabase
-      .from('activities')
-      .select('activity_type, distance_meters, elevation_meters, started_at')
-      .eq('user_id', user.id);
-
-    const goalsWithProgress = goalsData.map((goal: any) => ({
-      ...goal,
-      progress: computeGoalProgress(goal, activities || []),
-    }));
+    // Shown in the units chosen in Profile. Stored targets stay metric;
+    // storedTarget keeps the original for anything written back.
+    const goalsWithProgress = goalsData.map((goal: any) => {
+      const progress = computeGoalProgress(goal, activities || []);
+      const conv = (v: number) => Math.round(toShownGoal(goal.goal_type, v) * 10) / 10;
+      const recent = goalContributions(goal, activities || []).slice(0, 3)
+        .map((c) => ({ startedAt: c.startedAt, amount: conv(c.amount) }));
+      return { ...goal, storedTarget: goal.target_value, target_value: conv(goal.target_value), progress: conv(progress), recent };
+    });
 
     setGoals(goalsWithProgress);
     setLoading(false);
@@ -257,8 +376,13 @@ export default function GoalsScreen() {
   // of the current calendar month. Ricky's call: goals should always give
   // you the full period you signed up for, never a partial one because of
   // where today happens to fall in the calendar.
-  function getDateRange(period: 'week' | 'month' | 'custom') {
+  function getDateRange(period: 'week' | 'month' | 'year' | 'custom') {
     const now = new Date();
+    // A year goal is the calendar year, like the yearly ranks, and counts
+    // everything since 1 January.
+    if (period === 'year') {
+      return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) };
+    }
     const start = now;
     if (period === 'week') {
       const end = new Date(start);
@@ -289,7 +413,12 @@ export default function GoalsScreen() {
     setGoalType(goal.goal_type);
     setTargetValue(String(goal.target_value));
     setPeriodType(goal.period_type);
-    setActivityFilter(goal.activity_filter);
+    // An Activities goal saved before "All" existed has no filter and counts gym activities.
+    const f = goal.goal_type === 'gym_sessions' ? (goal.activity_filter ?? 'Gym') : goal.activity_filter;
+    setActivityFilter(f);
+    const known = f == null || f === ALL_ACTIVITIES || GOAL_ACTIVITY_TYPES.some((t) => t.value === f);
+    setCustomActivity(known ? '' : f!);
+    setMoreOpen(false);
     setCustomEndDate(goal.period_type === 'custom' ? isoToDisplayDate(goal.end_date) : '');
     setShowAdd(true);
   }
@@ -302,6 +431,8 @@ export default function GoalsScreen() {
     setCustomEndDate('');
     setGoalType('distance');
     setActivityFilter(null);
+    setCustomActivity('');
+    setMoreOpen(false);
   }
 
   async function saveGoal() {
@@ -314,9 +445,9 @@ export default function GoalsScreen() {
 
     const fields = {
       goal_type: goalType,
-      target_value: parseFloat(targetValue),
+      target_value: fromShownGoal(goalType, parseFloat(targetValue)),
       period_type: periodType,
-      activity_filter: goalType === 'gym_sessions' ? null : activityFilter,
+      activity_filter: activityFilter,
     };
 
     if (editingGoal) {
@@ -376,6 +507,21 @@ export default function GoalsScreen() {
     closeForm();
   }
 
+  // The goal Today shows, chosen the same way home.tsx does: the pinned goal,
+  // otherwise the active goal nearest its deadline, then the most complete.
+  const activeGoals = goals.filter((g) => new Date(g.end_date + 'T23:59:59').getTime() >= Date.now());
+  const focusGoal = [...activeGoals].sort((a, b) =>
+    (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
+    || a.end_date.localeCompare(b.end_date)
+    || (b.progress / (b.target_value || 1)) - (a.progress / (a.target_value || 1)),
+  )[0] ?? null;
+  const otherGoals = goals.filter((g) => g.id !== focusGoal?.id);
+
+  // "Make focus" pins the goal, which moves it to Main focus here and on Today.
+  function makeFocus(goal: Goal) {
+    if (!goal.pinned) togglePin(goal);
+  }
+
   // Exactly one pinned goal at a time — pinning this one unpins whichever
   // else was pinned, in the same round trip. This is what home.tsx's Today
   // card reads to decide which goal to feature, ahead of the nearest-
@@ -395,7 +541,7 @@ export default function GoalsScreen() {
   // same type/target/filter, reset progress. Replaces rather than stacking
   // a 4th row, since it's the same slot picking back up, not a new goal.
   async function tryAgainGoal(goal: Goal) {
-    const { start, end } = getDateRange(goal.period_type as 'week' | 'month');
+    const { start, end } = getDateRange(goal.period_type as 'week' | 'month' | 'year');
     // Insert the replacement BEFORE removing the old row, and abort if it
     // fails: unchecked, a failed insert followed by a successful delete left
     // the athlete with no goal at all -- silent data loss on a button labelled
@@ -403,7 +549,7 @@ export default function GoalsScreen() {
     const { error: insErr } = await supabase.from('goals').insert({
       user_id: userId,
       goal_type: goal.goal_type,
-      target_value: goal.target_value,
+      target_value: (goal as any).storedTarget ?? goal.target_value,
       period_type: goal.period_type,
       start_date: dateToLocalStr(start),
       end_date: dateToLocalStr(end),
@@ -416,18 +562,409 @@ export default function GoalsScreen() {
     const { error: delErr } = await supabase.from('goals').delete().eq('id', goal.id);
     if (delErr) {
       // The new goal exists, so nothing is lost; the old one just lingers.
-      notify('Started a fresh goal', 'The finished one could not be cleared away — you may see both for now.');
+      notify('Started a fresh goal', 'The completed goal could not be removed and may still appear.');
     }
     load();
   }
 
-  function periodLabel(goal: Goal) {
-    if (goal.period_type === 'week') return 'This week';
-    if (goal.period_type === 'month') return 'This month';
-    return `${formatDate(goal.start_date)} – ${formatDate(goal.end_date)}`;
-  }
+  const quick = QUICK_FILTERS[goalType];
+  // Everything not in the quick row. Distance and Elevation only list activities that record a distance.
+  const moreTypes = GOAL_ACTIVITY_TYPES.filter((t) =>
+    !quick.includes(t.value) && (goalType === 'gym_sessions' || (t.distance && t.value !== 'Gym')));
+  // A pick from "More" (or a custom one) joins the quick row while selected.
+  const extraPick = activityFilter != null && activityFilter !== ALL_ACTIVITIES && !quick.includes(activityFilter) ? activityFilter : null;
+  const chip = (value: string | null, label: string, onPress?: () => void) => {
+    const on = activityFilter === value;
+    return (
+      <TouchableOpacity
+        key={String(value) + label}
+        style={[styles.segment, m && ms.chip, on && styles.segmentActive]}
+        onPress={onPress ?? (() => setActivityFilter(value))}
+      >
+        <Text style={[styles.segmentText, on && styles.segmentTextActive]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  };
 
-  const filterOptions = goalType === 'elevation' ? ELEVATION_FILTERS : DISTANCE_FILTERS;
+  // The add/edit sheet is shared by both layouts; on mobile it takes the warm
+  // palette so it reads as part of the same screen rather than a grey form.
+  const m = !wide;
+  // The New / Edit goal form, shared by the mobile sheet and the desktop modal.
+  const goalForm = (
+    <>
+          {!m && <Text style={styles.modalTitle}>{editingGoal ? 'Edit Goal' : 'New Goal'}</Text>}
+
+          <View style={m ? ms.sheetCard : null}>
+          <Text style={m ? rm.label : styles.modalLabel}>Type</Text>
+          {m ? (
+            <RivalTiles
+              columns={3}
+              options={[
+                { value: 'distance' as const, label: GOAL_LABELS.distance, icon: 'distance' as const },
+                { value: 'elevation' as const, label: GOAL_LABELS.elevation, icon: 'elevation' as const },
+                { value: 'gym_sessions' as const, label: GOAL_LABELS.gym_sessions, icon: 'workout' as const },
+              ]}
+              value={goalType}
+              onChange={(t) => { setGoalType(t); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); }}
+            />
+          ) : (
+          <View style={styles.segmentRow}>
+            {(['distance', 'elevation', 'gym_sessions'] as const).map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[styles.segment, goalType === t && styles.segmentActive]}
+                onPress={() => { setGoalType(t); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); }}
+              >
+                <Text style={[styles.segmentText, goalType === t && styles.segmentTextActive]}>
+                  {GOAL_LABELS[t]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          )}
+          </View>
+
+          <View style={m ? ms.sheetCard : null}>
+          <Text style={m ? rm.label : styles.modalLabel}>Activity</Text>
+          <View style={styles.segmentRow}>
+            {chip(allValue(goalType), 'All')}
+            {quick.map((v) => chip(v, typeLabel(v)))}
+            {extraPick && chip(extraPick, typeLabel(extraPick))}
+            <TouchableOpacity
+              style={[styles.segment, m && ms.chip, ms.moreChip]}
+              onPress={() => setMoreOpen((o) => !o)}
+            >
+              <Text style={styles.segmentText}>{moreOpen ? 'Less' : 'More'}</Text>
+              <RivalIcon name="chevronDown" size={14} color={RivalColors.textSecondary} style={moreOpen ? ({ transform: [{ rotate: '180deg' }] } as any) : undefined} />
+            </TouchableOpacity>
+          </View>
+          {moreOpen && (
+            <>
+              <View style={[styles.segmentRow, { marginTop: 10 }]}>
+                {moreTypes.map((t) => chip(t.value, t.label))}
+              </View>
+              <Text style={[m ? rm.fieldLabel : styles.modalLabel, { marginTop: 14 }]}>Custom activity</Text>
+              <TextInput
+                style={m ? [rm.field, rm.input] : styles.modalInput}
+                placeholder="For example, Padel"
+                placeholderTextColor={RivalColors.textSecondary}
+                value={customActivity}
+                onChangeText={(v) => {
+                  setCustomActivity(v);
+                  const t = v.trim();
+                  setActivityFilter(t ? t : allValue(goalType));
+                }}
+                maxLength={40}
+              />
+              <Text style={[rm.hint, { marginTop: 6 }]}>Counts activities of that type, or with that word in their name.</Text>
+            </>
+          )}
+          </View>
+
+          <View style={m ? ms.sheetCard : null}>
+          <Text style={m ? rm.label : styles.modalLabel}>Target ({GOAL_UNITS[goalType]})</Text>
+          <TextInput
+            style={m ? [rm.field, rm.input] : styles.modalInput}
+            placeholder={goalType === 'distance' ? '100' : goalType === 'elevation' ? '5000' : '12'}
+            placeholderTextColor={RivalColors.textSecondary}
+            value={targetValue}
+            onChangeText={setTargetValue}
+            keyboardType="decimal-pad"
+          />
+
+          </View>
+
+          <View style={m ? ms.sheetCard : null}>
+          <Text style={m ? rm.label : styles.modalLabel}>Period</Text>
+          {m ? (
+            <RivalTiles
+              options={(['week', 'month', 'year', 'custom'] as const).map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+              value={periodType}
+              onChange={setPeriodType}
+            />
+          ) : (
+          <View style={styles.segmentRow}>
+            {(['week', 'month', 'year', 'custom'] as const).map((p) => (
+              <TouchableOpacity
+                key={p}
+                style={[styles.segment, periodType === p && styles.segmentActive]}
+                onPress={() => setPeriodType(p)}
+              >
+                <Text style={[styles.segmentText, periodType === p && styles.segmentTextActive]}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          )}
+
+          {periodType === 'custom' && (
+            <>
+              <Text style={m ? rm.fieldLabel : styles.modalLabel}>End date</Text>
+              <RivalDateField value={customEndDate} onChangeText={setCustomEndDate} placeholder="31/12/2026" inputStyle={m ? [rm.field, rm.input] as any : styles.modalInput} />
+            </>
+          )}
+          {periodType === 'year' && (
+            <Text style={[rm.hint, { marginTop: 8 }]}>1 January to 31 December {new Date().getFullYear()}. Activities since 1 January count.</Text>
+          )}
+          </View>
+    </>
+  );
+
+  // Phone: the grey pop-up (GreySheet). Closes by tapping outside or
+  // dragging down; no Cancel button.
+  const typeOptions = [
+    { value: 'distance' as const, label: GOAL_LABELS.distance, icon: 'distance' as const },
+    { value: 'elevation' as const, label: GOAL_LABELS.elevation, icon: 'elevation' as const },
+    { value: 'gym_sessions' as const, label: GOAL_LABELS.gym_sessions, icon: 'workout' as const },
+  ];
+  const activityOptions: { value: string; label: string }[] = [
+    { value: String(allValue(goalType)), label: 'All' },
+    ...quick.map((v) => ({ value: String(v), label: typeLabel(v) })),
+    ...(extraPick ? [{ value: String(extraPick), label: typeLabel(extraPick) }] : []),
+    ...(moreOpen ? moreTypes.map((t) => ({ value: String(t.value), label: t.label })) : []),
+    { value: '__more', label: moreOpen ? 'Fewer' : 'More' },
+  ];
+  const phoneForm = (
+    <>
+      <GreyLabel>Type</GreyLabel>
+      <GreyTiles
+        columns={3}
+        options={typeOptions}
+        value={goalType}
+        onChange={(t) => { setGoalType(t); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); }}
+      />
+      <GreyLabel>Activity</GreyLabel>
+      <GreyTiles
+        columns={4}
+        options={activityOptions}
+        value={String(activityFilter)}
+        onChange={(v) => {
+          if (v === '__more') { setMoreOpen((o) => !o); return; }
+          const opt = [allValue(goalType), ...quick, ...(extraPick ? [extraPick] : []), ...moreTypes.map((t) => t.value)].find((x) => String(x) === v);
+          setActivityFilter(opt === undefined ? v : opt);
+          setCustomActivity('');
+        }}
+      />
+      {moreOpen ? (
+        <>
+          <GreyLabel>Custom activity</GreyLabel>
+          <GreyField
+            placeholder="For example, Padel"
+            value={customActivity}
+            onChangeText={(v) => {
+              setCustomActivity(v);
+              const t = v.trim();
+              setActivityFilter(t ? t : allValue(goalType));
+            }}
+            maxLength={40}
+          />
+          <GreyNote>Counts activities of that type, or with that word in their name.</GreyNote>
+        </>
+      ) : null}
+      <GreyLabel>Details</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="target" label="Target">
+          <View style={ms.targetRow}>
+            <GreyRowInput
+              value={targetValue}
+              onChangeText={setTargetValue}
+              placeholder={goalType === 'distance' ? '100' : goalType === 'elevation' ? '5000' : '12'}
+              keyboardType="decimal-pad"
+              style={ms.targetInput}
+            />
+            <Text style={ms.targetUnit}>{GOAL_UNITS[goalType]}</Text>
+          </View>
+        </GreyRow>
+        {periodType === 'custom' ? (
+          <GreyRow
+            icon="calendar"
+            label="End date"
+            value={customEndDate ? friendlyDate(customEndDate) : ''}
+            placeholder="Choose"
+            onPress={() => setEndCalOpen(true)}
+          />
+        ) : null}
+      </GreyRows>
+      <GreyLabel>Period</GreyLabel>
+      <GreyTiles
+        options={(['week', 'month', 'year', 'custom'] as const).map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+        value={periodType}
+        onChange={setPeriodType}
+      />
+      {periodType === 'year' ? (
+        <GreyNote>1 January to 31 December {new Date().getFullYear()}. Activities since 1 January count.</GreyNote>
+      ) : null}
+    </>
+  );
+
+  const sheet = m ? (
+    <Modal visible={showAdd} transparent animationType="slide" onRequestClose={closeForm}>
+      <View style={ms.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeForm} accessibilityLabel="Close" />
+        <GreySheet
+          kicker="GOALS"
+          title={editingGoal ? 'Edit goal' : 'New goal'}
+          onClose={closeForm}
+          footer={<>
+            <GreyPrimary label={saving ? 'Saving…' : 'Save'} busy={saving} disabled={!targetValue || saving} onPress={saveGoal} />
+            {editingGoal && (
+              <TouchableOpacity style={ms.deleteLink} onPress={() => deleteGoal(editingGoal.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <RivalIcon name="delete" size={15} color={RivalColors.error} />
+                <Text style={ms.deleteLinkText}>Delete goal</Text>
+              </TouchableOpacity>
+            )}
+          </>}
+          overlay={endCalOpen ? (
+            <GreyCalendar
+              value={customEndDate ? displayToIsoDate(customEndDate) : null}
+              onChange={(iso) => { setCustomEndDate(isoToDisplayDate(iso)); setEndCalOpen(false); }}
+              onClose={() => setEndCalOpen(false)}
+            />
+          ) : undefined}
+        >
+          {phoneForm}
+        </GreySheet>
+      </View>
+    </Modal>
+  ) : (
+    <Modal visible={showAdd} transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalCard}>
+            {goalForm}
+            <>
+              {editingGoal && (
+                <TouchableOpacity style={styles.deleteGoalButton} onPress={() => deleteGoal(editingGoal.id)}>
+                  <RivalIcon name="delete" size={16} color={RivalColors.error} />
+                  <Text style={styles.deleteGoalButtonText}>Delete Goal</Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={closeForm}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveButton, (!targetValue || saving) && styles.saveButtonDisabled]}
+                  onPress={saveGoal}
+                  disabled={!targetValue || saving}
+                >
+                  <BusyText busy={!!(saving)} style={styles.saveButtonText}>{saving ? 'Saving…' : editingGoal ? 'Save Changes' : 'Save Goal'}</BusyText>
+                </TouchableOpacity>
+              </View>
+            </>
+          </ScrollView>
+      </View>
+    </Modal>
+  );
+
+  if (!wide) {
+    const addGoal = () => { setEditingGoal(null); setShowAdd(true); };
+    return (
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+        <RivalTopNav active="today" />
+        <ScrollView contentContainerStyle={[rb.content, ms.content]}>
+          <GreyPageHead kicker="SHOWN ON TODAY" title="Goals" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
+
+          {!loading && goals.length === 0 ? (
+            <View style={[rb.card, ms.emptyRow]}>
+              <View style={rb.badge}><RivalIcon name="target" size={16} color={RivalColors.accentText} /></View>
+              <Text style={ms.emptyText}>Set a distance, elevation or activities goal for a week, a month, a year or your own dates. Up to three at a time.</Text>
+            </View>
+          ) : null}
+
+          {loading && <Text style={ms.loading}>Loading…</Text>}
+
+          {focusGoal && (() => {
+            const goal = focusGoal;
+            const unit = GOAL_UNITS[goal.goal_type];
+            const done = goal.progress >= goal.target_value;
+            const pct = Math.min(1, goal.target_value > 0 ? goal.progress / goal.target_value : 0);
+            const left = daysLeft(goal);
+            const of = `${goal.progress.toLocaleString()} of ${goal.target_value.toLocaleString()}${goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}`;
+            return (
+              <TouchableOpacity activeOpacity={0.85} onPress={() => openEdit(goal)} style={rb.card}>
+                <Text style={rb.label}>Main focus</Text>
+                <View style={ms.focusRow}>
+                  <MiniRing pct={pct} />
+                  <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                    <Text style={ms.focusTitle} numberOfLines={2}>{goalTitle(goal)}</Text>
+                    <Text style={ms.focusMeta}>{of} · {done ? 'Complete' : left === 1 ? '1 day left' : `${left} days left`}</Text>
+                    <Text style={ms.focusKind} numberOfLines={1}>{goalKind(goal)}</Text>
+                  </View>
+                </View>
+                {!done && goal.recent && goal.recent.length > 0 ? (
+                  <View style={ms.recentRow}>
+                    {goal.recent.map((c) => (
+                      <View key={c.startedAt} style={ms.recentChip}>
+                        <Text style={ms.recentText}>
+                          {shortDay(c.startedAt)} +{goal.goal_type === 'gym_sessions' ? '1' : `${c.amount.toLocaleString()} ${unit}`}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })()}
+
+          {otherGoals.length > 0 && focusGoal ? <Text style={rb.section}>Other goals</Text> : null}
+
+          {otherGoals.map((goal) => {
+            const unit = GOAL_UNITS[goal.goal_type];
+            const done = goal.progress >= goal.target_value;
+            const ended = !done && isGoalEnded(goal);
+            const pct = Math.min(1, goal.target_value > 0 ? goal.progress / goal.target_value : 0);
+            const remaining = Math.round((goal.target_value - goal.progress) * 10) / 10;
+            const left = daysLeft(goal);
+            const period = goal.period_type === 'week' ? 'week' : 'month';
+            return (
+              <TouchableOpacity key={goal.id} activeOpacity={0.85} onPress={() => openEdit(goal)} style={[rb.card, ms.otherCard]}>
+                <View style={ms.otherTop}>
+                  <Text style={ms.otherTitle} numberOfLines={1}>{goalTitle(goal)}</Text>
+                  <Text style={[ms.otherNum, done && { color: RivalColors.accentGold }]}>
+                    {goal.progress.toLocaleString()}<Text style={ms.otherOf}> / {goal.target_value.toLocaleString()}{goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}</Text>
+                  </Text>
+                </View>
+                <View style={rb.bar}><View style={[rb.barFill, { width: `${Math.max(2, pct * 100)}%` as any }]} /></View>
+                <View style={ms.footRow}>
+                  <Text style={[ms.footText, done && { color: RivalColors.accentGold }]} numberOfLines={2}>
+                    {done
+                      ? 'Goal complete'
+                      : ended
+                        ? `Finished ${remaining} short. A new ${period} has started.`
+                        : `${goalKind(goal)} · ${left === 1 ? '1 day' : `${left} days`} left`}
+                  </Text>
+                  {ended ? (
+                    <TouchableOpacity onPress={() => tryAgainGoal(goal)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={ms.footLink}>Start again</Text>
+                    </TouchableOpacity>
+                  ) : !done ? (
+                    <TouchableOpacity onPress={() => makeFocus(goal)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={ms.footLink}>Make focus</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {!loading && goals.length < 3 && (
+            <TouchableOpacity style={ms.addBtn} onPress={addGoal} activeOpacity={0.85} accessibilityRole="button">
+              <Text style={ms.addBtnText}>{goals.length === 0 ? 'Set a goal' : 'Add goal'}</Text>
+            </TouchableOpacity>
+          )}
+          {goals.length >= 3 && (
+            <Text style={ms.note}>Up to three goals at a time. Delete one to add another.</Text>
+          )}
+        </ScrollView>
+        {sheet}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -435,10 +972,10 @@ export default function GoalsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} color={RivalColors.accentFill} />
+          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} color={RivalColors.accentFill} />
         </View>
 
-        <RivalPageHeader title="Goals" subtitle="Track what you're working towards." />
+        <RivalPageHeader title="Goals" subtitle="Goals and progress." />
 
         {loading && <Text style={styles.emptyText}>Loading…</Text>}
 
@@ -476,7 +1013,7 @@ export default function GoalsScreen() {
                     <Text style={[styles.typeBadgeText, { color }]}>{GOAL_ABBR[goal.goal_type]}</Text>
                   </View>
                   <View>
-                    <Text style={styles.goalTitle}>{activityLabel(goal.activity_filter)}</Text>
+                    <Text style={styles.goalTitle}>{goalActivityLabel(goal)}</Text>
                     <Text style={styles.goalPeriod}>
                       {GOAL_LABELS[goal.goal_type]} · {periodLabel(goal)}
                     </Text>
@@ -492,8 +1029,8 @@ export default function GoalsScreen() {
 
               {done && (
                 <View style={styles.celebrationBanner}>
-                  <Text style={styles.celebrationText}>Goal complete!</Text>
-                  <Text style={styles.celebrationSub}>You crushed it. Set a new one to keep the momentum going.</Text>
+                  <Text style={styles.celebrationText}>Goal complete</Text>
+                  <Text style={styles.celebrationSub}>Set a new goal to keep the momentum going.</Text>
                 </View>
               )}
 
@@ -538,102 +1075,7 @@ export default function GoalsScreen() {
 
       </ScrollView>
 
-      <Modal visible={showAdd} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalCard}>
-            <Text style={styles.modalTitle}>{editingGoal ? 'Edit Goal' : 'New Goal'}</Text>
-
-            <Text style={styles.modalLabel}>Type</Text>
-            <View style={styles.segmentRow}>
-              {(['distance', 'elevation', 'gym_sessions'] as const).map((t) => (
-                <TouchableOpacity
-                  key={t}
-                  style={[styles.segment, goalType === t && styles.segmentActive]}
-                  onPress={() => { setGoalType(t); setActivityFilter(null); }}
-                >
-                  <Text style={[styles.segmentText, goalType === t && styles.segmentTextActive]}>
-                    {GOAL_LABELS[t]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {goalType !== 'gym_sessions' && (
-              <>
-                <Text style={styles.modalLabel}>Activity</Text>
-                <View style={styles.segmentRow}>
-                  {filterOptions.map((opt) => (
-                    <TouchableOpacity
-                      key={String(opt.value)}
-                      style={[styles.segment, activityFilter === opt.value && styles.segmentActive]}
-                      onPress={() => setActivityFilter(opt.value)}
-                    >
-                      <Text style={[styles.segmentText, activityFilter === opt.value && styles.segmentTextActive]}>
-                        {opt.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </>
-            )}
-
-            <Text style={styles.modalLabel}>Target ({GOAL_UNITS[goalType]})</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder={goalType === 'distance' ? '100' : goalType === 'elevation' ? '5000' : '12'}
-              placeholderTextColor={RivalColors.textSecondary}
-              value={targetValue}
-              onChangeText={setTargetValue}
-              keyboardType="decimal-pad"
-            />
-
-            <Text style={styles.modalLabel}>Period</Text>
-            <View style={styles.segmentRow}>
-              {(['week', 'month', 'custom'] as const).map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  style={[styles.segment, periodType === p && styles.segmentActive]}
-                  onPress={() => setPeriodType(p)}
-                >
-                  <Text style={[styles.segmentText, periodType === p && styles.segmentTextActive]}>
-                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {periodType === 'custom' && (
-              <>
-                <Text style={styles.modalLabel}>End date</Text>
-                <RivalDateField value={customEndDate} onChangeText={setCustomEndDate} placeholder="31/12/2026" inputStyle={styles.modalInput} />
-              </>
-            )}
-
-            {editingGoal && (
-              <TouchableOpacity style={styles.deleteGoalButton} onPress={() => deleteGoal(editingGoal.id)}>
-                <RivalIcon name="delete" size={16} color={RivalColors.error} />
-                <Text style={styles.deleteGoalButtonText}>Delete Goal</Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={closeForm}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveButton, (!targetValue || saving) && styles.saveButtonDisabled]}
-                onPress={saveGoal}
-                disabled={!targetValue || saving}
-              >
-                <Text style={styles.saveButtonText}>{saving ? 'Saving…' : editingGoal ? 'Save Changes' : 'Save Goal'}</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
+      {sheet}
     </SafeAreaView>
   );
 }
@@ -719,10 +1161,10 @@ const styles = StyleSheet.create({
   },
   endedBlock: { marginTop: 10, gap: 10 },
   tryAgainBtn: {
-    backgroundColor: RivalColors.accentFill, borderRadius: RivalRadius.full,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: RivalRadius.full,
     paddingVertical: 10, alignItems: 'center',
   },
-  tryAgainBtnText: { fontSize: 14, fontWeight: '700', color: RivalColors.onAccentFill },
+  tryAgainBtnText: { fontSize: 14, fontWeight: '700', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   goalProgress: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 20 },
   // Display number — the editorial serif, matching Today's Focus card.
   progressCurrent: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 30, fontWeight: '700', color: RivalColors.textPrimary },
@@ -785,13 +1227,13 @@ const styles = StyleSheet.create({
   barLabelProgress: { fontSize: 11, fontWeight: '700' },
   barLabelEnd: { fontSize: 11, color: RivalColors.textSecondary },
   addButton: {
-    backgroundColor: RivalColors.accentFill,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
   },
-  addButtonText: { color: RivalColors.textPrimary, fontSize: 18, fontWeight: '700' },
+  addButtonText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontSize: 18, fontWeight: '700' },
   maxText: { color: RivalColors.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 16 },
   modalOverlay: {
     flex: 1,
@@ -819,9 +1261,9 @@ const styles = StyleSheet.create({
     borderColor: RivalColors.surfaceHigh,
     backgroundColor: RivalColors.surfaceContainer,
   },
-  segmentActive: { backgroundColor: RivalColors.accentFill, borderColor: RivalColors.accentFill },
+  segmentActive: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: RivalButtonColors.fill },
   segmentText: { color: RivalColors.textSecondary, fontSize: 13, fontWeight: '600' },
-  segmentTextActive: { color: RivalColors.textPrimary },
+  segmentTextActive: { color: RivalButtonColors.label(RivalColors.textPrimary) },
   modalInput: {
     backgroundColor: RivalColors.surfaceContainer,
     borderRadius: 10,
@@ -843,11 +1285,114 @@ const styles = StyleSheet.create({
   cancelButtonText: { color: RivalColors.textSecondary, fontSize: 16, fontWeight: '600' },
   saveButton: {
     flex: 2,
-    backgroundColor: RivalColors.accentFill,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
   },
   saveButtonDisabled: { opacity: 0.4 },
-  saveButtonText: { color: RivalColors.textPrimary, fontSize: 16, fontWeight: '700' },
+  saveButtonText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontSize: 16, fontWeight: '700' },
+});
+
+// Mobile only — the RIVAL look (see RivalMobile.tsx).
+const ms = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  targetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  targetInput: { width: 110, alignSelf: 'auto' } as any,
+  targetUnit: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
+  loading: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
+  focusRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  ringPct: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff' },
+  focusTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18, lineHeight: 23, color: '#fff' },
+  focusMeta: { fontSize: 12.5, color: RivalColors.textSecondary },
+  focusKind: { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+  otherCard: { gap: 10 },
+  otherTop: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+  otherTitle: { flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: '700', color: '#fff' },
+  otherNum: { fontSize: 14, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
+  otherOf: { fontSize: 12.5, fontWeight: '500', color: RivalColors.textSecondary },
+  addBtn: { paddingVertical: 14, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, marginTop: 4 },
+  addBtnText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  note: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
+  // Clears the floating bottom nav, as the desktop content style does.
+  content: { paddingBottom: 120 },
+  sectionHead: { marginTop: 6, marginBottom: -2, paddingHorizontal: 4, gap: 3 },
+  sectionTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 19, fontWeight: '700', color: '#fff' },
+  sectionSub: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
+  // Main focus: the same card as Focus on Today (home.tsx mFocusFree/mFocusEdge).
+  focusCard: {
+    alignItems: 'center', paddingTop: 18, paddingBottom: 20, paddingHorizontal: 16,
+    borderRadius: 22, overflow: 'hidden',
+    backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
+      borderWidth: 0,
+    } : {}),
+  } as any,
+  focusEdge: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, padding: 1,
+    backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.30), rgba(255,209,190,0.09) 45%, rgba(255,209,190,0.05))',
+    WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+    WebkitMaskComposite: 'xor',
+    mask: 'linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0)',
+  } as any,
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 26, marginTop: 16 },
+  metaCell: { alignItems: 'center', minWidth: 80 },
+  metaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', lineHeight: 30, color: '#fff' },
+  metaLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 3 },
+  metaDivider: { width: 1, height: 34, backgroundColor: 'rgba(255,181,158,0.25)' },
+  recentRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 16 },
+  recentChip: { borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.18)', backgroundColor: 'rgba(217,119,87,0.10)', paddingHorizontal: 10, paddingVertical: 4 },
+  recentText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
+  goalCard: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
+  iconSm: { width: 36, height: 36, borderRadius: 18 },
+  goalTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: '#fff' },
+  goalNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', color: '#fff' },
+  goalOf: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontSize: 12, fontWeight: '600', color: RivalWarm.muted },
+  slimTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.07)', overflow: 'hidden', marginTop: 12, marginBottom: 10 },
+  slimFill: {
+    height: '100%', borderRadius: 3, backgroundColor: RivalColors.accentFill,
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})`,
+      transitionProperty: 'width', transitionDuration: '1200ms', transitionTimingFunction: 'cubic-bezier(0.2, 0.9, 0.25, 1)',
+    } : {}),
+  } as any,
+  footRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  footText: { flex: 1, fontSize: 12.5, color: RivalWarm.muted, lineHeight: 17 },
+  footLink: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  empty: { alignItems: 'center', paddingVertical: 28 },
+  cardDone: { borderColor: 'rgba(245,183,89,0.45)' },
+  goalTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pinBtn: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  pinBtnOn: { borderColor: 'rgba(255,209,190,0.35)', backgroundColor: 'rgba(255,209,190,0.10)' },
+  numbers: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2 },
+  progressNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 34, fontWeight: '700', lineHeight: 40 },
+  progressOf: { fontSize: 14, fontWeight: '600', color: RivalWarm.muted },
+  pct: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  message: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 15, lineHeight: 21, color: RivalWarm.soft },
+  doneBlock: { gap: 8 },
+  pinnedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pinnedText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
+
+  // Size to the form so the sheet sits on the bottom edge, not mid-screen.
+  sheetScroll: { flexGrow: 0 },
+  // The sheet takes the Goals page's own look: page background, each choice
+  // in its own card, a soft sand edge along the top.
+  sheet: {
+    backgroundColor: RivalWarm.page, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,209,190,0.18)',
+    paddingHorizontal: 16, paddingTop: 22, paddingBottom: 36, gap: 10,
+  },
+  sheetTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', color: '#fff', marginBottom: 4, paddingHorizontal: 4, textAlign: 'center' },
+  sheetCard: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 18, padding: 14, gap: 10 },
+  moreChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  chip: { borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 16 },
+  sheetActions: { gap: 10, marginTop: 10 },
+  deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
+  deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.error },
 });

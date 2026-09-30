@@ -1,5 +1,8 @@
+import { defaultActivityName } from '../lib/activityName';
+import { fitPhoto } from '../lib/imageResize';
 import { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,8 +10,12 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
-import { RivalColors, RivalRadius } from '../constants/rivalTheme';
-import { RivalIcon, RivalBackButton, RivalDateField } from '../components/rival';
+import { RivalColors, RivalRadius, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm, rb, GreyPageHead, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
+import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB } from '../components/rival/MediaPicker';
+import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 type ExtractedWorkout = {
   workoutType: string;
@@ -43,110 +50,6 @@ const TYPE_OPTIONS: Array<{ type: string; icon: string }> = [
 // scanned WOD/board only shows the timed portion (e.g. a 15min WOD inside an hour class).
 const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
 const CLASS_DURATION_FLOOR_SECONDS = 45 * 60;
-
-export const CANONICAL_LIFTS = [
-  'Squat', 'Front Squat', 'Overhead Squat',
-  'Bench Press', 'Incline Bench Press', 'Close Grip Bench Press',
-  'Deadlift', 'Sumo Deadlift', 'Romanian Deadlift', 'Stiff Leg Deadlift',
-  'Overhead Press', 'Push Press', 'Strict Press',
-  'Clean', 'Power Clean', 'Hang Clean', 'Clean and Jerk',
-  'Jerk', 'Push Jerk', 'Split Jerk',
-  'Snatch', 'Power Snatch', 'Hang Snatch',
-  // Accessory / compound lifts
-  'Barbell Row', 'Pull-up', 'Dip', 'Bicep Curl', 'Hip Thrust', 'Lunge',
-  'Leg Press', 'Lat Pulldown', 'Leg Curl', 'Leg Extension', 'Calf Raise',
-  'Good Morning', 'Trap Bar Deadlift',
-  // Variations & more accessories
-  'Bulgarian Split Squat', 'Split Squat', 'Box Squat', 'Pause Squat', 'Shrug', 'Face Pull',
-  'Pause Bench Press', 'Deficit Deadlift', 'Rack Pull', 'Incline Dumbbell Press',
-  'Dumbbell Bench Press', 'Skullcrusher', 'Tricep Extension', 'Hammer Curl',
-  'Cable Row', 'Dumbbell Row',
-];
-
-// Maps a canonical lift to every known phrasing/abbreviation that should resolve to it.
-// Each alias is normalized the same way as scanned input before comparison, so
-// separators (&, +, commas, hyphens) and casing don't matter.
-const LIFT_ALIASES: Record<string, string[]> = {
-  'Squat': ['squat', 'back squat', 'bs', 'barbell squat', 'bb squat', 'high bar squat', 'low bar squat', 'high bar back squat', 'low bar back squat'],
-  'Front Squat': ['front squat', 'fs', 'barbell front squat', 'bb front squat'],
-  'Overhead Squat': ['overhead squat', 'ohs', 'oh squat'],
-  'Bench Press': ['bench press', 'bench', 'bb bench', 'flat bench', 'bp', 'barbell bench press', 'barbell bench', 'flat bench press', 'flat barbell bench press'],
-  'Incline Bench Press': ['incline bench press', 'incline bench', 'incline bb bench', 'ibp', 'incline barbell bench press', 'incline barbell bench', 'incline press'],
-  'Close Grip Bench Press': ['close grip bench press', 'close grip bench', 'cgbp', 'close grip barbell bench', 'cg bench press', 'cg bench'],
-  'Deadlift': ['deadlift', 'dl', 'conventional deadlift', 'conventional dl', 'barbell deadlift', 'bb deadlift', 'conv deadlift'],
-  'Sumo Deadlift': ['sumo deadlift', 'sumo dl', 'sdl', 'sumo'],
-  'Romanian Deadlift': ['romanian deadlift', 'rdl', 'romanian dl'],
-  'Stiff Leg Deadlift': ['stiff leg deadlift', 'sldl', 'stiff legged deadlift', 'straight leg deadlift', 'stiff leg dl'],
-  'Overhead Press': ['overhead press', 'ohp', 'military press', 'strict overhead press', 'shoulder press', 'seated shoulder press', 'standing shoulder press', 'db shoulder press', 'dumbbell shoulder press', 'barbell shoulder press', 'barbell overhead press', 'bb overhead press', 'bb ohp', 'db overhead press', 'dumbbell overhead press', 'seated overhead press', 'standing overhead press'],
-  'Push Press': ['push press', 'pp', 'barbell push press', 'bb push press', 'db push press', 'dumbbell push press'],
-  'Strict Press': ['strict press', 'sp', 'strict shoulder press', 'strict barbell press'],
-  'Clean': ['clean', 'squat clean', 'full clean', 'barbell clean', 'bb clean'],
-  'Power Clean': ['power clean', 'pc'],
-  'Hang Clean': ['hang clean', 'hc'],
-  'Clean and Jerk': ['clean and jerk', 'clean jerk', 'c&j', 'cj', 'c j', 'cnj', 'clean n jerk'],
-  'Jerk': ['jerk'],
-  'Push Jerk': ['push jerk', 'pj'],
-  'Split Jerk': ['split jerk', 'sj'],
-  'Snatch': ['snatch', 'sn', 'squat snatch', 'full snatch', 'barbell snatch', 'bb snatch'],
-  'Power Snatch': ['power snatch', 'ps'],
-  'Hang Snatch': ['hang snatch', 'hsn'],
-  'Barbell Row': ['barbell row', 'bb row', 'bent over row', 'bent over barbell row', 'pendlay row', 'bent row', 'bor'],
-  'Pull-up': ['pull up', 'pullup', 'weighted pull up', 'weighted pullup', 'chin up', 'chinup', 'weighted chin up', 'strict pull up'],
-  'Dip': ['dip', 'weighted dip', 'tricep dip', 'chest dip', 'parallel bar dip'],
-  'Bicep Curl': ['bicep curl', 'biceps curl', 'barbell curl', 'bb curl', 'db curl', 'dumbbell curl', 'ez bar curl', 'ez curl', 'curl', 'dumbbell bicep curl', 'barbell bicep curl'],
-  'Hip Thrust': ['hip thrust', 'barbell hip thrust', 'bb hip thrust'],
-  'Lunge': ['lunge', 'walking lunge', 'db lunge', 'dumbbell lunge', 'barbell lunge', 'reverse lunge'],
-  'Leg Press': ['leg press'],
-  'Lat Pulldown': ['lat pulldown', 'lat pull down', 'pulldown', 'pull down', 'wide grip pulldown'],
-  'Leg Curl': ['leg curl', 'hamstring curl', 'lying leg curl', 'seated leg curl'],
-  'Leg Extension': ['leg extension', 'quad extension', 'knee extension'],
-  'Calf Raise': ['calf raise', 'standing calf raise', 'seated calf raise'],
-  'Good Morning': ['good morning', 'gm'],
-  'Trap Bar Deadlift': ['trap bar deadlift', 'trap bar dl', 'hex bar deadlift', 'hex bar dl', 'trap bar', 'hex bar'],
-  'Bulgarian Split Squat': ['bulgarian split squat', 'bulgarian', 'bss', 'rear foot elevated split squat', 'rfess'],
-  'Split Squat': ['split squat', 'db split squat', 'dumbbell split squat', 'barbell split squat', 'bb split squat'],
-  'Box Squat': ['box squat', 'bb box squat', 'barbell box squat'],
-  'Pause Squat': ['pause squat', 'paused squat'],
-  'Shrug': ['shrug', 'barbell shrug', 'bb shrug', 'db shrug', 'dumbbell shrug'],
-  'Face Pull': ['face pull', 'cable face pull'],
-  'Pause Bench Press': ['pause bench press', 'paused bench press', 'pause bench', 'paused bench'],
-  'Deficit Deadlift': ['deficit deadlift', 'deficit dl'],
-  'Rack Pull': ['rack pull', 'rack deadlift', 'rack dl'],
-  'Incline Dumbbell Press': ['incline dumbbell press', 'incline db press', 'incline dumbbell bench press', 'incline db bench'],
-  'Dumbbell Bench Press': ['dumbbell bench press', 'db bench press', 'db bench', 'dumbbell bench', 'flat db bench'],
-  'Skullcrusher': ['skullcrusher', 'skull crusher', 'lying tricep extension', 'lying triceps extension', 'ez bar skullcrusher'],
-  'Tricep Extension': ['tricep extension', 'triceps extension', 'overhead tricep extension', 'overhead triceps extension', 'cable tricep extension', 'overhead extension'],
-  'Hammer Curl': ['hammer curl', 'db hammer curl', 'dumbbell hammer curl'],
-  'Cable Row': ['cable row', 'seated cable row', 'seated row'],
-  'Dumbbell Row': ['dumbbell row', 'db row', 'one arm row', 'single arm row', 'one arm dumbbell row', 'single arm dumbbell row'],
-};
-
-function normalizeLiftName(name: string): string {
-  const base = name
-    .trim()
-    .toLowerCase()
-    .replace(/[&+,/]/g, ' ')
-    .replace(/-/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  // Strip a trailing plural "s" so "squats"/"deadlifts"/"cleans" match their singular
-  // alias. Guarded: keep words ending in "ss" (press, cross) and short abbreviations
-  // (bs, ps, ohs) untouched.
-  if (base.length >= 4 && base.endsWith('s') && !base.endsWith('ss')) {
-    return base.slice(0, -1);
-  }
-  return base;
-}
-
-const LIFT_ALIAS_LOOKUP: Record<string, string> = Object.entries(LIFT_ALIASES)
-  .reduce((map, [canonical, aliases]) => {
-    for (const alias of aliases) map[normalizeLiftName(alias)] = canonical;
-    return map;
-  }, {} as Record<string, string>);
-
-export function matchCanonicalLift(name: string): string | null {
-  return LIFT_ALIAS_LOOKUP[normalizeLiftName(name)] ?? null;
-}
 
 function dateToLocalStr(d: Date): string {
   const y = d.getFullYear();
@@ -234,6 +137,14 @@ export default function ScanWorkoutScreen() {
   const [editActivityId, setEditActivityId] = useState<string | null>(null);
   const [editOriginalStartedAt, setEditOriginalStartedAt] = useState<string | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  // Mobile gets the RIVAL look (see RivalMobile.tsx); desktop keeps this
+  // screen as it was until the mobile app is finished. Same markup for both —
+  // the review form is long and shared — with mobile styles swapped in and
+  // emoji replaced by real icons.
+  const { width: windowWidth } = useWindowDimensions();
+  const wide = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
+  const st = (wide ? styles : mobileStyles) as typeof styles;
+  const em = (glyph: string) => (wide ? glyph : '');
 
   const { activityId: editParamId, mode: entryMode, source: entrySource } = useLocalSearchParams<{ activityId?: string; mode?: string; source?: string }>();
 
@@ -379,7 +290,7 @@ export default function ScanWorkoutScreen() {
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      setGeneralError(source === 'camera' ? 'Camera access is needed to take a photo' : 'Photo library access is needed to upload a photo');
+      setGeneralError(source === 'camera' ? 'Camera access is required to take a photo.' : 'Photo library access is required to upload a photo.');
       return;
     }
 
@@ -410,7 +321,8 @@ export default function ScanWorkoutScreen() {
   const MAX_PHOTOS = 2;
   const MAX_VIDEOS = 1;
   const MAX_PHOTO_MB = 15;
-  const MAX_VIDEO_MB = 50;
+  // Shared with MediaPicker, which matches the storage bucket's own limit.
+  const MAX_VIDEO_MB = SHARED_MAX_VIDEO_MB;
 
   function checkMediaLimits(
     type: 'photo' | 'video',
@@ -556,8 +468,8 @@ export default function ScanWorkoutScreen() {
       const above = ex.weight > ex.prescribedWeight;
       comparisons.push({
         label: above
-          ? `🔥 ${kgToDisplay(ex.weight)}${weightUnit} weight — went above Rx`
-          : `💪 Scaled to ${kgToDisplay(ex.weight)}${weightUnit} weight`,
+          ? `${kgToDisplay(ex.weight)}${weightUnit} weight — went above Rx`
+          : `Scaled to ${kgToDisplay(ex.weight)}${weightUnit} weight`,
         wentAbove: above,
       });
     }
@@ -565,7 +477,7 @@ export default function ScanWorkoutScreen() {
     if (ex.prescribedReps != null && ex.reps != null && ex.prescribedReps !== ex.reps) {
       const above = ex.reps > ex.prescribedReps;
       comparisons.push({
-        label: above ? `🔥 ${ex.reps} reps — went above Rx` : `💪 Scaled to ${ex.reps} reps`,
+        label: above ? `${ex.reps} reps — went above Rx` : `Scaled to ${ex.reps} reps`,
         wentAbove: above,
       });
     }
@@ -573,7 +485,7 @@ export default function ScanWorkoutScreen() {
     if (ex.prescribedSets != null && ex.sets != null && ex.prescribedSets !== ex.sets) {
       const above = ex.sets > ex.prescribedSets;
       comparisons.push({
-        label: above ? `🔥 ${ex.sets} sets — went above Rx` : `💪 Scaled to ${ex.sets} sets`,
+        label: above ? `${ex.sets} sets — went above Rx` : `Scaled to ${ex.sets} sets`,
         wentAbove: above,
       });
     }
@@ -582,8 +494,8 @@ export default function ScanWorkoutScreen() {
       const above = ex.distanceMeters > ex.prescribedDistanceMeters;
       comparisons.push({
         label: above
-          ? `🔥 ${metersToDisplay(ex.distanceMeters)}${distanceUnit} — went above Rx`
-          : `💪 Scaled to ${metersToDisplay(ex.distanceMeters)}${distanceUnit}`,
+          ? `${metersToDisplay(ex.distanceMeters)}${distanceUnit} — went above Rx`
+          : `Scaled to ${metersToDisplay(ex.distanceMeters)}${distanceUnit}`,
         wentAbove: above,
       });
     }
@@ -657,10 +569,7 @@ export default function ScanWorkoutScreen() {
   }
 
   async function saveWorkout() {
-    if (!extractedWorkout || !workoutName?.trim()) {
-      setFieldError({ field: 'name', message: 'Please enter a workout name' });
-      return;
-    }
+    if (!extractedWorkout) return;
 
     setLoading(true);
     setFieldError(null);
@@ -675,6 +584,7 @@ export default function ScanWorkoutScreen() {
         extractedWorkout.duration,
         extractedWorkout.elevation || 0,
         await loadScoringConfig(),
+        extractedWorkout.distance ? extractedWorkout.distance * 1000 : 0,
       );
 
       const isoDate = displayToIsoDate(activityDateStr);
@@ -686,6 +596,7 @@ export default function ScanWorkoutScreen() {
       const [y, m, d] = isoDate.split('-').map(Number);
       const reference = editOriginalStartedAt ? new Date(editOriginalStartedAt) : new Date();
       const startedAt = new Date(y, m - 1, d, reference.getHours(), reference.getMinutes(), reference.getSeconds());
+      const name = workoutName.trim() || defaultActivityName(extractedWorkout.workoutType, reference);
 
       const exercisesPayload = extractedWorkout.exercises.length > 0
         ? extractedWorkout.exercises.map((ex, i) => liftTags[i] ? { ...ex, prLift: liftTags[i] } : ex)
@@ -695,7 +606,7 @@ export default function ScanWorkoutScreen() {
 
       const activityPayload = {
         user_id: user.id,
-        name: workoutName,
+        name,
         activity_type: extractedWorkout.workoutType,
         distance_meters: extractedWorkout.distance ? extractedWorkout.distance * 1000 : 0,
         duration_seconds: extractedWorkout.duration,
@@ -713,7 +624,7 @@ export default function ScanWorkoutScreen() {
         const { error } = await supabase.from('activities').update(activityPayload).eq('id', editActivityId);
         if (error) {
           if (error.message.includes('activities_started_at_not_future')) {
-            setFieldError({ field: 'date', message: "That's in the future — activities can't be logged ahead of time." });
+            setFieldError({ field: 'date', message: "Future dates can't be logged. Choose today or an earlier date." });
           } else {
             setGeneralError(`Save failed: ${error.message}`);
           }
@@ -725,7 +636,7 @@ export default function ScanWorkoutScreen() {
         // rather than press on.
         const { error: clearErr } = await supabase.from('exercise_entries').delete().eq('activity_id', activityId);
         if (clearErr) {
-          setGeneralError(`Couldn't update your lifts: ${clearErr.message}`);
+          setGeneralError(`Couldn't update lifts: ${clearErr.message}`);
           return;
         }
       } else {
@@ -737,7 +648,7 @@ export default function ScanWorkoutScreen() {
 
         if (error || !inserted) {
           if (error?.message?.includes('activities_started_at_not_future')) {
-            setFieldError({ field: 'date', message: "That's in the future — activities can't be logged ahead of time." });
+            setFieldError({ field: 'date', message: "Future dates can't be logged. Choose today or an earlier date." });
           } else {
             setGeneralError(`Save failed: ${error?.message ?? 'unknown error'}`);
           }
@@ -775,12 +686,13 @@ export default function ScanWorkoutScreen() {
 
       for (let i = 0; i < extraMedia.length; i++) {
         const item = extraMedia[i];
+        const up = await fitPhoto({ blob: item.blob, mimeType: item.mimeType, ext: item.ext });
         const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const path = `${user.id}/${activityId}-${uniqueId}.${item.ext}`;
+        const path = `${user.id}/${activityId}-${uniqueId}.${up.ext}`;
 
         const { error: storageErr } = await supabase.storage
           .from('activity-photos')
-          .upload(path, item.blob, { contentType: item.mimeType, upsert: true });
+          .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
 
         if (storageErr) {
           console.error('Media upload failed:', storageErr.message);
@@ -806,7 +718,7 @@ export default function ScanWorkoutScreen() {
         if (coverErr) setGeneralError(`Workout saved, but the cover photo didn't set: ${coverErr.message}`);
       }
 
-      setSuccessMsg(`${workoutName} saved with ${Math.round(effortScore)} Effort!`);
+      setSuccessMsg(`${name} saved with ${Math.round(effortScore)} Effort.`);
       setSavedActivityId(activityId);
       setSavedHasPhoto(!!firstPhotoUrl);
       // Check milestones fire-and-forget
@@ -817,7 +729,7 @@ export default function ScanWorkoutScreen() {
       }).catch(() => {});
       // If they added a photo, let them AI-enhance it before leaving; otherwise
       // head back to the feed automatically.
-      if (!firstPhotoUrl) setTimeout(() => router.replace('/my-activities'), 1200);
+      if (!firstPhotoUrl) setTimeout(() => goToTab('/my-activities'), 1200);
     } catch (err) {
       console.error('Save failed:', err);
       setGeneralError('Failed to save workout');
@@ -837,149 +749,196 @@ export default function ScanWorkoutScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <SafeAreaView style={st.container}>
+      <ScrollView contentContainerStyle={st.content}>
 
-        <View style={styles.header}>
-          <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/my-activities'))} color={RivalColors.accentFill} />
-        </View>
-
-        <Text style={styles.title}>{editActivityId ? 'Edit Activity' : 'Scan Workout'}</Text>
-        {loadingEdit && <Text style={styles.subtitle}>Loading…</Text>}
+        {wide ? (
+          <>
+            <View style={st.header}>
+              <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} color={RivalColors.accentFill} />
+            </View>
+            <Text style={st.title}>{editActivityId ? 'Edit Activity' : 'Scan Workout'}</Text>
+          </>
+        ) : (
+          <GreyPageHead
+            kicker={editActivityId ? 'EDIT' : 'AI SCAN'}
+            title={editActivityId ? 'Edit activity' : 'Scan workout'}
+            onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))}
+          />
+        )}
+        {loadingEdit && <Text style={st.subtitle}>Loading…</Text>}
 
         {successMsg && (
-          <View style={styles.successBanner}>
-            <Text style={styles.successBannerText}>✓ {successMsg}</Text>
+          <View style={st.successBanner}>
+            <Text style={st.successBannerText}>{em('✓ ')}{successMsg}</Text>
             {savedActivityId && savedHasPhoto && (
-              <View style={styles.enhanceCta}>
+              <View style={st.enhanceCta}>
                 <TouchableOpacity
-                  style={styles.enhanceBtn}
+                  style={st.enhanceBtn}
                   onPress={() => router.replace(`/ai-share?activityId=${savedActivityId}`)}
                 >
-                  <Text style={styles.enhanceBtnText}>✨ AI Enhance your photo</Text>
+                  {!wide ? <RivalIcon name="ai" size={16} color={st.enhanceBtnText.color as string} /> : null}
+                  <Text style={st.enhanceBtnText}>{em('✨ ')}Enhance photo with AI</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.replace('/my-activities')}>
-                  <Text style={styles.enhanceDoneText}>Done</Text>
+                <TouchableOpacity onPress={() => goToTab('/my-activities')}>
+                  <Text style={st.enhanceDoneText}>Done</Text>
                 </TouchableOpacity>
               </View>
             )}
           </View>
         )}
 
-        {scanImages.length === 0 && !extractedWorkout && !editParamId ? (
-          <View style={styles.uploadArea}>
-            <Text style={styles.uploadIcon}>📸</Text>
-            <Text style={styles.uploadTitle}>Add Your Workout</Text>
-            <Text style={styles.uploadSub}>
+        {scanImages.length === 0 && !extractedWorkout && !editParamId && !wide ? (
+          // Mobile: the same hero as Add workout, so arriving here from a
+          // cancelled camera reads as the same place, not a new screen.
+          // The blend, the same as Add an activity.
+          <View style={{ gap: 12 }}>
+            <View style={rb.card}>
+              <Text style={rb.label}>Photo scan</Text>
+              <Text style={mx.blendHint}>A workout card, whiteboard or app screenshot. Add several photos if one activity spans more than one.</Text>
+              <View>
+                {['Capture or upload', 'Details read automatically', 'Review and save'].map((t, i) => (
+                  <View key={t} style={[mx.blendStep, i > 0 && rb.rule]}>
+                    <View style={mx.blendNum}><Text style={mx.stepNumText}>{i + 1}</Text></View>
+                    <Text style={mx.blendStepText}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={mx.actions}>
+                <TouchableOpacity style={[rm.primary, mx.blendBtn, { flex: 1 }]} onPress={() => pickImage('camera')} activeOpacity={0.85}>
+                  <RivalIcon name="camera" size={17} color={rm.primaryText.color as string} />
+                  <Text style={rm.primaryText} numberOfLines={1}>Take photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[rm.ghost, mx.blendBtn, { flex: 1 }]} onPress={() => pickImage('gallery')} activeOpacity={0.85}>
+                  <RivalIcon name="upload" size={17} color={RivalColors.accentText} />
+                  <Text style={rm.ghostText} numberOfLines={1}>Upload</Text>
+                </TouchableOpacity>
+              </View>
+              {generalError && <Text style={rm.error}>{generalError}</Text>}
+            </View>
+            <GreyRows>
+              <GreyRow icon="manual" label="Manual entry" onPress={() => router.push('/manual-entry')}>
+                <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+              </GreyRow>
+              <GreyRow icon="batch" label="Weekly scan" onPress={() => router.push('/weekly-scan')}>
+                <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+              </GreyRow>
+            </GreyRows>
+          </View>
+        ) : scanImages.length === 0 && !extractedWorkout && !editParamId ? (
+          <View style={st.uploadArea}>
+            <Text style={st.uploadIcon}>📸</Text>
+            <Text style={st.uploadTitle}>Add Workout</Text>
+            <Text style={st.uploadSub}>
               Photo from your training app, gym whiteboard, or workout card — select multiple if your workout spans a few photos
             </Text>
 
-            <View style={styles.howItWorksCard}>
-              <Text style={styles.howItWorksTitle}>How it works</Text>
-              <View style={styles.howItWorksRow}>
-                <Text style={styles.howItWorksNum}>1</Text>
-                <Text style={styles.howItWorksText}>Upload one or more photos of a single workout (multiple photos help — different days need separate scans)</Text>
+            <View style={st.howItWorksCard}>
+              <Text style={st.howItWorksTitle}>How it works</Text>
+              <View style={st.howItWorksRow}>
+                <Text style={st.howItWorksNum}>1</Text>
+                <Text style={st.howItWorksText}>Upload one or more photos of a single workout. Each day needs its own scan.</Text>
               </View>
-              <View style={styles.howItWorksRow}>
-                <Text style={styles.howItWorksNum}>2</Text>
-                <Text style={styles.howItWorksText}>AI reads it and fills in the details</Text>
+              <View style={st.howItWorksRow}>
+                <Text style={st.howItWorksNum}>2</Text>
+                <Text style={st.howItWorksText}>The details are extracted automatically</Text>
               </View>
-              <View style={styles.howItWorksRow}>
-                <Text style={styles.howItWorksNum}>3</Text>
-                <Text style={styles.howItWorksText}>Review and save — Effort updates instantly</Text>
+              <View style={st.howItWorksRow}>
+                <Text style={st.howItWorksNum}>3</Text>
+                <Text style={st.howItWorksText}>Review and save.</Text>
               </View>
             </View>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => pickImage('camera')}>
-                <Text style={styles.uploadBtnText}>📷 Take Photo</Text>
+            <View style={st.buttonRow}>
+              <TouchableOpacity style={st.uploadBtn} onPress={() => pickImage('camera')}>
+                <Text style={st.uploadBtnText}>📷 Take Photo</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.uploadBtn} onPress={() => pickImage('gallery')}>
-                <Text style={styles.uploadBtnText}>📁 Upload</Text>
+              <TouchableOpacity style={st.uploadBtn} onPress={() => pickImage('gallery')}>
+                <Text style={st.uploadBtnText}>📁 Upload</Text>
               </TouchableOpacity>
             </View>
-            {generalError && <Text style={styles.fieldError}>⚠️ {generalError}</Text>}
+            {generalError && <Text style={st.fieldError}>{em('⚠️ ')}{generalError}</Text>}
 
-            <TouchableOpacity style={styles.manualEntryBtn} onPress={() => router.push('/manual-entry')}>
-              <Text style={styles.manualEntryBtnText}>✏️ Enter Workout Manually</Text>
+            <TouchableOpacity style={st.manualEntryBtn} onPress={() => router.push('/manual-entry')}>
+              <Text style={st.manualEntryBtnText}>✏️ Manual Entry</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.weekScanLinkBtn} onPress={() => router.push('/weekly-scan')}>
-              <Text style={styles.weekScanLinkBtnText}>📅 Got a whole week to log? Scan multiple days at once</Text>
+            <TouchableOpacity style={st.weekScanLinkBtn} onPress={() => router.push('/weekly-scan')}>
+              <Text style={st.weekScanLinkBtnText}>📅 Weekly Scan: log multiple days at once</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.previewSection}>
+          <View style={st.previewSection}>
             {scanImages.length === 1 && (
-              <Image source={{ uri: scanImages[0].uri }} style={[styles.image, { aspectRatio: scanImages[0].aspectRatio }]} resizeMode="contain" />
+              <Image source={{ uri: scanImages[0].uri }} style={[st.image, { aspectRatio: scanImages[0].aspectRatio }]} resizeMode="contain" />
             )}
             {scanImages.length > 1 && (
               <View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scanImagesRow}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.scanImagesRow}>
                   {scanImages.map((img, i) => (
-                    <Image key={i} source={{ uri: img.uri }} style={styles.scanImageThumb} resizeMode="cover" />
+                    <Image key={i} source={{ uri: img.uri }} style={st.scanImageThumb} resizeMode="cover" />
                   ))}
                 </ScrollView>
-                <Text style={styles.scanImagesHint}>{scanImages.length} photos combined into this workout</Text>
+                <Text style={st.scanImagesHint}>{scanImages.length} photos combined into this workout</Text>
               </View>
             )}
 
             {analyzing ? (
-              <View style={styles.loadingBox}>
+              <View style={st.loadingBox}>
                 <ActivityIndicator color={RivalColors.accentFill} size="large" />
-                <Text style={styles.loadingText}>Reading your workout...</Text>
+                <Text style={st.loadingText}>Extracting workout details…</Text>
               </View>
             ) : extractedWorkout ? (
-              <View style={styles.extractedBox}>
-                <Text style={styles.extractedLabel}>Workout Details</Text>
+              <View style={st.extractedBox}>
+                <Text style={st.extractedLabel}>Workout Details</Text>
 
-                <View style={styles.typeFieldBox}>
-                  <Text style={styles.fieldLabel}>Type</Text>
-                  <View style={styles.typeChipRow}>
+                <View style={st.typeFieldBox}>
+                  <Text style={st.fieldLabel}>Type</Text>
+                  <View style={st.typeChipRow}>
                     {TYPE_OPTIONS.map((opt) => {
                       const selected = extractedWorkout.workoutType === opt.type;
                       return (
                         <TouchableOpacity
                           key={opt.type}
-                          style={[styles.typeChip, selected && styles.typeChipSelected]}
+                          style={[st.typeChip, selected && st.typeChipSelected]}
                           onPress={() => setExtractedWorkout({
                             ...extractedWorkout,
                             workoutType: opt.type,
                             duration: applyClassDurationFloor(opt.type, extractedWorkout.duration),
                           })}
                         >
-                          <Text style={styles.typeChipIcon}>{opt.icon}</Text>
-                          <Text style={[styles.typeChipText, selected && styles.typeChipTextSelected]}>{opt.type}</Text>
+                          <RivalIcon name={activityIconName(opt.type)} size={15} color={selected ? RivalButtonColors.label(RivalColors.onAccentFill) : RivalColors.textSecondary} />
+                          <Text style={[st.typeChipText, selected && st.typeChipTextSelected]}>{opt.type}</Text>
                         </TouchableOpacity>
                       );
                     })}
                   </View>
                 </View>
 
-                <View style={styles.fieldRow}>
-                  <Text style={styles.fieldLabel}>Duration:</Text>
+                <View style={st.fieldRow}>
+                  <Text style={st.fieldLabel}>Duration:</Text>
                   <TextInput
-                    style={styles.fieldValueInput}
+                    style={st.fieldValueInput}
                     value={durationText}
                     onChangeText={(v) => {
                       setDurationText(v);
                       setExtractedWorkout({ ...extractedWorkout, duration: parseTimeToSeconds(v) });
                     }}
-                    placeholder="e.g. 1:31:25"
+                    placeholder="1:31:25"
                     placeholderTextColor={RivalColors.textSecondary}
                     autoCapitalize="none"
                   />
                 </View>
                 {CLASS_BASED_TYPES.has(extractedWorkout.workoutType) && (
-                  <Text style={styles.classDurationHint}>
+                  <Text style={st.classDurationHint}>
                     CrossFit/Hyrox/HIIT classes usually run 45-60 min total — make sure this includes warm-up & skill work, not just the timed WOD.
                   </Text>
                 )}
 
-                <View style={styles.fieldRow}>
-                  <Text style={styles.fieldLabel}>Distance (km):</Text>
+                <View style={st.fieldRow}>
+                  <Text style={st.fieldLabel}>Distance (km):</Text>
                   <TextInput
-                    style={styles.fieldValueInput}
+                    style={st.fieldValueInput}
                     value={distanceText}
                     onChangeText={(v) => {
                       setDistanceText(v);
@@ -992,10 +951,10 @@ export default function ScanWorkoutScreen() {
                   />
                 </View>
 
-                <View style={styles.fieldRow}>
-                  <Text style={styles.fieldLabel}>Elevation (m):</Text>
+                <View style={st.fieldRow}>
+                  <Text style={st.fieldLabel}>Elevation (m):</Text>
                   <TextInput
-                    style={styles.fieldValueInput}
+                    style={st.fieldValueInput}
                     value={extractedWorkout.elevation != null ? String(extractedWorkout.elevation) : ''}
                     onChangeText={(v) => {
                       const m = v.trim() === '' ? null : Number(v);
@@ -1008,36 +967,36 @@ export default function ScanWorkoutScreen() {
                 </View>
 
                 {(
-                  <View style={styles.exercisesBox}>
-                    <View style={styles.exercisesHeaderRow}>
-                      <Text style={styles.exercisesLabel}>Exercises ({extractedWorkout.exercises.length})</Text>
-                      <View style={styles.unitTogglesRow}>
-                        <View style={styles.unitToggle}>
+                  <View style={st.exercisesBox}>
+                    <View style={st.exercisesHeaderRow}>
+                      <Text style={st.exercisesLabel}>Exercises ({extractedWorkout.exercises.length})</Text>
+                      <View style={st.unitTogglesRow}>
+                        <View style={st.unitToggle}>
                           <TouchableOpacity
-                            style={[styles.unitToggleBtn, weightUnit === 'kg' && styles.unitToggleBtnActive]}
+                            style={[st.unitToggleBtn, weightUnit === 'kg' && st.unitToggleBtnActive]}
                             onPress={() => setWeightUnit('kg')}
                           >
-                            <Text style={[styles.unitToggleText, weightUnit === 'kg' && styles.unitToggleTextActive]}>kg</Text>
+                            <Text style={[st.unitToggleText, weightUnit === 'kg' && st.unitToggleTextActive]}>kg</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={[styles.unitToggleBtn, weightUnit === 'lb' && styles.unitToggleBtnActive]}
+                            style={[st.unitToggleBtn, weightUnit === 'lb' && st.unitToggleBtnActive]}
                             onPress={() => setWeightUnit('lb')}
                           >
-                            <Text style={[styles.unitToggleText, weightUnit === 'lb' && styles.unitToggleTextActive]}>lb</Text>
+                            <Text style={[st.unitToggleText, weightUnit === 'lb' && st.unitToggleTextActive]}>lb</Text>
                           </TouchableOpacity>
                         </View>
-                        <View style={styles.unitToggle}>
+                        <View style={st.unitToggle}>
                           <TouchableOpacity
-                            style={[styles.unitToggleBtn, distanceUnit === 'm' && styles.unitToggleBtnActive]}
+                            style={[st.unitToggleBtn, distanceUnit === 'm' && st.unitToggleBtnActive]}
                             onPress={() => setDistanceUnit('m')}
                           >
-                            <Text style={[styles.unitToggleText, distanceUnit === 'm' && styles.unitToggleTextActive]}>m</Text>
+                            <Text style={[st.unitToggleText, distanceUnit === 'm' && st.unitToggleTextActive]}>m</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={[styles.unitToggleBtn, distanceUnit === 'mi' && styles.unitToggleBtnActive]}
+                            style={[st.unitToggleBtn, distanceUnit === 'mi' && st.unitToggleBtnActive]}
                             onPress={() => setDistanceUnit('mi')}
                           >
-                            <Text style={[styles.unitToggleText, distanceUnit === 'mi' && styles.unitToggleTextActive]}>mi</Text>
+                            <Text style={[st.unitToggleText, distanceUnit === 'mi' && st.unitToggleTextActive]}>mi</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1046,10 +1005,10 @@ export default function ScanWorkoutScreen() {
                     {extractedWorkout.exercises.map((ex, i) => {
                       const comparisons = getPrescribedComparisons(ex, i);
                       return (
-                        <View key={i} style={styles.exerciseEditRow}>
-                          <View style={styles.exerciseNameRow}>
+                        <View key={i} style={st.exerciseEditRow}>
+                          <View style={st.exerciseNameRow}>
                             <TextInput
-                              style={[styles.exerciseNameInput, { flex: 1 }]}
+                              style={[st.exerciseNameInput, { flex: 1 }]}
                               value={ex.name}
                               onChangeText={(v) => updateExerciseName(i, v)}
                               onFocus={() => setNameSuggestIndex(i)}
@@ -1057,29 +1016,29 @@ export default function ScanWorkoutScreen() {
                               placeholder="Exercise name"
                               placeholderTextColor={RivalColors.textSecondary}
                             />
-                            <TouchableOpacity style={styles.removeExerciseBtn} onPress={() => removeExercise(i)}>
-                              <Text style={styles.removeExerciseBtnText}>✕</Text>
+                            <TouchableOpacity style={st.removeExerciseBtn} onPress={() => removeExercise(i)}>
+                              {wide ? <Text style={st.removeExerciseBtnText}>✕</Text> : <RivalIcon name="close" size={15} color={RivalWarm.muted} />}
                             </TouchableOpacity>
                           </View>
                           {nameSuggestIndex === i && liftSuggestions(ex.name).length > 0 && (
-                            <View style={styles.nameSuggestBox}>
+                            <View style={st.nameSuggestBox}>
                               {liftSuggestions(ex.name).map((s) => (
                                 <TouchableOpacity
                                   key={s}
-                                  style={styles.nameSuggestItem}
+                                  style={st.nameSuggestItem}
                                   onPress={() => { updateExerciseName(i, s); setNameSuggestIndex(null); }}
                                 >
-                                  <Text style={styles.nameSuggestText}>{s}</Text>
-                                  <Text style={styles.nameSuggestHint}>PB tracked</Text>
+                                  <Text style={st.nameSuggestText}>{s}</Text>
+                                  <Text style={st.nameSuggestHint}>PB tracked</Text>
                                 </TouchableOpacity>
                               ))}
                             </View>
                           )}
-                          <View style={styles.exerciseFieldsRow}>
-                            <View style={styles.exerciseFieldBox}>
-                              <Text style={styles.exerciseFieldLabel}>Sets</Text>
+                          <View style={st.exerciseFieldsRow}>
+                            <View style={st.exerciseFieldBox}>
+                              <Text style={st.exerciseFieldLabel}>Sets</Text>
                               <TextInput
-                                style={styles.exerciseFieldInput}
+                                style={st.exerciseFieldInput}
                                 value={ex.sets != null ? String(ex.sets) : ''}
                                 onChangeText={(v) => updateExercise(i, 'sets', v)}
                                 placeholder="-"
@@ -1087,10 +1046,10 @@ export default function ScanWorkoutScreen() {
                                 keyboardType="numeric"
                               />
                             </View>
-                            <View style={styles.exerciseFieldBox}>
-                              <Text style={styles.exerciseFieldLabel}>Reps</Text>
+                            <View style={st.exerciseFieldBox}>
+                              <Text style={st.exerciseFieldLabel}>Reps</Text>
                               <TextInput
-                                style={styles.exerciseFieldInput}
+                                style={st.exerciseFieldInput}
                                 value={ex.reps != null ? String(ex.reps) : ''}
                                 onChangeText={(v) => updateExercise(i, 'reps', v)}
                                 placeholder="-"
@@ -1098,10 +1057,10 @@ export default function ScanWorkoutScreen() {
                                 keyboardType="numeric"
                               />
                             </View>
-                            <View style={styles.exerciseFieldBox}>
-                              <Text style={styles.exerciseFieldLabel} numberOfLines={1}>Weight ({weightUnit})</Text>
+                            <View style={st.exerciseFieldBox}>
+                              <Text style={st.exerciseFieldLabel} numberOfLines={1}>Weight ({weightUnit})</Text>
                               <TextInput
-                                style={styles.exerciseFieldInput}
+                                style={st.exerciseFieldInput}
                                 value={kgToDisplay(ex.weight)}
                                 onChangeText={(v) => {
                                   if (!extractedWorkout) return;
@@ -1116,10 +1075,10 @@ export default function ScanWorkoutScreen() {
                                 keyboardType="numeric"
                               />
                             </View>
-                            <View style={styles.exerciseFieldBox}>
-                              <Text style={styles.exerciseFieldLabel} numberOfLines={1}>Distance ({distanceUnit})</Text>
+                            <View style={st.exerciseFieldBox}>
+                              <Text style={st.exerciseFieldLabel} numberOfLines={1}>Distance ({distanceUnit})</Text>
                               <TextInput
-                                style={styles.exerciseFieldInput}
+                                style={st.exerciseFieldInput}
                                 value={metersToDisplay(ex.distanceMeters)}
                                 onChangeText={(v) => {
                                   if (!extractedWorkout) return;
@@ -1137,56 +1096,58 @@ export default function ScanWorkoutScreen() {
                           </View>
 
                           {matchCanonicalLift(ex.name) ? (
-                            <Text style={styles.liftAutoTrackedText}>✓ PB tracked as {matchCanonicalLift(ex.name)}</Text>
+                            <Text style={st.liftAutoTrackedText}>{em('✓ ')}PB tracked as {matchCanonicalLift(ex.name)}</Text>
                           ) : liftTags[i] ? (
-                            <View style={styles.liftTagChip}>
-                              <Text style={styles.liftTagChipText}>🏷️ PB tracked as {liftTags[i]}</Text>
+                            <View style={st.liftTagChip}>
+                              <Text style={st.liftTagChipText}>{em('🏷️ ')}PB tracked as {liftTags[i]}</Text>
                               <TouchableOpacity onPress={() => setLiftTags((prev) => { const next = { ...prev }; delete next[i]; return next; })}>
-                                <Text style={styles.liftTagRemove}>✕</Text>
+                                {wide ? <Text style={st.liftTagRemove}>✕</Text> : <RivalIcon name="close" size={13} color={RivalColors.accentText} />}
                               </TouchableOpacity>
                             </View>
                           ) : (
                             <TouchableOpacity
-                              style={styles.tagLiftBtn}
+                              style={st.tagLiftBtn}
                               onPress={() => { setTagSearch(''); setTagPickerIndex(tagPickerIndex === i ? null : i); }}
                             >
-                              <Text style={styles.tagLiftBtnText}>🏷️ Tag a lift PB from this exercise</Text>
+                              <Text style={st.tagLiftBtnText}>{em('🏷️ ')}Tag a lift PB from this exercise</Text>
                             </TouchableOpacity>
                           )}
 
                           {tagPickerIndex === i && (
-                            <View style={styles.liftPickerBox}>
+                            <View style={st.liftPickerBox}>
                               <TextInput
-                                style={styles.liftSearchInput}
+                                style={st.liftSearchInput}
                                 value={tagSearch}
                                 onChangeText={setTagSearch}
                                 placeholder="Search lifts…"
                                 placeholderTextColor={RivalColors.textSecondary}
                                 autoFocus
                               />
-                              <View style={styles.liftPickerRow}>
+                              <View style={st.liftPickerRow}>
                                 {filterCanonicalLifts(tagSearch).map((lift) => (
                                   <TouchableOpacity
                                     key={lift}
-                                    style={styles.liftPickerChip}
+                                    style={st.liftPickerChip}
                                     onPress={() => {
                                       setLiftTags((prev) => ({ ...prev, [i]: lift }));
                                       setTagPickerIndex(null);
                                     }}
                                   >
-                                    <Text style={styles.liftPickerChipText}>{lift}</Text>
+                                    <Text style={st.liftPickerChipText}>{lift}</Text>
                                   </TouchableOpacity>
                                 ))}
                                 {filterCanonicalLifts(tagSearch).length === 0 && (
-                                  <Text style={styles.noExercisesHint}>No matching lifts</Text>
+                                  <Text style={st.noExercisesHint}>No matching lifts</Text>
                                 )}
                               </View>
                             </View>
                           )}
 
                           {comparisons.map((c, ci) => (
-                            <Text key={ci} style={[styles.prescribedNote, c.wentAbove ? styles.prescribedAbove : styles.prescribedScaled]}>
-                              {c.label}
+                            <Text key={ci} style={[st.prescribedNote, c.wentAbove ? st.prescribedAbove : st.prescribedScaled]}>
+                              {/* Labels are built with a leading 🔥/💪; the colour
+                                  already says above-Rx or scaled, so mobile drops it. */}
+                              {wide ? c.label : c.label.replace(/^\S+\s/, '')}
                             </Text>
                           ))}
                         </View>
@@ -1194,57 +1155,57 @@ export default function ScanWorkoutScreen() {
                     })}
 
                     {extractedWorkout.exercises.length === 0 && (
-                      <Text style={styles.noExercisesHint}>No exercises added yet</Text>
+                      <Text style={st.noExercisesHint}>No exercises added yet</Text>
                     )}
 
-                    <TouchableOpacity style={styles.addExerciseBtn} onPress={addExercise}>
-                      <Text style={styles.addExerciseBtnText}>+ Add Exercise</Text>
+                    <TouchableOpacity style={st.addExerciseBtn} onPress={addExercise}>
+                      <Text style={st.addExerciseBtnText}>+ Add Exercise</Text>
                     </TouchableOpacity>
                   </View>
                 )}
 
-                <View style={styles.nameInputBox}>
-                  <Text style={styles.nameLabel}>Workout Name</Text>
+                <View style={st.nameInputBox}>
+                  <Text style={st.nameLabel}>Workout Name</Text>
                   <TextInput
-                    style={styles.nameInput}
+                    style={st.nameInput}
                     value={workoutName}
                     onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
-                    placeholder="e.g., Pemby Pounder, CrossFit Comp, Mountain Run"
+                    placeholder={extractedWorkout ? defaultActivityName(extractedWorkout.workoutType, editOriginalStartedAt ? new Date(editOriginalStartedAt) : new Date()) : 'Morning Run'}
                     placeholderTextColor={RivalColors.textSecondary}
                   />
-                  {fieldError?.field === 'name' && <Text style={styles.fieldError}>⚠️ {fieldError.message}</Text>}
+                  {fieldError?.field === 'name' && <Text style={st.fieldError}>{em('⚠️ ')}{fieldError.message}</Text>}
                 </View>
 
-                <View style={styles.nameInputBox}>
-                  <Text style={styles.nameLabel}>Date</Text>
+                <View style={st.nameInputBox}>
+                  <Text style={st.nameLabel}>Date</Text>
                   <RivalDateField
                     value={activityDateStr}
                     onChangeText={(v) => { setActivityDateStr(v); if (fieldError?.field === 'date') setFieldError(null); }}
-                    inputStyle={styles.nameInput}
+                    inputStyle={st.nameInput}
                   />
-                  {fieldError?.field === 'date' && <Text style={styles.fieldError}>⚠️ {fieldError.message}</Text>}
+                  {fieldError?.field === 'date' && <Text style={st.fieldError}>{em('⚠️ ')}{fieldError.message}</Text>}
                 </View>
 
-                <View style={styles.nameInputBox}>
-                  <Text style={styles.nameLabel}>Photos & Videos</Text>
-                  <Text style={styles.mediaHint}>
+                <View style={st.nameInputBox}>
+                  <Text style={st.nameLabel}>Photos & Videos</Text>
+                  <Text style={st.mediaHint}>
                     Add a selfie, your view, or a clip — up to {MAX_PHOTOS} photos and {MAX_VIDEOS} video
                   </Text>
                   {mediaErrorMsg && (
-                    <Text style={styles.mediaErrorText}>⚠️ {mediaErrorMsg}</Text>
+                    <Text style={st.mediaErrorText}>{em('⚠️ ')}{mediaErrorMsg}</Text>
                   )}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mediaRow}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.mediaRow}>
                     {extraMedia.map((item, i) => (
-                      <View key={i} style={styles.mediaThumbWrap}>
+                      <View key={i} style={st.mediaThumbWrap}>
                         {item.type === 'video' ? (
-                          <View style={[styles.mediaThumb, styles.videoThumbPlaceholder]}>
-                            <Text style={styles.videoThumbIcon}>🎬</Text>
+                          <View style={[st.mediaThumb, st.videoThumbPlaceholder]}>
+                            {wide ? <Text style={st.videoThumbIcon}>🎬</Text> : <RivalIcon name="video" size={24} color={RivalColors.accentText} />}
                           </View>
                         ) : (
-                          <Image source={{ uri: item.uri }} style={styles.mediaThumb} />
+                          <Image source={{ uri: item.uri }} style={st.mediaThumb} />
                         )}
-                        <TouchableOpacity style={styles.mediaRemoveBtn} onPress={() => removeExtraMedia(i)}>
-                          <Text style={styles.mediaRemoveText}>✕</Text>
+                        <TouchableOpacity style={st.mediaRemoveBtn} onPress={() => removeExtraMedia(i)}>
+                          {wide ? <Text style={st.mediaRemoveText}>✕</Text> : <RivalIcon name="close" size={12} color="#fff" />}
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -1253,45 +1214,45 @@ export default function ScanWorkoutScreen() {
                       const videoCount = extraMedia.filter(m => m.type === 'video').length;
                       const atLimit = photoCount >= MAX_PHOTOS && videoCount >= MAX_VIDEOS;
                       return !atLimit ? (
-                        <TouchableOpacity style={styles.mediaAddBtn} onPress={pickExtraMedia}>
-                          <Text style={styles.mediaAddText}>+ Add</Text>
+                        <TouchableOpacity style={st.mediaAddBtn} onPress={pickExtraMedia}>
+                          <Text style={st.mediaAddText}>+ Add</Text>
                         </TouchableOpacity>
                       ) : null;
                     })()}
                   </ScrollView>
                 </View>
 
-                <View style={styles.nameInputBox}>
-                  <Text style={styles.nameLabel}>Notes</Text>
+                <View style={st.nameInputBox}>
+                  <Text style={st.nameLabel}>Notes</Text>
                   <TextInput
-                    style={[styles.nameInput, styles.notesInput]}
+                    style={[st.nameInput, st.notesInput]}
                     value={userNotes}
                     onChangeText={setUserNotes}
-                    placeholder="How did it feel? Tell us how it went..."
+                    placeholder="How did it feel? Share your experience"
                     placeholderTextColor={RivalColors.textSecondary}
                     multiline
                     numberOfLines={3}
                   />
                 </View>
 
-                <View style={styles.actionRow}>
+                <View style={st.actionRow}>
                   <TouchableOpacity
-                    style={styles.changeBtn}
+                    style={st.changeBtn}
                     onPress={() => editActivityId
-                      ? router.replace('/my-activities')
+                      ? goToTab('/my-activities')
                       : (() => { setScanImages([]); setExtractedWorkout(null); setLiftTags({}); setTagPickerIndex(null); })()}
                     disabled={loading}
                   >
-                    <Text style={styles.changeBtnText}>{editActivityId ? 'Cancel' : scanImages.length > 0 ? 'Change Photo' : 'Start Over'}</Text>
+                    <Text style={st.changeBtnText}>{editActivityId ? 'Cancel' : scanImages.length > 0 ? 'Change photo' : 'Start over'}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.saveBtn}
+                    style={st.saveBtn}
                     onPress={saveWorkout}
                     disabled={loading}
                   >
-                    <Text style={styles.saveBtnText}>
-                      {loading ? '⏳ Saving...' : '✓ Save Workout'}
-                    </Text>
+                    <BusyText busy={loading} style={st.saveBtnText}>
+                      {wide ? (loading ? '⏳ Saving…' : '✓ Save Workout') : (loading ? 'Saving…' : 'Save workout')}
+                    </BusyText>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1299,10 +1260,10 @@ export default function ScanWorkoutScreen() {
               // The AI read failed with nothing extracted — analyzing is false
               // and extractedWorkout never got set, so without this the screen
               // just went quiet with a photo on it and no visible reason why.
-              <View style={styles.loadingBox}>
-                <Text style={styles.fieldError}>⚠️ {generalError}</Text>
-                <TouchableOpacity style={styles.manualEntryBtn} onPress={() => pickImage('gallery')}>
-                  <Text style={styles.manualEntryBtnText}>Try a different photo</Text>
+              <View style={st.loadingBox}>
+                <Text style={st.fieldError}>{em('⚠️ ')}{generalError}</Text>
+                <TouchableOpacity style={st.manualEntryBtn} onPress={() => pickImage('gallery')}>
+                  <Text style={st.manualEntryBtnText}>Try a different photo</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -1327,8 +1288,8 @@ const styles = StyleSheet.create({
   successBanner: { backgroundColor: `${RivalColors.success}22`, borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: RivalColors.success },
   successBannerText: { color: RivalColors.success, fontSize: 13, fontWeight: '600' },
   enhanceCta: { marginTop: 12, gap: 8 },
-  enhanceBtn: { backgroundColor: RivalColors.accentFill, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  enhanceBtnText: { color: RivalColors.onAccentFill, fontWeight: '800', fontSize: 15 },
+  enhanceBtn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  enhanceBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '800', fontSize: 15 },
   enhanceDoneText: { color: RivalColors.textSecondary, fontSize: 13, textAlign: 'center', paddingVertical: 6 },
 
   uploadArea: { alignItems: 'center', paddingVertical: 48, gap: 12 },
@@ -1345,8 +1306,8 @@ const styles = StyleSheet.create({
   weekScanLinkBtnText: { color: RivalColors.success, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   manualEntryBtnText: { color: RivalColors.textSecondary, fontSize: 14, fontWeight: '700' },
   buttonRow: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  uploadBtn: { flex: 1, backgroundColor: RivalColors.accentFill, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  uploadBtnText: { color: RivalColors.onAccentFill, fontSize: 15, fontWeight: '700' },
+  uploadBtn: { flex: 1, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  uploadBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontSize: 15, fontWeight: '700' },
 
   previewSection: { gap: 16 },
   image: { width: '100%', maxHeight: 420, borderRadius: 14, backgroundColor: RivalColors.surfaceContainerHigh },
@@ -1415,9 +1376,9 @@ const styles = StyleSheet.create({
   unitTogglesRow: { flexDirection: 'row', gap: 8 },
   unitToggle: { flexDirection: 'row', backgroundColor: RivalColors.surfaceLow, borderRadius: 8, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, overflow: 'hidden' },
   unitToggleBtn: { paddingHorizontal: 10, paddingVertical: 5 },
-  unitToggleBtnActive: { backgroundColor: RivalColors.accentFill },
+  unitToggleBtnActive: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   unitToggleText: { fontSize: 11, fontWeight: '700', color: RivalColors.textSecondary },
-  unitToggleTextActive: { color: RivalColors.onAccentFill },
+  unitToggleTextActive: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
   nameInputBox: { marginTop: 12, gap: 8 },
   nameLabel: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
@@ -1438,6 +1399,108 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   changeBtn: { flex: 1, borderWidth: 1, borderColor: RivalColors.accentFill, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   changeBtnText: { color: RivalColors.accentText, fontSize: 15, fontWeight: '700' },
-  saveBtn: { flex: 1, backgroundColor: RivalColors.accentFill, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  saveBtnText: { color: RivalColors.onAccentFill, fontSize: 15, fontWeight: '700' },
+  saveBtn: { flex: 1, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  saveBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontSize: 15, fontWeight: '700' },
+});
+
+// Mobile: the RIVAL look over the same markup — warm cards, orange caps
+// labels, gradient primary pill, no grey boxes. The green labels the desktop
+// version still has (How it works, Exercises) are an older theme's leftovers.
+const mobileStyles = {
+  ...styles,
+  ...StyleSheet.create({
+    container: { flex: 1, backgroundColor: GREY_PAGE_BG },
+    content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 120 },
+    successBanner: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(126,217,149,0.35)' },
+    successBannerText: { color: '#8fe0a8', fontSize: 14, fontWeight: '700' },
+    enhanceBtn: { flexDirection: 'row', justifyContent: 'center', gap: 8, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 14, alignItems: 'center' },
+
+    previewSection: { gap: 14 },
+    image: { width: '100%', maxHeight: 420, borderRadius: 16, backgroundColor: RivalWarm.card },
+    scanImageThumb: { width: 150, height: 210, borderRadius: 14, backgroundColor: RivalWarm.card },
+    scanImagesHint: { fontSize: 12, color: RivalWarm.muted, marginTop: 8, textAlign: 'center' },
+    loadingBox: { alignItems: 'center', paddingVertical: 28, gap: 12, backgroundColor: RivalWarm.card, borderRadius: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder },
+    loadingText: { color: RivalWarm.soft, fontSize: 15, fontWeight: '600' },
+
+    extractedBox: { backgroundColor: RivalWarm.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder, gap: 12 },
+    extractedLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+    fieldRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: RivalWarm.hairline },
+    fieldLabel: { fontSize: 13, color: RivalWarm.soft, fontWeight: '600' },
+    fieldValueInput: {
+      minWidth: 110, fontSize: 15, fontWeight: '700', color: '#fff', backgroundColor: RivalWarm.field, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, textAlign: 'right',
+      ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+    },
+    classDurationHint: { fontSize: 12, color: RivalWarm.soft, backgroundColor: RivalWarm.field, borderRadius: 10, padding: 10, lineHeight: 17 },
+
+    typeFieldBox: { paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: RivalWarm.hairline, gap: 10 },
+    typeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.03)' },
+    typeChipSelected: { borderColor: 'transparent', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+    typeChipText: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary },
+    typeChipTextSelected: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '800' },
+
+    exercisesBox: { marginTop: 4, gap: 8 },
+    exercisesLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+    exerciseEditRow: { backgroundColor: RivalWarm.field, borderRadius: 14, padding: 12, gap: 10 },
+    exerciseNameInput: {
+      fontSize: 15.5, fontWeight: '700', color: '#fff', padding: 0,
+      ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+    },
+    nameSuggestBox: { backgroundColor: '#2a221e', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+    nameSuggestItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: RivalWarm.hairline },
+    nameSuggestHint: { color: RivalColors.accentText, fontSize: 10.5, fontWeight: '800' },
+    removeExerciseBtn: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
+    exerciseFieldsRow: { flexDirection: 'row', gap: 6 },
+    exerciseFieldBox: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 10, paddingVertical: 7 },
+    exerciseFieldLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: RivalWarm.muted },
+    exerciseFieldInput: {
+      width: '100%', textAlign: 'center', padding: 0, fontSize: 18, fontWeight: '300', color: '#fff', backgroundColor: 'transparent',
+      ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+    },
+    liftAutoTrackedText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
+    tagLiftBtnText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
+    liftPickerBox: { backgroundColor: '#2a221e', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 10 },
+    liftSearchInput: {
+      backgroundColor: RivalWarm.field, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, color: '#fff', fontSize: 14,
+      ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+    },
+    liftPickerChip: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    addExerciseBtn: { paddingVertical: 12, borderRadius: 999, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.35)', alignItems: 'center' },
+    unitToggle: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 999, padding: 3, overflow: 'hidden' },
+    unitToggleBtn: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 },
+
+    nameInputBox: { gap: 8, paddingTop: 14, borderTopWidth: 1, borderTopColor: RivalWarm.hairline },
+    nameLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
+    nameInput: {
+      backgroundColor: RivalWarm.field, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: '#fff', fontSize: 15.5, fontWeight: '600', borderWidth: 0,
+      ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+    },
+    mediaHint: { fontSize: 12, color: RivalWarm.muted },
+    mediaThumb: { width: 84, height: 84, borderRadius: 12, backgroundColor: RivalWarm.field },
+    mediaRemoveBtn: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 11, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
+    mediaAddBtn: { width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,209,190,0.35)', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+
+    actionRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    changeBtn: { flex: 1, borderWidth: 1, borderColor: 'rgba(255,209,190,0.28)', paddingVertical: 14, borderRadius: 999, alignItems: 'center' },
+    changeBtnText: { color: RivalColors.accentText, fontSize: 14.5, fontWeight: '700' },
+    saveBtn: { flex: 1.4, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingVertical: 14, borderRadius: 999, alignItems: 'center' },
+    saveBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontSize: 15, fontWeight: '800' },
+    manualEntryBtn: { marginTop: 4, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,209,190,0.28)', alignItems: 'center' },
+    manualEntryBtnText: { color: RivalColors.accentText, fontSize: 14, fontWeight: '700' },
+  }),
+};
+
+// Mobile-only pieces of the empty state.
+const mx = StyleSheet.create({
+  blendHint: { fontSize: 12.5, lineHeight: 17, color: RivalColors.textSecondary },
+  blendStep: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  blendNum: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  blendStepText: { flex: 1, fontSize: 14, fontWeight: '600', color: RivalColors.textSecondary },
+  blendBtn: { paddingVertical: 12 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  steps: { gap: 8 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepNum: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,209,190,0.12)' },
+  stepNumText: { fontSize: 11, fontWeight: '800', color: RivalColors.accentText },
+  stepText: { flex: 1, fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.72)' },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
 });

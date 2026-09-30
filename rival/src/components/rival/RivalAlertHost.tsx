@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { RivalButtonColors } from '../../constants/rivalTheme';
 import { ConfirmOptions, setAlertListener, setConfirmListener } from '../../lib/alertBus';
 import { RivalColors, RivalRadius, RivalSerifFamily } from '../../constants/rivalTheme';
 
@@ -9,6 +11,7 @@ import { RivalColors, RivalRadius, RivalSerifFamily } from '../../constants/riva
 // per-call-site changes needed.
 export function RivalAlertHost() {
   const [alert, setAlert] = useState<{ title: string; message?: string } | null>(null);
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   // The confirm carries its resolver with it, so dismissing by any route
   // (button, back gesture) always settles the promise the caller is awaiting
   // — a confirm that never resolves would hang the call site forever.
@@ -23,6 +26,29 @@ export function RivalAlertHost() {
   function settle(ok: boolean) {
     confirm?.resolve(ok);
     setConfirm(null);
+  }
+
+  if (confirm && phone) {
+    // Phone: the blend. Grey box, serif title, the action as the one pill,
+    // the way out as a quiet outline beneath it.
+    const { opts } = confirm;
+    return (
+      <Modal transparent visible animationType="fade" onRequestClose={() => settle(false)}>
+        <View style={styles.backdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => settle(false)} accessibilityLabel="Cancel" />
+          <View style={[styles.card, pm.card]}>
+            <Text style={[styles.title, pm.center]}>{opts.title}</Text>
+            {opts.message ? <Text style={[styles.message, pm.center]}>{opts.message}</Text> : null}
+            <TouchableOpacity style={[pm.primary, opts.destructive && pm.destructive]} onPress={() => settle(true)}>
+              <Text style={[pm.primaryText, opts.destructive && pm.destructiveText]}>{opts.confirmLabel ?? 'Confirm'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={pm.ghost} onPress={() => settle(false)}>
+              <Text style={pm.ghostText}>{opts.cancelLabel ?? 'Cancel'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
   }
 
   if (confirm) {
@@ -53,6 +79,23 @@ export function RivalAlertHost() {
   }
 
   if (!alert) return null;
+
+  if (phone) {
+    return (
+      <Modal transparent visible animationType="fade" onRequestClose={() => setAlert(null)}>
+        <View style={styles.backdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setAlert(null)} accessibilityLabel="Close" />
+          <View style={[styles.card, pm.card]}>
+            <Text style={[styles.title, pm.center]}>{alert.title}</Text>
+            {alert.message ? <Text style={[styles.message, pm.center]}>{alert.message}</Text> : null}
+            <TouchableOpacity style={pm.ghost} onPress={() => setAlert(null)}>
+              <Text style={pm.ghostText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={() => setAlert(null)}>
@@ -134,4 +177,20 @@ const styles = StyleSheet.create({
   },
   destructiveBtn: { borderColor: RivalColors.error },
   destructiveBtnText: { color: RivalColors.error },
+});
+
+// Phone: the blend.
+const pm = StyleSheet.create({
+  card: { borderColor: RivalColors.surfaceBright, padding: 20, gap: 10 },
+  center: { textAlign: 'center' },
+  primary: {
+    marginTop: 8, paddingVertical: 13, borderRadius: 999, alignItems: 'center',
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+    ...(Platform.OS === 'web' ? { boxShadow: '0 6px 22px rgba(217,119,87,0.28)' } : {}),
+  } as any,
+  primaryText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  destructive: { backgroundColor: 'rgba(255,107,107,0.14)', borderWidth: 1, borderColor: 'rgba(255,143,143,0.45)', ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } : {}) } as any,
+  destructiveText: { color: '#ff8f8f' },
+  ghost: { paddingVertical: 12, borderRadius: 999, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)' },
+  ghostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },
 });

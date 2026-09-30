@@ -47,17 +47,17 @@ Deno.serve(async (req) => {
     }
   });
 
-  const urgency = daysLeft === 1 ? 'Last day!' : `${daysLeft} days left`;
-
   const messages = tokens.map((t: any) => {
     const leagueName = leagueNameByUser[t.user_id];
+    // "Year", not "season", and no pressure: the reset is information, and
+    // lifetime totals are untouched by it.
     const body = leagueName
-      ? `${urgency} in the ${currentYear} season. Push your rank in ${leagueName} before XP resets to zero on Jan 1.`
-      : `${urgency} in the ${currentYear} season. Climb as high as you can before XP resets to zero on Jan 1.`;
+      ? `Ranks reset on 1 January. Every activity until then still counts with ${leagueName}.`
+      : 'Ranks reset on 1 January. Lifetime totals never reset.';
 
     return {
       to: t.token,
-      title: daysLeft === 1 ? '⏳ Last day of the season!' : `⏳ ${daysLeft} days left in the ${currentYear} season`,
+      title: daysLeft === 1 ? `The last day of ${currentYear}` : `${daysLeft} days left in ${currentYear}`,
       body,
       data: { screen: 'ranks' },
       sound: 'default',

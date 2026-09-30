@@ -7,18 +7,11 @@ const supabase = createClient(
 );
 
 const RACE_DAY_MESSAGES = [
-  "It's race day. You've put in the work — now go get it. 💪",
-  "Today's the day. Trust your training and back yourself.",
-  "Race day. Everything you've worked for leads to this start line.",
-  "You've earned this. Go show up and leave it all out there.",
-  "It's race day. You've done the hard part. Now go enjoy it.",
+  'Trust your training and enjoy every minute of your Effort.',
 ];
 
 const POST_RACE_MESSAGES = [
-  "You did it. Race day is done — go celebrate, you've earned every bit of it. 🎉",
-  "FINISHED. Not everyone makes it to that start line. You did, and you crossed the finish. Log your time and let your team celebrate with you.",
-  "Race complete. Whatever the clock says, you showed up and you finished. That's everything. 🏅",
-  "You're a finisher. Go log your time and let RIVAL know how it went. 🎉",
+  "You did it. Race day is done, go and celebrate because you've earned every bit of it.",
 ];
 
 async function getTokenMap(userIds: string[]): Promise<Record<string, string>> {
@@ -64,7 +57,7 @@ Deno.serve(async (req) => {
       .filter((r: any) => tokenMap[r.user_id])
       .map((r: any, i: number) => ({
         to: tokenMap[r.user_id],
-        title: `It's race day! 🏁`,
+        title: `It's Race day!`,
         body: RACE_DAY_MESSAGES[i % RACE_DAY_MESSAGES.length],
         data: { screen: 'races', tab: 'mine' },
         sound: 'default',
@@ -92,7 +85,7 @@ Deno.serve(async (req) => {
     .filter((r: any) => !r.actual_finish_time && tokenMap[r.user_id])
     .map((r: any, i: number) => ({
       to: tokenMap[r.user_id],
-      title: `${r.name} is done. How'd it go? 🏁`,
+      title: `${r.name} is done. Share the experience`,
       body: POST_RACE_MESSAGES[i % POST_RACE_MESSAGES.length],
       data: { screen: 'races', tab: 'completed' },
       sound: 'default',

@@ -1,4 +1,6 @@
+import { getMyTeamIds } from './myTeams';
 import { supabase, getAuthUser } from './supabase';
+import { getPrefs, onPrefsChanged } from './prefs';
 
 // How many of your teams have chat you haven't read.
 //
@@ -30,6 +32,28 @@ let cache: { at: number; result: UnreadResult } | null = null;
 export function invalidateUnreadChats() {
   cache = null;
 }
+onPrefsChanged(() => { cache = null; });
+
+// The newest text message in each team, one small request per team, side by
+// side. Each is a single row read straight off the (league_id, created_at)
+// index. This used to download every message ever sent in every team just to
+// keep the newest of each — a cost that grew with every message.
+export async function latestMessageByLeague<T extends { league_id: string }>(
+  leagueIds: string[],
+  columns: string,
+): Promise<Map<string, T>> {
+  const rows = await Promise.all(leagueIds.map((id) => supabase
+    .from('league_messages')
+    .select(columns)
+    .eq('league_id', id)
+    .eq('kind', 'text')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()));
+  const map = new Map<string, T>();
+  rows.forEach((r) => { if (r.data) map.set((r.data as unknown as T).league_id, r.data as unknown as T); });
+  return map;
+}
 
 export async function getUnreadChats(force = false): Promise<UnreadResult> {
   if (!force && cache && Date.now() - cache.at < CACHE_MS) return cache.result;
@@ -37,24 +61,11 @@ export async function getUnreadChats(force = false): Promise<UnreadResult> {
   const { data: { user } } = await getAuthUser();
   if (!user) return EMPTY;
 
-  const { data: memberships } = await supabase
-    .from('league_members')
-    .select('league_id')
-    .eq('user_id', user.id)
-    .eq('status', 'active');
-
-  const leagueIds = (memberships ?? []).map((m: any) => m.league_id);
+  const leagueIds = await getMyTeamIds(user.id).catch(() => [] as string[]);
   if (leagueIds.length === 0) return EMPTY;
 
-  const [{ data: messages }, { data: reads }] = await Promise.all([
-    // Newest-first across every team at once, then keep the first row per
-    // league below — one round trip instead of one per team.
-    supabase
-      .from('league_messages')
-      .select('league_id, user_id, created_at')
-      .in('league_id', leagueIds)
-      .eq('kind', 'text')
-      .order('created_at', { ascending: false }),
+  const [lastByLeague, { data: reads }] = await Promise.all([
+    latestMessageByLeague<{ league_id: string; user_id: string; created_at: string }>(leagueIds, 'league_id, user_id, created_at'),
     supabase
       .from('league_chat_reads')
       .select('league_id, last_read_at')
@@ -62,10 +73,6 @@ export async function getUnreadChats(force = false): Promise<UnreadResult> {
       .in('league_id', leagueIds),
   ]);
 
-  const lastByLeague = new Map<string, { user_id: string; created_at: string }>();
-  for (const m of messages ?? []) {
-    if (!lastByLeague.has(m.league_id)) lastByLeague.set(m.league_id, m);
-  }
   const readByLeague = new Map((reads ?? []).map((r: any) => [r.league_id, r.last_read_at]));
 
   const byLeague: Record<string, boolean> = {};
@@ -76,7 +83,9 @@ export async function getUnreadChats(force = false): Promise<UnreadResult> {
     // Your own message must never mark a thread unread. Without this the badge
     // lights up the moment YOU post — telling you that you have something to
     // read, about something you just wrote.
+    // A muted team's chat never counts as unread (Profile → Notifications).
     const unread = !!last
+      && !getPrefs().mutedTeams.includes(leagueId)
       && last.user_id !== user.id
       && (!lastReadAt || new Date(last.created_at) > new Date(lastReadAt));
     byLeague[leagueId] = unread;

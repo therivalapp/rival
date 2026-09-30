@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, GestureResponderEvent, PanResponderGestureState, PanResponder, Platform } from 'react-native';
-import { RivalColors, RivalType, RivalRadius } from '../../constants/rivalTheme';
+import { RivalColors, RivalType, RivalRadius, RivalButtonColors } from '../../constants/rivalTheme';
 import { computeCoverLayout } from './CoverImage';
 
 const FRAME_W = 300;
@@ -80,8 +80,8 @@ export function PhotoPositioner({
 
   return (
     <View style={styles.overlay}>
-      <Text style={styles.title}>Position your photo</Text>
-      <Text style={styles.subtitle}>Drag to adjust what shows in the crop</Text>
+      <Text style={styles.title}>Position photo</Text>
+      <Text style={styles.subtitle}>Drag to adjust the crop</Text>
 
       <View style={styles.frame} {...panResponder.panHandlers}>
         {layout && (
@@ -114,7 +114,7 @@ export function PhotoPositioner({
           <Text style={styles.skipLabel}>Cancel</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.confirmBtn} onPress={() => onConfirm(focal.x, focal.y)}>
-          <Text style={styles.confirmLabel}>Use This Crop</Text>
+          <Text style={styles.confirmLabel}>Use this crop</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -140,6 +140,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   skipBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: RivalRadius.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   skipLabel: { fontSize: 14, fontWeight: '600', color: RivalColors.textSecondary },
-  confirmBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: RivalRadius.full, backgroundColor: RivalColors.accentFill },
-  confirmLabel: { fontSize: 14, fontWeight: '700', color: RivalColors.onAccentFill },
+  confirmBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: RivalRadius.full, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  confirmLabel: { fontSize: 14, fontWeight: '700', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 });

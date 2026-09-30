@@ -1,15 +1,39 @@
+import { invalidateActivityCache } from '../lib/fetchAllActivities';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { Animated, Modal, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { notify } from '../lib/notify';
-import { connectStrava, runFullStravaImport } from '../lib/strava';
+import { runFullStravaImport } from '../lib/strava';
+import { loadStravaSharing, setShareRoutes, startStravaConnect } from '../lib/stravaSharing';
+import { ROUTE_MAPS_ENABLED } from '../lib/features';
+import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
-import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton} from '../components/rival';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
+import { buildDataExport, saveJsonFile } from '../lib/exportData';
+import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
+import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BusyText } from '../components/rival/BusyText';
+import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
+import { RivalSerifFamily } from '../constants/rivalTheme';
+import { goToTab } from '../lib/tabNav';
+
+const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
+  { value: 'metric', label: 'Metric', sub: 'Kilometres, metres and kilograms.' },
+  { value: 'imperial', label: 'Imperial', sub: 'Miles, feet and pounds.' },
+];
+
+// Informational notifications a person can switch off. Questions that need an
+// answer are always shown, so nobody is left waiting on a reply.
+const NOTIFY_OPTIONS: Array<{ key: NotifyKey; label: string; sub: string }> = [
+  { key: 'reaction', label: 'Respect and Inspired', sub: 'When someone recognises an activity.' },
+  { key: 'comment', label: 'Comments', sub: 'When someone comments on an activity.' },
+  { key: 'tag_accepted', label: 'Training partners', sub: 'When someone confirms they trained with you.' },
+  { key: 'team_joined', label: 'Team updates', sub: 'When a request to join a team is approved.' },
+];
 
 const QUOTE_TONES: Array<{ value: QuoteTone; label: string; sub: string }> = [
   { value: 'blunt', label: 'Blunt', sub: 'Hard truths, no cushioning.' },
@@ -17,13 +41,27 @@ const QUOTE_TONES: Array<{ value: QuoteTone; label: string; sub: string }> = [
   { value: 'encouraging', label: 'Encouraging', sub: 'Warm, patient, always in your corner.' },
 ];
 
-type TabId = 'personal' | 'apps' | 'notifications' | 'account';
+type TabId = 'personal' | 'preferences' | 'apps' | 'notifications' | 'account';
 const TABS: Array<{ id: TabId; label: string; icon: RivalIconName }> = [
   { id: 'personal', label: 'Personal Info', icon: 'person' },
-  { id: 'apps', label: 'Connected Apps', icon: 'link' },
+  { id: 'preferences', label: 'Preferences', icon: 'tune' },
+  { id: 'apps', label: 'Connected devices', icon: 'link' },
   { id: 'notifications', label: 'Notifications', icon: 'notifications' },
   { id: 'account', label: 'Account', icon: 'settings' },
 ];
+
+// A switch in the Settings menu's row style.
+function MenuSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Switch
+      value={value}
+      onValueChange={onChange}
+      trackColor={{ false: RivalColors.surfaceContainerHigh, true: RivalColors.accentFill }}
+      thumbColor="#ffffff"
+      {...(Platform.OS === 'web' ? ({ activeThumbColor: '#ffffff' } as any) : {})}
+    />
+  );
+}
 
 export default function ProfileScreen() {
   const { userId: viewedUserId, tab: tabParam } = useLocalSearchParams<{ userId?: string; tab?: TabId }>();
@@ -62,6 +100,8 @@ export default function ProfileScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [stravaConnected, setStravaConnected] = useState(false);
   const [stravaAthleteName, setStravaAthleteName] = useState<string | null>(null);
+  const [shareRoutes, setShareRoutesState] = useState(false);
+  const [sharingAgreed, setSharingAgreed] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [importingHistory, setImportingHistory] = useState(false);
@@ -89,10 +129,24 @@ export default function ProfileScreen() {
   }, [importingHistory, importPulse]);
   const [syncing, setSyncing] = useState(false);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+  const [removeImported, setRemoveImported] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const prefs = usePrefs();
+  const [prefError, setPrefError] = useState<string | null>(null);
+  const [myTeams, setMyTeams] = useState<Array<{ id: string; name: string }>>([]);
+  // Account changes
+  const [newEmail, setNewEmail] = useState('');
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
 
   useEffect(() => {
@@ -112,10 +166,19 @@ export default function ProfileScreen() {
       setMemberSince(d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
     }
 
-    const [userRes, stravaRes] = await Promise.all([
+    const [userRes, stravaRes, memberRes] = await Promise.all([
       supabase.from('users').select('display_name, is_admin, avatar_url, bio, quote_tone').eq('id', user.id).single(),
       supabase.from('fitness_connections').select('athlete_firstname, athlete_lastname').eq('user_id', user.id).eq('provider', 'strava').maybeSingle(),
+      supabase.from('league_members').select('league_id').eq('user_id', user.id).eq('status', 'active'),
     ]);
+    const teamIds = (memberRes.data ?? []).map((m: any) => m.league_id);
+    if (teamIds.length) {
+      supabase.from('leagues').select('id, name').in('id', teamIds).then(({ data }) => {
+        setMyTeams(((data ?? []) as Array<{ id: string; name: string }>).sort((a, b) => a.name.localeCompare(b.name)));
+      });
+    } else {
+      setMyTeams([]);
+    }
 
     const name = userRes.data?.display_name || user.user_metadata?.display_name || '';
     setDisplayName(name);
@@ -126,6 +189,10 @@ export default function ProfileScreen() {
     setNewBio(userRes.data?.bio || '');
     setQuoteTone((userRes.data?.quote_tone as QuoteTone) || 'balanced');
     setStravaConnected(!!stravaRes.data);
+    loadStravaSharing().then((sh) => {
+      setShareRoutesState(!!sh?.shareRoutes);
+      setSharingAgreed(!!sh?.agreedAt);
+    });
     setStravaAthleteName(
       stravaRes.data ? [stravaRes.data.athlete_firstname, stravaRes.data.athlete_lastname].filter(Boolean).join(' ') || null : null
     );
@@ -142,11 +209,12 @@ export default function ProfileScreen() {
     if (error) {
       // Don't advance the UI past a write that didn't land — showing the new
       // name while the row still holds the old one is worse than an error.
-      notify("Couldn't save your name", error.message);
+      notify("Couldn't save name", error.message);
       setSaving(false);
       return;
     }
     await supabase.auth.updateUser({ data: { display_name: newName.trim() } });
+    invalidateNavIdentity();
     setDisplayName(newName.trim());
     setEditingName(false);
     setSaving(false);
@@ -158,7 +226,7 @@ export default function ProfileScreen() {
     const { data: { user } } = await getAuthUser();
     if (!user) { setSavingBio(false); return; }
     const { error } = await supabase.from('users').update({ bio: trimmed || null }).eq('id', user.id);
-    if (error) { notify("Couldn't save bio", error.message); setSavingBio(false); return; }
+    if (error) { notify("Mindset not saved", error.message); setSavingBio(false); return; }
     setBio(trimmed);
     setNewBio(trimmed);
     setSavingBio(false);
@@ -179,6 +247,70 @@ export default function ProfileScreen() {
     setSavingTone(false);
   }
 
+  async function toggleShareRoutes(v: boolean) {
+    setPrefError(null);
+    setShareRoutesState(v);
+    const res = await setShareRoutes(v);
+    if (!res.ok) {
+      setShareRoutesState(!v);
+      setPrefError(res.error ?? 'The setting could not be saved. Try again.');
+    }
+  }
+
+  async function savePref(patch: Parameters<typeof updatePrefs>[0]) {
+    setPrefError(null);
+    const res = await updatePrefs(patch);
+    if (!res.ok) setPrefError(`The change was not saved: ${res.error}`);
+  }
+
+  async function changeEmail() {
+    const next = newEmail.trim().toLowerCase();
+    setEmailMsg(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { setEmailMsg({ ok: false, text: 'Enter a valid email address.' }); return; }
+    if (next === email.toLowerCase()) { setEmailMsg({ ok: false, text: 'That is already the email on this account.' }); return; }
+    setSavingEmail(true);
+    const { error } = await supabase.auth.updateUser({ email: next });
+    setSavingEmail(false);
+    if (error) { setEmailMsg({ ok: false, text: error.message }); return; }
+    setNewEmail('');
+    setEmailMsg({ ok: true, text: `A confirmation link has been sent. The email changes once the link in that message is opened.` });
+  }
+
+  async function changePassword() {
+    setPasswordMsg(null);
+    if (newPassword.length < 8) { setPasswordMsg({ ok: false, text: 'Use at least 8 characters.' }); return; }
+    if (newPassword !== confirmPassword) { setPasswordMsg({ ok: false, text: 'The two passwords do not match.' }); return; }
+    setSavingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPassword(false);
+    if (error) { setPasswordMsg({ ok: false, text: error.message }); return; }
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordMsg({ ok: true, text: 'Password updated.' });
+  }
+
+  async function downloadData() {
+    setExportMsg(null);
+    setExporting(true);
+    try {
+      const { data: { user } } = await getAuthUser();
+      if (!user) return;
+      const { json, problems } = await buildDataExport(user.id, user.email ?? null);
+      const date = new Date().toISOString().slice(0, 10);
+      if (!saveJsonFile(json, `rival-data-${date}.json`)) {
+        setExportMsg({ ok: false, text: 'Downloading is only available in the web app for now.' });
+        return;
+      }
+      setExportMsg(problems.length
+        ? { ok: false, text: `Downloaded, but ${problems.length} section${problems.length === 1 ? '' : 's'} could not be read. The file lists which.` }
+        : { ok: true, text: 'Downloaded.' });
+    } catch (e: any) {
+      setExportMsg({ ok: false, text: `The download could not be prepared: ${e?.message ?? 'unknown error'}` });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function uploadAvatar() {
     if (Platform.OS !== 'web') return;
     const input = document.createElement('input');
@@ -191,19 +323,25 @@ export default function ProfileScreen() {
       try {
         const { data: { user } } = await getAuthUser();
         if (!user) return;
-        const ext = file.name.split('.').pop() || 'jpg';
+        const image = await squareImage(file);
+        const resized = image !== file;
+        const ext = resized ? 'jpg' : (file.name.split('.').pop() || 'jpg');
         const path = `${user.id}/avatar.${ext}`;
         const { error: storageErr } = await supabase.storage
           .from('avatars')
-          .upload(path, file, { contentType: file.type, upsert: true });
+          .upload(path, image, { contentType: resized ? 'image/jpeg' : file.type, upsert: true });
         if (!storageErr) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+          // Same path every time, so a version stamp makes phones fetch the new
+          // photo instead of showing the cached old one.
+          urlData.publicUrl = `${urlData.publicUrl}?v=${Date.now()}`;
           // The file uploaded, but the row still has to point at it — if this
           // half fails the photo is orphaned in storage and the profile keeps
           // the old avatar, so say so rather than showing the new one.
           const { error: rowErr } = await supabase.from('users').update({ avatar_url: urlData.publicUrl }).eq('id', user.id);
+          invalidateNavIdentity();
           if (rowErr) {
-            notify("Couldn't update your photo", rowErr.message);
+            notify("Couldn't update photo", rowErr.message);
           } else {
             setAvatarUrl(urlData.publicUrl);
           }
@@ -301,7 +439,8 @@ export default function ProfileScreen() {
         // which read as sync doing something it wasn't.
         notify('Up to date', "You're already synced with Strava — nothing new to pull in.");
       } else {
-        notify('Synced', `Pulled in ${data.inserted} new activit${data.inserted === 1 ? 'y' : 'ies'}.`);
+        invalidateActivityCache();
+        notify('Synced', `${data.inserted} new activit${data.inserted === 1 ? 'y' : 'ies'} imported.`);
       }
     } catch {
       notify('Sync failed', 'Could not reach the server. Check your connection and try again.');
@@ -337,6 +476,7 @@ export default function ProfileScreen() {
   }
 
   async function handleSignOut() {
+    invalidateNavIdentity();
     await supabase.auth.signOut();
     router.replace('/');
   }
@@ -348,7 +488,7 @@ export default function ProfileScreen() {
     const typed = Platform.OS === 'web'
       ? window.prompt(
           'This permanently deletes your account: all activities, teams you\'re in, ' +
-          'photos, races, goals, and history. Teams you created will be handed to ' +
+          'photos, events, goals, and history. Teams you created will be handed to ' +
           'another member (or deleted if empty). This cannot be undone.\n\n' +
           'Type DELETE to confirm.'
         )
@@ -370,10 +510,11 @@ export default function ProfileScreen() {
       });
       const data = await res.json();
       if (!res.ok || !data.deleted) {
-        notify("Couldn't delete account", data.error || 'Please try again or contact support.');
+        notify("Couldn't delete account", data.error || 'Try again or contact support.');
         return;
       }
-      await supabase.auth.signOut();
+      invalidateNavIdentity();
+    await supabase.auth.signOut();
       router.replace('/');
     } catch {
       notify("Couldn't delete account", 'Could not reach the server. Try again.');
@@ -422,7 +563,7 @@ export default function ProfileScreen() {
               <View style={styles.editRow}>
                 <TextInput style={styles.input} value={newName} onChangeText={setNewName} autoFocus autoCapitalize="words" />
                 <TouchableOpacity style={styles.saveChip} onPress={saveName} disabled={saving}>
-                  <Text style={styles.saveChipText}>{saving ? '…' : 'Save'}</Text>
+                  <BusyText busy={!!(saving)} style={styles.saveChipText}>{saving ? 'Saving…' : 'Save'}</BusyText>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => { setEditingName(false); setNewName(displayName); }}>
                   <Text style={styles.cancelText}>Cancel</Text>
@@ -444,27 +585,27 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Bio */}
+          {/* Mindset — stored in users.bio; only the display name changed. */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>BIO</Text>
+            <Text style={styles.fieldLabel}>MINDSET</Text>
             <TextInput
               style={styles.bioInput}
               value={newBio}
               onChangeText={(t) => setNewBio(t.slice(0, 280))}
-              placeholder="Who are you, and why do you train?"
+              placeholder="Share your Mindset"
               placeholderTextColor={RivalColors.textSecondary}
               multiline
               numberOfLines={3}
             />
             <View style={styles.bioFooter}>
-              <Text style={styles.bioHint}>Focus on your philosophy, not just your personal bests.</Text>
+              <Text style={styles.bioHint}>What keeps you going. A line to live by, a favourite quote, the thought that gets you through the hard part.</Text>
               <Text style={styles.bioCount}>{newBio.length}/280</Text>
             </View>
             {bioDirty && (
               <View style={styles.bioSaveRow}>
                 <TouchableOpacity onPress={() => setNewBio(bio)}><Text style={styles.cancelText}>Discard</Text></TouchableOpacity>
                 <TouchableOpacity style={styles.saveChip} onPress={saveBio} disabled={savingBio}>
-                  <Text style={styles.saveChipText}>{savingBio ? '…' : 'Save bio'}</Text>
+                  <BusyText busy={!!(savingBio)} style={styles.saveChipText}>{savingBio ? 'Saving…' : 'Save mindset'}</BusyText>
                 </TouchableOpacity>
               </View>
             )}
@@ -472,33 +613,10 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Daily quote tone */}
-      <View style={styles.subSection}>
-        <Text style={styles.subSectionTitle}>DAILY MOTIVATION TONE</Text>
-        {QUOTE_TONES.map((opt) => {
-          const selected = quoteTone === opt.value;
-          return (
-            <TouchableOpacity
-              key={opt.value}
-              style={[styles.optionRow, selected && styles.optionRowActive]}
-              onPress={() => updateQuoteTone(opt.value)}
-              disabled={savingTone}
-            >
-              <View style={styles.optionTextWrap}>
-                <Text style={[styles.optionLabel, selected && { color: RivalColors.accentText }]}>{opt.label}</Text>
-                <Text style={styles.optionSample}>{opt.sub}</Text>
-              </View>
-              <Text style={[styles.optionCheck, selected && { color: RivalColors.accentText }]}>{selected ? '●' : '○'}</Text>
-            </TouchableOpacity>
-          );
-        })}
-        {quotePreview && <Text style={styles.quotePreview}>"{quotePreview}"</Text>}
-      </View>
-
       {/* Link to stats */}
       <TouchableOpacity style={styles.statsLink} onPress={() => router.push('/stats')}>
         <RivalIcon name="stats" size={16} color={RivalColors.textPrimary} />
-        <Text style={styles.statsLinkText}>See your stats — rank, milestones, Impact & more</Text>
+        <Text style={styles.statsLinkText}>Statistics: rank, milestones and Impact</Text>
         <Text style={styles.statsLinkArrow}>→</Text>
       </TouchableOpacity>
 
@@ -513,14 +631,75 @@ export default function ProfileScreen() {
     </RivalCard>
   );
 
+  const optionRows = <T extends string>(options: Array<{ value: T; label: string; sub: string }>, selectedValue: T, onPick: (v: T) => void, disabled?: boolean) =>
+    options.map((opt) => {
+      const selected = selectedValue === opt.value;
+      return (
+        <TouchableOpacity
+          key={opt.value}
+          style={[styles.optionRow, selected && styles.optionRowActive]}
+          onPress={() => onPick(opt.value)}
+          disabled={disabled}
+          accessibilityRole="radio"
+          accessibilityState={{ selected }}
+        >
+          <View style={styles.optionTextWrap}>
+            <Text style={[styles.optionLabel, selected && { color: RivalColors.accentText }]}>{opt.label}</Text>
+            <Text style={styles.optionSample}>{opt.sub}</Text>
+          </View>
+          <Text style={[styles.optionCheck, selected && { color: RivalColors.accentText }]}>{selected ? '●' : '○'}</Text>
+        </TouchableOpacity>
+      );
+    });
+
+  const switchRow = (key: string, label: string, sub: string, value: boolean, onChange: (v: boolean) => void) => (
+    <View key={key} style={styles.switchRow}>
+      <View style={styles.optionTextWrap}>
+        <Text style={styles.optionLabel}>{label}</Text>
+        <Text style={styles.optionSample}>{sub}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: RivalColors.surfaceContainerHigh, true: RivalColors.accentFill }}
+        thumbColor="#ffffff"
+        {...(Platform.OS === 'web' ? ({ activeThumbColor: '#ffffff' } as any) : {})}
+      />
+    </View>
+  );
+
+  const preferencesPanel = (
+    <RivalCard glass style={styles.panel}>
+      {wide && <Text style={styles.panelTitle}>Preferences</Text>}
+
+      <View style={styles.subSectionFirst}>
+        <Text style={styles.subSectionTitle}>UNITS</Text>
+        {optionRows(UNIT_OPTIONS, prefs.units, (v) => savePref({ units: v }))}
+      </View>
+
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>DAILY QUOTE</Text>
+        {switchRow('quote', 'Show a quote each day', 'A short line when RIVAL is first opened each day.', prefs.dailyQuote, (v) => savePref({ dailyQuote: v }))}
+        {prefs.dailyQuote && (
+          <>
+            <Text style={[styles.subSectionTitle, styles.subSectionTitleInner]}>TONE</Text>
+            {optionRows(QUOTE_TONES, quoteTone, updateQuoteTone, savingTone)}
+            {quotePreview && <Text style={styles.quotePreview}>"{quotePreview}"</Text>}
+          </>
+        )}
+      </View>
+      {prefError && <Text style={styles.errorText}>{prefError}</Text>}
+    </RivalCard>
+  );
+
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
-      {wide && <Text style={styles.panelTitle}>Connected Apps</Text>}
-      <Text style={styles.panelSub}>Sync your training automatically from the services you already use.</Text>
+      {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
+      <Text style={styles.panelSub}>Sync training automatically from connected services.</Text>
 
       <View style={styles.appRow}>
         <View style={styles.appRowLeft}>
-          <Text style={styles.appIcon}>🟠</Text>
+          <View style={styles.appDot} />
           <View>
             <Text style={styles.appName}>Strava</Text>
             <Text style={styles.appStatus}>
@@ -537,12 +716,24 @@ export default function ProfileScreen() {
           // second "Connected" pill repeating the same word read as clutter.
           // A bare checkmark confirms the state without saying it twice.
           ? <View style={styles.connectedCheck}><RivalIcon name="check" size={14} color={RivalColors.tertiary} /></View>
-          : <RivalButton label="Connect" onPress={() => connectStrava(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
+          : <RivalButton label="Connect" onPress={() => startStravaConnect(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
       </View>
 
       {stravaConnected && (
         <>
+          {sharingAgreed
+            ? ROUTE_MAPS_ENABLED && switchRow('share-routes', 'Share route maps with teams', 'Teammates see the route of each Strava activity. A route can reveal where a person lives or trains.', shareRoutes, toggleShareRoutes)
+            : (
+              <RivalButton
+                label="Review Strava sharing"
+                onPress={() => router.push({ pathname: '/connect-strava', params: { review: '1' } })}
+                variant="secondary"
+                style={styles.actionBtn}
+              />
+            )}
+          {prefError && <Text style={styles.errorText}>{prefError}</Text>}
           <RivalButton
+            busy={syncing}
             label={syncing ? 'Syncing…' : 'Sync now'}
             onPress={syncNow}
             disabled={syncing}
@@ -562,10 +753,36 @@ export default function ProfileScreen() {
               style={styles.actionBtn}
             />
           </Animated.View>
-          {!confirmingDisconnect ? (
+          {/* Phone: the choice opens as the grey pop-up. */}
+          {!wide ? (
+            <Modal visible={confirmingDisconnect} transparent animationType="slide" onRequestClose={() => setConfirmingDisconnect(false)}>
+              <View style={styles.mSheetBackdrop}>
+                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !disconnecting && setConfirmingDisconnect(false)} accessibilityLabel="Close" />
+                <GreySheet
+                  kicker="CONNECTED DEVICES"
+                  title="Disconnect Strava"
+                  onClose={() => setConfirmingDisconnect(false)}
+                  footer={<GreyPrimary label={disconnecting ? 'Disconnecting…' : removeImported ? 'Disconnect and remove' : 'Disconnect'} busy={disconnecting} disabled={disconnecting} onPress={() => disconnectStrava(removeImported)} />}
+                >
+                  <GreyNote>New activities stop syncing. Linked the wrong account? Remove its imported activities too.</GreyNote>
+                  <GreyLabel>Imported activities</GreyLabel>
+                  <GreyTiles
+                    columns={2}
+                    options={[
+                      { value: 'keep' as const, label: 'Keep them', icon: 'check' as const },
+                      { value: 'remove' as const, label: 'Remove them', icon: 'delete' as const },
+                    ]}
+                    value={removeImported ? 'remove' : 'keep'}
+                    onChange={(v) => setRemoveImported(v === 'remove')}
+                  />
+                </GreySheet>
+              </View>
+            </Modal>
+          ) : null}
+          {!confirmingDisconnect || !wide ? (
             <RivalButton
               label="Disconnect Strava"
-              onPress={() => setConfirmingDisconnect(true)}
+              onPress={() => { setRemoveImported(false); setConfirmingDisconnect(true); }}
               variant="destructive"
               style={styles.actionBtn}
             />
@@ -600,16 +817,30 @@ export default function ProfileScreen() {
   const notificationsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Notifications</Text>}
-      <Text style={styles.panelSub}>Choose what RIVAL pings you about.</Text>
-      <View style={styles.comingSoonBox}>
-        <RivalIcon name="notifications" size={40} color={RivalColors.textSecondary} />
-        <Text style={styles.comingSoonTitle}>Coming soon</Text>
-        <Text style={styles.comingSoonText}>
-          Fine-grained notification controls are on the way. For now, RIVAL only
-          notifies you about the things that matter — milestones and encouragement
-          from your teams.
-        </Text>
+      <Text style={styles.panelSub}>Choose what appears under the bell. Requests that need an answer, such as join requests and training partner confirmations, always appear.</Text>
+
+      <View style={styles.subSectionFirst}>
+        {NOTIFY_OPTIONS.map((o) => switchRow(o.key, o.label, o.sub, prefs.notify[o.key], (v) => savePref({ notify: { ...prefs.notify, [o.key]: v } })))}
       </View>
+
+      {myTeams.length > 0 && (
+        <View style={styles.subSection}>
+          <Text style={styles.subSectionTitle}>MUTED TEAMS</Text>
+          <Text style={styles.optionSample}>A muted team sends nothing to the bell and its chat stops counting as unread. You stay a member.</Text>
+          {myTeams.map((t) => {
+            const muted = prefs.mutedTeams.includes(t.id);
+            return switchRow(
+              t.id,
+              t.name,
+              muted ? 'Muted' : 'Notifications on',
+              muted,
+              (v) => savePref({ mutedTeams: v ? [...prefs.mutedTeams, t.id] : prefs.mutedTeams.filter((id) => id !== t.id) }),
+            );
+          })}
+        </View>
+      )}
+      {prefError && <Text style={styles.errorText}>{prefError}</Text>}
+      <Text style={styles.footNote}>Alerts on the phone itself are not available yet. They will follow these settings when they are.</Text>
     </RivalCard>
   );
 
@@ -622,6 +853,58 @@ export default function ProfileScreen() {
         <Text style={styles.accountMetaValue}>{memberSince || '—'}</Text>
       </View>
 
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>EMAIL</Text>
+        <Text style={styles.optionSample}>Currently {email || 'not set'}.</Text>
+        <View style={styles.editRow}>
+          <TextInput
+            style={styles.input}
+            value={newEmail}
+            onChangeText={(v) => { setNewEmail(v); setEmailMsg(null); }}
+            placeholder="New email address"
+            placeholderTextColor={RivalColors.textSecondary}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+          <TouchableOpacity style={styles.saveChip} onPress={changeEmail} disabled={savingEmail || !newEmail.trim()}>
+            <BusyText busy={!!(savingEmail)} style={styles.saveChipText}>{savingEmail ? '…' : 'Change'}</BusyText>
+          </TouchableOpacity>
+        </View>
+        {emailMsg && <Text style={emailMsg.ok ? styles.okText : styles.errorText}>{emailMsg.text}</Text>}
+      </View>
+
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>PASSWORD</Text>
+        <TextInput
+          style={[styles.input, styles.inputStacked]}
+          value={newPassword}
+          onChangeText={(v) => { setNewPassword(v); setPasswordMsg(null); }}
+          placeholder="New password"
+          placeholderTextColor={RivalColors.textSecondary}
+          secureTextEntry
+          autoComplete="new-password"
+        />
+        <TextInput
+          style={[styles.input, styles.inputStacked]}
+          value={confirmPassword}
+          onChangeText={(v) => { setConfirmPassword(v); setPasswordMsg(null); }}
+          placeholder="Confirm new password"
+          placeholderTextColor={RivalColors.textSecondary}
+          secureTextEntry
+          autoComplete="new-password"
+        />
+        <RivalButton busy={savingPassword} label={savingPassword ? 'Updating…' : 'Update password'} onPress={changePassword} disabled={savingPassword || !newPassword} variant="secondary" style={styles.actionBtn} />
+        {passwordMsg && <Text style={passwordMsg.ok ? styles.okText : styles.errorText}>{passwordMsg.text}</Text>}
+      </View>
+
+      <View style={styles.subSection}>
+        <Text style={styles.subSectionTitle}>YOUR DATA</Text>
+        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, goals, events, teams, messages and recognition, as one file.</Text>
+        <RivalButton busy={exporting} label={exporting ? 'Preparing…' : 'Download my data'} onPress={downloadData} disabled={exporting} variant="secondary" style={styles.actionBtn} />
+        {exportMsg && <Text style={exportMsg.ok ? styles.okText : styles.errorText}>{exportMsg.text}</Text>}
+      </View>
+
       {isAdmin && (
         <RivalButton label="Scoring Config" onPress={() => router.push('/admin')} variant="secondary" style={styles.actionBtn} />
       )}
@@ -630,7 +913,7 @@ export default function ProfileScreen() {
       <View style={styles.dangerZone}>
         <Text style={styles.dangerTitle}>DANGER ZONE</Text>
         <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} disabled={deletingAccount}>
-          <Text style={styles.deleteAccountText}>{deletingAccount ? 'Deleting account…' : 'Delete account'}</Text>
+          <BusyText busy={!!(deletingAccount)} style={styles.deleteAccountText}>{deletingAccount ? 'Deleting account…' : 'Delete account'}</BusyText>
         </TouchableOpacity>
       </View>
     </RivalCard>
@@ -638,6 +921,7 @@ export default function ProfileScreen() {
 
   const panelFor: Record<TabId, React.ReactNode> = {
     personal: personalPanel,
+    preferences: preferencesPanel,
     apps: appsPanel,
     notifications: notificationsPanel,
     account: accountPanel,
@@ -666,6 +950,74 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         );
       })}
+      {/* Not a panel — the introduction is its own page. */}
+      <TouchableOpacity style={styles.sidebarBtn} onPress={() => router.push('/getting-started')}>
+        <RivalIcon name="flag" size={16} color={RivalColors.textSecondary} />
+        <Text style={styles.sidebarLabel}>How RIVAL works</Text>
+        {!wide && (
+          <>
+            <View style={{ flex: 1 }} />
+            <RivalIcon name="chevronRight" size={18} color={RivalColors.textSecondary} />
+          </>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Phone menu: the grey pop-up style — centred title, grouped rows with the
+  // current value on the right, no photo.
+  const open = (t: TabId) => { setActiveTab(t); setPanelOpen(true); };
+  const phoneMenu = (
+    <View>
+      <View style={styles.mHead}>
+        <View style={styles.mGlow} pointerEvents="none" />
+        <Text style={styles.mKicker}>ACCOUNT</Text>
+        <Text style={styles.mTitle}>Settings</Text>
+        <Text style={styles.mSub}>Profile, preferences and connected apps.</Text>
+      </View>
+      <GreyLabel>Profile</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="person" label="Personal info" value={displayName} onPress={() => open('personal')} />
+        <GreyRow icon="tune" label="Preferences" value={prefs.units === 'imperial' ? 'Imperial' : 'Metric'} onPress={() => open('preferences')} />
+        <GreyRow icon="stats" label="Statistics" onPress={() => router.push('/stats')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+        <GreyRow icon="target" label="Goals" onPress={() => router.push('/goals')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+      </GreyRows>
+      <GreyLabel>Connections</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="link" label="Connected devices" value={stravaConnected ? 'Strava' : 'None'} onPress={() => open('apps')} />
+        {/* The switch turns every notification on or off at once; the row
+            itself opens the full list to choose them one by one. */}
+        <GreyRow icon="notifications" label="Notifications" onPress={() => open('notifications')}>
+          <MenuSwitch
+            value={Object.values(prefs.notify).some(Boolean)}
+            onChange={(v) => savePref({ notify: Object.fromEntries(Object.keys(prefs.notify).map((k) => [k, v])) as Record<NotifyKey, boolean> })}
+          />
+        </GreyRow>
+        {/* Route maps are switched off app-wide for now (ROUTE_MAPS_ENABLED);
+            the row appears with them. */}
+        {ROUTE_MAPS_ENABLED && stravaConnected && sharingAgreed && (
+          <GreyRow icon="distance" label="Share route maps">
+            <MenuSwitch value={shareRoutes} onChange={toggleShareRoutes} />
+          </GreyRow>
+        )}
+      </GreyRows>
+      {prefError ? <Text style={styles.mError}>{prefError}</Text> : null}
+      <GreyLabel>More</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="flag" label="How RIVAL works" onPress={() => router.push('/getting-started')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+        <GreyRow icon="bolt" label="How Effort works" onPress={() => router.push('/effort')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+        <GreyRow icon="settings" label="Account" onPress={() => open('account')}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
+      </GreyRows>
     </View>
   );
 
@@ -683,12 +1035,12 @@ export default function ProfileScreen() {
           <RivalBackButton
             onPress={() => {
               if (!wide && panelOpen) { setPanelOpen(false); return; }
-              router.canGoBack() ? router.back() : router.replace('/home');
+              router.canGoBack() ? router.back() : goToTab('/home');
             }}
             color={RivalColors.accentFill}
           />
           <Text style={styles.headerTitle}>
-            {!wide && panelOpen ? (TABS.find(t => t.id === activeTab)?.label ?? 'Profile') : 'Profile'}
+            {!wide && panelOpen ? (TABS.find(t => t.id === activeTab)?.label ?? 'Settings') : wide ? 'Settings' : ''}
           </Text>
           <View style={{ width: 48 }} />
         </View>
@@ -701,7 +1053,7 @@ export default function ProfileScreen() {
         ) : panelOpen ? (
           panelFor[activeTab]
         ) : (
-          sidebar
+          phoneMenu
         )}
       </ScrollView>
 
@@ -739,6 +1091,20 @@ const styles = StyleSheet.create({
   back: { color: RivalColors.accentText, fontSize: 16, width: 48 },
   headerTitle: { ...RivalType.titleMd, color: RivalColors.textPrimary },
 
+  appDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#fc4c02', marginRight: 4 },
+  mError: { fontSize: 12.5, color: RivalColors.error, marginTop: 8, marginHorizontal: 4 },
+  mSheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  mHead: { alignItems: 'center', marginTop: -44, marginBottom: 8 },
+  // The pop-up glow behind the title (GreyPageHead), as in the blend mockup.
+  mGlow: {
+    position: 'absolute', top: -110, left: -24, right: -24, height: 240,
+    ...(Platform.OS === 'web'
+      ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }
+      : { backgroundColor: 'rgba(217,119,87,0.05)' }),
+  } as any,
+  mKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, color: RivalColors.accentText },
+  mTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff', marginTop: 3 },
+  mSub: { fontSize: 13, color: RivalColors.textSecondary, marginTop: 4 },
   wideRow: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
   wideContent: { flex: 1 },
 
@@ -778,10 +1144,10 @@ const styles = StyleSheet.create({
   editHint: { fontSize: 14 },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: { flex: 1, backgroundColor: RivalColors.surfaceContainer, borderRadius: RivalRadius.DEFAULT, paddingHorizontal: 14, paddingVertical: 12, color: RivalColors.textPrimary, fontSize: 15, fontWeight: '600', borderWidth: 1, borderColor: RivalColors.accentFill },
-  saveChip: { backgroundColor: RivalColors.accentFill, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RivalRadius.DEFAULT },
-  saveChipText: { color: RivalColors.onAccentFill, fontWeight: '700', fontSize: 14 },
+  saveChip: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, paddingHorizontal: 14, paddingVertical: 10, borderRadius: RivalRadius.DEFAULT },
+  saveChipText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '700', fontSize: 14 },
   cancelText: { color: RivalColors.textSecondary, fontSize: 14 },
-  errorText: { fontSize: 12, color: RivalColors.error },
+  errorText: { fontSize: 12, color: RivalColors.error, marginTop: 4 },
 
   bioInput: { backgroundColor: RivalColors.surfaceContainer, borderRadius: RivalRadius.DEFAULT, paddingHorizontal: 14, paddingVertical: 12, color: RivalColors.onSurface, fontSize: 15, minHeight: 84, textAlignVertical: 'top' },
   // `alignItems: center` vertically centred a two-line hint against a
@@ -793,6 +1159,12 @@ const styles = StyleSheet.create({
   bioSaveRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 14, marginTop: 4 },
 
   subSection: { marginTop: 20, gap: 4 },
+  subSectionFirst: { marginTop: 4, gap: 4 },
+  subSectionTitleInner: { marginTop: 14 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, paddingHorizontal: 10 },
+  inputStacked: { flex: 0, marginTop: 8 },
+  okText: { fontSize: 12, color: RivalColors.tertiary, marginTop: 4 },
+  footNote: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 16, lineHeight: 17 },
   subSectionTitle: { ...RivalType.labelCaps, color: RivalColors.textSecondary, marginBottom: 8 },
   optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 10, borderRadius: RivalRadius.DEFAULT },
   optionRowActive: { backgroundColor: `${RivalColors.accentFill}11` },

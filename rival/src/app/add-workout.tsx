@@ -1,14 +1,15 @@
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ImageBackground, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton} from '../components/rival';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, rb, GreyPageHead, GreyRows, GreyRow } from '../components/rival';
+import { goToTab } from '../lib/tabNav';
+import { RivalButtonColors, RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
-  { icon: 'addPhoto', title: '1. Add a photo', body: 'Snap your training app screen, gym whiteboard, or workout card — in good light.' },
-  { icon: 'brain', title: '2. AI reads it', body: 'Our vision model pulls out exercises, sets, weights and distance for you.' },
-  { icon: 'verified', title: '3. Review & save', body: 'Check the details, make any tweaks, and your Effort updates instantly.' },
+  { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a training app screen, gym whiteboard or workout card.' },
+  { icon: 'brain', title: '2. Automatic extraction', body: 'Exercises, sets, weights and distance are extracted from the image.' },
+  { icon: 'verified', title: '3. Review and save', body: 'Confirm the details. Effort updates as soon as the activity is saved.' },
 ];
 
 export default function AddWorkoutScreen() {
@@ -32,6 +33,51 @@ export default function AddWorkoutScreen() {
     </RivalCard>
   );
 
+  if (!wide) {
+    // Mobile: scanning leads, because it's the fastest way in and the one
+    // people don't know RIVAL can do. Manual entry and a whole week are the
+    // two other roads, as full-width rows you can tap anywhere on.
+    return (
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+        <RivalTopNav />
+        <ScrollView contentContainerStyle={[rb.content, { paddingBottom: 120 }]}>
+          <GreyPageHead kicker="LOG" title="Add an activity" onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} />
+
+          <View style={rb.card}>
+            <Text style={rb.label}>Photo scan</Text>
+            <View>
+              {['Capture or upload', 'Details read automatically', 'Review and save'].map((t, i) => (
+                <View key={t} style={[ms.step, i > 0 && rb.rule]}>
+                  <View style={ms.stepNum}><Text style={ms.stepNumText}>{i + 1}</Text></View>
+                  <Text style={ms.stepText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={ms.actions}>
+              <TouchableOpacity style={[ms.primary, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=camera')} activeOpacity={0.85}>
+                <RivalIcon name="camera" size={17} color={ms.primaryText.color as string} />
+                <Text style={ms.primaryText} numberOfLines={1}>Take photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[ms.ghost, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=gallery')} activeOpacity={0.85}>
+                <RivalIcon name="upload" size={17} color={RivalColors.accentText} />
+                <Text style={ms.ghostText} numberOfLines={1}>Upload</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <GreyRows>
+            <GreyRow icon="manual" label="Manual entry" onPress={() => router.push('/manual-entry')}>
+              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+            </GreyRow>
+            <GreyRow icon="batch" label="Weekly scan" onPress={() => router.push('/weekly-scan')}>
+              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+            </GreyRow>
+          </GreyRows>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ImageBackground
@@ -51,24 +97,23 @@ export default function AddWorkoutScreen() {
             <Text style={styles.heroLabel}>ADD WORKOUT</Text>
             <Text style={styles.heroTitle}>Honor the commitment.</Text>
             <Text style={styles.heroSub}>
-              However you trained, get it counted — snap your workout card, type it in
-              by hand, or log a whole week in one go.
+              Record an activity by photo, by manual entry or with a weekly scan.
             </Text>
           </View>
 
           {/* Three actions */}
           <View style={[styles.cardsRow, wide && styles.cardsRowWide]}>
-            {card('scan', true, 'Scan Workout', 'Photo or upload your workout card for automatic AI analysis.', (
+            {card('scan', true, 'Scan Workout', 'Capture or upload a workout card. The details are extracted automatically.', (
               <>
                 <RivalButton label="Capture" onPress={() => router.push('/scan-workout?source=camera')} style={styles.fullBtn} />
-                <RivalButton label="Upload Card" onPress={() => router.push('/scan-workout?source=gallery')} variant="secondary" style={styles.fullBtn} />
+                <RivalButton label="Upload" onPress={() => router.push('/scan-workout?source=gallery')} variant="secondary" style={styles.fullBtn} />
               </>
             ))}
-            {card('manual', false, 'Manual Entry', 'Prefer the traditional way? Type your session in point by point.', (
-              <RivalButton label="Start Manual  →" onPress={() => router.push('/manual-entry')} variant="secondary" style={styles.fullBtn} />
+            {card('manual', false, 'Manual Entry', 'Enter duration, distance and lifts.', (
+              <RivalButton label="Manual Entry →" onPress={() => router.push('/manual-entry')} variant="secondary" style={styles.fullBtn} />
             ))}
-            {card('batch', false, 'Batch Log', 'Log multiple days at once — ideal for catching up on a full week.', (
-              <RivalButton label="Start Batch  →" onPress={() => router.push('/weekly-scan')} variant="secondary" style={styles.fullBtn} />
+            {card('batch', false, 'Weekly Scan', 'Log multiple days at once.', (
+              <RivalButton label="Weekly Scan" onPress={() => router.push('/weekly-scan')} variant="secondary" style={styles.fullBtn} />
             ))}
           </View>
 
@@ -133,4 +178,23 @@ const styles = StyleSheet.create({
   processTextWrap: { flex: 1, gap: 4 },
   processStepTitle: { ...RivalType.titleMd, fontSize: 16, color: RivalColors.textPrimary },
   processStepBody: { fontSize: 13, color: RivalColors.textSecondary, lineHeight: 19 },
+});
+
+// Phone only — the blend (see RivalGreySheet's rb).
+const ms = StyleSheet.create({
+  step: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  stepNumText: { fontSize: 12, fontWeight: '800', color: RivalColors.accentText },
+  stepText: { flex: 1, fontSize: 14, fontWeight: '600', color: RivalColors.textSecondary },
+  actions: { flexDirection: 'row', gap: 8 },
+  primary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: 999,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+  },
+  primaryText: { fontSize: 14.5, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  ghost: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: 999,
+    borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)',
+  },
+  ghostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },
 });

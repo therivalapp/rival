@@ -15,12 +15,14 @@
 // (leagues_team_goal.sql columns) team-hub.tsx already reads, so no new
 // schema and team-hub's hero/standings pick it up as-is.
 import React, { useEffect, useState } from 'react';
-import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { RivalIcon, RivalIconName, RivalBackButton } from '../components/rival';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing } from '../constants/rivalTheme';
+import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyPageHead } from '../components/rival';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors } from '../constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
 
 type GoalMetric = 'xp' | 'distance' | 'elevation' | 'duration' | 'activities';
 type Mode = 'target' | 'race';
@@ -126,9 +128,9 @@ const WARM_GRADIENT = 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)';
 
 // A numbered step in its own panel — the form reads as three decisions in
 // order rather than one long stack of labels and chips.
-function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+function Step({ n, title, children, mob }: { n: number; title: string; children: React.ReactNode; mob?: boolean }) {
   return (
-    <View style={styles.step}>
+    <View style={[styles.step, mob && ms.step]}>
       <View style={styles.stepHead}>
         <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{n}</Text></View>
         <Text style={styles.stepTitle}>{title}</Text>
@@ -158,6 +160,11 @@ export default function CreateTeamChallenge() {
   // Team Hub opens it from the challenge ring, and it arrives filled in with
   // what's running now instead of blank.
   const [editing, setEditing] = useState(false);
+  // Phone: the app's own terracotta→salmon gradient and warm cards, and
+  // sentence-case labels. Desktop keeps this page's original treatment.
+  const { width } = useWindowDimensions();
+  const mob = width < BREAKPOINT_WIDE_LAYOUT;
+  const sc = (t: string) => (mob ? t.charAt(0) + t.slice(1).toLowerCase() : t);
 
   const selectedMetric = METRICS.find((m) => m.value === metric)!;
 
@@ -208,7 +215,7 @@ export default function CreateTeamChallenge() {
 
     if (mode === 'race') {
       if (!selectedRaceId) {
-        setError('Pick a race to work toward.');
+        setError('Choose an event.');
         return;
       }
       setSaving(true);
@@ -229,7 +236,7 @@ export default function CreateTeamChallenge() {
     }
     let goalTargetDate: string;
     if (duration === 'custom') {
-      if (!customDate) { setError('Pick a date on the calendar.'); return; }
+      if (!customDate) { setError('Choose a date.'); return; }
       goalTargetDate = customDate;
     } else {
       const d = new Date();
@@ -257,7 +264,7 @@ export default function CreateTeamChallenge() {
   const selectedRace = myRaces.find((r) => r.id === selectedRaceId);
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, mob && ms.screen]}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         {/* The page must scroll: the app's frame is fixed to the screen height,
             so without this everything below the fold was cut off. */}
@@ -267,6 +274,17 @@ export default function CreateTeamChallenge() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {mob ? (
+            // Phone: the blend header instead of the photo.
+            <View style={{ paddingHorizontal: 16 }}>
+              <GreyPageHead
+                kicker="TEAM CHALLENGE"
+                title={editing ? 'Edit team challenge' : 'Start a team challenge'}
+                sub="One shared target. All member activity counts toward it."
+                onBack={() => router.back()}
+              />
+            </View>
+          ) : (
           <ImageBackground source={HERO_PHOTO} style={styles.hero} resizeMode="cover">
             <View style={styles.heroShade} pointerEvents="none" />
             <View style={styles.topRow}>
@@ -274,16 +292,17 @@ export default function CreateTeamChallenge() {
             </View>
             <View style={styles.heroText}>
               <Text style={styles.kicker}>TEAM CHALLENGE</Text>
-              <Text style={styles.heroTitle}>{editing ? 'Edit Team Challenge' : 'Start a Team Challenge'}</Text>
-              <Text style={styles.heroSub}>One shared number. Everyone's effort counts toward it.</Text>
+              <Text style={styles.heroTitle}>{editing ? sc('Edit Team Challenge') : mob ? 'Start a team challenge' : 'Start a Team Challenge'}</Text>
+              <Text style={styles.heroSub}>One shared target. All member activity counts toward it.</Text>
             </View>
           </ImageBackground>
+          )}
 
           <View style={styles.body}>
             {/* Live preview: the challenge as it will read, updating as you
                 choose, so the form isn't a blind series of inputs. */}
-            <View style={styles.preview}>
-              <View style={styles.previewIcon}>
+            <View style={[styles.preview, mob && ms.preview]}>
+              <View style={[styles.previewIcon, mob && ms.gradient]}>
                 <RivalIcon name={mode === 'target' ? selectedMetric.icon : 'flag'} size={24} color="#1a1411" />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -291,7 +310,7 @@ export default function CreateTeamChallenge() {
                   <>
                     <Text style={styles.previewKicker}>{selectedMetric.label.toUpperCase()}</Text>
                     {hasTarget ? (
-                      <Text style={styles.previewValue}>
+                      <Text style={[styles.previewValue, mob && ms.previewValue]}>
                         {targetNum.toLocaleString()} <Text style={styles.previewUnit}>{selectedMetric.unit}</Text>
                       </Text>
                     ) : (
@@ -301,33 +320,33 @@ export default function CreateTeamChallenge() {
                   </>
                 ) : (
                   <>
-                    <Text style={styles.previewKicker}>RACE</Text>
-                    <Text style={styles.previewValue} numberOfLines={2}>{selectedRace ? selectedRace.name : 'Choose a race'}</Text>
+                    <Text style={styles.previewKicker}>EVENT</Text>
+                    <Text style={[styles.previewValue, mob && ms.previewValue]} numberOfLines={2}>{selectedRace ? selectedRace.name : 'Choose an event'}</Text>
                     {!!selectedRace && <Text style={styles.previewDue}>{fmt(new Date(selectedRace.race_date + 'T00:00:00'))}</Text>}
                   </>
                 )}
               </View>
             </View>
 
-            <View style={styles.modeRow}>
-              <TouchableOpacity style={[styles.modeTab, mode === 'target' && styles.modeTabActive]} onPress={() => setMode('target')}>
-                <Text style={[styles.modeTabText, mode === 'target' && styles.modeTabTextActive]}>Team Target</Text>
+            <View style={[styles.modeRow, mob && ms.modeRow]}>
+              <TouchableOpacity style={[styles.modeTab, mode === 'target' && styles.modeTabActive, mob && mode === 'target' && ms.modeOn]} onPress={() => setMode('target')}>
+                <Text style={[styles.modeTabText, mode === 'target' && styles.modeTabTextActive, mob && mode === 'target' && ms.modeOnText]}>{sc('Team Target')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modeTab, mode === 'race' && styles.modeTabActive]} onPress={() => setMode('race')}>
-                <Text style={[styles.modeTabText, mode === 'race' && styles.modeTabTextActive]}>Race Goal</Text>
+              <TouchableOpacity style={[styles.modeTab, mode === 'race' && styles.modeTabActive, mob && mode === 'race' && ms.modeOn]} onPress={() => setMode('race')}>
+                <Text style={[styles.modeTabText, mode === 'race' && styles.modeTabTextActive, mob && mode === 'race' && ms.modeOnText]}>{sc('Event Goal')}</Text>
               </TouchableOpacity>
             </View>
 
             {mode === 'target' ? (
               <>
-                <Step n={1} title="What are you chasing?">
+                <Step n={1} title="Goal" mob={mob}>
                   <View style={styles.metricGrid}>
                     {METRICS.map((m) => {
                       const on = metric === m.value;
                       return (
-                        <TouchableOpacity key={m.value} style={[styles.metricTile, on && styles.metricTileOn]} onPress={() => setMetric(m.value)}>
-                          <View style={[styles.metricIcon, on && styles.metricIconOn]}>
-                            <RivalIcon name={m.icon} size={20} color={on ? '#1a1411' : RivalColors.accentText} />
+                        <TouchableOpacity key={m.value} style={[styles.metricTile, mob && ms.tile, on && styles.metricTileOn, mob && on && ms.tileOn]} onPress={() => setMetric(m.value)}>
+                          <View style={[styles.metricIcon, on && styles.metricIconOn, mob && on && ms.gradient]}>
+                            <RivalIcon name={m.icon} size={20} color={on ? (mob ? ms.onGradient.color as string : '#1a1411') : RivalColors.accentText} />
                           </View>
                           <Text style={[styles.metricTileText, on && styles.metricTileTextOn]}>{m.label}</Text>
                         </TouchableOpacity>
@@ -336,10 +355,10 @@ export default function CreateTeamChallenge() {
                   </View>
                 </Step>
 
-                <Step n={2} title="Target">
-                  <View style={styles.targetWell}>
+                <Step n={2} title="Target" mob={mob}>
+                  <View style={[styles.targetWell, mob && ms.well]}>
                     <TextInput
-                      style={styles.targetInput}
+                      style={[styles.targetInput, mob && ms.targetInput]}
                       placeholder="1000"
                       placeholderTextColor="rgba(255,255,255,0.25)"
                       value={target}
@@ -350,27 +369,27 @@ export default function CreateTeamChallenge() {
                   </View>
                 </Step>
 
-                <Step n={3} title="Complete by">
+                <Step n={3} title="Complete by" mob={mob}>
                   <View style={styles.durationRow}>
                     {DURATIONS.map((d) => (
                       <TouchableOpacity
                         key={d.days}
-                        style={[styles.durationChip, duration === d.days && styles.durationChipActive]}
+                        style={[styles.durationChip, mob && ms.chip, duration === d.days && styles.durationChipActive, mob && duration === d.days && ms.gradient]}
                         onPress={() => setDuration(d.days)}
                       >
-                        <Text style={[styles.durationChipText, duration === d.days && styles.durationChipTextActive]}>{d.label}</Text>
+                        <Text style={[styles.durationChipText, duration === d.days && styles.durationChipTextActive, mob && duration === d.days && ms.onGradient]}>{sc(d.label)}</Text>
                       </TouchableOpacity>
                     ))}
                     <TouchableOpacity
-                      style={[styles.durationChip, duration === 'custom' && styles.durationChipActive]}
+                      style={[styles.durationChip, mob && ms.chip, duration === 'custom' && styles.durationChipActive, mob && duration === 'custom' && ms.gradient]}
                       onPress={() => setDuration('custom')}
                     >
-                      <Text style={[styles.durationChipText, duration === 'custom' && styles.durationChipTextActive]}>Custom Date</Text>
+                      <Text style={[styles.durationChipText, duration === 'custom' && styles.durationChipTextActive, mob && duration === 'custom' && ms.onGradient]}>{sc('Custom Date')}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {duration === 'custom' && (
-                    <View style={styles.dateCard}>
+                    <View style={[styles.dateCard, mob && ms.well]}>
                       <Text style={[styles.selectedDateText, !customDate && styles.selectedDateTextEmpty]}>
                         {customDate ? new Date(customDate + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'No date selected yet'}
                       </Text>
@@ -380,21 +399,21 @@ export default function CreateTeamChallenge() {
                 </Step>
               </>
             ) : (
-              <Step n={1} title="Which race?">
+              <Step n={1} title="Event" mob={mob}>
                 {myRaces.length === 0 ? (
-                  <Text style={styles.emptyRaceText}>No upcoming races on your profile yet. Add one from Races first.</Text>
+                  <Text style={styles.emptyRaceText}>No upcoming events. Add one from Events first.</Text>
                 ) : (
                   <View style={{ gap: 8 }}>
                     {myRaces.map((r) => (
                       <TouchableOpacity
                         key={r.id}
-                        style={[styles.raceRow, selectedRaceId === r.id && styles.raceRowActive]}
+                        style={[styles.raceRow, mob && ms.tile, selectedRaceId === r.id && styles.raceRowActive, mob && selectedRaceId === r.id && ms.gradient]}
                         onPress={() => setSelectedRaceId(r.id)}
                       >
-                        <RivalIcon name="flag" size={16} color={selectedRaceId === r.id ? '#1a1411' : RivalColors.accentText} />
+                        <RivalIcon name="flag" size={16} color={selectedRaceId === r.id ? (mob ? ms.onGradient.color as string : '#1a1411') : RivalColors.accentText} />
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.raceRowName, selectedRaceId === r.id && styles.raceRowTextActive]}>{r.name}</Text>
-                          <Text style={[styles.raceRowDate, selectedRaceId === r.id && styles.raceRowTextActive]}>
+                          <Text style={[styles.raceRowName, selectedRaceId === r.id && styles.raceRowTextActive, mob && selectedRaceId === r.id && ms.onGradient]}>{r.name}</Text>
+                          <Text style={[styles.raceRowDate, selectedRaceId === r.id && styles.raceRowTextActive, mob && selectedRaceId === r.id && ms.onGradient]}>
                             {new Date(r.race_date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                           </Text>
                         </View>
@@ -407,8 +426,8 @@ export default function CreateTeamChallenge() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <TouchableOpacity style={[styles.createBtn, saving && styles.createBtnDisabled]} onPress={handleCreate} disabled={saving}>
-              <Text style={styles.createBtnText}>{saving ? 'Saving…' : editing ? 'Save Changes' : 'Start Challenge'}</Text>
+            <TouchableOpacity style={[styles.createBtn, mob && ms.gradient, saving && styles.createBtnDisabled]} onPress={handleCreate} disabled={saving}>
+              <BusyText busy={!!(saving)} style={[styles.createBtnText, mob && ms.onGradient]}>{saving ? 'Saving…' : editing ? sc('Save Changes') : sc('Start Challenge')}</BusyText>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -545,4 +564,24 @@ const styles = StyleSheet.create({
   } as any,
   createBtnDisabled: { opacity: 0.6 },
   createBtnText: { fontSize: 16, fontWeight: '800', letterSpacing: 0.2, color: '#1a1411' },
+});
+
+// Phone only — the blend (grey page, recessed cards, grey switch).
+const ms = StyleSheet.create({
+  screen: { backgroundColor: RivalColors.surfaceContainer },
+  // The app-wide terracotta→salmon gradient, not this page's own orange.
+  gradient: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' },
+  onGradient: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  preview: { backgroundColor: RivalColors.surfaceLowest, borderColor: 'rgba(255,181,158,0.35)' },
+  previewValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
+  modeRow: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
+  step: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
+  tile: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
+  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  well: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
+  targetInput: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
+  chip: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
+  // The chosen half of the Team target / Event goal switch: lifted grey.
+  modeOn: { backgroundColor: RivalColors.surfaceBright, ...RivalButtonColors.noGradient, borderColor: 'transparent' },
+  modeOnText: { color: '#fff' },
 });

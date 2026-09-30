@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { Platform, View, Text, StyleSheet, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { RivalColors, RivalSerifFamily } from '../../constants/rivalTheme';
@@ -39,6 +40,7 @@ export function RivalChallengeRing({
   size = 200,
   thickness = 14,
   style,
+  animate,
 }: {
   pct: number;
   value: number;
@@ -48,17 +50,37 @@ export function RivalChallengeRing({
   size?: number;
   thickness?: number;
   style?: ViewStyle;
+  /** Fill the ring from empty and count the number up from 0, starting when
+   *  `run` turns true. Once per mount. */
+  animate?: { run: boolean; ms: number; ease: (p: number) => number };
 }) {
-  const clamped = Math.max(0, Math.min(1, pct));
+  const [f, setF] = useState(animate ? 0 : 1);
+  const done = useRef(!animate);
+  useEffect(() => {
+    if (done.current || !animate?.run) return;
+    const start = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const p = Math.min(1, (performance.now() - start) / animate.ms);
+      setF(animate.ease(p));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else done.current = true;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [animate?.run]);
+  const clamped = Math.max(0, Math.min(1, pct)) * f;
+  const ringId = `ringGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`; // unique per ring on the page
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
-  const formatted = formatRingValue(value, target);
-  const valueSize = ringValueFontSize(formatted, size);
+  const formatted = formatRingValue(value * f, target);
+  // Sized for the final number, so the digits don't change size as they count.
+  const valueSize = ringValueFontSize(formatRingValue(value, target), size);
   return (
     <View style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }, style]}>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
         <Defs>
-          <LinearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <LinearGradient id={ringId} x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={RivalColors.accentFill} />
             <Stop offset="100%" stopColor={RivalColors.accentText} />
           </LinearGradient>
@@ -66,7 +88,7 @@ export function RivalChallengeRing({
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
-          stroke="url(#ringGrad)" strokeWidth={thickness} fill="none"
+          stroke={`url(#${ringId})`} strokeWidth={thickness} fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - clamped)}

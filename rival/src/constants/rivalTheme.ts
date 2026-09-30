@@ -11,6 +11,8 @@
 // Do not add colors here that aren't in DESIGN.md without checking with Ricky
 // first — this file should stay traceable back to the design export.
 
+import { Platform } from 'react-native';
+
 export const RivalColors = {
   // Surfaces — tiered charcoal system, darkest to lightest.
   surfaceLowest: '#0e0e0e',
@@ -143,4 +145,32 @@ export const RivalSpacing = {
   containerPadding: 24,
   gutter: 16,
   maxWidth: 1200,
+};
+
+// Primary buttons: the soft salmon of Home's Add Activity on phones, the
+// terracotta they have always been on desktop. Ricky's call (2026-09-24):
+// buttons and selected states (the chosen chip, tab or toggle) — badges, bars
+// and dots keep accentFill — and mobile only, as desktop is untouched until
+// the mobile app is finished.
+//
+// On the web the switch is two CSS variables that global.css sets below the
+// phone breakpoint (BREAKPOINT_MOBILE_NAV); left unset on desktop, each falls
+// back to exactly what that button had before. Native is always a phone.
+//
+// `label` takes the colour a button's text already had, because those differ
+// (some dark brown, some near-white) — near-white on salmon is unreadable, so
+// phones use the dark brown for all of them.
+export const RivalButtonColors = {
+  fill: Platform.OS === 'web' ? `var(--rival-button-fill, ${RivalColors.accentFill})` : RivalColors.accentText,
+  label: (desktopColor: string) =>
+    Platform.OS === 'web' ? `var(--rival-button-label, ${desktopColor})` : RivalColors.onAccentFill,
+  // Spread next to `fill`. On phones it lays the terracotta-to-salmon gradient
+  // (the one Team Hub's filter chips already use) over the salmon fill; on
+  // desktop the variable is unset, so it is `none` and nothing changes.
+  // Native has no CSS gradients and keeps the flat salmon.
+  gradient: (Platform.OS === 'web' ? { backgroundImage: 'var(--rival-button-image, none)' } : {}) as any,
+  // A gradient paints over the background colour, so any disabled or "off"
+  // style that works by swapping the colour must also clear the gradient, or
+  // a greyed-out button would stay orange.
+  noGradient: (Platform.OS === 'web' ? { backgroundImage: 'none' } : {}) as any,
 };

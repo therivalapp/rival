@@ -1,20 +1,26 @@
-import { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ScrollView, Image, ImageBackground, TouchableOpacity, TextInput } from 'react-native';
+import { getMyTeamRows } from '../../lib/myTeams';
+import { fitPhoto } from '../../lib/imageResize';
+import { ROUTE_MAPS_ENABLED } from '../../lib/features';
+import { formatActivityDistance } from '../../lib/units';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, Platform, ScrollView, Image, ImageBackground, TouchableOpacity, TextInput } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { buildDayRollups, mergeRollups, rollsUpIntoDayCard, type DayRollup, type RollupRow } from '@/lib/dayRollup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWindowDimensions } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import { Asset } from 'expo-asset';
-import { supabase, getAuthUser } from '../lib/supabase';
-import { confirmAction, notify } from '../lib/notify';
-import { formatDisplayName, formatTeamName, formatRaceName } from '../lib/identity';
-import { formatDuration } from '../lib/format';
-import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../lib/activityInsights';
-import { matchCanonicalLift } from './scan-workout';
-import { RivalTopNav, RivalIcon, RivalIconName, activityIconName } from '../components/rival';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { supabase, getAuthUser } from '../../lib/supabase';
+import { confirmAction, notify } from '../../lib/notify';
+import { formatDisplayName, formatTeamName, formatRaceName } from '../../lib/identity';
+import { formatDuration } from '../../lib/format';
+import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../../lib/activityInsights';
+import { matchCanonicalLift } from '../../lib/lifts';
+import { RivalTopNav, RivalIcon, RivalIconName, activityIconName, TrainingPartners, RouteMap } from '../../components/rival';
+import { withinTagWindow } from '../../lib/tagWindow';
+import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { BusyText } from '../../components/rival/BusyText';
 
 // Combined multi-team activity feed — separate destination from league.tsx's
 // existing per-team feed tab (per the Team architecture split: Feed = watch,
@@ -63,7 +69,7 @@ function feedTargetKey(type: string, id: string) {
   return `${type}:${id}`;
 }
 
-const HERO_PHOTO = require('../../assets/images/backgrounds/optimized/team-feed-hero-dusk-ridge-2.jpg');
+const HERO_PHOTO = require('../../../assets/images/backgrounds/optimized/team-feed-hero-dusk-ridge-2.jpg');
 
 // Same react-native-web workaround as team-hub.tsx's HeroPhoto — ImageBackground
 // hardcodes backgroundPosition/no gradients on the div that actually paints
@@ -135,6 +141,12 @@ type FeedPost =
       insight: ActivityInsight | null;
       teamIds: string[];
       teamNames: string[];
+      // Who else confirmed they were on the session, as the database keeps it
+      // (see sync_activity_companions). Null when nobody has been added.
+      companions: string | null;
+      // A copy someone received by being tagged: a record of who they were
+      // with, never a session they can add people to.
+      isSharedCopy: boolean;
     }
   | {
       // One card per person per day gathering their auto-synced walks,
@@ -195,6 +207,10 @@ type FeedContext = {
   nameMap: Record<string, string>;
   liftMaxMap: Map<string, number>;
   insightHistoryByUser: Record<string, InsightActivity[]>;
+  // False while the lift and history data are still on their way: posts show
+  // without PB badges and insights, then are rebuilt once it arrives, rather
+  // than the whole feed waiting for it (or showing a wrong badge meanwhile).
+  ready: boolean;
 };
 
 function findPbLift(ctx: FeedContext, userId: string, exercises: any[] | null): string | null {
@@ -244,12 +260,12 @@ function rollupToPost(ctx: FeedContext, r: DayRollup): FeedPost {
 function activityRowToPost(ctx: FeedContext, a: any): FeedPost | null {
   const posterTeams = ctx.teamsForUser[a.user_id];
   if (!a.started_at || !posterTeams?.length) return null;
-  const pbLift = findPbLift(ctx, a.user_id, a.exercises);
-  const insight = computeActivityInsight(
+  const pbLift = ctx.ready ? findPbLift(ctx, a.user_id, a.exercises) : null;
+  const insight = ctx.ready ? computeActivityInsight(
     { activity_type: a.activity_type, started_at: a.started_at, duration_seconds: a.duration_seconds, distance_meters: a.distance_meters },
     ctx.insightHistoryByUser[a.user_id] || [],
     !!pbLift,
-  );
+  ) : null;
   return {
     kind: 'activity', id: a.id, userId: a.user_id,
     name: ctx.nameMap[a.user_id] ?? 'Athlete',
@@ -265,6 +281,8 @@ function activityRowToPost(ctx: FeedContext, a: any): FeedPost | null {
     insight,
     teamIds: posterTeams,
     teamNames: posterTeams.map((tid) => ctx.teamNameById[tid] ?? ''),
+    companions: a.companions ?? null,
+    isSharedCopy: !!a.shared_from_activity_id,
   };
 }
 
@@ -289,7 +307,7 @@ const byNewestFirst = (a: FeedPost, b: FeedPost) => new Date(b.ts).getTime() - n
 // mid-scroll (an offset would shift and duplicate rows; a cursor won't).
 async function fetchActivityPage(ctx: FeedContext, cursor: string | null) {
   let q = supabase.from('activities')
-    .select('id, user_id, name, activity_type, provider, started_at, duration_seconds, distance_meters, effort_score, exercises, notes, photo_url')
+    .select('id, user_id, name, activity_type, provider, started_at, duration_seconds, distance_meters, effort_score, exercises, notes, photo_url, companions, shared_from_activity_id')
     .in('user_id', ctx.memberIds)
     .order('started_at', { ascending: false })
     .limit(PAGE_SIZE + 1);
@@ -301,28 +319,53 @@ async function fetchActivityPage(ctx: FeedContext, cursor: string | null) {
   return { page, more, nextCursor: page.length ? page[page.length - 1].started_at : null };
 }
 
+// The feed as last shown. Coming back to Teams draws it straight away and
+// refreshes behind it, instead of starting from "Loading" on every visit.
+type FeedSnapshot = {
+  userId: string;
+  teams: Team[];
+  items: FeedPost[];
+  avatarMap: Record<string, string | null>;
+  nameMap: Record<string, string>;
+  reactionsMap: Record<string, Array<{ user_id: string; emoji: string }>>;
+  commentsMap: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>;
+  hasMore: boolean;
+  ctx: FeedContext | null;
+  cursor: string | null;
+};
+let feedSnap: FeedSnapshot | null = null;
+
 export default function TeamFeedScreen() {
   const { width } = useWindowDimensions();
   const mobile = width < BREAKPOINT_WIDE_LAYOUT;
 
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => loadFeed());
-  const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState('');
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [items, setItems] = useState<FeedPost[]>([]);
-  const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>({});
-  const [nameMap, setNameMap] = useState<Record<string, string>>({});
-  const [reactionsMap, setReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>({});
-  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>({});
+  const [loading, setLoading] = useState(() => !feedSnap);
+  const [currentUserId, setCurrentUserId] = useState(() => feedSnap?.userId ?? '');
+  const [teams, setTeams] = useState<Team[]>(() => feedSnap?.teams ?? []);
+  const [items, setItems] = useState<FeedPost[]>(() => feedSnap?.items ?? []);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string | null>>(() => feedSnap?.avatarMap ?? {});
+  const [nameMap, setNameMap] = useState<Record<string, string>>(() => feedSnap?.nameMap ?? {});
+  // Route maps, only for people who chose to share them with their teams.
+  const [routesMap, setRoutesMap] = useState<Record<string, string>>({});
+  const [reactionsMap, setReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>(() => feedSnap?.reactionsMap ?? {});
+  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(() => feedSnap?.commentsMap ?? {});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(() => feedSnap?.hasMore ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
   // Refs, not state: these are read inside loadMore's async body, where a
   // stale closure over state would page from the wrong place.
-  const ctxRef = useRef<FeedContext | null>(null);
-  const cursorRef = useRef<string | null>(null);
+  const ctxRef = useRef<FeedContext | null>(feedSnap?.ctx ?? null);
+  const cursorRef = useRef<string | null>(feedSnap?.cursor ?? null);
+
+  // Keep the snapshot current with whatever is on screen, including a
+  // reaction or comment just added, so a revisit shows exactly this.
+  useEffect(() => {
+    if (loading || !currentUserId) return;
+    feedSnap = { userId: currentUserId, teams, items, avatarMap, nameMap, reactionsMap, commentsMap, hasMore, ctx: ctxRef.current, cursor: cursorRef.current };
+  }, [loading, currentUserId, teams, items, avatarMap, nameMap, reactionsMap, commentsMap, hasMore]);
 
   // Reactions/comments are fetched per visible page. `replace` distinguishes a
   // refresh (drop what was there) from appending a page (merge, so the social
@@ -347,20 +390,40 @@ export default function TeamFeedScreen() {
     });
     setReactionsMap((prev) => (replace ? newReactions : { ...prev, ...newReactions }));
     setCommentsMap((prev) => (replace ? newComments : { ...prev, ...newComments }));
+    if (ROUTE_MAPS_ENABLED) loadRoutesFor(posts, replace);
+  }, []);
+
+  // Routes are shown only for posters with share_routes on — the database lets
+  // teammates read nothing else, and the owner's own unshared routes stay off
+  // the feed so it never looks like they're visible to the team.
+  const loadRoutesFor = useCallback(async (posts: FeedPost[], replace: boolean) => {
+    const activityPosts = posts.filter((p) => p.kind === 'activity' && !p.photoUrl);
+    const posterIds = [...new Set(activityPosts.map((p) => p.userId))];
+    if (!posterIds.length) { if (replace) setRoutesMap({}); return; }
+    const { data: sharers, error: sharersErr } = await supabase.from('users').select('id').in('id', posterIds).eq('share_routes', true);
+    if (sharersErr) return;
+    const sharing = new Set((sharers ?? []).map((u: any) => u.id));
+    const ids = activityPosts.filter((p) => sharing.has(p.userId)).map((p) => p.id);
+    const next: Record<string, string> = {};
+    if (ids.length) {
+      const { data: routes } = await supabase.from('activity_routes').select('activity_id, polyline').in('activity_id', ids);
+      (routes ?? []).forEach((r: any) => { next[r.activity_id] = r.polyline; });
+    }
+    setRoutesMap((prev) => (replace ? next : { ...prev, ...next }));
   }, []);
 
   const loadFeed = useCallback(async () => {
-    setLoading(true);
+    // Coming back to the tab keeps the feed on screen and refreshes it behind
+    // the scenes; only a first visit shows the loading state.
+    if (!ctxRef.current) setLoading(true);
     const { data: { user } } = await getAuthUser();
     if (!user) { setLoading(false); return; }
+    // Someone else's snapshot must never show, even for a moment.
+    if (feedSnap && feedSnap.userId !== user.id) { feedSnap = null; ctxRef.current = null; setItems([]); setTeams([]); setLoading(true); }
     setCurrentUserId(user.id);
 
     // Every team this account is an active member of.
-    const { data: myMemberships } = await supabase
-      .from('league_members')
-      .select('league_id, leagues(id, name, logo_url)')
-      .eq('user_id', user.id)
-      .eq('status', 'active');
+    const myMemberships = await getMyTeamRows(user.id).catch(() => []);
 
     const myTeams: Team[] = (myMemberships || [])
       .map((m: any) => m.leagues)
@@ -418,13 +481,10 @@ export default function TeamFeedScreen() {
     // The first page of posts only needs the member list, so it loads with the
     // context queries instead of waiting for them. (fetchActivityPage reads
     // nothing but memberIds from the context.)
-    const [racesRes, liftEntriesRes, insightHistoryRes, firstPage] = await Promise.all([
-      supabase.from('races')
-        .select('id, user_id, name, race_date, created_at')
-        .in('user_id', memberIds)
-        .gte('race_date', today)
-        .order('race_date', { ascending: false })
-        .limit(20),
+    // The first page and upcoming races are all the feed needs to show. Lift
+    // maxima and a year of history (for PB badges and insights) are larger
+    // downloads, so they follow and the posts are rebuilt when they land.
+    const extrasP = Promise.all([
       supabase.from('exercise_entries').select('user_id, exercise_name, weight_kg').in('user_id', memberIds),
       supabase.from('activities')
         .select('user_id, activity_type, started_at, duration_seconds, distance_meters, elevation_meters')
@@ -432,9 +492,38 @@ export default function TeamFeedScreen() {
         .gte('started_at', oneYearAgo.toISOString())
         .order('started_at', { ascending: false })
         .limit(500),
+    ]);
+    const [racesRes, firstPage] = await Promise.all([
+      supabase.from('races')
+        .select('id, user_id, name, race_date, created_at')
+        .in('user_id', memberIds)
+        .gte('race_date', today)
+        .order('race_date', { ascending: false })
+        .limit(20),
       fetchActivityPage({ memberIds } as FeedContext, null),
     ]);
 
+    const buildPosts = (ctx: FeedContext) => {
+      const built: FeedPost[] = [];
+      built.push(...postsForPage(ctx, firstPage.page));
+      (racesRes.data || []).forEach((r: any) => { const p = raceRowToPost(ctx, r); if (p) built.push(p); });
+      built.sort(byNewestFirst);
+      return built;
+    };
+
+    const partial: FeedContext = { memberIds, teamsForUser, teamNameById, nameMap, liftMaxMap: new Map(), insightHistoryByUser: {}, ready: false };
+    // A revisit already has a full feed on screen; keep it until the full
+    // rebuild below rather than briefly dropping its badges.
+    const revisit = !!ctxRef.current?.ready;
+    if (!revisit) {
+      ctxRef.current = partial;
+      const built = buildPosts(partial);
+      setItems(built);
+      setLoading(false);
+      loadSocialFor(built, true);
+    }
+
+    const [liftEntriesRes, insightHistoryRes] = await extrasP;
     const insightHistoryByUser: Record<string, InsightActivity[]> = {};
     (insightHistoryRes.data || []).forEach((a: any) => { (insightHistoryByUser[a.user_id] ??= []).push(a); });
 
@@ -444,21 +533,18 @@ export default function TeamFeedScreen() {
       liftMaxMap.set(key, Math.max(liftMaxMap.get(key) ?? 0, e.weight_kg));
     });
 
-    const ctx: FeedContext = { memberIds, teamsForUser, teamNameById, nameMap, liftMaxMap, insightHistoryByUser };
+    const ctx: FeedContext = { ...partial, liftMaxMap, insightHistoryByUser, ready: true };
     ctxRef.current = ctx;
 
-    const { page, more, nextCursor } = firstPage;
+    const { more, nextCursor } = firstPage;
     cursorRef.current = nextCursor;
+    // Paging waits for the full context, so later pages never lack badges.
     setHasMore(more);
 
-    const built: FeedPost[] = [];
-    built.push(...postsForPage(ctx, page));
-    (racesRes.data || []).forEach((r: any) => { const p = raceRowToPost(ctx, r); if (p) built.push(p); });
-    built.sort(byNewestFirst);
+    const built = buildPosts(ctx);
     setItems(built);
-    // Show the posts now; their reactions and comments fill in a moment later
-    // rather than holding the whole feed behind a spinner until they arrive.
     setLoading(false);
+    if (!revisit) return;
     await loadSocialFor(built, true);
   }, [loadSocialFor]);
 
@@ -629,14 +715,14 @@ export default function TeamFeedScreen() {
           ) : teams.length === 0 ? (
             <View style={styles.emptyState}>
               <RivalIcon name="groups" size={28} color={RivalColors.accentText} />
-              <Text style={styles.emptyTitle}>You're not on a team yet</Text>
-              <Text style={styles.emptyBody}>Join or create a team to see everyone's Effort here.</Text>
+              <Text style={styles.emptyTitle}>No team yet</Text>
+              <Text style={styles.emptyBody}>Join or create a team to see team activity here.</Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/discover-leagues')}>
-                <Text style={styles.emptyBtnText}>Find a Team</Text>
+                <Text style={styles.emptyBtnText}>Find a team</Text>
               </TouchableOpacity>
             </View>
           ) : posts.length === 0 ? (
-            <Text style={styles.stateText}>No activity yet — your teams' Effort will show up here.</Text>
+            <Text style={styles.stateText}>No activity yet. Team activity appears here.</Text>
           ) : (
             <View style={{ gap: 20 }}>
               {posts.map((post) => (
@@ -645,6 +731,7 @@ export default function TeamFeedScreen() {
                   post={post}
                   currentUserId={currentUserId}
                   avatarUrl={avatarMap[post.userId] ?? null}
+                  routePolyline={routesMap[post.id] ?? null}
                   reactions={reactionsMap[feedTargetKey(reactionTargetType(post.kind), post.id)] || []}
                   comments={commentsMap[feedTargetKey(reactionTargetType(post.kind), post.id)] || []}
                   nameMap={nameMap}
@@ -670,12 +757,13 @@ export default function TeamFeedScreen() {
 }
 
 function PostCard({
-  post, currentUserId, avatarUrl, reactions, comments, nameMap, onReact,
+  post, currentUserId, avatarUrl, routePolyline, reactions, comments, nameMap, onReact,
   isCommentsOpen, onToggleComments, commentDraft, onChangeCommentDraft, onPostComment, onDeleted, onPhotoAdded,
 }: {
   post: FeedPost;
   currentUserId: string;
   avatarUrl: string | null;
+  routePolyline: string | null;
   reactions: Array<{ user_id: string; emoji: string }>;
   comments: Array<{ id: string; user_id: string; body: string; created_at: string }>;
   nameMap: Record<string, string>;
@@ -704,11 +792,11 @@ function PostCard({
       const file = input.files?.[0];
       if (!file) return;
       setUploadingPhoto(true);
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `${currentUserId}/${post.id}-${Date.now()}.${ext}`;
+      const up = await fitPhoto({ blob: file, mimeType: file.type, ext: file.name.split('.').pop() || 'jpg' });
+      const path = `${currentUserId}/${post.id}-${Date.now()}.${up.ext}`;
       const { error: storageErr } = await supabase.storage
         .from('activity-photos')
-        .upload(path, file, { contentType: file.type, upsert: true });
+        .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
       if (storageErr) {
         setUploadingPhoto(false);
         if (Platform.OS === 'web') window.alert(`Photo upload failed: ${storageErr.message}`);
@@ -731,12 +819,14 @@ function PostCard({
     if (!(await confirmAction({ title: 'Delete this activity?', message: "This can't be undone.", confirmLabel: 'Delete', destructive: true }))) return;
     setMenuOpen(false);
     setDeleting(true);
-    const { error } = await supabase.from('activities').delete().eq('id', post.id);
-    setDeleting(false);
-    if (error) {
-      if (Platform.OS === 'web') window.alert(`Delete failed: ${error.message}`);
+    const { error, count } = await supabase.from('activities').delete({ count: 'exact' }).eq('id', post.id);
+    if (error || !count) {
+      setDeleting(false);
+      if (Platform.OS === 'web') window.alert(error ? `Delete failed: ${error.message}` : 'The activity could not be deleted. Try again.');
       return;
     }
+    // Stays in the deleting state until the post is removed, so it never
+    // flickers back to normal first.
     onDeleted();
   }
 
@@ -760,13 +850,19 @@ function PostCard({
   }
 
   const statsLine = post.kind === 'activity'
-    ? [post.distanceMeters > 100 ? `${(post.distanceMeters / 1000).toFixed(1)} km` : null, formatDuration(post.durationSeconds)].filter(Boolean).join(' · ')
+    ? [formatActivityDistance(post.distanceMeters, post.activityType, 100), formatDuration(post.durationSeconds)].filter(Boolean).join(' · ')
     : post.kind === 'dayRoll'
       ? formatDuration(post.totalSeconds)
       : '';
 
   return (
     <View style={styles.post}>
+      {deleting && (
+        <View style={styles.postDeleting} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={RivalColors.accentText} />
+          <Text style={styles.postDeletingText}>Deleting activity…</Text>
+        </View>
+      )}
       {Platform.OS === 'web' ? (
         <>
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
@@ -783,12 +879,18 @@ function PostCard({
         <TouchableOpacity onPress={() => router.push(`/stats?userId=${post.userId}` as any)} style={[styles.postAvatar, { backgroundColor: tint.bg, borderColor: tint.color }]}>
           {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.postAvatarImg} /> : <Text style={[styles.postAvatarText, { color: tint.color }]}>{initials}</Text>}
         </TouchableOpacity>
-        {/* The name opens their profile too, not just the small avatar. */}
-        <TouchableOpacity style={{ flex: 1, minWidth: 0 }} activeOpacity={0.7} onPress={() => router.push(`/stats?userId=${post.userId}` as any)}>
-          <Text style={styles.postName}>{displayedName}</Text>
+        {/* The name opens their profile too, not just the small avatar — but
+            only the name. This used to be one flex:1 touchable holding the name
+            AND the meta line, which made the whole header strip, edge to edge,
+            a profile link. The meta line describes the activity, not the
+            person, so it is not a link at all. */}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <TouchableOpacity style={styles.postNameHit} activeOpacity={0.7} onPress={() => router.push(`/stats?userId=${post.userId}` as any)}>
+            <Text style={styles.postName}>{displayedName}</Text>
+          </TouchableOpacity>
           <Text style={styles.postMeta}>
             {post.kind === 'race'
-              ? 'Signed up for a race'
+              ? 'Signed up for an event'
               : post.kind === 'dayRoll'
                 ? `${post.count} ${post.typeLabel}`
                 : (post.activityName || post.activityType)} · {timeAgo(post.ts)}
@@ -796,7 +898,7 @@ function PostCard({
               <> · <Text style={styles.postTeamTag}>{primaryTeamName}{extraTeamCount > 0 ? ` +${extraTeamCount}` : ''}</Text></>
             ) : null}
           </Text>
-        </TouchableOpacity>
+        </View>
         {post.kind === 'activity' && post.userId === currentUserId && (
           <View style={styles.postMoreWrap}>
             <TouchableOpacity style={styles.postMoreBtn} onPress={() => setMenuOpen((v) => !v)} disabled={deleting}>
@@ -842,7 +944,7 @@ function PostCard({
       ) : post.kind === 'race' ? (
         <View style={styles.noPhotoPanel}>
           <RivalIcon name="flag" size={28} color="#ff5c5c" />
-          <Text style={styles.eventAction}>Signed up for a race</Text>
+          <Text style={styles.eventAction}>Signed up for an event</Text>
           <Text style={styles.eventName}>{formatRaceName(post.raceName)}</Text>
           <Text style={styles.eventDate}>{new Date(post.raceDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
         </View>
@@ -850,12 +952,23 @@ function PostCard({
         <View style={[styles.postPhotoWrap, isPb && styles.postPhotoWrapPb]}>
           <Image source={{ uri: post.photoUrl }} style={styles.postPhoto} />
         </View>
+      ) : routePolyline ? (
+        <View style={styles.routeWrap}>
+          <RouteMap polyline={routePolyline} />
+          {post.userId === currentUserId && (
+            <TouchableOpacity style={styles.routeAddPhoto} onPress={addPhotoFromFeed} disabled={uploadingPhoto} accessibilityRole="button">
+              <RivalIcon name="addPhoto" size={14} color={RivalColors.accentText} />
+              <BusyText busy={!!(uploadingPhoto)} style={styles.routeAddPhotoText}>{uploadingPhoto ? 'Uploading…' : 'Add a photo'}</BusyText>
+            </TouchableOpacity>
+          )}
+        </View>
       ) : post.userId === currentUserId ? (
         <TouchableOpacity style={[styles.noPhotoPanel, styles.addPhotoPanel]} activeOpacity={0.85} onPress={addPhotoFromFeed} disabled={uploadingPhoto}>
           <View style={styles.addPhotoCircle}>
             <RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} />
           </View>
-          <Text style={styles.noPhotoBody}>{uploadingPhoto ? 'Uploading…' : 'Add a photo'}</Text>
+          <BusyText busy={!!(uploadingPhoto)} style={styles.addPhotoTitle}>{uploadingPhoto ? 'Uploading…' : 'Add a photo'}</BusyText>
+          {!uploadingPhoto && <Text style={styles.addPhotoSub}>Photos bring the team feed to life.</Text>}
         </TouchableOpacity>
       ) : (
         <View style={styles.noPhotoPanel}>
@@ -888,25 +1001,38 @@ function PostCard({
             && post.durationSeconds > 0
             && post.durationSeconds < LIKELY_MISTAKE_UNDER_SECONDS ? (
             <TouchableOpacity onPress={deleteThisActivity} disabled={deleting} activeOpacity={0.7}>
-              <Text style={styles.tooShortOffer}>
-                {deleting ? 'Removing…' : 'Too short to count? Remove it'}
-              </Text>
+              <BusyText busy={deleting} style={styles.tooShortOffer}>
+                {deleting ? 'Removing…' : 'Remove short activity'}
+              </BusyText>
             </TouchableOpacity>
           ) : null}
         </>
       )}
 
+      {/* Who else was there. The owner can add people for as long as the
+          database allows tagging; everyone else sees the confirmed names. */}
+      {post.kind === 'activity' ? (
+        post.userId === currentUserId && !post.isSharedCopy && withinTagWindow(post.ts) ? (
+          <TrainingPartners activityId={post.id} startedAt={post.ts} companions={post.companions} />
+        ) : post.companions ? (
+          <View style={styles.partnersLine}>
+            <RivalIcon name="groups" size={12} color="rgba(255,255,255,0.5)" />
+            <Text style={styles.partnersText} numberOfLines={2}>with {post.companions}</Text>
+          </View>
+        ) : null
+      ) : null}
+
       {post.kind === 'activity' && post.notes ? <Text style={styles.caption}>{post.notes}</Text> : null}
 
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
-          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentGold }]}>Respect</Text>
+          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentText : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentText }]}>Respect</Text>
           <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive]}>{respectCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
-          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.accentGold }]}>Inspired</Text>
+          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.rankAnchors.unrivaled : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.rankAnchors.unrivaled }]}>Inspired</Text>
           <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive]}>{inspiredCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>
@@ -966,8 +1092,8 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', gap: 8, paddingVertical: 32, paddingHorizontal: 20 },
   emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff', marginTop: 4 },
   emptyBody: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center' },
-  emptyBtn: { marginTop: 8, backgroundColor: RivalColors.accentFill, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20 },
-  emptyBtnText: { fontSize: 13, fontWeight: '800', color: RivalColors.onAccentFill },
+  emptyBtn: { marginTop: 8, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20 },
+  emptyBtnText: { fontSize: 13, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
   railWrap: { position: 'relative', marginTop: 10 },
   rail: { flexGrow: 0 },
@@ -1039,6 +1165,8 @@ const styles = StyleSheet.create({
   postAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, overflow: 'hidden' },
   postAvatarImg: { width: 36, height: 36, borderRadius: 18 },
   postAvatarText: { fontSize: 12.5, fontWeight: '800' },
+  // Shrinks to the name's own width instead of stretching across the row.
+  postNameHit: { alignSelf: 'flex-start' },
   postName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 15, color: '#fff' },
   postMeta: { fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 1 },
   postTeamTag: { color: RivalColors.accentText, fontWeight: '600' },
@@ -1055,8 +1183,23 @@ const styles = StyleSheet.create({
   effortNum: { fontSize: 19, fontWeight: '800', color: RivalColors.accentText, lineHeight: 20 },
   effortUnit: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 9, letterSpacing: 0.4, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', marginTop: 1 },
 
+  partnersLine: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  partnersText: { flex: 1, fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
   caption: { fontSize: 12.5, color: RivalColors.onSurface, lineHeight: 18, paddingHorizontal: 2 },
 
+  routeWrap: { position: 'relative' },
+  routeAddPhoto: {
+    position: 'absolute', right: 10, bottom: 10, flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(17,14,12,0.75)',
+    borderWidth: 1, borderColor: 'rgba(255,209,190,0.28)',
+  },
+  routeAddPhotoText: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  postDeleting: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
+    alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderRadius: 16, backgroundColor: 'rgba(17,14,12,0.78)',
+  },
+  postDeletingText: { fontSize: 14, fontWeight: '700', color: RivalColors.accentText },
   noPhotoPanel: {
     position: 'relative', borderRadius: 14, overflow: 'hidden', padding: 20, alignItems: 'center', gap: 8,
     backgroundColor: '#2d241f',
@@ -1066,6 +1209,8 @@ const styles = StyleSheet.create({
   },
   noPhotoBody: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   addPhotoPanel: { borderWidth: 1.5, borderColor: 'rgba(255,209,190,0.35)', borderStyle: 'dashed' as any },
+  addPhotoTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 15, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  addPhotoSub: { fontSize: 12.5, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
   addPhotoCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: RivalColors.accentText, alignItems: 'center', justifyContent: 'center' },
   // Same weight as the event label but in the app's own accent rather than
   // race red — a day of walks is ordinary training, not an occasion.

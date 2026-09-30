@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Modal, StyleProp, StyleSheet, TextInput, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Modal, StyleProp, StyleSheet, TextInput, TextStyle, TouchableOpacity, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { GreyCalendar } from './RivalGreySheet';
 import { RivalColors, RivalRadius } from '../../constants/rivalTheme';
 import { displayToIsoDate, isoToDisplayDate, maskDateInput } from '../../lib/dateFormat';
 import { RivalIcon } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 
-// A typed YYYY-MM-DD field paired with a calendar button — typing still
+// A typed DD/MM/YYYY field paired with a calendar button — typing still
 // works (separators inserted via maskDateInput so a missing "-" can't happen), but
 // tapping the calendar icon skips typing entirely. `inputStyle` takes each
 // screen's own existing input styling so this drops into a differently-
@@ -13,7 +15,7 @@ import { RivalCalendarGrid } from './RivalCalendarGrid';
 export function RivalDateField({
   value,
   onChangeText,
-  placeholder = 'YYYY-MM-DD',
+  placeholder = 'DD/MM/YYYY',
   inputStyle,
   containerStyle,
 }: {
@@ -24,6 +26,7 @@ export function RivalDateField({
   containerStyle?: StyleProp<ViewStyle>;
 }) {
   const [open, setOpen] = useState(false);
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   const iso = displayToIsoDate(value);
 
   return (
@@ -43,6 +46,18 @@ export function RivalDateField({
         </TouchableOpacity>
       </View>
 
+      {phone ? (
+        // Phone: the grey month calendar from the pop-ups.
+        <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+          <View style={{ flex: 1 }}>
+            <GreyCalendar
+              value={iso}
+              onChange={(nextIso) => { onChangeText(isoToDisplayDate(nextIso)); setOpen(false); }}
+              onClose={() => setOpen(false)}
+            />
+          </View>
+        </Modal>
+      ) : (
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setOpen(false)}>
           {/* Swallows the tap so it doesn't bubble to the backdrop above and close the sheet mid-pick. */}
@@ -57,6 +72,7 @@ export function RivalDateField({
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+      )}
     </>
   );
 }

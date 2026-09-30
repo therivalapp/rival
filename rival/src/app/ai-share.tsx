@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { RivalColors } from '../constants/rivalTheme';
-import { RivalIcon, RivalBackButton} from '../components/rival';
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Platform, ActivityIndicator, Image, Animated, Easing } from 'react-native';
+import { RivalColors, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead } from '../components/rival';
+import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Platform, ActivityIndicator, Image, Animated, Easing, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDuration } from '../lib/format';
+import { goToTab } from '../lib/tabNav';
 
 const SHARE_STYLES = [
   { id: 'cinematic',      label: '🎬 Cinematic',      desc: 'Golden hour · glowing route · sports ad' },
@@ -17,7 +19,7 @@ const SHARE_STYLES = [
   { id: 'fantasy',        label: '⚔️ Fantasy',          desc: 'Epic landscape · magical glowing path' },
   { id: 'anime',          label: '⚡ Anime',             desc: 'Speed lines · energy aura · iconic' },
   { id: 'cherry_blossom', label: '🌸 Cherry Blossom',   desc: 'Pink petals · dreamy spring light' },
-  { id: 'surprise',       label: '🎲 Surprise Me',      desc: 'Different every time — roll the dice' },
+  { id: 'surprise',       label: '🎲 Surprise me', desc: 'Different every time — roll the dice' },
 ];
 
 // Progress theatre shown over the photo while the AI works (~30-50s), ChatGPT-style.
@@ -28,7 +30,7 @@ const LOADING_MESSAGES = [
   'Mixing the colour grade…',
   'Repainting the sky…',
   'Burning your route into the ground…',
-  'Etching your stats in neon…',
+  'Adding the statistics…',
   'Adding the RIVAL glow…',
   'Rendering the final image…',
 ];
@@ -76,6 +78,11 @@ export default function AiShareScreen() {
   // Loading-overlay theatre: cycling message + pulsing sparkle + sweeping bar.
   // (useNativeDriver: false — react-native-web doesn't support the native driver.)
   const scrollRef = useRef<ScrollView>(null);
+  // Phone: the RIVAL look, and real icons in place of emoji. The flow and
+  // every action are the same on both layouts.
+  const { width: windowWidth } = useWindowDimensions();
+  const mob = windowWidth < BREAKPOINT_WIDE_LAYOUT;
+  const em = (t: string) => (mob ? t.replace(/^[^\p{L}\p{N}]+/u, '').trim() : t);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const msgOpacity = useRef(new Animated.Value(1)).current;
   const sparklePulse = useRef(new Animated.Value(0)).current;
@@ -140,11 +147,17 @@ export default function AiShareScreen() {
   }
 
   async function loadActivity() {
-    const { data } = await supabase
-      .from('activities')
-      .select('id, name, activity_type, distance_meters, duration_seconds, elevation_meters, effort_score, route_polyline, started_at, photo_url, exercises')
-      .eq('id', activityId).single();
-    if (data) setActivity(data as Activity);
+    // The route is private to its owner and lives in its own table
+    // (supabase/private_routes.sql); row-level security returns it only for
+    // the person's own activity.
+    const [{ data }, { data: routeRow }] = await Promise.all([
+      supabase
+        .from('activities')
+        .select('id, name, activity_type, distance_meters, duration_seconds, elevation_meters, effort_score, started_at, photo_url, exercises')
+        .eq('id', activityId).single(),
+      supabase.from('activity_routes').select('polyline').eq('activity_id', activityId).maybeSingle(),
+    ]);
+    if (data) setActivity({ ...(data as any), route_polyline: routeRow?.polyline ?? null } as Activity);
 
     // Pull the photos already attached to this activity (the activity's own photo_url
     // plus any images in activity_media) so they're pre-loaded — no re-upload needed.
@@ -224,7 +237,7 @@ export default function AiShareScreen() {
   }
 
   async function generate() {
-    if (!photoBase64 && !selectedPhotoUrl) { setError('Add your photo first.'); return; }
+    if (!photoBase64 && !selectedPhotoUrl) { setError('Add a photo first.'); return; }
     if (!activityId) return;
     setError(null);
     setGenerating(true);
@@ -280,7 +293,7 @@ export default function AiShareScreen() {
         // The image shown is the raw 1024x1536 — fine on a laptop, soft when a phone
         // stretches it full-screen. Surface it so nobody unknowingly saves a raw.
         console.warn('Upscale failed:', upData.upscaleError);
-        setError(`HD enhance failed — image saved at standard quality. (${upData.upscaleError})`);
+        setError(`HD enhancement failed. The image was saved at standard quality. (${upData.upscaleError})`);
       }
       // backgroundUrl is fal's 4x result (4096x3072-ish, ~38MB PNG) — shrink it to a
       // phone-friendly 2048-wide JPEG before showing/saving.
@@ -898,9 +911,9 @@ export default function AiShareScreen() {
     ctx.drawImage(img, 0, 0, W, H);
 
     const days = daysUntil(race.race_date);
-    const fmtDate = new Date(race.race_date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+    const fmtDate = new Date(`${race.race_date.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
     const metaLine = [race.race_type?.trim() ? race.race_type.trim().toUpperCase() : null, fmtDate].filter(Boolean).join(' · ');
-    const daysLine = days === 0 ? "RACE DAY — LET'S GO" : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO ${race.name.toUpperCase()}`;
+    const daysLine = days === 0 ? "EVENT DAY — LET'S GO" : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO ${race.name.toUpperCase()}`;
 
     const scale = W / 1024;
     const PAD_X = 28 * scale, PAD_Y = 18 * scale;
@@ -1030,7 +1043,7 @@ export default function AiShareScreen() {
         ctx.font = `900 64px -apple-system, BlinkMacSystemFont, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
         ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 12;
-        ctx.fillText('RACE DAY', PAD, y + NUM_H * 0.7);
+        ctx.fillText('EVENT DAY', PAD, y + NUM_H * 0.7);
         y += NUM_H + 8;
         ctx.font = `700 ${SUB_H}px -apple-system, BlinkMacSystemFont, sans-serif`;
         ctx.fillStyle = '#E91E8C';
@@ -1069,7 +1082,7 @@ export default function AiShareScreen() {
         ctx.fillStyle = '#FFFFFF';
         ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 10;
         ctx.fillText(
-          days === 0 ? 'RACE DAY' : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO GO`,
+          days === 0 ? 'EVENT DAY' : `${days} ${days === 1 ? 'DAY' : 'DAYS'} TO GO`,
           PAD, y + M_DAYS * 0.82,
         );
         y += M_DAYS + M_GAP;
@@ -1095,28 +1108,32 @@ export default function AiShareScreen() {
   function goBack() {
     // router.back() no-ops when there's no history (e.g. page refreshed on web).
     if (router.canGoBack()) router.back();
-    else router.replace('/my-activities');
+    else goToTab('/my-activities');
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <RivalBackButton onPress={goBack} color={RivalColors.accentFill} />
-          <Text style={styles.title}>✨ AI Share</Text>
-        </View>
+    <SafeAreaView style={[styles.container, mob && ms.container]}>
+      <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, mob && ms.content]}>
+        {mob ? (
+          <GreyPageHead kicker="SHARE" title="Share with AI" onBack={goBack} />
+        ) : (
+          <View style={styles.header}>
+            <RivalBackButton onPress={goBack} color={RivalColors.accentFill} />
+            <Text style={styles.title}>✨ AI Share</Text>
+          </View>
+        )}
 
         {activity && (
-          <View style={styles.activitySummary}>
-            <Text style={styles.activityName}>{activity.name || activity.activity_type}</Text>
+          <View style={[styles.activitySummary, mob && ms.card]}>
+            <Text style={[styles.activityName, mob && rm.serifTitleSm]}>{activity.name || activity.activity_type}</Text>
             <Text style={styles.activityMeta}>
               {activity.distance_meters ? `${(activity.distance_meters / 1000).toFixed(2)} km · ` : ''}
               {activity.duration_seconds ? formatDuration(activity.duration_seconds) : ''}
               {activity.elevation_meters ? ` · ${Math.round(activity.elevation_meters)}m` : ''}
             </Text>
             {activity.route_polyline
-              ? <Text style={styles.routeTag}>✓ Route data available — will be used in the artwork</Text>
-              : <Text style={styles.noRouteTag}>No route — sync Strava to add your GPS trail</Text>
+              ? <Text style={styles.routeTag}>{em('✓ Route data will be used in the artwork')}</Text>
+              : <Text style={styles.noRouteTag}>No route data. Sync a connected device to include a GPS route.</Text>
             }
           </View>
         )}
@@ -1124,12 +1141,12 @@ export default function AiShareScreen() {
         {/* Lift picker — only when the session has more than one logged exercise */}
         {lifts.length > 1 && (
           <>
-            <Text style={styles.sectionLabel}>Which lift to feature?</Text>
+            <Text style={[styles.sectionLabel, mob && ms.sectionLabel]}>Featured lift</Text>
             <View style={styles.liftRow}>
               {lifts.map(l => (
                 <TouchableOpacity
                   key={l.idx}
-                  style={[styles.liftChip, selectedLiftIdx === l.idx && styles.liftChipActive]}
+                  style={[styles.liftChip, mob && ms.chip, selectedLiftIdx === l.idx && styles.liftChipActive, mob && selectedLiftIdx === l.idx && ms.chipOn]}
                   onPress={() => { setSelectedLiftIdx(l.idx); setGeneratedUrl(null); setStampedPreviewUrl(null); }}
                 >
                   <Text style={[styles.liftChipName, selectedLiftIdx === l.idx && styles.liftChipTextActive]}>{l.name}</Text>
@@ -1145,12 +1162,12 @@ export default function AiShareScreen() {
         {/* Existing activity photos — pre-loaded, tap to use one */}
         {activityPhotos.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Your activity photo{activityPhotos.length > 1 ? 's' : ''}</Text>
+            <Text style={[styles.sectionLabel, mob && ms.sectionLabel]}>Your activity photo{activityPhotos.length > 1 ? 's' : ''}</Text>
             <View style={styles.activityPhotoRow}>
               {activityPhotos.map(url => (
                 <TouchableOpacity
                   key={url}
-                  style={[styles.activityPhotoThumb, selectedPhotoUrl === url && styles.activityPhotoThumbActive]}
+                  style={[styles.activityPhotoThumb, mob && ms.thumb, selectedPhotoUrl === url && styles.activityPhotoThumbActive]}
                   onPress={() => selectExistingPhoto(url)}
                 >
                   <Image source={{ uri: url }} style={styles.activityPhotoThumbImg} resizeMode="cover" />
@@ -1163,7 +1180,7 @@ export default function AiShareScreen() {
         {/* Photo preview + picker — the generated result lands in this same frame,
             with a ChatGPT-style loading overlay while the AI works */}
         <TouchableOpacity
-          style={[styles.photoPicker, photoPreview && styles.photoPickerFilled]}
+          style={[styles.photoPicker, mob && ms.picker, photoPreview && styles.photoPickerFilled]}
           onPress={pickPhoto}
           disabled={generating}
         >
@@ -1176,12 +1193,23 @@ export default function AiShareScreen() {
               />
               {generating && !generatedUrl && (
                 <View style={styles.loadingOverlay}>
-                  <Animated.Text
-                    style={[styles.loadingSparkle, {
-                      opacity: sparklePulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
-                      transform: [{ scale: sparklePulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.15] }) }],
-                    }]}
-                  >✨</Animated.Text>
+                  {mob ? (
+                    <Animated.View
+                      style={{
+                        opacity: sparklePulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
+                        transform: [{ scale: sparklePulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.15] }) }],
+                      }}
+                    >
+                      <RivalIcon name="ai" size={38} color={RivalColors.accentText} />
+                    </Animated.View>
+                  ) : (
+                    <Animated.Text
+                      style={[styles.loadingSparkle, {
+                        opacity: sparklePulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }),
+                        transform: [{ scale: sparklePulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.15] }) }],
+                      }]}
+                    >✨</Animated.Text>
+                  )}
                   <Animated.Text style={[styles.loadingMsg, { opacity: msgOpacity }]}>
                     {LOADING_MESSAGES[loadingMsgIdx]}
                   </Animated.Text>
@@ -1209,9 +1237,13 @@ export default function AiShareScreen() {
             </View>
           ) : (
             <>
-              <Text style={styles.photoPickerIcon}>📷</Text>
-              <Text style={styles.photoPickerText}>Add your photo</Text>
-              <Text style={styles.photoPickerSub}>Your real photo stays — AI transforms the scene around you</Text>
+              {mob ? (
+                <View style={rm.iconCircle}><RivalIcon name="addPhoto" size={20} color={RivalColors.accentText} /></View>
+              ) : (
+                <Text style={styles.photoPickerIcon}>📷</Text>
+              )}
+              <Text style={[styles.photoPickerText, mob && ms.pickerText]}>Add photo</Text>
+              <Text style={styles.photoPickerSub}>The original photo is kept. AI restyles the scene around it.</Text>
             </>
           )}
         </TouchableOpacity>
@@ -1225,11 +1257,12 @@ export default function AiShareScreen() {
             silently; user explicitly confirms or discards it. */}
         {stampedPreviewUrl && !generating && (
           <View style={styles.resultActions}>
-            <TouchableOpacity style={styles.downloadBtn} onPress={downloadStampedPreview}>
-              <Text style={styles.downloadBtnText}>⬇ Save this version</Text>
+            <TouchableOpacity style={mob ? rm.primary : styles.downloadBtn} onPress={downloadStampedPreview}>
+              {mob && <RivalIcon name="upload" size={18} color={rm.primaryText.color as string} />}
+              <Text style={mob ? rm.primaryText : styles.downloadBtnText}>{em('⬇ Save this version')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.regenerateBtn} onPress={() => setStampedPreviewUrl(null)}>
-              <Text style={styles.regenerateBtnText}>✕ Discard, go back to original</Text>
+            <TouchableOpacity style={mob ? rm.ghost : styles.regenerateBtn} onPress={() => setStampedPreviewUrl(null)}>
+              <Text style={mob ? rm.ghostText : styles.regenerateBtnText}>{em('✕ Discard and restore original')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1237,32 +1270,35 @@ export default function AiShareScreen() {
         {/* Result actions — right under the frame where the result appears */}
         {generatedUrl && !generating && !stampedPreviewUrl && (
           <View style={styles.resultActions}>
-            <TouchableOpacity style={styles.downloadBtn} onPress={downloadImage}>
-              <Text style={styles.downloadBtnText}>⬇ Save &amp; Share</Text>
+            <TouchableOpacity style={mob ? rm.primary : styles.downloadBtn} onPress={downloadImage}>
+              {mob && <RivalIcon name="upload" size={18} color={rm.primaryText.color as string} />}
+              <Text style={mob ? rm.primaryText : styles.downloadBtnText}>{em('⬇ Save & Share')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.regenerateBtn} onPress={() => generate()}>
-              <Text style={styles.regenerateBtnText}>🔄 Not quite right? Regenerate</Text>
+            <TouchableOpacity style={mob ? rm.ghost : styles.regenerateBtn} onPress={() => generate()}>
+              {mob && <RivalIcon name="refresh" size={17} color={RivalColors.accentText} />}
+              <Text style={mob ? rm.ghostText : styles.regenerateBtnText}>{em('🔄 Regenerate')}</Text>
             </TouchableOpacity>
             {selectedRaceIds.length > 0 && (
-              <TouchableOpacity style={styles.regenerateBtn} onPress={stampCountdownOnGenerated}>
-                <Text style={styles.regenerateBtnText}>⏳ Stamp race countdown on this image</Text>
+              <TouchableOpacity style={mob ? rm.ghost : styles.regenerateBtn} onPress={stampCountdownOnGenerated}>
+                {mob && <RivalIcon name="timer" size={17} color={RivalColors.accentText} />}
+                <Text style={mob ? rm.ghostText : styles.regenerateBtnText}>{em('⏳ Stamp event countdown on this image')}</Text>
               </TouchableOpacity>
             )}
-            <Text style={styles.shareHint}>Save it, then post to Instagram, TikTok, anywhere.</Text>
+            <Text style={styles.shareHint}>Save image to share on social media.</Text>
           </View>
         )}
 
         {/* Style picker */}
-        <Text style={styles.sectionLabel}>Choose a style</Text>
+        <Text style={[styles.sectionLabel, mob && ms.sectionLabel]}>Choose a style</Text>
         <View style={styles.styleGrid}>
           {SHARE_STYLES.map(s => (
             <TouchableOpacity
               key={s.id}
-              style={[styles.styleCard, style.id === s.id && styles.styleCardActive]}
+              style={[styles.styleCard, mob && ms.styleCard, style.id === s.id && styles.styleCardActive, mob && style.id === s.id && ms.styleCardOn]}
               onPress={() => { setStyle(s); setGeneratedUrl(null); setStampedPreviewUrl(null); }}
               disabled={generating}
             >
-              <Text style={styles.styleLabel}>{s.label}</Text>
+              <Text style={[styles.styleLabel, mob && ms.styleLabel]}>{em(s.label)}</Text>
               <Text style={styles.styleDesc}>{s.desc}</Text>
             </TouchableOpacity>
           ))}
@@ -1270,14 +1306,15 @@ export default function AiShareScreen() {
 
         {/* Caption */}
         <View style={styles.captionBlock}>
-          <TouchableOpacity style={styles.captionBtn} onPress={generateCaption} disabled={loadingCaption}>
-            <Text style={styles.captionBtnText}>{loadingCaption ? '✍️ Writing…' : '✍️ AI caption (optional)'}</Text>
+          <TouchableOpacity style={mob ? rm.ghost : styles.captionBtn} onPress={generateCaption} disabled={loadingCaption}>
+            {mob && <RivalIcon name="edit" size={16} color={RivalColors.accentText} />}
+            <Text style={mob ? rm.ghostText : styles.captionBtnText}>{em(loadingCaption ? '✍️ Writing…' : '✍️ AI caption (optional)')}</Text>
           </TouchableOpacity>
           {caption && (
             <View style={styles.captionPreviewRow}>
-              <Text style={styles.captionPreview}>"{caption}"</Text>
-              <TouchableOpacity onPress={() => setCaption(null)}>
-                <Text style={styles.captionClear}>✕</Text>
+              <Text style={[styles.captionPreview, mob && ms.caption]}>"{caption}"</Text>
+              <TouchableOpacity onPress={() => setCaption(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                {mob ? <RivalIcon name="close" size={18} color={RivalWarm.muted} /> : <Text style={styles.captionClear}>✕</Text>}
               </TouchableOpacity>
             </View>
           )}
@@ -1285,9 +1322,12 @@ export default function AiShareScreen() {
 
         {/* Transparent stamp — no photo or AI needed, just the stats */}
         {activity && (
-          <TouchableOpacity style={styles.stampBtn} onPress={generateStamp}>
-            <Text style={styles.stampBtnText}>🏷 Download transparent stamp</Text>
-            <Text style={styles.stampBtnSub}>Stats + RIVAL on a clear background — drop it on any photo</Text>
+          <TouchableOpacity style={[styles.stampBtn, mob && ms.stamp]} onPress={generateStamp}>
+            {mob && <View style={rm.iconCircle}><RivalIcon name="stats" size={19} color={RivalColors.accentText} /></View>}
+            <View style={mob ? ms.stampText : undefined}>
+              <Text style={styles.stampBtnText}>{em('🏷 Download transparent stamp')}</Text>
+              <Text style={[styles.stampBtnSub, mob && ms.stampSub]}>Stamp statistics on a photo.</Text>
+            </View>
           </TouchableOpacity>
         )}
 
@@ -1299,7 +1339,7 @@ export default function AiShareScreen() {
               {upcomingRaces.map(r => (
                 <TouchableOpacity
                   key={r.id}
-                  style={[styles.liftChip, selectedRaceIds.includes(r.id) && styles.liftChipActive]}
+                  style={[styles.liftChip, mob && ms.chip, selectedRaceIds.includes(r.id) && styles.liftChipActive, mob && selectedRaceIds.includes(r.id) && ms.chipOn]}
                   onPress={() => setSelectedRaceIds(prev =>
                     prev.includes(r.id) ? prev.filter(id => id !== r.id) : [...prev, r.id]
                   )}
@@ -1310,20 +1350,23 @@ export default function AiShareScreen() {
               ))}
             </View>
             <TouchableOpacity
-              style={[styles.stampBtn, selectedRaceIds.length === 0 && styles.generateBtnDisabled]}
+              style={[styles.stampBtn, mob && ms.stamp, selectedRaceIds.length === 0 && styles.generateBtnDisabled]}
               onPress={generateCountdownStamp}
               disabled={selectedRaceIds.length === 0}
             >
-              <Text style={styles.stampBtnText}>⏳ Download race countdown stamp</Text>
-              <Text style={styles.stampBtnSub}>
+              {mob && <View style={rm.iconCircle}><RivalIcon name="timer" size={19} color={RivalColors.accentText} /></View>}
+              <View style={mob ? ms.stampText : undefined}>
+              <Text style={styles.stampBtnText}>{em('⏳ Download event countdown stamp')}</Text>
+              <Text style={[styles.stampBtnSub, mob && ms.stampSub]}>
                 {(() => {
                   const sel = upcomingRaces.filter(x => selectedRaceIds.includes(x.id));
-                  if (sel.length === 0) return 'Tap a race above to include it';
-                  if (sel.length > 1) return `${sel.length} race countdowns on one stamp — drop it on any photo`;
+                  if (sel.length === 0) return 'Tap an event above to include it';
+                  if (sel.length > 1) return `${sel.length} event countdowns on one stamp — drop it on any photo`;
                   const d = daysUntil(sel[0].race_date);
-                  return d === 0 ? `${sel[0].name} is TODAY — stamp it!` : `${d} day${d === 1 ? '' : 's'} until ${sel[0].name} — drop it on any photo`;
+                  return d === 0 ? `${sel[0].name} is today, stamp it!` : `${d} day${d === 1 ? '' : 's'} until ${sel[0].name} — drop it on any photo`;
                 })()}
               </Text>
+              </View>
             </TouchableOpacity>
           </>
         )}
@@ -1338,19 +1381,22 @@ export default function AiShareScreen() {
         )}
 
         <TouchableOpacity
-          style={[styles.generateBtn, ((!photoBase64 && !selectedPhotoUrl) || generating || quotaRemaining === 0) && styles.generateBtnDisabled]}
+          style={[mob ? [rm.primary, ms.generate] : styles.generateBtn, ((!photoBase64 && !selectedPhotoUrl) || generating || quotaRemaining === 0) && styles.generateBtnDisabled]}
           onPress={generate}
           disabled={(!photoBase64 && !selectedPhotoUrl) || generating || quotaRemaining === 0}
         >
           {generating ? (
             <View style={styles.generatingRow}>
-              <ActivityIndicator color="#000" size="small" />
-              <Text style={styles.generateBtnText}>{generatedUrl ? 'Enhancing quality…' : 'Creating your share card… 30–45s'}</Text>
+              <ActivityIndicator color={mob ? rm.primaryText.color as string : '#000'} size="small" />
+              <Text style={mob ? rm.primaryText : styles.generateBtnText}>{generatedUrl ? 'Enhancing quality…' : 'Creating share card, this may take a minute.'}</Text>
             </View>
           ) : (
-            <Text style={styles.generateBtnText}>
-              {quotaRemaining === 0 ? '✨ No generations left' : `✨ Generate${quotaRemaining !== null && quotaRemaining <= 2 ? ` (${quotaRemaining} left)` : ''}`}
-            </Text>
+            <View style={styles.generatingRow}>
+              {mob && <RivalIcon name="ai" size={18} color={rm.primaryText.color as string} />}
+              <Text style={mob ? rm.primaryText : styles.generateBtnText}>
+                {em(quotaRemaining === 0 ? '✨ No generations left' : `✨ Generate${quotaRemaining !== null && quotaRemaining <= 2 ? ` (${quotaRemaining} left)` : ''}`)}
+              </Text>
+            </View>
           )}
         </TouchableOpacity>
 
@@ -1415,10 +1461,10 @@ const styles = StyleSheet.create({
   stampBtn: { backgroundColor: RivalColors.surfaceContainer, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: '#2A2A2A', alignItems: 'center', gap: 4 },
   stampBtnText: { color: RivalColors.textPrimary, fontWeight: '700', fontSize: 14 },
   stampBtnSub: { color: RivalColors.textSecondary, fontSize: 11, textAlign: 'center' },
-  generateBtn: { backgroundColor: RivalColors.accentFill, borderRadius: 14, paddingVertical: 18, alignItems: 'center', marginBottom: 28 },
+  generateBtn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 14, paddingVertical: 18, alignItems: 'center', marginBottom: 28 },
   generateBtnDisabled: { opacity: 0.4 },
   generatingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  generateBtnText: { color: RivalColors.textPrimary, fontWeight: '900', fontSize: 17 },
+  generateBtnText: { color: RivalButtonColors.label(RivalColors.textPrimary), fontWeight: '900', fontSize: 17 },
 
   previewFrame: { width: '100%', position: 'relative' },
   photoThumbResult: { aspectRatio: 2 / 3 },
@@ -1437,4 +1483,25 @@ const styles = StyleSheet.create({
   downloadBtn: { backgroundColor: RivalColors.accentText, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   downloadBtnText: { color: '#000000', fontWeight: '900', fontSize: 16 },
   shareHint: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
+});
+
+// Phone only — the blend (grey page, recessed cards).
+const ms = StyleSheet.create({
+  container: { backgroundColor: RivalColors.surfaceContainer },
+  content: { paddingHorizontal: 16, paddingTop: 0 },
+  card: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16, gap: 6 },
+  sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  chip: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 14 },
+  chipOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  thumb: { borderRadius: 12, borderColor: RivalColors.surfaceBright },
+  picker: { backgroundColor: RivalColors.surfaceLowest, borderColor: 'rgba(255,181,158,0.35)', borderStyle: 'dashed', borderWidth: 1.5, gap: 10 },
+  pickerText: { color: RivalColors.accentText },
+  styleCard: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 14 },
+  styleCardOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  styleLabel: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16 },
+  caption: { fontFamily: RivalSerifFamily, fontSize: 15, lineHeight: 21, color: 'rgba(255,255,255,0.8)' },
+  stamp: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16, paddingVertical: 14 },
+  stampText: { flex: 1, gap: 2 },
+  stampSub: { textAlign: 'left', fontSize: 12 },
+  generate: { paddingVertical: 16, marginBottom: 28 },
 });

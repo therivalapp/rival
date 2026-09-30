@@ -86,7 +86,7 @@ serve(async (req) => {
     if (tokens && tokens.length > 0) {
       await sendPushMessages(tokens.map((t: any) => ({
         to: t.token,
-        title: `${senderName} sent you encouragement 💬`,
+        title: `${senderName} sent encouragement`,
         body: trimmed,
         data: { screen: 'league' },
         sound: 'default',

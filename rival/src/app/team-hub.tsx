@@ -1,3 +1,5 @@
+import { useSnapState } from '../lib/snapState';
+import { formatActivityDistance } from '../lib/units';
 // Real Team Hub — exact visual port of the "Team Hub v3" mockup Ricky
 // reviewed and signed off on, wired to live Supabase data.
 // This is now the real destination when tapping a team from team-feed.tsx
@@ -16,10 +18,12 @@
 // same goal-window activities query (no schema change needed). The Team
 // Challenge total/ring/pace still reflect the whole team regardless of filter
 // — the chips slice the leaderboard view, not the goal itself.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { RivalMiniTile, RivalStartTiles, GreySheet, GreyPrimary, GreyNote, GreyField, GreyLabel, GreyRows } from '../components/rival/RivalGreySheet';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -38,8 +42,10 @@ import { SessionCard } from '../components/rival/SessionCard';
 import { TeamChallengesTab, ChallengeTeammateSheet } from '../components/rival/team/TeamChallengesTab';
 import { WeeklyStandings } from '../components/rival/team/WeeklyStandings';
 import { EncourageSheet, loadEncouragedToday } from '../components/rival/team/EncourageSheet';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
-import { matchCanonicalLift } from './scan-workout';
+import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { matchCanonicalLift } from '../lib/lifts';
+import { BusyText } from '../components/rival/BusyText';
+import { goToTab } from '../lib/tabNav';
 
 // Matches chat.tsx's SESSION_GRACE_MS — a session stays "upcoming" for 12
 // hours past its start, since sessions carry no duration.
@@ -71,9 +77,7 @@ const HERO_PHOTO = require('../../assets/images/backgrounds/optimized/coastal-hi
 // my-activities.tsx's formatDistance/METERS_SPORTS.
 const METERS_SPORTS = new Set(['Swim', 'Rowing']);
 function formatDistance(meters: number | null | undefined, activityType?: string | null): string | null {
-  if (!meters || meters < 1) return null;
-  if (activityType && METERS_SPORTS.has(activityType)) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
+  return formatActivityDistance(meters, activityType);
 }
 
 type StandingsFilter = 'all' | 'run' | 'ride' | 'swim' | 'strength';
@@ -118,6 +122,8 @@ function goalValue(a: { effort_score: number | null; distance_meters: number | n
 type League = {
   id: string; name: string; created_at: string; logo_url: string | null; invite_code: string | null;
   goal_metric: GoalMetric | null; goal_target: number | null; goal_target_date: string | null;
+  description?: string | null;
+  created_by?: string;
 };
 type Member = { user_id: string; role: string; users: { display_name: string | null; avatar_url: string | null } };
 type ActivityRow = {
@@ -197,13 +203,14 @@ const chipActiveWeb = Platform.OS === 'web'
 
 function ChallengeRing({ pct, value, unit, size = 200, thickness = 14 }: { pct: number; value: number; unit: string; size?: number; thickness?: number }) {
   const clamped = Math.max(0, Math.min(1, pct));
+  const ringId = `ringGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`; // unique per ring on the page
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
         <Defs>
-          <LinearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <LinearGradient id={ringId} x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={RivalColors.accentFill} />
             <Stop offset="100%" stopColor={RivalColors.accentText} />
           </LinearGradient>
@@ -211,7 +218,7 @@ function ChallengeRing({ pct, value, unit, size = 200, thickness = 14 }: { pct: 
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
-          stroke="url(#ringGrad)" strokeWidth={thickness} fill="none"
+          stroke={`url(#${ringId})`} strokeWidth={thickness} fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - clamped)}
@@ -237,19 +244,22 @@ type SessionRow = {
 };
 
 export default function TeamHub() {
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   const { id } = useLocalSearchParams<{ id: string }>();
+  // The data below is remembered per team (lib/snapState.ts), so returning to
+  // a team draws its last state at once and refreshes behind it.
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
-  const [league, setLeague] = useState<League | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [currentUserId, setCurrentUserId] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [goalProgress, setGoalProgress] = useState(0);
-  const [goalActivitiesRaw, setGoalActivitiesRaw] = useState<GoalActivityRow[]>([]);
-  const [weeklyActivitiesRaw, setWeeklyActivitiesRaw] = useState<GoalActivityRow[]>([]);
+  const [league, setLeague] = useSnapState<League | null>(`hub.${id}.league`, null);
+  const [members, setMembers] = useSnapState<Member[]>(`hub.${id}.members`, []);
+  const [currentUserId, setCurrentUserId] = useSnapState(`hub.${id}.currentUserId`, '');
+  const [isAdmin, setIsAdmin] = useSnapState(`hub.${id}.isAdmin`, false);
+  const [loading, setLoading] = useSnapState(`hub.${id}.loading`, true);
+  const [goalProgress, setGoalProgress] = useSnapState(`hub.${id}.goalProgress`, 0);
+  const [goalActivitiesRaw, setGoalActivitiesRaw] = useSnapState<GoalActivityRow[]>(`hub.${id}.goalActivitiesRaw`, []);
+  const [weeklyActivitiesRaw, setWeeklyActivitiesRaw] = useSnapState<GoalActivityRow[]>(`hub.${id}.weeklyActivitiesRaw`, []);
   const [standingsFilter, setStandingsFilter] = useState<StandingsFilter>('all');
   const [noGoalPeriod, setNoGoalPeriod] = useState<'week' | 'alltime'>('week');
-  const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
+  const [boardPosts, setBoardPosts] = useSnapState<BoardPost[]>(`hub.${id}.boardPosts`, []);
   const [boardComposeOpen, setBoardComposeOpen] = useState(false);
   const [boardTitleDraft, setBoardTitleDraft] = useState('');
   // The note open in the full-size viewer, and its edit state. Notes open on
@@ -265,16 +275,18 @@ export default function TeamHub() {
   const [boardBodyDraft, setBoardBodyDraft] = useState('');
   const [postingBoard, setPostingBoard] = useState(false);
   const [boardError, setBoardError] = useState('');
-  const [boardReactionsMap, setBoardReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>({});
-  const [boardCommentsMap, setBoardCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>({});
+  const [boardReactionsMap, setBoardReactionsMap] = useSnapState<Record<string, Array<{ user_id: string; emoji: string }>>>(`hub.${id}.boardReactionsMap`, {});
+  const [boardCommentsMap, setBoardCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(`hub.${id}.boardCommentsMap`, {});
   const [boardCommentDrafts, setBoardCommentDrafts] = useState<Record<string, string>>({});
   const [expandedBoardComments, setExpandedBoardComments] = useState<Set<string>>(new Set());
-  const [recentActivity, setRecentActivity] = useState<ActivityRow[]>([]);
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [sessionRsvps, setSessionRsvps] = useState<Record<string, string[]>>({});
+  const [recentActivity, setRecentActivity] = useSnapState<ActivityRow[]>(`hub.${id}.recentActivity`, []);
+  const [sessions, setSessions] = useSnapState<SessionRow[]>(`hub.${id}.sessions`, []);
+  // Teammates' next events (races), soonest first.
+  const [teamEvents, setTeamEvents] = useSnapState<{ id: string; user_id: string; name: string; race_date: string; location: string | null }[]>(`hub.${id}.events`, []);
+  const [sessionRsvps, setSessionRsvps] = useSnapState<Record<string, string[]>>(`hub.${id}.sessionRsvps`, {});
   // Every session ever planned, not just the three shown — so "See all" can
   // appear when there's history to see even though nothing is coming up.
-  const [sessionTotal, setSessionTotal] = useState(0);
+  const [sessionTotal, setSessionTotal] = useSnapState(`hub.${id}.sessionTotal`, 0);
   const [planning, setPlanning] = useState(false);
   // Members tab: who you've encouraged today, and who an Encourage / Challenge
   // sheet is open for. Challenges tab reloads when a challenge is sent from
@@ -296,9 +308,9 @@ export default function TeamHub() {
     setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1600);
   }
   const [editingSession, setEditingSession] = useState<EditableSession | null>(null);
-  const [feedActivity, setFeedActivity] = useState<ActivityRow[]>([]);
-  const [reactionsMap, setReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>({});
-  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>({});
+  const [feedActivity, setFeedActivity] = useSnapState<ActivityRow[]>(`hub.${id}.feedActivity`, []);
+  const [reactionsMap, setReactionsMap] = useSnapState<Record<string, Array<{ user_id: string; emoji: string }>>>(`hub.${id}.reactionsMap`, {});
+  const [commentsMap, setCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(`hub.${id}.commentsMap`, {});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 
@@ -349,12 +361,12 @@ export default function TeamHub() {
     if (joined) {
       const { error } = await supabase.from('league_session_rsvps')
         .delete().eq('message_id', messageId).eq('user_id', currentUserId);
-      if (error) { notify("Couldn't update your RSVP", error.message); loadSessions(); return; }
+      if (error) { notify("Couldn't update RSVP", error.message); loadSessions(); return; }
       setSessionRsvps(prev => ({ ...prev, [messageId]: (prev[messageId] || []).filter(u => u !== currentUserId) }));
     } else {
       const { error } = await supabase.from('league_session_rsvps')
         .insert({ message_id: messageId, user_id: currentUserId });
-      if (error) { notify("Couldn't update your RSVP", error.message); loadSessions(); return; }
+      if (error) { notify("Couldn't update RSVP", error.message); loadSessions(); return; }
       setSessionRsvps(prev => ({ ...prev, [messageId]: [...(prev[messageId] || []), currentUserId] }));
     }
   }
@@ -380,6 +392,24 @@ export default function TeamHub() {
     setTimeout(() => setCodeCopied(false), 1800);
   }
 
+  async function endTeamGoal() {
+    if (!league) return;
+    const ok = await confirmAction({
+      title: 'End the team challenge?',
+      message: 'The challenge is removed for everyone. Activities and Effort are not affected.',
+      confirmLabel: 'End challenge',
+      destructive: true,
+    });
+    if (!ok) return;
+    const { data, error } = await supabase
+      .from('leagues')
+      .update({ goal_metric: null, goal_target: null, goal_target_date: null })
+      .eq('id', league.id)
+      .select('id');
+    if (error || !data?.length) { notify("Couldn't end the challenge", error?.message ?? 'Only team admins can do this.'); return; }
+    setLeague({ ...league, goal_metric: null, goal_target: null, goal_target_date: null });
+  }
+
   async function leaveTeam() {
     if (!league) return;
     const last = members.length <= 1;
@@ -387,23 +417,29 @@ export default function TeamHub() {
       title: `Leave ${formatTeamName(league.name)}?`,
       message: last
         ? "You're the last member. Leaving will permanently delete the team, including its chat, posts and challenge history."
-        : 'You can rejoin later with the invite code.',
+        : league.created_by === currentUserId
+          ? 'You are the founder. The team passes to the longest-standing admin, or the longest-standing member if there are no other admins. To choose who, use Make founder in Team settings first.'
+          : 'You can rejoin later with the invite code.',
       confirmLabel: last ? 'Leave and delete' : 'Leave team',
       destructive: true,
     });
     if (!ok) return;
     const { error } = await supabase.rpc('leave_league', { p_league_id: id });
     if (error) { notify("Couldn't leave the team", error.message); return; }
-    router.replace('/team-feed');
+    goToTab('/team-feed');
   }
 
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => load());
 
   async function load() {
-    setLoading(true);
+    // A refresh of the team already on screen keeps it there; only opening a
+    // different team (or the first open) shows the loading state.
+    if (!league || league.id !== id) setLoading(true);
     const [{ data: { user } }, { data: leagueData }, { data: membersData }] = await Promise.all([
       getAuthUser(),
-      supabase.from('leagues').select('id, name, created_at, logo_url, invite_code, goal_metric, goal_target, goal_target_date').eq('id', id).single(),
+      // select('*'): a named column the database doesn't have yet fails the whole
+      // query, which would blank the team page.
+      supabase.from('leagues').select('*').eq('id', id).single(),
       supabase
         .from('league_members')
         .select('user_id, role, users(display_name, avatar_url)')
@@ -424,6 +460,12 @@ export default function TeamHub() {
 
     const memberIds = memberList.map(m => m.user_id);
     if (memberIds.length > 0) {
+      const t = new Date();
+      const todayIso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      supabase.from('races').select('id, user_id, name, race_date, location')
+        .in('user_id', memberIds).gte('race_date', todayIso)
+        .order('race_date', { ascending: true }).limit(3)
+        .then(({ data }) => setTeamEvents((data ?? []) as any));
       const oneYearAgo = new Date();
       oneYearAgo.setDate(oneYearAgo.getDate() - 365);
       const { start: weekStart, end: weekEnd } = getWeekWindow();
@@ -520,6 +562,10 @@ export default function TeamHub() {
       const boardList = (board || []) as BoardPost[];
       setBoardPosts(boardList);
 
+      // The page is ready to show; reactions and comments fill in a moment
+      // later rather than holding everything else behind the loading state.
+      setLoading(false);
+
       // Reactions and comments for the feed AND the board, together.
       const feedIds = feedList.map(a => a.id);
       const boardIds = boardList.map(p => p.id);
@@ -578,7 +624,7 @@ export default function TeamHub() {
       .single();
     setPostingBoard(false);
     if (error || !inserted) {
-      setBoardError(error?.message || "Couldn't post — try again.");
+      setBoardError(error?.message || "Couldn't post. Try again.");
       return;
     }
     setBoardTitleDraft('');
@@ -654,7 +700,7 @@ export default function TeamHub() {
     const title = noteTitleDraft.trim();
     const body = noteBodyDraft.trim();
     if (!body) {
-      notify('Add some text', 'A note needs a message before it can be saved.');
+      notify('Message required before saving.');
       return;
     }
     setSavingNote(true);
@@ -833,11 +879,11 @@ export default function TeamHub() {
         <RivalTopNav active="teams" hideBar />
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} {...pullProps}>
           {pullIndicator}
-          <HeroPhoto style={[styles.hero, activeTab === 'Posts' && styles.heroFit]}>
+          <HeroPhoto style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
             <View style={[styles.heroScrim, heroScrimWeb]} />
 
             <View style={styles.header}>
-              <RivalBackButton onPress={() => router.push('/team-feed')} color="#fff" style={styles.backBtn} />
+              <RivalBackButton onPress={() => goToTab('/team-feed')} color="#fff" style={styles.backBtn} />
               {isAdmin && (
                 <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push({ pathname: '/league-settings', params: { id } })}>
                   <RivalIcon name="settings" size={18} color="#fff" />
@@ -850,7 +896,7 @@ export default function TeamHub() {
                 <Image source={{ uri: league.logo_url }} style={styles.teamLogo} />
               ) : (
                 <View style={styles.teamLogoPlaceholder}>
-                  <Text style={styles.teamLogoPlaceholderText}>🏟️</Text>
+                  <RivalIcon name="groups" size={26} color={RivalColors.accentText} />
                 </View>
               )}
               <Text style={styles.teamName}>{formatTeamName(league.name)}</Text>
@@ -913,7 +959,7 @@ export default function TeamHub() {
                       style={styles.boardComposeBodyInput}
                       value={boardBodyDraft}
                       onChangeText={setBoardBodyDraft}
-                      placeholder="Anyone have a wetsuit for sale? Run meetup times?…"
+                      placeholder="Post a Team note"
                       placeholderTextColor="rgba(255,255,255,0.4)"
                       multiline
                     />
@@ -929,7 +975,7 @@ export default function TeamHub() {
                         onPress={postToBoard}
                         disabled={postingBoard || !boardBodyDraft.trim()}
                       >
-                        <Text style={styles.boardPostBtnText}>{postingBoard ? 'Posting…' : 'Post'}</Text>
+                        <BusyText busy={!!(postingBoard)} style={styles.boardPostBtnText}>{postingBoard ? 'Posting…' : 'Post'}</BusyText>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -990,12 +1036,14 @@ export default function TeamHub() {
                 </View>
               </View>
             ) : (
-              <View style={styles.heroTextBlockNoGoal}>
-                {isAdmin && (
+              <View style={[styles.heroTextBlockNoGoal, phone && styles.heroTextBlockNoGoalFit]}>
+                {isAdmin && !phone && (
+                  (
                   <TouchableOpacity style={styles.startChallengeBtn} onPress={() => router.push({ pathname: '/create-team-challenge', params: { id } })}>
                     <RivalIcon name="target" size={16} color={RivalColors.accentText} />
                     <Text style={styles.startChallengeBtnText}>Start a Team Challenge</Text>
                   </TouchableOpacity>
+                  )
                 )}
               </View>
             )}
@@ -1004,6 +1052,18 @@ export default function TeamHub() {
           <View style={styles.body}>
             {activeTab === 'Overview' && (
               <>
+                {/* Phone: what isn't set up yet, as tiles at the top. Each one
+                    becomes its own titled section below once it exists. */}
+                {phone && (
+                  <RivalStartTiles
+                    tiles={[
+                      ...(isAdmin && !hasGoal ? [{ key: 'challenge', icon: 'target' as const, label: 'Team challenge', onPress: () => router.push({ pathname: '/create-team-challenge', params: { id } }) }] : []),
+                      ...(sessions.length === 0 ? [{ key: 'plan', icon: 'calendar' as const, label: 'Plan activity', onPress: () => setPlanning(true) }] : []),
+                      ...(teamEvents.length === 0 ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => router.push('/races?add=true') }] : []),
+                    ]}
+                  />
+                )}
+                {league.description ? <Text style={styles.teamAbout}>{league.description}</Text> : null}
                 {hasGoal && (
                   <>
                     <View style={[styles.paceCard, paceCardWeb]}>
@@ -1013,19 +1073,19 @@ export default function TeamHub() {
                       <View style={{ flex: 1 }}>
                         {!hasPaceData ? (
                           <>
-                            <Text style={styles.paceTitle}>Just getting started</Text>
-                            <Text style={styles.paceSub}>Every activity logged from here counts toward the goal.</Text>
+                            <Text style={styles.paceTitle}>Challenge started</Text>
+                            <Text style={styles.paceSub}>Every logged activity counts toward the goal.</Text>
                           </>
                         ) : paceDeltaPct >= 0 ? (
                           <>
-                            <Text style={styles.paceTitle}>Keep it up!</Text>
+                            <Text style={styles.paceTitle}>On pace</Text>
                             <Text style={styles.paceSub}>
                               <Text style={styles.paceSubBold}>{paceDeltaPct}% ahead</Text> of the pace needed to hit the goal.
                             </Text>
                           </>
                         ) : (
                           <>
-                            <Text style={styles.paceTitle}>Let's pick it up</Text>
+                            <Text style={styles.paceTitle}>Behind pace</Text>
                             <Text style={styles.paceSub}>
                               Needs <Text style={styles.paceSubBold}>{(Math.round(neededPerDay * 10) / 10).toLocaleString()} {unit}/day</Text> to hit the goal.
                             </Text>
@@ -1150,23 +1210,31 @@ export default function TeamHub() {
                 <TouchableOpacity style={[styles.planWeekLink, warmCardWeb]} onPress={() => router.push('/plan')}>
                   <RivalIcon name="stats" size={18} color={RivalColors.accentText} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.planWeekTitle}>Plan your week</Text>
-                    <Text style={styles.planWeekSub}>See where you'll finish in the standings.</Text>
+                    <Text style={styles.planWeekTitle}>Weekly plan</Text>
+                    <Text style={styles.planWeekSub}>Projected standings for the week.</Text>
                   </View>
                   <RivalIcon name="chevronRight" size={18} color={RivalColors.textSecondary} />
                 </TouchableOpacity>
 
+                {(!phone || sessions.length > 0) && (
+                <>
                 {/* Above Recent Activity on purpose: what the team is about to
                     do is more actionable than what it already did. */}
                 <View style={styles.sectionHead}>
-                  <Text style={styles.sectionTitle}>Coming Up</Text>
+                  <Text style={styles.sectionTitle}>Upcoming</Text>
+                  {phone ? (
+                    <TouchableOpacity onPress={() => setPlanning(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={styles.seeAllText}>Plan activity</Text>
+                    </TouchableOpacity>
+                  ) : (
                   <TouchableOpacity style={styles.planBtn} onPress={() => setPlanning(true)}>
                     <RivalIcon name="calendar" size={14} color={RivalColors.accentText} />
-                    <Text style={styles.planBtnText}>Plan an Activity</Text>
+                    <Text style={styles.planBtnText}>Plan activity</Text>
                   </TouchableOpacity>
+                  )}
                 </View>
                 {sessions.length === 0 ? (
-                  <Text style={styles.emptyText}>No sessions planned yet.</Text>
+                  <Text style={styles.emptyText}>No activities planned.</Text>
                 ) : (
                   <View style={{ gap: 10 }}>
                     {sessions.map((sn) => (
@@ -1203,8 +1271,48 @@ export default function TeamHub() {
                   </TouchableOpacity>
                 )}
 
+                </>
+                )}
+
+                {/* Teammates' events, once there are any. */}
+                {phone && teamEvents.length > 0 && (
+                  <>
+                    <View style={styles.sectionHead}>
+                      <Text style={styles.sectionTitle}>Events</Text>
+                      <TouchableOpacity onPress={() => router.push('/races?add=true')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={styles.seeAllText}>Add event</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ gap: 8 }}>
+                      {teamEvents.map((ev) => {
+                        const d = new Date(ev.race_date + 'T00:00:00');
+                        const days = Math.max(0, Math.round((d.getTime() - new Date(new Date().toDateString()).getTime()) / 86400000));
+                        return (
+                          <TouchableOpacity key={ev.id} style={styles.evTicket} activeOpacity={0.85} onPress={() => router.push('/races')}>
+                            <View style={styles.evMain}>
+                              <Text style={styles.evWho} numberOfLines={1}>{ev.user_id === currentUserId ? 'You' : memberName(ev.user_id)}</Text>
+                              <Text style={styles.evName} numberOfLines={1}>{ev.name}</Text>
+                              <Text style={styles.evDate} numberOfLines={1}>
+                                {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{ev.location ? ` · ${ev.location}` : ''}
+                              </Text>
+                            </View>
+                            <View style={styles.evStub}>
+                              <Text style={styles.evDays}>{days === 0 ? 'Today' : days}</Text>
+                              {days > 0 && <Text style={styles.evDaysLabel}>{days === 1 ? 'DAY' : 'DAYS'}</Text>}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    <TouchableOpacity style={styles.seeAllRow} onPress={() => router.push('/races')}>
+                      <Text style={styles.seeAllText}>See all events</Text>
+                      <RivalIcon name="chevronRight" size={16} color={RivalColors.accentText} />
+                    </TouchableOpacity>
+                  </>
+                )}
+
                 <View style={styles.sectionHead}>
-                  <Text style={styles.sectionTitle}>Recent Activity</Text>
+                  <Text style={styles.sectionTitle}>Recent activity</Text>
                 </View>
                 {recentActivity.length === 0 ? (
                   <Text style={styles.emptyText}>No activity yet.</Text>
@@ -1216,11 +1324,16 @@ export default function TeamHub() {
                       return (
                         <View key={a.id} style={[styles.activityRow, i === recentActivity.length - 1 && { borderBottomWidth: 0 }]}>
                           <RivalAvatar uri={memberAvatar(a.user_id)} name={name} size={34} />
-                          <View>
-                            <Text style={styles.activityText}>
-                              <Text style={styles.activityName}>{name}</Text> logged {a.name || a.activity_type}{dist ? ` · ${dist}` : ''}
+                          {/* Two lines that each fit the row: who and when, then what.
+                              One run-on sentence ran past the card's edge. */}
+                          <View style={styles.activityBody}>
+                            <View style={styles.activityTop}>
+                              <Text style={[styles.activityText, styles.activityName, styles.activityShrink]} numberOfLines={1}>{name}</Text>
+                              <Text style={styles.activityTime}>{timeAgo(a.started_at)}</Text>
+                            </View>
+                            <Text style={styles.activityWhat} numberOfLines={1}>
+                              {a.name || a.activity_type}{dist ? ` · ${dist}` : ''}
                             </Text>
-                            <Text style={styles.activityTime}>{timeAgo(a.started_at)}</Text>
                           </View>
                         </View>
                       );
@@ -1269,6 +1382,13 @@ export default function TeamHub() {
                 isAdmin={isAdmin}
                 nameFor={memberName}
                 refreshKey={challengesRefresh}
+                teamGoal={league.goal_metric && league.goal_target && league.goal_target_date ? {
+                  title: GOAL_METRIC_LABEL[league.goal_metric],
+                  detail: `${league.goal_target.toLocaleString()} ${GOAL_METRIC_UNIT[league.goal_metric]} · Due ${new Date(league.goal_target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`,
+                } : null}
+                onEditTeamGoal={() => router.push({ pathname: '/create-team-challenge', params: { id } })}
+                onOpenMembers={() => setActiveTab('Members')}
+                onEndTeamGoal={endTeamGoal}
               />
             )}
 
@@ -1279,7 +1399,7 @@ export default function TeamHub() {
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.inviteLabel}>INVITE CODE</Text>
                       <Text style={styles.inviteCode} selectable>{league.invite_code}</Text>
-                      <Text style={styles.inviteSub}>Share it so teammates can join.</Text>
+                      <Text style={styles.inviteSub}>Share this code to invite new teammates.</Text>
                     </View>
                     <TouchableOpacity style={styles.inviteBtn} onPress={copyInviteCode} accessibilityLabel="Copy invite code">
                       <Text style={styles.inviteBtnText}>{codeCopied ? 'Copied' : 'Copy'}</Text>
@@ -1318,6 +1438,91 @@ export default function TeamHub() {
         // Latest two by default. Comments load oldest-first, so slice from the end.
         const shownComments = noteCommentsExpanded ? comments : comments.slice(-2);
         const canExpand = comments.length > 2;
+        if (phone) {
+          // Phone: the grey pop-up. Instead of a star, "Seen": a quiet way
+          // to show the note has been noticed (same data as the old like).
+          return (
+            <Modal visible transparent animationType="slide" onRequestClose={closeNote}>
+              <View style={nm.backdrop}>
+                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeNote} accessibilityLabel="Close" />
+                <GreySheet
+                  kicker="TEAM NOTE"
+                  title={name}
+                  onClose={closeNote}
+                  footer={editingNote ? (
+                    <GreyPrimary label={savingNote ? 'Saving…' : 'Save'} busy={savingNote} onPress={saveNoteEdit} />
+                  ) : (
+                    <View style={nm.actions}>
+                      <TouchableOpacity style={nm.action} onPress={() => togglePinBoardPost(note.id, note.pinned)}>
+                        <RivalIcon name="pin" size={15} color={note.pinned ? RivalColors.accentGold : RivalColors.textSecondary} />
+                        <Text style={nm.actionText}>{note.pinned ? 'Unpin' : 'Pin to top'}</Text>
+                      </TouchableOpacity>
+                      {mine && (
+                        <TouchableOpacity style={nm.action} onPress={() => deleteBoardPost(note.id)}>
+                          <RivalIcon name="delete" size={15} color="#ff9b8f" />
+                          <Text style={[nm.actionText, { color: '#ff9b8f' }]}>Delete</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                >
+                  <GreyNote>{timeAgo(note.created_at)}{note.pinned ? ' · Pinned' : ''}</GreyNote>
+                  <View style={{ height: 10 }} />
+                  {editingNote ? (
+                    <View style={{ gap: 8 }}>
+                      <GreyField value={noteTitleDraft} onChangeText={setNoteTitleDraft} placeholder="Title" />
+                      <GreyField value={noteBodyDraft} onChangeText={setNoteBodyDraft} placeholder="Message" multiline autoFocus style={{ minHeight: 110, textAlignVertical: 'top' } as any} />
+                      <TouchableOpacity onPress={() => setEditingNote(false)} style={nm.cancel}><Text style={nm.actionText}>Cancel</Text></TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <TouchableOpacity style={nm.note} activeOpacity={mine ? 0.8 : 1} disabled={!mine} onPress={() => startEditingNote(note)} accessibilityLabel={mine ? 'Edit note' : undefined}>
+                        {!!note.title && <Text style={nm.noteTitle}>{note.title}</Text>}
+                        <Text style={nm.noteBody} selectable={!mine}>{note.body}</Text>
+                        {mine && <Text style={nm.editHint}>Tap to edit</Text>}
+                      </TouchableOpacity>
+                      <View style={nm.seenRow}>
+                        <TouchableOpacity style={[nm.seenBtn, iLiked && nm.seenBtnOn]} onPress={() => toggleBoardLike(note.id)} accessibilityRole="button">
+                          <RivalIcon name="check" size={15} color={iLiked ? RivalColors.accentText : RivalColors.textSecondary} />
+                          <Text style={[nm.seenText, iLiked && { color: RivalColors.accentText }]}>{iLiked ? 'Seen' : 'Mark as seen'}</Text>
+                        </TouchableOpacity>
+                        {reactions.length > 0 ? <Text style={nm.seenCount}>Seen by {reactions.length}</Text> : null}
+                      </View>
+                      <GreyLabel>Comments{comments.length ? ` · ${comments.length}` : ''}</GreyLabel>
+                      {shownComments.length > 0 ? (
+                        <GreyRows>
+                          {shownComments.map((c) => (
+                            <View key={c.id} style={nm.comment}>
+                              <Text style={nm.commentName}>{memberName(c.user_id)}</Text>
+                              <Text style={nm.commentBody}>{c.body}</Text>
+                            </View>
+                          ))}
+                        </GreyRows>
+                      ) : null}
+                      {canExpand ? (
+                        <TouchableOpacity onPress={() => setNoteCommentsExpanded((v) => !v)} style={nm.cancel}>
+                          <Text style={nm.more}>{noteCommentsExpanded ? 'Show fewer' : `Show all ${comments.length}`}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      <View style={nm.inputRow}>
+                        <GreyField
+                          value={draft}
+                          onChangeText={(v) => setBoardCommentDrafts(prev => ({ ...prev, [key]: v }))}
+                          placeholder="Add a comment"
+                          onSubmitEditing={() => postBoardComment(note.id)}
+                          style={{ flex: 1 }}
+                        />
+                        <TouchableOpacity onPress={() => postBoardComment(note.id)} disabled={!draft.trim()} accessibilityLabel="Post comment" style={nm.post}>
+                          <Text style={[nm.postText, !draft.trim() && { opacity: 0.4 }]}>Post</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
+                </GreySheet>
+              </View>
+            </Modal>
+          );
+        }
         return (
           <Modal visible transparent animationType="fade" onRequestClose={closeNote}>
             <View style={styles.noteBackdrop}>
@@ -1434,7 +1639,7 @@ export default function TeamHub() {
                         <Text style={styles.noteActionText}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.noteActionBtn, styles.noteActionPrimary]} onPress={saveNoteEdit} disabled={savingNote}>
-                        <Text style={styles.noteActionPrimaryText}>{savingNote ? 'Saving…' : 'Save'}</Text>
+                        <BusyText busy={!!(savingNote)} style={styles.noteActionPrimaryText}>{savingNote ? 'Saving…' : 'Save'}</BusyText>
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -1514,12 +1719,14 @@ function ActivityPostCard({
     if (!(await confirmAction({ title: 'Delete this activity?', message: "This can't be undone.", confirmLabel: 'Delete', destructive: true }))) return;
     setMenuOpen(false);
     setDeleting(true);
-    const { error } = await supabase.from('activities').delete().eq('id', a.id);
-    setDeleting(false);
-    if (error) {
-      if (Platform.OS === 'web') window.alert(`Delete failed: ${error.message}`);
+    const { error, count } = await supabase.from('activities').delete({ count: 'exact' }).eq('id', a.id);
+    if (error || !count) {
+      setDeleting(false);
+      if (Platform.OS === 'web') window.alert(error ? `Delete failed: ${error.message}` : 'The activity could not be deleted. Try again.');
       return;
     }
+    // Stays in the deleting state until the post is removed, so it never
+    // flickers back to normal first.
     onDeleted();
   }
 
@@ -1553,6 +1760,12 @@ function ActivityPostCard({
 
   return (
     <View style={styles.post}>
+      {deleting && (
+        <View style={styles.postDeleting} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={RivalColors.accentText} />
+          <Text style={styles.postDeletingText}>Deleting activity…</Text>
+        </View>
+      )}
       {Platform.OS === 'web' ? (
         <>
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
@@ -1609,7 +1822,7 @@ function ActivityPostCard({
       ) : (
         <View style={styles.noPhotoPanel}>
           <RivalIcon name={activityIconName(a.activity_type)} size={28} color={RivalColors.accentText} />
-          <Text style={styles.noPhotoBody}>No photo this time, still counts.</Text>
+          <Text style={styles.noPhotoBody}>No photo added</Text>
         </View>
       )}
 
@@ -1635,13 +1848,13 @@ function ActivityPostCard({
 
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
-          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentGold }]}>Respect</Text>
+          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentText : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentText }]}>Respect</Text>
           <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive]}>{respectCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
-          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.accentGold : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.accentGold }]}>Inspired</Text>
+          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.rankAnchors.unrivaled : RivalColors.onSurface} />
+          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.rankAnchors.unrivaled }]}>Inspired</Text>
           <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive]}>{inspiredCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>
@@ -1710,6 +1923,9 @@ const styles = StyleSheet.create({
 
   heroTextBlock: { alignItems: 'center', marginTop: 20, paddingHorizontal: 20 },
   heroTextBlockNoGoal: { alignItems: 'center', marginTop: 32, paddingHorizontal: 20 },
+  // Phone, no challenge: the hero hugs its content, so the button sits just
+  // under the tabs instead of at the foot of a tall, empty photo.
+  heroTextBlockNoGoalFit: { marginTop: 16, alignItems: 'flex-start' },
   boardWrap: { marginTop: 24, paddingHorizontal: 20, gap: 10 },
   boardHeadRow: { alignItems: 'center' },
   boardTitle: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
@@ -1749,9 +1965,9 @@ const styles = StyleSheet.create({
   inviteSub: { fontSize: 12.5, color: RivalColors.textSecondary, marginTop: 2 },
   inviteBtn: {
     minWidth: 84, minHeight: 44, paddingHorizontal: 16, borderRadius: 999, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: RivalColors.accentFill,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
   },
-  inviteBtnText: { fontSize: 14, fontWeight: '800', color: RivalColors.surfaceLowest },
+  inviteBtnText: { fontSize: 14, fontWeight: '800', color: RivalButtonColors.label(RivalColors.surfaceLowest) },
   leaveBtn: {
     minHeight: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,155,143,0.35)',
@@ -1809,8 +2025,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.04)',
   },
   noteActionText: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
-  noteActionPrimary: { backgroundColor: RivalColors.accentFill, borderColor: RivalColors.accentFill },
-  noteActionPrimaryText: { fontSize: 14, fontWeight: '800', color: RivalColors.surfaceLowest },
+  noteActionPrimary: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: RivalButtonColors.fill },
+  noteActionPrimaryText: { fontSize: 14, fontWeight: '800', color: RivalButtonColors.label(RivalColors.surfaceLowest) },
   boardGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', columnGap: '3%', rowGap: 10 },
   boardNote: { width: '48.5%', backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 16, padding: 10, gap: 4, position: 'relative' },
   boardPin: { position: 'absolute', top: -5, left: '50%', marginLeft: -5, width: 10, height: 10, borderRadius: 5 },
@@ -1878,6 +2094,14 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: RivalColors.accentFill, borderColor: 'transparent' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  evTicket: { flexDirection: 'row', backgroundColor: RivalColors.surfaceLowest, borderRadius: 14, borderWidth: 1, borderColor: RivalColors.surfaceBright, overflow: 'hidden' },
+  evMain: { flex: 1, minWidth: 0, paddingVertical: 10, paddingHorizontal: 12, gap: 2 },
+  evWho: { fontSize: 11.5, color: RivalColors.textSecondary },
+  evName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 15, color: '#fff' },
+  evDate: { fontSize: 11.5, color: RivalColors.textSecondary },
+  evStub: { width: 64, alignItems: 'center', justifyContent: 'center', borderLeftWidth: 2, borderStyle: 'dashed', borderLeftColor: 'rgba(255,209,190,0.15)' },
+  evDays: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: RivalColors.accentText, lineHeight: 22 },
+  evDaysLabel: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
   planBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
@@ -1906,9 +2130,14 @@ const styles = StyleSheet.create({
   contribKm: { color: RivalColors.textSecondary, fontSize: 13, fontWeight: '700' },
 
   activityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  activityText: { color: '#fff', fontSize: 13 },
+  activityText: { color: '#fff', fontSize: 14 },
   activityName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700' },
-  activityTime: { color: RivalColors.textSecondary, fontSize: 11.5, marginTop: 1 },
+  activityBody: { flex: 1, minWidth: 0, gap: 2 },
+  activityTop: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  activityShrink: { flexShrink: 1 },
+  activityTime: { color: RivalColors.textSecondary, fontSize: 11.5, marginLeft: 'auto' },
+  activityWhat: { color: 'rgba(255,255,255,0.72)', fontSize: 13 },
+  teamAbout: { fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.72)', textAlign: 'center', paddingHorizontal: 8 },
   emptyText: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 20 },
 
   // Post card — ported verbatim from team-feed.tsx so the Feed tab here
@@ -1960,6 +2189,12 @@ const styles = StyleSheet.create({
 
   caption: { fontSize: 12.5, color: RivalColors.onSurface, lineHeight: 18, paddingHorizontal: 2 },
 
+  postDeleting: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
+    alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderRadius: 16, backgroundColor: 'rgba(17,14,12,0.78)',
+  },
+  postDeletingText: { fontSize: 14, fontWeight: '700', color: RivalColors.accentText },
   noPhotoPanel: {
     position: 'relative', borderRadius: 14, overflow: 'hidden', padding: 20, alignItems: 'center', gap: 8,
     backgroundColor: '#2d241f',
@@ -1993,4 +2228,29 @@ const styles = StyleSheet.create({
   redirectCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 16, padding: 14 },
   redirectTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
   redirectSub: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
+});
+
+// Phone team note pop-up (the blend).
+const nm = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  note: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 6 },
+  noteTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18, color: '#fff' },
+  noteBody: { fontSize: 14.5, lineHeight: 21, color: 'rgba(255,255,255,0.85)' },
+  editHint: { fontSize: 11.5, color: 'rgba(255,255,255,0.35)' },
+  seenRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
+  seenBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  seenBtnOn: { borderColor: 'rgba(255,181,158,0.5)', backgroundColor: 'rgba(217,119,87,0.10)' },
+  seenText: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary },
+  seenCount: { fontSize: 12.5, color: RivalColors.textSecondary },
+  comment: { paddingVertical: 10, gap: 2 },
+  commentName: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  commentBody: { fontSize: 13.5, lineHeight: 19, color: '#fff' },
+  more: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  cancel: { alignSelf: 'flex-start', paddingVertical: 8 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  post: { paddingHorizontal: 6, paddingVertical: 8 },
+  postText: { fontSize: 14, fontWeight: '800', color: RivalColors.accentText },
+  actions: { flexDirection: 'row', justifyContent: 'center', gap: 24, paddingVertical: 4 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
+  actionText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.textSecondary },
 });

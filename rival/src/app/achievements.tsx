@@ -1,18 +1,28 @@
 import { useEffect, useState } from 'react';
-import { RivalColors } from '../constants/rivalTheme';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { Platform, StyleSheet, View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { goToTab } from '../lib/tabNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { fetchAllActivities } from '../lib/fetchAllActivities';
 import { ACHIEVEMENTS, CATEGORY_LABELS, checkAchievements } from '../lib/achievements';
 import { calculateStreak } from '../lib/streak';
-import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton} from '../components/rival';
+import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, type RivalIconName } from '../components/rival';
+
+// Real icons on phones instead of the achievement's emoji: one per category.
+const CATEGORY_ICON: Record<string, RivalIconName> = {
+  firsts: 'star', streak: 'fire', activities: 'checkCircle', distance: 'distance', elevation: 'elevation', rank: 'crown',
+};
 
 export default function AchievementsScreen() {
+  const { width } = useWindowDimensions();
+  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
   const [earnedIds, setEarnedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [newlyEarned, setNewlyEarned] = useState<string[]>([]);
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -58,6 +68,78 @@ export default function AchievementsScreen() {
   const categories = ['firsts', 'streak', 'activities', 'distance', 'elevation', 'rank'];
   const earnedCount = ACHIEVEMENTS.filter((a) => earnedIds.has(a.id)).length;
 
+  if (!wide) {
+    return (
+      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
+        <RivalTopNav active="today" />
+        <ScrollView contentContainerStyle={[rb.content, ms.content]}>
+          <GreyPageHead
+            kicker={`UNLOCKED ${earnedCount} OF ${ACHIEVEMENTS.length}`}
+            title="Achievements"
+            onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))}
+          />
+
+          {newlyEarned.length > 0 && (
+            <View style={[rb.card, ms.newCard]}>
+              <Text style={[rb.label, { color: RivalColors.accentGold }]}>New unlocks</Text>
+              <Text style={ms.newNames}>{newlyEarned.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.name).join(', ')}</Text>
+            </View>
+          )}
+
+          {loading && <Text style={ms.loading}>Loading…</Text>}
+
+          {!loading && categories.map((cat) => {
+            const items = ACHIEVEMENTS.filter((a) => a.category === cat);
+            const got = items.filter((a) => earnedIds.has(a.id)).length;
+            const picked = items.find((a) => a.id === pickedId);
+            return (
+              <View key={cat} style={rb.card}>
+                <View style={ms.sectionHead}>
+                  <Text style={rb.label}>{CATEGORY_LABELS[cat]}</Text>
+                  <Text style={ms.sectionCount}>{got} / {items.length}</Text>
+                </View>
+                {/* Tiles with round badges, four to a row; locked ones dimmed.
+                    Tap one for what it takes. */}
+                <View style={ms.grid}>
+                  {items.map((a) => {
+                    const earned = earnedIds.has(a.id);
+                    const isNew = newlyEarned.includes(a.id);
+                    const on = pickedId === a.id;
+                    return (
+                      <TouchableOpacity
+                        key={a.id}
+                        style={[ms.tile, earned && ms.tileEarned, on && ms.tileOn]}
+                        onPress={() => setPickedId(on ? null : a.id)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${a.name}. ${a.desc}${earned ? '' : ' Locked.'}`}
+                      >
+                        <View style={[ms.badge, earned && ms.badgeEarned, isNew && ms.badgeNew]}>
+                          <RivalIcon
+                            name={earned ? (CATEGORY_ICON[cat] ?? 'medal') : 'lock'}
+                            size={15}
+                            color={earned ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.35)'}
+                          />
+                        </View>
+                        <Text style={[ms.tileName, !earned && ms.dim]} numberOfLines={2}>{a.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {Array.from({ length: (4 - (items.length % 4)) % 4 }).map((_, i) => <View key={`f${i}`} style={ms.filler} />)}
+                </View>
+                {picked ? (
+                  <Text style={ms.desc}>
+                    <Text style={ms.descName}>{picked.name}. </Text>{picked.desc}{earnedIds.has(picked.id) ? '' : ' Not yet unlocked.'}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <RivalTopNav active="today" />
@@ -71,7 +153,7 @@ export default function AchievementsScreen() {
 
         {newlyEarned.length > 0 && (
           <View style={styles.newBanner}>
-            <Text style={styles.newBannerTitle}>New unlocks!</Text>
+            <Text style={styles.newBannerTitle}>New unlocks</Text>
             <Text style={styles.newBannerSub}>
               {newlyEarned.map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.name).join(', ')}
             </Text>
@@ -201,4 +283,36 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: RivalColors.accentGold,
   },
+});
+
+// Mobile only — the RIVAL look (see RivalMobile.tsx).
+// Mobile only — the blend (see RivalGreySheet's rb).
+const ms = StyleSheet.create({
+  content: { paddingBottom: 120 },
+  loading: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
+  newCard: { borderColor: 'rgba(216,168,29,0.35)', gap: 4 },
+  newNames: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionCount: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.45)', fontVariant: ['tabular-nums'] },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tile: {
+    flexBasis: '22%', flexGrow: 1, alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8, paddingHorizontal: 3,
+    borderRadius: 14, backgroundColor: RivalColors.surfaceContainer, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+  },
+  tileEarned: { borderColor: 'rgba(255,181,158,0.35)' },
+  tileOn: { borderColor: 'rgba(255,181,158,0.7)', backgroundColor: 'rgba(217,119,87,0.10)' },
+  filler: { flexBasis: '22%', flexGrow: 1 },
+  badge: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  badgeEarned: {
+    backgroundColor: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+  } as any,
+  badgeNew: {
+    backgroundColor: RivalColors.accentGold,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #FFE48A, #D8A81D)' } : {}),
+  } as any,
+  tileName: { fontSize: 10.5, lineHeight: 13, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  dim: { color: 'rgba(255,255,255,0.4)' },
+  desc: { fontSize: 12.5, lineHeight: 17, color: RivalColors.textSecondary },
+  descName: { fontWeight: '700', color: '#fff' },
 });

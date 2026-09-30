@@ -36,8 +36,8 @@ serve(async (req) => {
 
       const messages = (tokens || []).map((t: any) => ({
         to: t.token,
-        title: `⚔️ YOU'VE BEEN CHALLENGED`,
-        body: `${senderName} just called you out. Do you accept?`,
+        title: `YOU'VE BEEN CHALLENGED`,
+        body: `${senderName} sent a challenge. Accept or decline in RIVAL.`,
         data: { screen: 'league', tab: 'challenges' },
         sound: 'default',
       }));
@@ -83,8 +83,8 @@ serve(async (req) => {
 
       const messages = (tokens || []).map((t: any) => ({
         to: t.token,
-        title: `🏟️ YOUR TEAM HAS BEEN CHALLENGED`,
-        body: `${challengerName} just challenged your team. Admin — accept or decline.`,
+        title: `YOUR TEAM HAS BEEN CHALLENGED`,
+        body: `${challengerName} challenged the team. An admin can accept or decline.`,
         data: { screen: 'league', leagueId: c.opponent_league_id, tab: 'challenges' },
         sound: 'default',
       }));

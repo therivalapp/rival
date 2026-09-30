@@ -1,3 +1,4 @@
+import { LEVELS } from './xp';
 export type Achievement = {
   id: string;
   name: string;
@@ -103,15 +104,10 @@ export function checkAchievements(activities: ActivityData[], totalXp: number, l
   if (longestStreak >= 52) earned.push('streak_52');
 
   // Rank
-  if (totalXp >= 200)   earned.push('rank_hustler');
-  if (totalXp >= 600)   earned.push('rank_warrior');
-  if (totalXp >= 1500)  earned.push('rank_elite');
-  if (totalXp >= 3000)  earned.push('rank_champion');
-  if (totalXp >= 6000)  earned.push('rank_legend');
-  if (totalXp >= 12000) earned.push('rank_mythic');
-  if (totalXp >= 22000) earned.push('rank_immortal');
-  if (totalXp >= 40000) earned.push('rank_god');
-  if (totalXp >= 75000) earned.push('rank_unrivaled');
+  // From the rank table itself, so the badges can't drift from the ranks.
+  for (const lvl of LEVELS) {
+    if (lvl.level > 1 && totalXp >= lvl.minXp) earned.push(`rank_${lvl.name.toLowerCase()}`);
+  }
 
   return earned;
 }

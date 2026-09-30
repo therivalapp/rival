@@ -8,10 +8,10 @@ const corsHeaders = {
 }
 
 const HOUR_MILESTONES = [
-  { type: 'hours_100', hours: 100, title: '💯 100 Hours Earned', body: "You've crossed 100 hours of training. That's not a hobby anymore." },
-  { type: 'hours_500', hours: 500, title: '⚡ 500 Hours Earned', body: "500 hours. Five hundred. Most people dream it. You did it." },
-  { type: 'hours_1000', hours: 1000, title: '🏆 1,000 Hours Earned', body: "A thousand hours of choosing hard over easy. You are built different." },
-  { type: 'hours_5000', hours: 5000, title: '👑 5,000 Hours Earned', body: "5,000 hours. You have earned something most people will never understand." },
+  { type: 'hours_100', hours: 100, title: '100 Hours Earned', body: '100 hours of training logged.' },
+  { type: 'hours_500', hours: 500, title: '500 Hours Earned', body: '500 hours of training logged.' },
+  { type: 'hours_1000', hours: 1000, title: '1,000 Hours Earned', body: '1,000 hours of training logged.' },
+  { type: 'hours_5000', hours: 5000, title: '5,000 Hours Earned', body: '5,000 hours of training logged. Unrivaled consistency.' },
 ]
 
 serve(async (req) => {

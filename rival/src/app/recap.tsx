@@ -1,11 +1,13 @@
+import { distanceNumber, distanceUnit, elevationNumber, elevationUnit } from '../lib/units';
 import { useEffect, useState } from 'react';
-import { RivalColors } from '../constants/rivalTheme';
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { ACTIVITY_ICONS } from '../constants/activityIcons';
-import { RivalIcon, RivalTopNav, RivalBackButton} from '../components/rival';
+import { goToTab } from '../lib/tabNav';
+import { RivalIcon, RivalTopNav, RivalBackButton, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, activityIconName } from '../components/rival';
 
 type RecapData = {
   type: string;
@@ -24,6 +26,9 @@ type RecapData = {
 };
 
 export default function RecapScreen() {
+  // Phone: the RIVAL look, real icons in place of emoji.
+  const { width } = useWindowDimensions();
+  const m = width < BREAKPOINT_WIDE_LAYOUT;
   const { type } = useLocalSearchParams<{ type?: string }>();
   const recapType = type ?? 'monthly';
   const [recap, setRecap] = useState<RecapData | null>(null);
@@ -34,7 +39,7 @@ export default function RecapScreen() {
 
   async function load() {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setError('Not signed in'); setLoading(false); return; }
+    if (!session) { setError('Sign in to view the recap.'); setLoading(false); return; }
 
     const res = await fetch(
       `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/generate-recap?type=${recapType}`,
@@ -60,17 +65,21 @@ export default function RecapScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, m && rb.page]} edges={['top', 'left', 'right']}>
       <RivalTopNav active="today" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <RivalBackButton onPress={() => router.back()} color={RivalColors.accentFill} />
-        </View>
+      <ScrollView contentContainerStyle={[styles.content, m && ms.content]}>
+        {m ? (
+          <GreyPageHead kicker={recap?.label ? String(recap.label).toUpperCase() : 'RECAP'} title="Recap" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
+        ) : (
+          <View style={styles.header}>
+            <RivalBackButton onPress={() => router.back()} color={RivalColors.accentFill} />
+          </View>
+        )}
 
         {loading && (
           <View style={styles.centered}>
             <ActivityIndicator color={RivalColors.accentText} size="large" />
-            <Text style={styles.loadingText}>Building your recap…</Text>
+            <Text style={styles.loadingText}>Building recap…</Text>
           </View>
         )}
 
@@ -79,30 +88,30 @@ export default function RecapScreen() {
         {recap && !loading && (
           <>
             {/* Hero */}
-            <View style={styles.heroBlock}>
+            <View style={[styles.heroBlock, m && ms.heroBlock]}>
               {recap.type === 'yearly' ? (
                 <>
-                  <Text style={styles.heroEmoji}>🎄</Text>
-                  <Text style={styles.heroTitle}>Christmas Wrap Up</Text>
-                  <Text style={styles.heroSub}>{recap.label}</Text>
+                  {m ? <View style={rm.iconCircle}><RivalIcon name="star" size={20} color={RivalColors.accentText} /></View> : <Text style={styles.heroEmoji}>🎄</Text>}
+                  <Text style={[styles.heroTitle, m && ms.heroTitle]}>{m ? 'Christmas wrap-up' : 'Christmas Wrap Up'}</Text>
+                  <Text style={[styles.heroSub, m && rb.label]}>{recap.label}</Text>
                 </>
               ) : (
                 <>
-                  <Text style={styles.heroEmoji}>📊</Text>
-                  <Text style={styles.heroTitle}>{recap.label}</Text>
+                  {m ? <View style={rm.iconCircle}><RivalIcon name="stats" size={20} color={RivalColors.accentText} /></View> : <Text style={styles.heroEmoji}>📊</Text>}
+                  <Text style={[styles.heroTitle, m && ms.heroTitle]}>{recap.label}</Text>
                 </>
               )}
             </View>
 
             {/* Time Earned — big headline */}
             {(recap.total_hours > 0 || recap.total_minutes_remainder > 0) && (
-              <View style={styles.timeHeroCard}>
-                <Text style={styles.timeHeroLabel}>⏱ Time Earned</Text>
-                <Text style={styles.timeHeroValue}>
+              <View style={[styles.timeHeroCard, m && [rb.card, ms.timeHero]]}>
+                <Text style={styles.timeHeroLabel}>{m ? 'Time earned' : '⏱ Time Earned'}</Text>
+                <Text style={[styles.timeHeroValue, m && ms.timeValue]}>
                   {recap.total_hours > 0 ? `${recap.total_hours.toLocaleString()}h ` : ''}{recap.total_minutes_remainder}m
                 </Text>
                 {recap.type === 'monthly' && recap.prev_total_minutes !== null && (
-                  <Text style={styles.timeHeroTrend}>
+                  <Text style={[styles.timeHeroTrend, m && rm.hint]}>
                     {formatTrend(
                       recap.total_hours * 60 + recap.total_minutes_remainder,
                       recap.prev_total_minutes,
@@ -115,56 +124,66 @@ export default function RecapScreen() {
 
             {/* Stats grid */}
             <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{recap.total_workouts}</Text>
+              <View style={[styles.statCard, m && ms.card]}>
+                <Text style={[styles.statValue, m && ms.serifNum]}>{recap.total_workouts}</Text>
                 <Text style={styles.statLabel}>Workouts</Text>
                 {recap.prev_total_workouts !== null && (
-                  <Text style={styles.statTrend}>{formatTrend(recap.total_workouts, recap.prev_total_workouts, 'sessions')}</Text>
+                  <Text style={styles.statTrend}>{formatTrend(recap.total_workouts, recap.prev_total_workouts, 'activities')}</Text>
                 )}
               </View>
-              <View style={styles.statCard}>
-                <Text style={[styles.statValue, { color: RivalColors.accentFill }]}>{recap.total_effort.toLocaleString()}</Text>
+              <View style={[styles.statCard, m && ms.card]}>
+                <Text style={[styles.statValue, m && ms.serifNum, { color: m ? RivalColors.accentText : RivalColors.accentFill }]}>{recap.total_effort.toLocaleString()}</Text>
                 <Text style={styles.statLabel}>Total Effort</Text>
               </View>
               {recap.total_distance_km > 0 && (
-                <View style={styles.statCard}>
-                  <Text style={[styles.statValue, { color: '#4FC3F7' }]}>{recap.total_distance_km.toLocaleString()}</Text>
-                  <Text style={styles.statLabel}>km covered</Text>
+                <View style={[styles.statCard, m && ms.card]}>
+                  <Text style={[styles.statValue, m && ms.serifNum, !m && { color: '#4FC3F7' }]}>{distanceNumber(recap.total_distance_km)}</Text>
+                  <Text style={styles.statLabel}>{distanceUnit()} covered</Text>
                 </View>
               )}
               {recap.total_elevation_m > 0 && (
-                <View style={styles.statCard}>
-                  <Text style={[styles.statValue, { color: '#AB47BC' }]}>{recap.total_elevation_m.toLocaleString()}</Text>
-                  <Text style={styles.statLabel}>m climbed</Text>
+                <View style={[styles.statCard, m && ms.card]}>
+                  <Text style={[styles.statValue, m && ms.serifNum, !m && { color: '#AB47BC' }]}>{elevationNumber(recap.total_elevation_m)}</Text>
+                  <Text style={styles.statLabel}>{elevationUnit()} climbed</Text>
                 </View>
               )}
             </View>
 
             {/* Top sport */}
             {recap.top_sport && (
-              <View style={styles.highlightCard}>
-                <Text style={styles.highlightLabel}>Your sport this period</Text>
-                <Text style={styles.highlightValue}>{ACTIVITY_ICONS[recap.top_sport] ?? '🏅'} {recap.top_sport}</Text>
+              <View style={[styles.highlightCard, m && [ms.card, ms.highlight]]}>
+                <Text style={m ? rb.label : styles.highlightLabel}>Top sport this period</Text>
+                {m ? (
+                  <View style={ms.sportRow}>
+                    <View style={rm.iconCircle}><RivalIcon name={activityIconName(recap.top_sport)} size={20} color={RivalColors.accentText} /></View>
+                    <Text style={[styles.highlightValue, ms.serifNum]}>{recap.top_sport}</Text>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <RivalIcon name={activityIconName(recap.top_sport)} size={22} color={RivalColors.accentText} />
+                    <Text style={styles.highlightValue}>{recap.top_sport}</Text>
+                  </View>
+                )}
               </View>
             )}
 
             {/* Best week (yearly only) */}
             {recap.type === 'yearly' && recap.best_week_label && (
-              <View style={styles.highlightCard}>
-                <Text style={styles.highlightLabel}>🔥 Best week of the year</Text>
-                <Text style={styles.highlightValue}>w/c {recap.best_week_label}</Text>
+              <View style={[styles.highlightCard, m && [ms.card, ms.highlight]]}>
+                <Text style={m ? rb.label : styles.highlightLabel}>{m ? 'Best week of the year' : '🔥 Best week of the year'}</Text>
+                <Text style={[styles.highlightValue, m && ms.serifNum]}>w/c {recap.best_week_label}</Text>
                 <Text style={styles.highlightSub}>{recap.best_week_effort.toLocaleString()} Effort</Text>
               </View>
             )}
 
             {/* Closing message */}
-            <View style={styles.closingCard}>
-              <Text style={styles.closingText}>
+            <View style={[styles.closingCard, m && ms.card]}>
+              <Text style={[styles.closingText, m && ms.closing]}>
                 {recap.type === 'yearly'
                   ? `${recap.total_hours}h of your life invested into becoming better. That compounds. What will ${new Date().getFullYear() + 1} look like?`
                   : recap.total_workouts === 0
                     ? "Nothing logged this month — but you're still here. That matters. Next month starts fresh."
-                    : `${recap.total_workouts} sessions down. Every single one of those was a choice. Keep choosing.`}
+                    : `${recap.total_workouts} activities logged. Every one of them was a choice.`}
               </Text>
             </View>
           </>
@@ -206,4 +225,18 @@ const styles = StyleSheet.create({
 
   closingCard: { backgroundColor: '#1A0A12', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: 'rgba(217,119,87,0.20)' },
   closingText: { fontSize: 15, color: '#CCCCCC', lineHeight: 24, fontStyle: 'italic', textAlign: 'center' },
+});
+
+// Phone only — the RIVAL look (see RivalMobile.tsx).
+const ms = StyleSheet.create({
+  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 },
+  heroBlock: { gap: 10, marginBottom: 20 },
+  heroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 36 },
+  timeHero: { alignItems: 'center' },
+  timeValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
+  card: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16 },
+  serifNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
+  highlight: { gap: 10 },
+  sportRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  closing: { fontFamily: RivalSerifFamily, fontSize: 16, lineHeight: 24, color: 'rgba(255,255,255,0.75)' },
 });
