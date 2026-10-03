@@ -4,7 +4,7 @@ import { BREAKPOINT_WIDE_LAYOUT } from '../../../constants/breakpoints';
 import { supabase } from '../../../lib/supabase';
 import { RivalColors } from '../../../constants/rivalTheme';
 import { RivalIcon } from '../RivalIcon';
-import { sheet } from './sheetStyles';
+import { sheet, sheetPhone } from './sheetStyles';
 import { BusyText } from '../BusyText';
 import { GreySheet, GreyLabel, GreyRows, GreyRow, GreyField, GreyNote, GreyPrimary } from '../RivalGreySheet';
 
@@ -135,7 +135,7 @@ export function EncourageSheet({
           <Text style={sheet.label}>Suggested messages</Text>
           <View style={sheet.chipRow}>
             {PRESETS.map(p => (
-              <TouchableOpacity key={p} style={[sheet.chip, message === p && sheet.chipOn]} onPress={() => setMessage(p)}>
+              <TouchableOpacity key={p} style={[sheet.chip, phoneSheet && sheetPhone.chip, message === p && sheet.chipOn]} onPress={() => setMessage(p)}>
                 <Text style={[sheet.chipText, message === p && sheet.chipTextOn]}>{p}</Text>
               </TouchableOpacity>
             ))}
@@ -143,7 +143,7 @@ export function EncourageSheet({
 
           <Text style={sheet.label}>Custom message</Text>
           <TextInput
-            style={sheet.input}
+            style={[sheet.input, phoneSheet && sheetPhone.input]}
             value={message}
             onChangeText={(v) => setMessage(v.slice(0, 140))}
             placeholder="Message"

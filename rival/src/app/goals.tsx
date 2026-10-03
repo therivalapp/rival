@@ -1,6 +1,6 @@
 import { useSnapState } from '../lib/snapState';
 import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -12,7 +12,7 @@ import { ALL_ACTIVITIES, computeGoalProgress, goalActivityLabel, goalContributio
 import { confirmAction, notify } from '../lib/notify';
 import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 
@@ -90,7 +90,8 @@ function dateToLocalStr(d: Date): string {
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
+  // Midday local, so a plain YYYY-MM-DD never shows as the day before.
+  const d = new Date(`${dateStr.slice(0, 10)}T12:00:00`);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
@@ -115,16 +116,22 @@ const ZERO_MESSAGES = [
 // list) with no record of it ever existing. Brand voice: never frame it as
 // failure — "missed"/"expired" reads as shame, not encouragement.
 function isGoalEnded(goal: Goal): boolean {
-  if (goal.period_type === 'custom') return false; // one-off deadline, not a recurring period — no natural "try again"
   const end = new Date(goal.end_date + 'T23:59:59');
   return end.getTime() < Date.now() && goal.progress < goal.target_value;
 }
 
+// What an ended goal achieved, said first; then what comes next. Never how
+// far short it fell.
+function loggedText(goal: Goal): string {
+  const unit = goal.goal_type === 'gym_sessions' && goal.progress === 1 ? 'activity' : GOAL_UNITS[goal.goal_type];
+  return `${goal.progress.toLocaleString()} ${unit} logged`;
+}
+function endedLine(goal: Goal): string {
+  const next = goal.period_type === 'week' ? 'A new week is ready.' : goal.period_type === 'month' ? 'A new month is ready.' : 'A fresh start is ready.';
+  return goal.progress > 0 ? `${loggedText(goal)}. ${next}` : next;
+}
 function endedMessage(goal: Goal): string {
-  const unit = GOAL_UNITS[goal.goal_type];
-  const remaining = Math.round((goal.target_value - goal.progress) * 10) / 10;
-  const period = goal.period_type === 'week' ? 'this week' : 'this month';
-  return `The previous goal finished ${remaining} ${unit} short. A new goal period starts ${period}.`;
+  return endedLine(goal);
 }
 
 function getEncouragement(progress: number, target: number, unit: string, goalId: string): string | null {
@@ -320,6 +327,8 @@ export default function GoalsScreen() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [customActivity, setCustomActivity] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  // Set while a goal is being written, so a double tap saves once.
+  const goalWriting = useRef(false);
   const [endCalOpen, setEndCalOpen] = useState(false);
   const [activityFilter, setActivityFilter] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -436,10 +445,24 @@ export default function GoalsScreen() {
   }
 
   async function saveGoal() {
+    if (goalWriting.current) return;
+    goalWriting.current = true;
+    try { await saveGoalOnce(); } finally { goalWriting.current = false; }
+  }
+  async function saveGoalOnce() {
     if (!targetValue || parseFloat(targetValue) <= 0) return;
     // The 3-goal cap applies to creating a 4th, not to editing one of the 3.
     if (!editingGoal && goals.length >= 3) return;
     if (periodType === 'custom' && (!customEndDate || !displayToIsoDate(customEndDate))) return;
+    // A custom end date has to be today or later, and never before the goal starts.
+    if (periodType === 'custom') {
+      const endIso = displayToIsoDate(customEndDate)!;
+      const startIso = editingGoal ? editingGoal.start_date : dateToLocalStr(new Date());
+      if (endIso < dateToLocalStr(new Date()) || endIso < startIso) {
+        notify('Choose a later end date', 'The end date has to be today or later.');
+        return;
+      }
+    }
 
     setSaving(true);
 
@@ -459,7 +482,13 @@ export default function GoalsScreen() {
         periodType !== editingGoal.period_type ||
         (periodType === 'custom' && displayToIsoDate(customEndDate) !== editingGoal.end_date);
       const dates = periodChanged
-        ? (() => { const { start, end } = getDateRange(periodType); return { start_date: dateToLocalStr(start), end_date: dateToLocalStr(end) }; })()
+        ? (() => {
+            const { start, end } = getDateRange(periodType);
+            // Moving to a custom end date keeps the goal's start, so the
+            // progress already made still counts.
+            const startDate = periodType === 'custom' ? editingGoal.start_date : dateToLocalStr(start);
+            return { start_date: startDate, end_date: dateToLocalStr(end) };
+          })()
         : { start_date: editingGoal.start_date, end_date: editingGoal.end_date };
 
       const { error: editErr } = await supabase.from('goals').update({ ...fields, ...dates }).eq('id', editingGoal.id);
@@ -520,6 +549,7 @@ export default function GoalsScreen() {
   // "Make focus" pins the goal, which moves it to Main focus here and on Today.
   function makeFocus(goal: Goal) {
     if (!goal.pinned) togglePin(goal);
+    else load();
   }
 
   // Exactly one pinned goal at a time — pinning this one unpins whichever
@@ -541,7 +571,20 @@ export default function GoalsScreen() {
   // same type/target/filter, reset progress. Replaces rather than stacking
   // a 4th row, since it's the same slot picking back up, not a new goal.
   async function tryAgainGoal(goal: Goal) {
-    const { start, end } = getDateRange(goal.period_type as 'week' | 'month' | 'year');
+    // One tap, one goal: a second tap while the first is saving is ignored.
+    if (goalWriting.current) return;
+    goalWriting.current = true;
+    try { await tryAgainGoalOnce(goal); } finally { goalWriting.current = false; }
+  }
+  async function tryAgainGoalOnce(goal: Goal) {
+    // A custom goal starts again over the same number of days, from today.
+    const { start, end } = goal.period_type === 'custom'
+      ? (() => {
+          const days = Math.max(1, Math.round((new Date(goal.end_date + 'T12:00:00').getTime() - new Date(goal.start_date + 'T12:00:00').getTime()) / 86400000) + 1);
+          const st = new Date(); const en = new Date(st); en.setDate(st.getDate() + days - 1);
+          return { start: st, end: en };
+        })()
+      : getDateRange(goal.period_type as 'week' | 'month' | 'year');
     // Insert the replacement BEFORE removing the old row, and abort if it
     // fails: unchecked, a failed insert followed by a successful delete left
     // the athlete with no goal at all -- silent data loss on a button labelled
@@ -886,7 +929,7 @@ export default function GoalsScreen() {
             const left = daysLeft(goal);
             const of = `${goal.progress.toLocaleString()} of ${goal.target_value.toLocaleString()}${goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}`;
             return (
-              <TouchableOpacity activeOpacity={0.85} onPress={() => openEdit(goal)} style={rb.card}>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => openEdit(goal)} style={[rb.card, rb.hero]}>
                 <Text style={rb.label}>Main focus</Text>
                 <View style={ms.focusRow}>
                   <MiniRing pct={pct} />
@@ -918,9 +961,7 @@ export default function GoalsScreen() {
             const done = goal.progress >= goal.target_value;
             const ended = !done && isGoalEnded(goal);
             const pct = Math.min(1, goal.target_value > 0 ? goal.progress / goal.target_value : 0);
-            const remaining = Math.round((goal.target_value - goal.progress) * 10) / 10;
             const left = daysLeft(goal);
-            const period = goal.period_type === 'week' ? 'week' : 'month';
             return (
               <TouchableOpacity key={goal.id} activeOpacity={0.85} onPress={() => openEdit(goal)} style={[rb.card, ms.otherCard]}>
                 <View style={ms.otherTop}>
@@ -935,12 +976,12 @@ export default function GoalsScreen() {
                     {done
                       ? 'Goal complete'
                       : ended
-                        ? `Finished ${remaining} short. A new ${period} has started.`
+                        ? endedLine(goal)
                         : `${goalKind(goal)} · ${left === 1 ? '1 day' : `${left} days`} left`}
                   </Text>
                   {ended ? (
                     <TouchableOpacity onPress={() => tryAgainGoal(goal)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Text style={ms.footLink}>Start again</Text>
+                      <Text style={ms.footLink}>Start fresh</Text>
                     </TouchableOpacity>
                   ) : !done ? (
                     <TouchableOpacity onPress={() => makeFocus(goal)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -1055,7 +1096,7 @@ export default function GoalsScreen() {
                 <View style={styles.endedBlock}>
                   <Text style={styles.encouragement}>{endedMessage(goal)}</Text>
                   <TouchableOpacity style={styles.tryAgainBtn} onPress={() => tryAgainGoal(goal)}>
-                    <Text style={styles.tryAgainBtnText}>Try again {goal.period_type === 'week' ? 'this week' : 'this month'}</Text>
+                    <Text style={styles.tryAgainBtnText}>Start fresh</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1346,7 +1387,7 @@ const ms = StyleSheet.create({
   recentRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 16 },
   recentChip: { borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.18)', backgroundColor: 'rgba(217,119,87,0.10)', paddingHorizontal: 10, paddingVertical: 4 },
   recentText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
-  goalCard: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
+  goalCard: { backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
   iconSm: { width: 36, height: 36, borderRadius: 18 },
   goalTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: '#fff' },
   goalNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', color: '#fff' },
@@ -1389,7 +1430,7 @@ const ms = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 22, paddingBottom: 36, gap: 10,
   },
   sheetTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', color: '#fff', marginBottom: 4, paddingHorizontal: 4, textAlign: 'center' },
-  sheetCard: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 18, padding: 14, gap: 10 },
+  sheetCard: { backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 18, padding: 14, gap: 10 },
   moreChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chip: { borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 16 },
   sheetActions: { gap: 10, marginTop: 10 },

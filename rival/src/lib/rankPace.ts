@@ -59,3 +59,37 @@ export function rankPace(opts: {
     fullYear: latecomer ? { effort: full, level: getLevel(full) } : null,
   };
 }
+
+/** The next round lifetime total: 1,000s under 5,000, 2,500s under 25,000,
+ *  then 5,000s, so there is always one within reach. */
+export function nextLifetimeMark(lifetime: number): number {
+  const step = lifetime < 5000 ? 1000 : lifetime < 25000 ? 2500 : 5000;
+  return (Math.floor(lifetime / step) + 1) * step;
+}
+
+// Legacy's "On pace for 20,000 by 8 November": the next round lifetime total
+// and when this year's pace reaches it. Same pace as rankPace, so Legacy and
+// Ranks always agree. `by` is null when there is no pace yet (too early in
+// the year, or nothing logged), or when it is more than a year away; the line
+// then just says how far the next mark is.
+export function lifetimePace(opts: {
+  lifetime: number;
+  yearEffort: number;
+  firstActivityEver: Date | null;
+  now?: Date;
+}): { target: number; toGo: number; by: Date | null } {
+  const now = opts.now ?? new Date();
+  const target = nextLifetimeMark(opts.lifetime);
+  const toGo = Math.ceil(target - opts.lifetime);
+  if (!opts.firstActivityEver || opts.yearEffort <= 0) return { target, toGo, by: null };
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const first = opts.firstActivityEver;
+  const firstDay = new Date(first.getFullYear(), first.getMonth(), first.getDate());
+  const start = firstDay > yearStart ? firstDay : yearStart;
+  const elapsedDays = (now.getTime() - start.getTime()) / DAY;
+  if (elapsedDays < MIN_DAYS) return { target, toGo, by: null };
+  const perDay = opts.yearEffort / elapsedDays;
+  const days = Math.ceil(toGo / perDay);
+  if (days > 365) return { target, toGo, by: null };
+  return { target, toGo, by: new Date(now.getTime() + days * DAY) };
+}

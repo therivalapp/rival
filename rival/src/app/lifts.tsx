@@ -5,10 +5,11 @@ import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInp
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm, rb, GreyPageHead, GreySheet, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
@@ -54,8 +55,11 @@ export default function LiftsScreen() {
     if (!user) { setLoading(false); return; }
 
     const [entriesRes, goalsRes] = await Promise.all([
-      supabase.from('exercise_entries').select('id, exercise_name, weight_kg, reps, performed_at')
-        .eq('user_id', user.id).order('performed_at', { ascending: false }),
+      // Paged: every set ever logged passes the 1,000-row limit, and the
+      // oldest entries (often the PB) were the ones left off.
+      selectAll((a, b) => supabase.from('exercise_entries').select('id, exercise_name, weight_kg, reps, performed_at')
+        .eq('user_id', user.id).order('performed_at', { ascending: false }).order('id').range(a, b))
+        .then((data) => ({ data, error: null })),
       supabase.from('exercise_goals').select('exercise_name, target_weight_kg, starting_weight_kg').eq('user_id', user.id),
     ]);
 
@@ -210,7 +214,7 @@ export default function LiftsScreen() {
           {loading && <Text style={pb.muted}>Loading…</Text>}
 
           {!loading && active && (
-            <View style={[rb.card, pb.hero]}>
+            <View style={[rb.card, rb.hero, pb.hero]}>
               <View style={pb.glow} pointerEvents="none" />
               <Text style={pb.focus}>{active.name}</Text>
               {hasEntries ? (
@@ -686,7 +690,7 @@ const ms = StyleSheet.create({
   chipActive: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' },
   onGradient: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
   chipValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  modalBox: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22, gap: 10 },
+  modalBox: { backgroundColor: RivalGhost.ground, borderColor: RivalGhost.border, borderRadius: 20, padding: 22, gap: 10 },
   modalTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', marginBottom: 4 },
   modalInput: { marginBottom: 0 },
 });
@@ -734,7 +738,7 @@ const pb = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   tile: {
     width: '31.9%', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 12, paddingHorizontal: 4, minHeight: 78,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    borderRadius: 14, backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border,
   } as any,
   tileOn: { borderColor: 'rgba(255,181,158,0.6)', backgroundColor: 'rgba(217,119,87,0.10)' },
   tileAdd: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },

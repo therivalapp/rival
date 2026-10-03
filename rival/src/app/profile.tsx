@@ -5,6 +5,7 @@ import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
 import { runFullStravaImport } from '../lib/strava';
 import { loadStravaSharing, setShareRoutes, startStravaConnect } from '../lib/stravaSharing';
@@ -14,7 +15,7 @@ import { getQuote, QuoteTone } from '../lib/quotes';
 import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
@@ -392,7 +393,9 @@ export default function ProfileScreen() {
       // unlocked shouldn't survive the wipe either.
       const HOUR_THRESHOLDS: Record<string, number> = { hours_100: 100, hours_500: 500, hours_1000: 1000, hours_5000: 5000 };
       const [{ data: remaining }, { data: myMilestones }] = await Promise.all([
-        supabase.from('activities').select('duration_seconds').eq('user_id', user.id),
+        // Paged: a long history passes the 1,000-row limit.
+        selectAll((a, b) => supabase.from('activities').select('id, duration_seconds').eq('user_id', user.id).order('id').range(a, b))
+          .then((data) => ({ data, error: null })),
         supabase.from('milestones').select('id, type').eq('user_id', user.id),
       ]);
       const remainingHours = (remaining || []).reduce((s, a) => s + (a.duration_seconds || 0), 0) / 3600;
@@ -1022,7 +1025,8 @@ export default function ProfileScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    // Phones: the Add an activity look's warm grey ground (Ricky, 2026-10-03).
+    <SafeAreaView style={[styles.container, !wide && { backgroundColor: RivalGhost.ground }]} edges={['top', 'left', 'right']}>
       <RivalTopNav />
       <ScrollView
         contentContainerStyle={styles.content}

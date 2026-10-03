@@ -21,7 +21,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyPageHead } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 
 type GoalMetric = 'xp' | 'distance' | 'elevation' | 'duration' | 'activities';
@@ -566,22 +566,22 @@ const styles = StyleSheet.create({
   createBtnText: { fontSize: 16, fontWeight: '800', letterSpacing: 0.2, color: '#1a1411' },
 });
 
-// Phone only — the blend (grey page, recessed cards, grey switch).
+// Phone only — the Add an activity look (warm grey page, warm outlines; Ricky, 2026-10-03).
 const ms = StyleSheet.create({
-  screen: { backgroundColor: RivalColors.surfaceContainer },
+  screen: { backgroundColor: RivalGhost.ground },
   // The app-wide terracotta→salmon gradient, not this page's own orange.
   gradient: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' },
   onGradient: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
-  preview: { backgroundColor: RivalColors.surfaceLowest, borderColor: 'rgba(255,181,158,0.35)' },
+  preview: { backgroundColor: RivalGhost.fill, borderColor: 'rgba(255,181,158,0.35)' },
   previewValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  modeRow: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
-  step: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
-  tile: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
-  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
-  well: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
+  modeRow: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  step: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  tile: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  tileOn: { backgroundColor: RivalGhost.fillOn, borderColor: RivalGhost.borderOn },
+  well: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
   targetInput: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  chip: { backgroundColor: RivalColors.surfaceContainer, borderColor: RivalColors.surfaceBright },
-  // The chosen half of the Team target / Event goal switch: lifted grey.
-  modeOn: { backgroundColor: RivalColors.surfaceBright, ...RivalButtonColors.noGradient, borderColor: 'transparent' },
+  chip: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  // The chosen half of the Team target / Event goal switch: a warm lift.
+  modeOn: { backgroundColor: RivalGhost.fillOn, ...RivalButtonColors.noGradient, borderColor: 'transparent' },
   modeOnText: { color: '#fff' },
 });

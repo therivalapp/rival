@@ -42,10 +42,11 @@ import { SessionCard } from '../components/rival/SessionCard';
 import { TeamChallengesTab, ChallengeTeammateSheet } from '../components/rival/team/TeamChallengesTab';
 import { WeeklyStandings } from '../components/rival/team/WeeklyStandings';
 import { EncourageSheet, loadEncouragedToday } from '../components/rival/team/EncourageSheet';
-import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { matchCanonicalLift } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { selectAll, inChunks } from '../lib/selectAll';
 
 // Matches chat.tsx's SESSION_GRACE_MS — a session stays "upcoming" for 12
 // hours past its start, since sessions carry no duration.
@@ -155,7 +156,9 @@ function getWeekWindow(): { start: Date; end: Date } {
 // Same react-native-web workaround as RivalFixedBackground/HeroPhoto
 // elsewhere: ImageBackground hardcodes backgroundPosition/no gradients on
 // the div that actually paints the photo, so web renders raw CSS instead.
-function HeroPhoto({ style, children }: { style?: any; children?: React.ReactNode }) {
+// `fade` is the colour the photo fades into at the bottom: the page's own
+// ground, so there's no seam where the photo ends.
+function HeroPhoto({ style, children, fade = '19,19,19' }: { style?: any; children?: React.ReactNode; fade?: string }) {
   if (Platform.OS === 'web') {
     const uri = Asset.fromModule(HERO_PHOTO).uri;
     return (
@@ -164,7 +167,7 @@ function HeroPhoto({ style, children }: { style?: any; children?: React.ReactNod
           style,
           {
             backgroundImage: [
-              'linear-gradient(180deg, rgba(20,14,10,0.15) 0%, rgba(19,19,19,0.62) 50%, rgba(19,19,19,0.97) 86%)',
+              `linear-gradient(180deg, rgba(20,14,10,0.15) 0%, rgba(${fade},0.62) 50%, rgba(${fade},0.97) 86%, rgb(${fade}) 100%)`,
               'radial-gradient(120% 70% at 50% 0%, rgba(217,119,87,0.28) 0%, rgba(217,119,87,0) 60%)',
               `url(${uri})`,
             ].join(', '),
@@ -193,6 +196,11 @@ const paceCardWeb = Platform.OS === 'web'
   : null;
 const heroScrimWeb = Platform.OS === 'web'
   ? ({ backgroundImage: 'linear-gradient(0deg, rgba(19,19,19,0.95) 0%, transparent 45%)', backgroundColor: 'transparent' } as any)
+  : null;
+// Phones fade into the warm grey page instead of near-black, so the photo
+// has no hard edge where the page begins.
+const heroScrimPhoneWeb = Platform.OS === 'web'
+  ? ({ backgroundImage: 'linear-gradient(0deg, rgb(35,33,32) 0%, rgba(35,33,32,0.9) 12%, transparent 45%)', backgroundColor: 'transparent' } as any)
   : null;
 const barFillWeb = Platform.OS === 'web'
   ? ({ backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any)
@@ -245,6 +253,7 @@ type SessionRow = {
 
 export default function TeamHub() {
   const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const styles = phone ? phoneHubStyles : desktopHubStyles;
   const { id } = useLocalSearchParams<{ id: string }>();
   // The data below is remembered per team (lib/snapState.ts), so returning to
   // a team draws its last state at once and refreshes behind it.
@@ -484,29 +493,40 @@ export default function TeamHub() {
           .in('user_id', memberIds)
           .order('started_at', { ascending: false })
           .limit(30),
-        supabase.from('exercise_entries').select('user_id, exercise_name, weight_kg').in('user_id', memberIds),
-        supabase.from('activities')
+        inChunks(memberIds, (slice) => selectAll((a, b) => supabase.from('exercise_entries')
+          .select('id, user_id, exercise_name, weight_kg').in('user_id', slice).order('id').range(a, b)))
+          .then((data) => ({ data, error: null })),
+        // The database stops at 1,000 rows without saying so; these three are
+        // paged (and the member list sliced) so a big team counts everything.
+        inChunks(memberIds, (slice) => selectAll((from, to) => supabase.from('activities')
           .select('user_id, activity_type, started_at, duration_seconds, distance_meters, elevation_meters')
-          .in('user_id', memberIds)
+          .in('user_id', slice)
           .gte('started_at', oneYearAgo.toISOString())
           .order('started_at', { ascending: false })
-          .limit(500),
+          .order('id')
+          .range(from, to))).then((data) => ({ data })),
         // Fetched unconditionally (not just when a Team Challenge exists) so it
         // can double as the "All Time" standings source when there isn't one.
-        supabase
+        inChunks(memberIds, (slice) => selectAll((from, to) => supabase
           .from('activities')
           .select('user_id, activity_type, effort_score, distance_meters, elevation_meters, duration_seconds')
-          .in('user_id', memberIds)
-          .gte('started_at', leagueData.created_at),
+          .in('user_id', slice)
+          .gte('started_at', leagueData.created_at)
+          .order('started_at')
+          .order('id')
+          .range(from, to))).then((data) => ({ data })),
         // Standings should still show even without an active Team Challenge —
         // ranked by this week's Effort in that case, same basis as the rest of
         // the app's weekly leaderboards.
-        supabase
+        inChunks(memberIds, (slice) => selectAll((from, to) => supabase
           .from('activities')
           .select('user_id, activity_type, effort_score, distance_meters, elevation_meters, duration_seconds')
-          .in('user_id', memberIds)
+          .in('user_id', slice)
           .gte('started_at', weekStart.toISOString())
-          .lt('started_at', weekEnd.toISOString()),
+          .lt('started_at', weekEnd.toISOString())
+          .order('started_at')
+          .order('id')
+          .range(from, to))).then((data) => ({ data })),
         supabase
           .from('league_messages')
           .select('id, user_id, title, body, pinned, created_at')
@@ -879,8 +899,8 @@ export default function TeamHub() {
         <RivalTopNav active="teams" hideBar />
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} {...pullProps}>
           {pullIndicator}
-          <HeroPhoto style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
-            <View style={[styles.heroScrim, heroScrimWeb]} />
+          <HeroPhoto fade={phone ? '35,33,32' : undefined} style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
+            <View style={[styles.heroScrim, phone ? heroScrimPhoneWeb : heroScrimWeb]} />
 
             <View style={styles.header}>
               <RivalBackButton onPress={() => goToTab('/team-feed')} color="#fff" style={styles.backBtn} />
@@ -920,7 +940,7 @@ export default function TeamHub() {
                 <View style={styles.heroTextBlock}>
                   <Text style={styles.eyebrow}>Team Challenge</Text>
                   <Text style={styles.heroTitle}>{GOAL_METRIC_LABEL[league.goal_metric!]}</Text>
-                  <Text style={styles.heroSub}>Since {new Date(league.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · Due {new Date(league.goal_target_date!).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
+                  <Text style={styles.heroSub}>Since {new Date(league.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · Due {new Date(league.goal_target_date! + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
                 </View>
                 {/* For admins the ring itself opens the challenge for editing —
                     no separate button. Everyone else sees it as display only. */}
@@ -1055,7 +1075,7 @@ export default function TeamHub() {
                 {/* Phone: what isn't set up yet, as tiles at the top. Each one
                     becomes its own titled section below once it exists. */}
                 {phone && (
-                  <RivalStartTiles
+                  <RivalStartTiles ghost={phone}
                     tiles={[
                       ...(isAdmin && !hasGoal ? [{ key: 'challenge', icon: 'target' as const, label: 'Team challenge', onPress: () => router.push({ pathname: '/create-team-challenge', params: { id } }) }] : []),
                       ...(sessions.length === 0 ? [{ key: 'plan', icon: 'calendar' as const, label: 'Plan activity', onPress: () => setPlanning(true) }] : []),
@@ -1384,7 +1404,7 @@ export default function TeamHub() {
                 refreshKey={challengesRefresh}
                 teamGoal={league.goal_metric && league.goal_target && league.goal_target_date ? {
                   title: GOAL_METRIC_LABEL[league.goal_metric],
-                  detail: `${league.goal_target.toLocaleString()} ${GOAL_METRIC_UNIT[league.goal_metric]} · Due ${new Date(league.goal_target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`,
+                  detail: `${league.goal_target.toLocaleString()} ${GOAL_METRIC_UNIT[league.goal_metric]} · Due ${new Date(league.goal_target_date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`,
                 } : null}
                 onEditTeamGoal={() => router.push({ pathname: '/create-team-challenge', params: { id } })}
                 onOpenMembers={() => setActiveTab('Members')}
@@ -1893,8 +1913,11 @@ function ActivityPostCard({
 const CARD_BG = '#2a211d';
 const CARD_BORDER = 'rgba(255,181,158,0.14)';
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+// Desktop keeps its warm cards; phones get the Add an activity look (warm
+// outlines, Ricky 2026-10-03). Same styles, two palettes.
+function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, insetBorder: string, ground: string) {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: ground },
   safeArea: { flex: 1 },
   loadingText: { color: RivalColors.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 60 },
   hero: { paddingBottom: 24, minHeight: 560 },
@@ -1933,7 +1956,7 @@ const styles = StyleSheet.create({
   // scaled down with the tile — thin serif italic is hard to read any smaller.
   boardAddNote: { width: '29%', minHeight: 90, alignSelf: 'flex-start', borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center', gap: 4 },
   boardAddNoteText: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '500', fontSize: 13, color: 'rgba(255,255,255,0.6)' },
-  boardComposeCard: { backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 14, padding: 14, gap: 4 },
+  boardComposeCard: { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, borderRadius: 14, padding: 14, gap: 4 },
   boardComposeTitleInput: { color: RivalColors.accentText, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', paddingVertical: 4 },
   boardComposeRule: {
     alignSelf: 'flex-start', width: 60, height: 1, marginTop: 2, marginBottom: 8,
@@ -1952,13 +1975,13 @@ const styles = StyleSheet.create({
   // notes (48.5% + 3% + 48.5%) still fill the row exactly.
   planWeekLink: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18,
-    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
+    backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder,
   },
   planWeekTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
   planWeekSub: { fontSize: 12.5, color: RivalColors.textSecondary, marginTop: 1 },
   inviteCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20,
-    backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER,
+    backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder,
   },
   inviteLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: RivalColors.accentText },
   inviteCode: { fontSize: 24, fontWeight: '800', letterSpacing: 3, color: '#fff', marginTop: 2 },
@@ -1975,7 +1998,7 @@ const styles = StyleSheet.create({
   leaveText: { fontSize: 14, fontWeight: '700', color: '#ff9b8f' },
   noteBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'center', padding: 18 },
   noteSheet: {
-    backgroundColor: '#1f1b19', borderRadius: 22, borderWidth: 1, borderColor: CARD_BORDER,
+    backgroundColor: '#1f1b19', borderRadius: 22, borderWidth: 1, borderColor: cardBorder,
     padding: 18, gap: 14, maxHeight: '86%',
   },
   noteHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -2028,7 +2051,7 @@ const styles = StyleSheet.create({
   noteActionPrimary: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: RivalButtonColors.fill },
   noteActionPrimaryText: { fontSize: 14, fontWeight: '800', color: RivalButtonColors.label(RivalColors.surfaceLowest) },
   boardGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', columnGap: '3%', rowGap: 10 },
-  boardNote: { width: '48.5%', backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 16, padding: 10, gap: 4, position: 'relative' },
+  boardNote: { width: '48.5%', backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, borderRadius: 16, padding: 10, gap: 4, position: 'relative' },
   boardPin: { position: 'absolute', top: -5, left: '50%', marginLeft: -5, width: 10, height: 10, borderRadius: 5 },
   boardNoteHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   boardNoteName: { fontSize: 11.5, fontWeight: '700', color: '#fff' },
@@ -2047,7 +2070,7 @@ const styles = StyleSheet.create({
   boardCommentAuthor: { fontSize: 10.5, fontWeight: '700', color: RivalColors.accentText },
   boardCommentBody: { fontSize: 10.5, color: 'rgba(255,255,255,0.75)', flexShrink: 1 },
   boardCommentInputRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  boardCommentInput: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, color: '#fff', fontSize: 10.5, borderWidth: 1, borderColor: CARD_BORDER },
+  boardCommentInput: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, color: '#fff', fontSize: 10.5, borderWidth: 1, borderColor: cardBorder },
   startChallengeBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(20,20,20,0.55)', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: `${RivalColors.accentText}55` },
   startChallengeBtnText: { fontSize: 13.5, fontWeight: '700', color: '#fff' },
   eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: RivalColors.accentText, textTransform: 'uppercase', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
@@ -2079,22 +2102,22 @@ const styles = StyleSheet.create({
   paceSubBold: { fontWeight: '800', color: '#fff' },
 
   statRow: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 10, alignItems: 'center' },
+  statCard: { flex: 1, backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 10, alignItems: 'center' },
   statIcon: { marginBottom: 8 },
   statVal: { fontSize: 19, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
   statLbl: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 10, letterSpacing: 0.4, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', textAlign: 'center', marginTop: 4 },
 
   chipRow: { flexDirection: 'row', gap: 8 },
   periodToggleRow: { flexDirection: 'row', gap: 8 },
-  periodToggleBtn: { flex: 1, borderRadius: 12, paddingVertical: 9, alignItems: 'center', backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER },
+  periodToggleBtn: { flex: 1, borderRadius: 12, paddingVertical: 9, alignItems: 'center', backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder },
   periodToggleBtnActive: { borderColor: 'transparent' },
   periodToggleText: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.55)' },
   periodToggleTextActive: { color: '#fff' },
-  chip: { width: 38, height: 38, borderRadius: 12, backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, alignItems: 'center', justifyContent: 'center' },
+  chip: { width: 38, height: 38, borderRadius: 12, backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, alignItems: 'center', justifyContent: 'center' },
   chipActive: { backgroundColor: RivalColors.accentFill, borderColor: 'transparent' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  evTicket: { flexDirection: 'row', backgroundColor: RivalColors.surfaceLowest, borderRadius: 14, borderWidth: 1, borderColor: RivalColors.surfaceBright, overflow: 'hidden' },
+  evTicket: { flexDirection: 'row', backgroundColor: insetBg, borderRadius: 14, borderWidth: 1, borderColor: insetBorder, overflow: 'hidden' },
   evMain: { flex: 1, minWidth: 0, paddingVertical: 10, paddingHorizontal: 12, gap: 2 },
   evWho: { fontSize: 11.5, color: RivalColors.textSecondary },
   evName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 15, color: '#fff' },
@@ -2116,7 +2139,7 @@ const styles = StyleSheet.create({
   seeAllText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   sectionTitle: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff' },
 
-  card: { backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
+  card: { backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
 
   contribRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   rankNum: { width: 16, textAlign: 'center', color: RivalColors.textSecondary, fontSize: 13, fontWeight: '700' },
@@ -2143,7 +2166,7 @@ const styles = StyleSheet.create({
   // Post card — ported verbatim from team-feed.tsx so the Feed tab here
   // matches the Team Feed page exactly.
   post: {
-    position: 'relative', borderRadius: 20, borderWidth: 1, borderColor: CARD_BORDER,
+    position: 'relative', borderRadius: 20, borderWidth: 1, borderColor: cardBorder,
     backgroundColor: '#2d241f',
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
@@ -2225,15 +2248,21 @@ const styles = StyleSheet.create({
   },
   commentSendText: { color: RivalColors.accentText, fontWeight: '700', fontSize: 12.5 },
 
-  redirectCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: CARD_BG, borderWidth: 1, borderColor: CARD_BORDER, borderRadius: 16, padding: 14 },
+  redirectCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder, borderRadius: 16, padding: 14 },
   redirectTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
   redirectSub: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
 });
+}
+const desktopHubStyles = makeHubStyles(CARD_BG, CARD_BORDER, RivalColors.surfaceLowest, RivalColors.surfaceBright, RivalColors.surfaceLow);
+const phoneHubStyles = makeHubStyles(RivalGhost.fill, RivalGhost.border, RivalGhost.fill, RivalGhost.border, RivalGhost.ground);
+// The post card and other helpers outside TeamHub use the desktop set; none
+// of them draw these cards.
+const styles = desktopHubStyles;
 
 // Phone team note pop-up (the blend).
 const nm = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
-  note: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 6 },
+  note: { backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14, gap: 6 },
   noteTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18, color: '#fff' },
   noteBody: { fontSize: 14.5, lineHeight: 21, color: 'rgba(255,255,255,0.85)' },
   editHint: { fontSize: 11.5, color: 'rgba(255,255,255,0.35)' },

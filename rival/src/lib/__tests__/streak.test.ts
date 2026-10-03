@@ -81,7 +81,7 @@ describe('calculateStreak', () => {
 
   it('handles empty and malformed input', () => {
     vi.setSystemTime(new Date('2025-06-18T10:00:00'));
-    expect(calculateStreak([])).toEqual({ current: 0, activeThisWeek: false, longestEver: 0 });
+    expect(calculateStreak([])).toEqual({ current: 0, activeThisWeek: false, longestEver: 0, thisWeek: 0 });
     expect(calculateStreak([{ started_at: 'not-a-date' }, { started_at: '' }]).current).toBe(0);
   });
 });

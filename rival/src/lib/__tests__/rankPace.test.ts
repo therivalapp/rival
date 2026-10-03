@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rankPace } from '../rankPace';
+import { lifetimePace, nextLifetimeMark, rankPace } from '../rankPace';
 
 describe('rankPace', () => {
   it('shows nothing without any training', () => {
@@ -36,5 +36,30 @@ describe('rankPace', () => {
   it('does not treat a first activity in early January as a late start', () => {
     const p = rankPace({ yearEffort: 2000, firstActivityEver: new Date(2026, 0, 5), now: new Date(2026, 3, 1) })!;
     expect(p.latecomer).toBe(false);
+  });
+});
+
+describe('lifetimePace', () => {
+  const now = new Date(2026, 9, 1, 12); // 1 October 2026
+
+  it('finds the next round mark and when this year\'s pace reaches it', () => {
+    // 12,228 since 1 January is about 44.6 a day; 1,687 to 20,000 is 38 days.
+    const p = lifetimePace({ lifetime: 18313, yearEffort: 12228, firstActivityEver: new Date(2023, 9, 4), now });
+    expect(p.target).toBe(20000);
+    expect(p.toGo).toBe(1687);
+    expect(p.by?.getMonth()).toBe(10); // November
+    expect(p.by?.getDate()).toBe(8);
+  });
+
+  it('steps up in 1,000s, 2,500s, then 5,000s', () => {
+    expect(nextLifetimeMark(3200)).toBe(4000);
+    expect(nextLifetimeMark(18313)).toBe(20000);
+    expect(nextLifetimeMark(26000)).toBe(30000);
+  });
+
+  it('gives no date without a pace this year', () => {
+    const p = lifetimePace({ lifetime: 18313, yearEffort: 0, firstActivityEver: new Date(2023, 9, 4), now });
+    expect(p.by).toBeNull();
+    expect(p.toGo).toBe(1687);
   });
 });

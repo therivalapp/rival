@@ -25,12 +25,13 @@ export type StreakResult = {
   current: number;      // consecutive weeks active
   activeThisWeek: boolean;
   longestEver: number;
+  thisWeek: number;     // activities so far this week
 };
 
-const STREAK_MIN_ACTIVITIES = 3;
+export const STREAK_MIN_ACTIVITIES = 3;
 
 export function calculateStreak(activities: { started_at: string }[]): StreakResult {
-  if (activities.length === 0) return { current: 0, activeThisWeek: false, longestEver: 0 };
+  if (activities.length === 0) return { current: 0, activeThisWeek: false, longestEver: 0, thisWeek: 0 };
 
   // Count activities per week — only weeks with 3+ qualify
   const weekCounts: Record<string, number> = {};
@@ -48,6 +49,7 @@ export function calculateStreak(activities: { started_at: string }[]): StreakRes
   const now = new Date();
   const thisWeekKey = weekKey(now);
   const activeThisWeek = activeWeeks.has(thisWeekKey);
+  const thisWeek = weekCounts[thisWeekKey] ?? 0;
 
   // Walk back week by week from current or last week
   let checkDate = activeThisWeek
@@ -65,7 +67,7 @@ export function calculateStreak(activities: { started_at: string }[]): StreakRes
     .filter((a) => a.started_at)
     .map((a) => new Date(a.started_at))
     .filter((d) => !isNaN(d.getTime()));
-  if (allDates.length === 0) return { current, activeThisWeek, longestEver: current };
+  if (allDates.length === 0) return { current, activeThisWeek, longestEver: current, thisWeek };
   const earliest = new Date(Math.min(...allDates.map((d) => d.getTime())));
   let longestEver = 0;
   let running = 0;
@@ -82,7 +84,7 @@ export function calculateStreak(activities: { started_at: string }[]): StreakRes
     cursor = addWeeks(cursor, 1);
   }
 
-  return { current, activeThisWeek, longestEver };
+  return { current, activeThisWeek, longestEver, thisWeek };
 }
 
 export function streakMessage(streak: StreakResult): string {

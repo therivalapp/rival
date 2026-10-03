@@ -11,9 +11,10 @@ import { fetchReactionsOn } from '../lib/reactions';
 import { getLevel, xpProgressInLevel, LEVELS } from '../lib/xp';
 import { calculateStreak, StreakResult } from '../lib/streak';
 import { getSeasonStartISO, getCurrentSeasonYear, daysUntilSeasonEnd } from '../lib/season';
-import { RivalCard, RivalProgressBar, RivalIcon, RivalTopNav, RivalBackButton, GreyPageHead, GreyLabel, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
+import { RivalCard, RivalProgressBar, RivalIcon, RivalTopNav, RivalBackButton, GreyPageHead, GreyLabel, GreyRows, GreyRow, GREY_PAGE_BG, rb } from '../components/rival';
 import { goToTab } from '../lib/tabNav';
-import { RivalColors, RivalRadius, RivalType, RANK_LEVEL_COLORS, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RANK_LEVEL_COLORS, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
+import { rankSheen, rankTextSheen } from '../constants/rankSheen';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
 // Refined Ember rank ramp only has 4 confirmed anchor colors from the Stitch
@@ -218,7 +219,7 @@ export default function StatsScreen() {
 
           {!isOwnProfile && (avatarUrl || mindset) ? (
             <View style={pb.person}>
-              <View style={[pb.avatar, { borderColor: rankColor }]}>
+              <View style={[pb.avatar, { borderColor: rankSheen(lvl.level).light }]}>
                 {avatarUrl
                   ? <Image source={{ uri: avatarUrl }} style={pb.avatarImg} />
                   : <Text style={pb.avatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>}
@@ -227,12 +228,12 @@ export default function StatsScreen() {
             </View>
           ) : null}
 
-          <View style={[pb.card, pb.rank]}>
+          <View style={[pb.card, rb.hero, pb.rank]}>
             <Text style={pb.cap}>{seasonYear} rank</Text>
-            <Text style={pb.rankName}>{lvl.name}</Text>
+            <Text style={[pb.rankName, rankTextSheen(lvl.level)]}>{lvl.name}</Text>
             {!isMax ? (
               <>
-                <View style={pb.bar}><View style={[pb.barFill, { width: `${Math.max(2, Math.min(100, pct))}%` as any }]} /></View>
+                <View style={pb.bar}><View style={[pb.barFill, { width: `${Math.max(2, Math.min(100, Math.round(pct * 100)))}%` as any }]} /></View>
                 <Text style={pb.rankSub}>
                   {Math.max(0, Math.ceil(needed - current)).toLocaleString()} Effort to {LEVELS[lvl.level]?.name ?? 'the next rank'}
                   {seasonDaysLeft > 0 ? ` · ${seasonDaysLeft} days left` : ''}
@@ -734,7 +735,7 @@ const styles = StyleSheet.create({
   mPastYearsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   mPastYearCard: {
     flexBasis: '30%', flexGrow: 1, alignItems: 'center', gap: 3, paddingVertical: 14, paddingHorizontal: 6,
-    backgroundColor: '#1d1714', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)', borderRadius: 16,
+    backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 16,
   },
   mPastYear: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff' },
   mPastYearRank: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
@@ -755,7 +756,7 @@ const styles = StyleSheet.create({
 // Phone only: the blend (grey page, recessed cards, serif numbers).
 const pb = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 120, gap: 10 },
-  card: { backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, borderRadius: 16, paddingHorizontal: 14 },
+  card: { backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 16, paddingHorizontal: 14 },
   cap: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   person: { alignItems: 'center', gap: 8, marginBottom: 2 },
   avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentFill },
@@ -776,7 +777,7 @@ const pb = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tile: {
     flexBasis: '30%', flexGrow: 1, alignItems: 'center', gap: 3, paddingVertical: 13, paddingHorizontal: 4,
-    backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, borderRadius: 14,
+    backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 14,
   },
   tileValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, color: '#fff', fontVariant: ['tabular-nums'] },
   tileValueSmall: { fontSize: 17, lineHeight: 27 },
@@ -797,7 +798,7 @@ const pb = StyleSheet.create({
   milestones: { flexDirection: 'row', gap: 7 },
   milestone: {
     flex: 1, alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 9,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    borderRadius: 14, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border,
   },
   milestoneOn: { borderColor: 'rgba(255,181,158,0.5)', backgroundColor: 'rgba(217,119,87,0.10)' },
   milestoneLabel: { fontSize: 10.5, fontWeight: '700', color: 'rgba(255,255,255,0.45)' },

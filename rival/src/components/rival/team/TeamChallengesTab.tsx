@@ -7,8 +7,9 @@ import { notify } from '../../../lib/notify';
 import { formatTeamName } from '../../../lib/identity';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from '../RivalIcon';
-import { sheet } from './sheetStyles';
+import { sheet, sheetPhone } from './sheetStyles';
 import { BusyText } from '../BusyText';
+import { selectAll, inChunks } from '../../../lib/selectAll';
 
 // Team Hub's Challenges tab: 1v1 challenges between teammates, and Team vs
 // Team. Ported from the old team page (league.tsx), which was the only place
@@ -82,12 +83,16 @@ async function scoreUsers(metric: ChallengeMetric, start: string, end: string, s
   const all = [...sideA, ...sideB];
   if (all.length === 0) return { challenger: 0, opponent: 0 };
   const { startIso, endIso } = windowIso(start, end);
-  const { data } = await supabase
+  // Paged and sliced: the database stops at 1,000 rows without saying so.
+  const data = await inChunks(all, (slice) => selectAll((from, to) => supabase
     .from('activities')
     .select('user_id, effort_score, distance_meters, elevation_meters, duration_seconds')
-    .in('user_id', all)
+    .in('user_id', slice)
     .gte('started_at', startIso)
-    .lt('started_at', endIso);
+    .lt('started_at', endIso)
+    .order('started_at')
+    .order('id')
+    .range(from, to)));
   const a = new Set(sideA);
   let challenger = 0, opponent = 0;
   (data || []).forEach((row: any) => {
@@ -249,7 +254,7 @@ export function TeamChallengesTab({
       {/* Phone: challenges not started yet, as tiles at the top. Each becomes
           its own section below once there's one. */}
       {phone && (
-        <RivalStartTiles
+        <RivalStartTiles ghost={phone}
           tiles={[
             ...(isAdmin && !teamGoal && onEditTeamGoal ? [{ key: 'team', icon: 'target' as const, label: 'Team challenge', onPress: onEditTeamGoal }] : []),
             ...(noTeammate && onOpenMembers ? [{ key: 'mate', icon: 'person' as const, label: 'Challenge a teammate', onPress: onOpenMembers }] : []),
@@ -664,14 +669,14 @@ function ChallengeTeamSheet({
           <ScrollView style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={sheet.label}>Team</Text>
             <TextInput
-              style={sheet.input}
+              style={[sheet.input, phoneSheet && sheetPhone.input]}
               value={search}
               onChangeText={setSearch}
               placeholder="Search teams"
               placeholderTextColor={RivalColors.textSecondary}
               autoCorrect={false}
             />
-            <View style={s.teamList}>
+            <View style={[s.teamList, phoneSheet && sheetPhone.list]}>
               {shown.map(t => (
                 <TouchableOpacity key={t.id} style={[s.teamRow, target === t.id && s.teamRowOn]} onPress={() => setTarget(t.id)}>
                   <Text style={[s.teamRowText, target === t.id && { color: '#fff' }]} numberOfLines={1}>{t.name}</Text>
@@ -709,6 +714,7 @@ function GreyMetricAndDuration({
   days: number; setDays: (d: number) => void;
   customDays: string; setCustomDays: (v: string) => void;
 }) {
+  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   return (
     <>
       <GreyLabel>Compete on</GreyLabel>
@@ -746,12 +752,13 @@ function MetricAndDuration({
   days: number; setDays: (d: number) => void;
   customDays: string; setCustomDays: (v: string) => void;
 }) {
+  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   return (
     <>
       <Text style={sheet.label}>Measured by</Text>
       <View style={sheet.chipRow}>
         {CHALLENGE_METRICS.map(m => (
-          <TouchableOpacity key={m.value} style={[sheet.chip, metric === m.value && sheet.chipOn]} onPress={() => setMetric(m.value)}>
+          <TouchableOpacity key={m.value} style={[sheet.chip, phoneSheet && sheetPhone.chip, metric === m.value && sheet.chipOn]} onPress={() => setMetric(m.value)}>
             <Text style={[sheet.chipText, metric === m.value && sheet.chipTextOn]}>{m.label}</Text>
           </TouchableOpacity>
         ))}
@@ -759,17 +766,17 @@ function MetricAndDuration({
       <Text style={sheet.label}>Duration</Text>
       <View style={sheet.chipRow}>
         {DURATIONS.map(d => (
-          <TouchableOpacity key={d} style={[sheet.chip, days === d && sheet.chipOn]} onPress={() => { setDays(d); setCustomDays(''); }}>
+          <TouchableOpacity key={d} style={[sheet.chip, phoneSheet && sheetPhone.chip, days === d && sheet.chipOn]} onPress={() => { setDays(d); setCustomDays(''); }}>
             <Text style={[sheet.chipText, days === d && sheet.chipTextOn]}>{d} days</Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity style={[sheet.chip, days === -1 && sheet.chipOn]} onPress={() => setDays(-1)}>
+        <TouchableOpacity style={[sheet.chip, phoneSheet && sheetPhone.chip, days === -1 && sheet.chipOn]} onPress={() => setDays(-1)}>
           <Text style={[sheet.chipText, days === -1 && sheet.chipTextOn]}>Custom</Text>
         </TouchableOpacity>
       </View>
       {days === -1 && (
         <TextInput
-          style={[sheet.input, { marginTop: 10 }]}
+          style={[sheet.input, phoneSheet && sheetPhone.input, { marginTop: 10 }]}
           value={customDays}
           onChangeText={(v) => setCustomDays(v.replace(/\D/g, '').slice(0, 2))}
           placeholder="Number of days (1–90)"

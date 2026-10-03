@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { Platform, StyleSheet, View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { goToTab } from '../lib/tabNav';
@@ -297,10 +297,10 @@ const ms = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   tile: {
     flexBasis: '22%', flexGrow: 1, alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8, paddingHorizontal: 3,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceContainer, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    borderRadius: 14, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border,
   },
   tileEarned: { borderColor: 'rgba(255,181,158,0.35)' },
-  tileOn: { borderColor: 'rgba(255,181,158,0.7)', backgroundColor: 'rgba(217,119,87,0.10)' },
+  tileOn: { borderColor: RivalGhost.borderOn, backgroundColor: RivalGhost.fillOn },
   filler: { flexBasis: '22%', flexGrow: 1 },
   badge: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeEarned: {

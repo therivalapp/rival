@@ -965,7 +965,7 @@ export default function RacesScreen() {
                 activeOpacity={isOwn ? 0.85 : 1}
                 disabled={!isOwn}
                 onPress={() => openEdit(race)}
-                style={[rb.card, hero && ms.heroCard]}
+                style={[rb.card, hero && rb.hero]}
               >
                 {/* Ticket: the event on the left, the countdown on the right
                     past a dashed tear line (the ticket on Today). */}
@@ -1448,7 +1448,6 @@ const ms = StyleSheet.create({
   loadingText: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
   emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
-  heroCard: { borderColor: 'rgba(255,181,158,0.35)' },
   ticket: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   ticketName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, lineHeight: 24, color: '#fff' },
   ticketMeta: { fontSize: 12.5, color: RivalColors.textSecondary },

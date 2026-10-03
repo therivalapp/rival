@@ -174,3 +174,20 @@ export const RivalButtonColors = {
   // a greyed-out button would stay orange.
   noGradient: (Platform.OS === 'web' ? { backgroundImage: 'none' } : {}) as any,
 };
+
+// The Add an activity look (Ricky, 2026-10-03), the standard for every page
+// that isn't a main tab: a warm grey ground, and cards, fields and tiles drawn
+// as warm outlines with the faintest warm fill. Never near-black cards.
+// Phone only; desktop keeps its own colours (mobile-only phase).
+export const RivalGhost = {
+  ground: '#232120',
+  fill: 'rgba(255,209,190,0.05)',
+  border: 'rgba(255,181,158,0.22)',
+  /** A chosen tile or segment that isn't the lit (peach) one. */
+  fillOn: 'rgba(255,181,158,0.14)',
+  borderOn: 'rgba(255,181,158,0.6)',
+  hairline: 'rgba(255,209,190,0.08)',
+};
+
+// Phone cards that sit on a page: the ghost fill.
+export const PHONE_CARD_BG = RivalGhost.fill;

@@ -1,3 +1,4 @@
+import { lifetimeSeconds } from '../_shared/lifetimeSeconds.ts'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { saveActivityRoute } from '../_shared/activityRoute.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -194,15 +195,22 @@ serve(async (req) => {
         // a later Strava sync clobber a name/details set by whichever source created it.
         const { data: existingRow } = await supabase
           .from('activities')
-          .select('name_locked, provider')
+          .select('name_locked, provider, effort_confirmed')
           .eq('id', canonicalId)
           .maybeSingle()
         if (existingRow?.provider === 'strava' && !existingRow?.name_locked) fields.name = activity.name
+        // The athlete confirmed this activity is correct (effort_confirmed), so a
+        // re-sync scores all of it rather than the capped amount.
+        if (existingRow?.effort_confirmed) {
+          const full = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig, activity.distance, true)
+          fields.effort_score = full
+          fields.raw_effort_score = full
+        }
 
         const { error } = await supabase.from('activities').update(fields).eq('id', canonicalId)
         if (error) return null
         await saveActivityRoute(supabase, canonicalId, user.id, activity.map?.summary_polyline)
-        return { seconds: activity.moving_time || 0, effort: effortScore }
+        return { seconds: activity.moving_time || 0, effort: Number(fields.effort_score) }
       }
 
       const { data: inserted, error } = await supabase
@@ -247,11 +255,7 @@ serve(async (req) => {
     // the last page — cheap either way, but no reason to spam a push per page.
     let newMilestoneTypes: string[] = []
     if (!hasMore) {
-      const { data: allActivities } = await supabase
-        .from('activities')
-        .select('duration_seconds')
-        .eq('user_id', user.id)
-      const totalHours = (allActivities || []).reduce((s: number, a: any) => s + (a.duration_seconds || 0), 0) / 3600
+      const totalHours = (await lifetimeSeconds(supabase, user.id)) / 3600
 
       const { data: existingMilestones } = await supabase.from('milestones').select('type').eq('user_id', user.id)
       const achieved = new Set((existingMilestones || []).map((m: any) => m.type))

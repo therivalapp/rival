@@ -21,7 +21,7 @@ import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, Activit
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaRow } from '../../lib/activityMedia';
 import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
-import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
+import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV, BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 
 type ExerciseEntry = {
   name: string;
@@ -34,6 +34,8 @@ type ExerciseEntry = {
 
 type Activity = {
   id: string;
+  /** The owner confirmed it is correct, so it scores in full. */
+  effort_confirmed?: boolean;
   name: string | null;
   activity_type: string;
   started_at: string;
@@ -449,7 +451,7 @@ export default function MyActivitiesScreen() {
     // active account) while the older data sat in the table untouched.
     const data = await fetchAllActivities(
       user.id,
-      'id, name, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, shared_from_activity_id, pinned',
+      'id, name, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, shared_from_activity_id, pinned, effort_confirmed',
     );
     if (data) {
       setAllActivities(data);
@@ -633,6 +635,7 @@ export default function MyActivitiesScreen() {
       pinned: a.pinned,
       race_id: a.race_id,
       isPb: !!pbs[a.id],
+      effort_confirmed: a.effort_confirmed,
     };
   }
 
@@ -669,7 +672,7 @@ export default function MyActivitiesScreen() {
         </View>
         <View style={styles.fvTiles}>
           {[
-            { key: 'scan', icon: 'camera' as const, label: 'Scan workout', to: '/scan-workout' },
+            { key: 'scan', icon: 'camera' as const, label: 'Scan workout', to: windowWidth >= BREAKPOINT_WIDE_LAYOUT ? '/scan-workout' : '/add-workout' },
             { key: 'manual', icon: 'manual' as const, label: 'Manual entry', to: '/manual-entry' },
           ].map((t) => (
             <TouchableOpacity key={t.key} style={styles.fvTile} activeOpacity={0.85} onPress={() => router.push(t.to as any)}>
@@ -2020,7 +2023,7 @@ export default function MyActivitiesScreen() {
           <View style={styles.toolbarRow}>
             {([
               { key: 'refresh', icon: 'check' as const, label: 'Refresh', active: false, onPress: () => loadActivities() },
-              { key: 'logweek', icon: 'calendar' as const, label: 'Weekly scan', active: false, onPress: () => router.push('/weekly-scan') },
+              { key: 'logweek', icon: 'calendar' as const, label: 'Multi-day scan', active: false, onPress: () => router.push('/weekly-scan') },
               { key: 'filter', icon: 'search' as const, label: filterType === 'All' ? 'Filter by type' : `Filtered: ${filterType}`, active: filterType !== 'All', onPress: () => setShowTypeFilter(!showTypeFilter) },
               { key: 'sort', icon: sortOrder === 'latest' ? 'trendDown' as const : 'trendUp' as const, label: sortOrder === 'latest' ? 'Sorted: Latest first' : 'Sorted: Oldest first', active: false, onPress: () => setSortOrder(sortOrder === 'latest' ? 'oldest' : 'latest') },
               { key: 'prs', icon: 'fire' as const, label: 'PBs only', active: prOnly, onPress: () => setPrOnly(!prOnly) },
@@ -2473,7 +2476,7 @@ const SHOW_WEEK_QUOTE = false;
 const styles = StyleSheet.create({
   startWrap: { marginTop: 4, marginBottom: 12 },
   towardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, textTransform: 'uppercase', marginTop: 16, marginBottom: 8, marginLeft: 2 },
-  towardCard: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12, marginBottom: 6 },
+  towardCard: { backgroundColor: '#262220', borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12, marginBottom: 6 },
   towardRow: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 58 },
   towardDivider: { height: 1, backgroundColor: RivalColors.surfaceBright, opacity: 0.6 },
   towardBadge: {
@@ -2529,7 +2532,7 @@ const styles = StyleSheet.create({
   weekDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: 'rgba(255,255,255,0.12)' },
   weekDotOn: {
     backgroundColor: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})`, boxShadow: '0 0 8px rgba(217,119,87,0.5)' } : {}),
+    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } : {}),
   } as any,
   weekDotToday: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.6)' },
   weekDotLabel: { fontSize: 9.5, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
@@ -2923,7 +2926,7 @@ const styles = StyleSheet.create({
   fvBar: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   fvBarFill: { height: '100%', backgroundColor: RivalColors.accentText, ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}) } as any,
   fvCount: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 6, marginBottom: 10 },
-  fvSteps: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12 },
+  fvSteps: { backgroundColor: '#262220', borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12 },
   fvStep: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 60 },
   fvStepBorder: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
   fvNum: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.5)' },

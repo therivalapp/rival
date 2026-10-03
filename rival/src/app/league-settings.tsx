@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalAvatar, GreyPageHead, GREY_PAGE_BG } from '../components/rival';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
 // Mobile styles — the warm palette the rest of the mobile app now uses.
 const ms = StyleSheet.create({
   descInput: {
-    minHeight: 64, backgroundColor: RivalColors.surfaceContainer, borderWidth: 1, borderColor: RivalColors.surfaceBright, borderRadius: 12, padding: 12,
+    minHeight: 64, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 12, padding: 12,
     color: '#fff', fontSize: 14.5, lineHeight: 20, textAlignVertical: 'top',
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
@@ -1110,7 +1110,7 @@ const ms = StyleSheet.create({
   accentGhostText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
   sectHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, marginHorizontal: 4, marginBottom: -4 },
   sect: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
-  rowsCard: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13 },
+  rowsCard: { backgroundColor: PHONE_CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 13 },
   wideBtn: { paddingVertical: 12 },
   resetLink: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textDecorationLine: 'underline' },
   dangerCard: { borderColor: 'rgba(255,143,143,0.18)' },
@@ -1166,7 +1166,7 @@ const ms = StyleSheet.create({
   crestBtnTextOff: { color: 'rgba(255,255,255,0.5)', fontWeight: '600', fontSize: 12.5 },
   error: { fontSize: 12.5, color: '#ff8f8f', textAlign: 'center' },
 
-  card: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 12 },
+  card: { backgroundColor: PHONE_CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14, gap: 12 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   cardCount: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.45)' },
@@ -1174,9 +1174,9 @@ const ms = StyleSheet.create({
   countBadge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   countBadgeText: { fontSize: 11, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
-  segment: { flexDirection: 'row', backgroundColor: RivalColors.surfaceContainer, borderWidth: 1, borderColor: RivalColors.surfaceBright, borderRadius: 999, padding: 4, gap: 4 },
+  segment: { flexDirection: 'row', backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 999, padding: 4, gap: 4 },
   segmentBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 999 },
-  segmentBtnOn: { backgroundColor: RivalColors.surfaceBright },
+  segmentBtnOn: { backgroundColor: RivalGhost.fillOn },
   segmentText: { fontSize: 14, fontWeight: '700', color: RivalColors.textSecondary },
   segmentTextOn: { color: '#fff' },
 

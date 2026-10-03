@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RivalColors, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalButtonColors, RivalSerifFamily, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -228,7 +228,7 @@ export default function PlanScreen() {
           <GreyPageHead kicker="THIS WEEK" title="Weekly plan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
           {/* Where the week stands, and where it could. */}
-          <View style={rb.card}>
+          <View style={[rb.card, rb.hero]}>
             <Text style={rb.label}>Effort</Text>
             <View style={ms.totals}>
               <View style={ms.total}>
@@ -590,7 +590,7 @@ export default function PlanScreen() {
                   </TouchableOpacity>
                   <View style={styles.stepperValueBlock}>
                     <Text style={styles.stepperValue}>{sessions}</Text>
-                    <Text style={styles.stepperSub}>{sessions === 1 ? 'session' : 'sessions'} · {sessions * SESSION_MINUTES} min total</Text>
+                    <Text style={styles.stepperSub}>{sessions === 1 ? 'activity' : 'activities'} · {sessions * SESSION_MINUTES} min total</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.stepperBtn}
@@ -819,7 +819,7 @@ const ms = StyleSheet.create({
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 },
   tile: {
     width: '23.2%', alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: 'rgba(255,209,190,0.09)',
+    borderRadius: 14, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border,
   } as any,
   tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
   tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },

@@ -1,8 +1,9 @@
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ImageBackground, useWindowDimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ImageBackground, useWindowDimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, rb, GreyPageHead, GreyRows, GreyRow } from '../components/rival';
+import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, rb, GreyPageHead, GreyRows, GreyRow, GreySheet } from '../components/rival';
 import { goToTab } from '../lib/tabNav';
+import { pickScanFiles, setPendingScanFiles } from '../lib/scanHandoff';
 import { RivalButtonColors, RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
@@ -11,6 +12,19 @@ const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }>
   { icon: 'brain', title: '2. Automatic extraction', body: 'Exercises, sets, weights and distance are extracted from the image.' },
   { icon: 'verified', title: '3. Review and save', body: 'Confirm the details. Effort updates as soon as the activity is saved.' },
 ];
+
+// The tile's icon, large and centred behind the words, fading out towards
+// them (Ricky, 2026-10-03).
+function TileArt({ icon, primary }: { icon: RivalIconName; primary?: boolean }) {
+  return (
+    <>
+      <View style={ms.tileArt} pointerEvents="none">
+        <RivalIcon name={icon} size={118} color={primary ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.24)'} />
+      </View>
+      <View style={[ms.tileFade, primary ? ms.tileFadePrimary : ms.tileFadeGhost]} pointerEvents="none" />
+    </>
+  );
+}
 
 export default function AddWorkoutScreen() {
   const { width } = useWindowDimensions();
@@ -34,47 +48,60 @@ export default function AddWorkoutScreen() {
   );
 
   if (!wide) {
-    // Mobile: scanning leads, because it's the fastest way in and the one
-    // people don't know RIVAL can do. Manual entry and a whole week are the
-    // two other roads, as full-width rows you can tap anywhere on.
+    // Phone: a pop-up over the page it came from (a transparent modal on
+    // phone, see _layout.tsx). Scanning leads as two big tiles straight on the
+    // sheet, because adding activities should be one easy tap (Ricky,
+    // 2026-10-02); manual entry and a multi-day scan are the other roads.
+    const close = () => (router.canGoBack() ? router.back() : goToTab('/my-activities'));
+    // The camera or photo library opens straight from the tile's tap; the
+    // scan page then reads what was chosen (lib/scanHandoff.ts). Cancelling
+    // leaves you here.
+    const scan = (source: 'camera' | 'gallery') => {
+      if (Platform.OS !== 'web') { router.push(`/scan-workout?source=${source}`); return; }
+      pickScanFiles(source, (files) => {
+        setPendingScanFiles(files);
+        router.push('/scan-workout?source=picked');
+      });
+    };
     return (
-      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
-        <RivalTopNav />
-        <ScrollView contentContainerStyle={[rb.content, { paddingBottom: 120 }]}>
-          <GreyPageHead kicker="LOG" title="Add an activity" onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} />
-
-          <View style={rb.card}>
-            <Text style={rb.label}>Photo scan</Text>
-            <View>
-              {['Capture or upload', 'Details read automatically', 'Review and save'].map((t, i) => (
-                <View key={t} style={[ms.step, i > 0 && rb.rule]}>
-                  <View style={ms.stepNum}><Text style={ms.stepNumText}>{i + 1}</Text></View>
-                  <Text style={ms.stepText}>{t}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={ms.actions}>
-              <TouchableOpacity style={[ms.primary, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=camera')} activeOpacity={0.85}>
-                <RivalIcon name="camera" size={17} color={ms.primaryText.color as string} />
-                <Text style={ms.primaryText} numberOfLines={1}>Take photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[ms.ghost, { flex: 1 }]} onPress={() => router.push('/scan-workout?source=gallery')} activeOpacity={0.85}>
-                <RivalIcon name="upload" size={17} color={RivalColors.accentText} />
-                <Text style={ms.ghostText} numberOfLines={1}>Upload</Text>
-              </TouchableOpacity>
-            </View>
+      <View style={ms.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+        <GreySheet
+          kicker="LOG"
+          title="Add an activity"
+          onClose={close}
+          footer={<Text style={ms.tileNote}>Details are read automatically. Review before saving.</Text>}
+        >
+          {/* Four ways in, all the same size of tile (Ricky, 2026-10-02):
+              the two scans first, the photo tile lit. Multi-day scan is a
+              pop-up too, so it takes this one's place rather than stacking
+              a second dark backdrop over it. */}
+          <View style={[ms.tiles, ms.tilesTop]}>
+            <TouchableOpacity style={[ms.tile, ms.tilePrimary]} onPress={() => scan('camera')} activeOpacity={0.85} accessibilityRole="button">
+              <TileArt icon="camera" primary />
+              <Text style={[ms.tileTitle, { color: ms.primaryText.color as string }]}>Take photo</Text>
+              <Text style={[ms.tileSub, { color: ms.primaryText.color as string, opacity: 0.75 }]}>Use the camera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => scan('gallery')} activeOpacity={0.85} accessibilityRole="button">
+              <TileArt icon="upload" />
+              <Text style={ms.tileTitle}>Upload</Text>
+              <Text style={ms.tileSub}>From the photo library</Text>
+            </TouchableOpacity>
           </View>
-
-          <GreyRows>
-            <GreyRow icon="manual" label="Manual entry" onPress={() => router.push('/manual-entry')}>
-              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
-            </GreyRow>
-            <GreyRow icon="batch" label="Weekly scan" onPress={() => router.push('/weekly-scan')}>
-              <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
-            </GreyRow>
-          </GreyRows>
-        </ScrollView>
-      </SafeAreaView>
+          <View style={[ms.tiles, { marginTop: 10 }]}>
+            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.push('/manual-entry')} activeOpacity={0.85} accessibilityRole="button">
+              <TileArt icon="manual" />
+              <Text style={ms.tileTitle}>Manual entry</Text>
+              <Text style={ms.tileSub}>Type in the details</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.replace('/weekly-scan')} activeOpacity={0.85} accessibilityRole="button">
+              <TileArt icon="batch" />
+              <Text style={ms.tileTitle}>Multi-day scan</Text>
+              <Text style={ms.tileSub}>Several days at once</Text>
+            </TouchableOpacity>
+          </View>
+        </GreySheet>
+      </View>
     );
   }
 
@@ -197,4 +224,20 @@ const ms = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)',
   },
   ghostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },
+  // The two scan tiles on the phone pop-up.
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  tiles: { flexDirection: 'row', gap: 10 },
+  tilesTop: { marginTop: 14 },
+  tile: { flex: 1, minHeight: 132, borderRadius: 18, padding: 16, justifyContent: 'flex-end', gap: 3, overflow: 'hidden' },
+  tilePrimary: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  tileGhost: { borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)', backgroundColor: 'rgba(255,209,190,0.05)' },
+  tileIconPrimary: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.12)', marginBottom: 'auto' },
+  tileIconGhost: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,181,158,0.1)', marginBottom: 'auto' },
+  tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  tileFade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  tileFadePrimary: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' } as any : {},
+  tileFadeGhost: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' } as any : {},
+  tileTitle: { fontSize: 17, fontWeight: '800', color: RivalColors.textPrimary },
+  tileSub: { fontSize: 12, fontWeight: '500', color: RivalColors.textSecondary },
+  tileNote: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
 });

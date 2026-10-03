@@ -52,7 +52,8 @@ const baseFrom = supabase.from.bind(supabase);
 };
 const baseRpc = supabase.rpc.bind(supabase);
 // Functions that only read: calling them must not throw away the caches.
-const READ_ONLY_RPCS = new Set(['my_strava_sharing', 'lookup_league_by_invite_code']);
+// weekly_wins writes only its own record, which no cache holds.
+const READ_ONLY_RPCS = new Set(['my_strava_sharing', 'lookup_league_by_invite_code', 'weekly_wins']);
 (supabase as any).rpc = (...args: any[]) => {
   if (!READ_ONLY_RPCS.has(args[0])) {
     dataChanged('activities');

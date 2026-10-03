@@ -3,7 +3,7 @@ import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpac
 import { supabase } from '../../lib/supabase';
 import { confirmAction, notify } from '../../lib/notify';
 import { displayToIsoDate, isoToDisplayDate, friendlyDate, friendlyTime } from '../../lib/dateFormat';
-import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
@@ -417,7 +417,7 @@ export function PlanSessionSheet({
                   return (
                     <TouchableOpacity
                       key={t}
-                      style={[styles.tile, on && styles.tileOn]}
+                      style={[styles.tile, m && pg.tile, on && styles.tileOn, m && on && pg.tileOn]}
                       onPress={() => setType(t)}
                       activeOpacity={0.8}
                       accessibilityRole="button"
@@ -431,7 +431,7 @@ export function PlanSessionSheet({
                   );
                 })}
                 <TouchableOpacity
-                  style={[styles.tile, outsidePick ? styles.tileOn : styles.tileAll]}
+                  style={[styles.tile, m && pg.tile, outsidePick ? [styles.tileOn, m && pg.tileOn] : styles.tileAll]}
                   onPress={() => setPickerOpen(true)}
                   activeOpacity={0.8}
                   accessibilityRole="button"
@@ -483,7 +483,7 @@ export function PlanSessionSheet({
                 else on the sheet had, so it read as bolted on rather than as
                 the Custom chip's own field. */}
             {type === CUSTOM && (
-              <View style={[styles.fieldCard, styles.customCard]}>
+              <View style={[styles.fieldCard, m && pg.fieldCard, styles.customCard]}>
                 {/* A plain left-aligned field, not a label/value row. The
                     Details card below is a value LIST — label left, value
                     right — which only works when there's a value sitting on
@@ -509,7 +509,7 @@ export function PlanSessionSheet({
             {!editing && (!m || SHOW_TRAIN_NOW_ON_PHONE) && (
               <>
                 <Text style={styles.label}>When</Text>
-                <View style={styles.whenRow}>
+                <View style={[styles.whenRow, m && pg.fieldCard]}>
                   <TouchableOpacity style={[styles.whenBtn, startsIn === null && styles.whenBtnOn]} onPress={() => { setStartsIn(null); setNowAt(null); }}>
                     <Text style={[styles.whenText, startsIn === null && styles.whenTextOn]}>Schedule</Text>
                   </TouchableOpacity>
@@ -533,7 +533,7 @@ export function PlanSessionSheet({
             )}
 
             <Text style={styles.label}>Details</Text>
-            <View style={styles.fieldCard}>
+            <View style={[styles.fieldCard, m && pg.fieldCard]}>
               {startsIn !== null && m && (
                 <>
                   {/* Train Now on a phone: one start time, today only. */}
@@ -727,7 +727,7 @@ export function PlanSessionSheet({
               </View>
 
               <TextInput
-                style={styles.search}
+                style={[styles.search, m && pg.fieldCard]}
                 value={typeSearch}
                 onChangeText={setTypeSearch}
                 placeholder="Search"
@@ -1000,4 +1000,11 @@ const styles = StyleSheet.create({
   pickerRowText: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: '600', color: RivalColors.textSecondary },
   pickerRowTextOn: { color: '#fff' },
   pickerEmpty: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
+});
+
+// Phones: the Add an activity look (warm outlines, Ricky 2026-10-03).
+const pg = StyleSheet.create({
+  fieldCard: { backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
+  tile: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  tileOn: { backgroundColor: RivalGhost.fillOn, borderColor: RivalGhost.borderOn },
 });

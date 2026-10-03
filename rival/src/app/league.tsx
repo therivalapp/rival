@@ -20,6 +20,7 @@ import { RivalIcon, RivalFixedBackground, RivalTopNav, RivalProgressBar, RivalAv
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { selectAll, inChunks } from '../lib/selectAll';
 
 const INSIGHT_ICON: Record<InsightTone, 'trophy' | 'fire' | 'trendUp'> = {
   record: 'trophy',
@@ -506,7 +507,7 @@ export default function LeagueScreen() {
     // Per-member trailing history for micro-insights ("Longest run in 3 months",
     // "4th swim this week") — a separate, wider window than the feed itself so
     // record/pace comparisons have enough history to be meaningful. Bounded to
-    // a year and a modest row cap since this is scoped to one team's members.
+    // a year, and paged so every activity in it counts.
     const oneYearAgo = new Date();
     oneYearAgo.setDate(oneYearAgo.getDate() - 365);
 
@@ -534,12 +535,13 @@ export default function LeagueScreen() {
         .gte('scheduled_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(20),
-      supabase.from('activities')
+      inChunks(memberIds, (slice) => selectAll((from, to) => supabase.from('activities')
         .select('user_id, activity_type, started_at, duration_seconds, distance_meters, elevation_meters')
-        .in('user_id', memberIds)
+        .in('user_id', slice)
         .gte('started_at', oneYearAgo.toISOString())
         .order('started_at', { ascending: false })
-        .limit(500),
+        .order('id')
+        .range(from, to))).then((data) => ({ data })),
     ]);
 
     const insightHistoryByUser: Record<string, InsightActivity[]> = {};
@@ -692,14 +694,19 @@ export default function LeagueScreen() {
       return acc;
     };
 
-    const [weekRes, prevRes, allRes] = await Promise.all([
-      supabase.from('activities').select('user_id, effort_score, duration_seconds').in('user_id', memberIds)
-        .gte('started_at', start.toISOString()).lt('started_at', end.toISOString()),
-      supabase.from('activities').select('user_id, effort_score').in('user_id', memberIds)
-        .gte('started_at', lastStart.toISOString()).lt('started_at', lastEnd.toISOString()),
-      supabase.from('activities').select('user_id, effort_score').in('user_id', memberIds)
-        .gte('started_at', getSeasonStartISO()),
+    // Paged and sliced: the year's activities for a whole team pass the
+    // database's silent 1,000-row limit quickly.
+    const rowsFor = (columns: string, from: string, to?: string) => inChunks(memberIds, (slice) => selectAll((a, b) => {
+      let q = supabase.from('activities').select(`id, ${columns}`).in('user_id', slice).gte('started_at', from);
+      if (to) q = q.lt('started_at', to);
+      return q.order('id').range(a, b);
+    }));
+    const [weekRows, prevRows, allRows] = await Promise.all([
+      rowsFor('user_id, effort_score, duration_seconds', start.toISOString(), end.toISOString()),
+      rowsFor('user_id, effort_score', lastStart.toISOString(), lastEnd.toISOString()),
+      rowsFor('user_id, effort_score', getSeasonStartISO()),
     ]);
+    const weekRes = { data: weekRows }, prevRes = { data: prevRows }, allRes = { data: allRows };
 
     const weekByUser = sumBy(weekRes.data);
     const weekSecondsByUser = sumBy(weekRes.data, 'duration_seconds');
@@ -873,11 +880,14 @@ export default function LeagueScreen() {
   // across the whole roster instead of two challengers.
   async function computeTeamGoalProgress(memberIds: string[], metric: Challenge['metric'], sinceIso: string): Promise<{ total: number; byUser: Record<string, number> }> {
     if (memberIds.length === 0) return { total: 0, byUser: {} };
-    const { data } = await supabase
+    // Paged: a whole team since it formed passes the 1,000-row limit.
+    const data = await inChunks(memberIds, (slice) => selectAll((a, b) => supabase
       .from('activities')
-      .select('user_id, effort_score, distance_meters, elevation_meters, duration_seconds')
-      .in('user_id', memberIds)
-      .gte('started_at', sinceIso);
+      .select('id, user_id, effort_score, distance_meters, elevation_meters, duration_seconds')
+      .in('user_id', slice)
+      .gte('started_at', sinceIso)
+      .order('id')
+      .range(a, b)));
 
     let total = 0;
     const byUser: Record<string, number> = {};
@@ -1032,11 +1042,15 @@ export default function LeagueScreen() {
     const allIds = [...challengerIds, ...opponentIds];
     if (allIds.length === 0) return { challenger: 0, opponent: 0 };
 
-    const { data } = await supabase.from('activities')
+    // Paged and sliced: the database stops at 1,000 rows without saying so.
+    const data = await inChunks(allIds, (slice) => selectAll((from, to) => supabase.from('activities')
       .select('user_id, effort_score, distance_meters, elevation_meters, duration_seconds')
-      .in('user_id', allIds)
+      .in('user_id', slice)
       .gte('started_at', startIso)
-      .lt('started_at', endIso);
+      .lt('started_at', endIso)
+      .order('started_at')
+      .order('id')
+      .range(from, to)));
 
     let challengerScore = 0, opponentScore = 0;
     const challengerSet = new Set(challengerIds);
@@ -1115,8 +1129,14 @@ export default function LeagueScreen() {
   }
 
   async function respondToLvlChallenge(challengeId: string, accept: boolean) {
-    await supabase.from('league_vs_league_challenges')
-      .update({ status: accept ? 'active' : 'declined' }).eq('id', challengeId);
+    // Checked, and the row read back: a refused write (RLS) changes nothing
+    // and raises no error, and the other team was still told it was answered.
+    const { data: updated, error } = await supabase.from('league_vs_league_challenges')
+      .update({ status: accept ? 'active' : 'declined' }).eq('id', challengeId).select('id');
+    if (error || !updated || updated.length === 0) {
+      notify("Couldn't answer that challenge", error?.message ?? 'Only a team admin can answer it.');
+      return;
+    }
     fireChallengeNotification('lvl_response', challengeId, { accept });
     loadLvlChallenges();
   }

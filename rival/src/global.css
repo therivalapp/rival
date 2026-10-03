@@ -36,6 +36,13 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
 /* Home podium motion — see podiumRise/podiumSettle/podiumSheen in home.tsx.
    Kept here because react-native-web drops inline animationKeyframes; the
    components reference these by animationName instead. */
+/* Loading skeletons on Today: a slow breath, run by the browser so it keeps
+   going while the page is busy. */
+@keyframes rivalSkelPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 @keyframes rivalPodiumRise {
   0% { transform: scaleY(0.04); opacity: 0; }
   100% { transform: scaleY(1); opacity: 1; }

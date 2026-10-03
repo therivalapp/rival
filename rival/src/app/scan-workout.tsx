@@ -1,16 +1,17 @@
 import { defaultActivityName } from '../lib/activityName';
 import { fitPhoto } from '../lib/imageResize';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pickScanFiles, takePendingScanFiles } from '../lib/scanHandoff';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
-import { RivalColors, RivalRadius, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm, rb, GreyPageHead, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
 import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB } from '../components/rival/MediaPicker';
 import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
@@ -155,9 +156,27 @@ export default function ScanWorkoutScreen() {
   useEffect(() => {
     if (editParamId) return;
     if (entryMode === 'manual') { startManualEntry(); return; }
+    if (entrySource === 'picked') {
+      const files = takePendingScanFiles();
+      if (files) scanWebFiles(files);
+      return;
+    }
     if (entrySource === 'camera' || entrySource === 'gallery') { pickImage(entrySource); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Phone: there's no separate scan landing any more (Ricky, 2026-10-03).
+  // Opening this page with nothing to show, or clearing a scan with Start
+  // over, goes to the Add an activity pop-up instead. Waits while picked
+  // photos are still being read, so a scan in progress never bounces.
+  const landingRedirectOk = useRef(!entrySource && entryMode !== 'manual');
+  useEffect(() => {
+    if (scanImages.length > 0 || extractedWorkout) landingRedirectOk.current = true;
+  }, [scanImages.length, extractedWorkout]);
+  useEffect(() => {
+    if (wide || editParamId || !landingRedirectOk.current) return;
+    if (scanImages.length === 0 && !extractedWorkout && !successMsg) router.replace('/add-workout');
+  }, [wide, editParamId, scanImages.length, extractedWorkout, successMsg]);
 
   useEffect(() => {
     if (!editParamId) return;
@@ -249,38 +268,34 @@ export default function ScanWorkoutScreen() {
     setWorkoutName('');
   }
 
+  // Web: read the chosen photos and scan them. Used by the buttons here and
+  // by photos handed over from Add an activity (lib/scanHandoff.ts).
+  async function scanWebFiles(files: File[]) {
+    resetForNewImage();
+
+    const readFile = (file: File) => new Promise<{ dataUri: string; base64: string; mimeType: string; w: number; h: number }>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUri = e.target?.result as string;
+        const base64 = dataUri.split(',')[1];
+        const mimeType = file.type || 'image/jpeg';
+        const img = document.createElement('img');
+        img.onload = () => resolve({ dataUri, base64, mimeType, w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ dataUri, base64, mimeType, w: 1, h: 1 });
+        img.src = dataUri;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const results = await Promise.all(files.map(readFile));
+    setScanImages(results.map(r => ({ uri: r.dataUri, aspectRatio: r.w / r.h })));
+
+    await analyzeImages(results.map(r => ({ base64Image: r.base64, mediaType: r.mimeType })));
+  }
+
   async function pickImage(source: 'camera' | 'gallery') {
     if (Platform.OS === 'web') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.multiple = true;
-      input.onchange = async () => {
-        const files = Array.from(input.files || []);
-        if (files.length === 0) return;
-
-        resetForNewImage();
-
-        const readFile = (file: File) => new Promise<{ dataUri: string; base64: string; mimeType: string; w: number; h: number }>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const dataUri = e.target?.result as string;
-            const base64 = dataUri.split(',')[1];
-            const mimeType = file.type || 'image/jpeg';
-            const img = document.createElement('img');
-            img.onload = () => resolve({ dataUri, base64, mimeType, w: img.naturalWidth, h: img.naturalHeight });
-            img.onerror = () => resolve({ dataUri, base64, mimeType, w: 1, h: 1 });
-            img.src = dataUri;
-          };
-          reader.readAsDataURL(file);
-        });
-
-        const results = await Promise.all(files.map(readFile));
-        setScanImages(results.map(r => ({ uri: r.dataUri, aspectRatio: r.w / r.h })));
-
-        await analyzeImages(results.map(r => ({ base64Image: r.base64, mediaType: r.mimeType })));
-      };
-      input.click();
+      pickScanFiles(source, (files) => { scanWebFiles(files); });
       return;
     }
 
@@ -820,7 +835,7 @@ export default function ScanWorkoutScreen() {
               <GreyRow icon="manual" label="Manual entry" onPress={() => router.push('/manual-entry')}>
                 <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
               </GreyRow>
-              <GreyRow icon="batch" label="Weekly scan" onPress={() => router.push('/weekly-scan')}>
+              <GreyRow icon="batch" label="Multi-day scan" onPress={() => router.push('/weekly-scan')}>
                 <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
               </GreyRow>
             </GreyRows>
@@ -1419,10 +1434,10 @@ const mobileStyles = {
     image: { width: '100%', maxHeight: 420, borderRadius: 16, backgroundColor: RivalWarm.card },
     scanImageThumb: { width: 150, height: 210, borderRadius: 14, backgroundColor: RivalWarm.card },
     scanImagesHint: { fontSize: 12, color: RivalWarm.muted, marginTop: 8, textAlign: 'center' },
-    loadingBox: { alignItems: 'center', paddingVertical: 28, gap: 12, backgroundColor: RivalWarm.card, borderRadius: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder },
+    loadingBox: { alignItems: 'center', paddingVertical: 28, gap: 12, backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border },
     loadingText: { color: RivalWarm.soft, fontSize: 15, fontWeight: '600' },
 
-    extractedBox: { backgroundColor: RivalWarm.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder, gap: 12 },
+    extractedBox: { backgroundColor: RivalGhost.fill, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: RivalGhost.border, gap: 12 },
     extractedLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
     fieldRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: RivalWarm.hairline },
     fieldLabel: { fontSize: 13, color: RivalWarm.soft, fontWeight: '600' },

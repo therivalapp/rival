@@ -21,6 +21,7 @@ export const INBOX_ICON_FOR: Record<InboxItem['kind'], RivalIconName> = {
   team_joined: 'checkCircle',
   activity_tag: 'groups',
   tag_accepted: 'verified',
+  pace_review: 'bolt',
 };
 
 export function inboxTimeAgo(iso: string): string {

@@ -187,11 +187,18 @@ serve(async (req) => {
         // name set by whichever source created the row.
         const { data: existingRow } = await supabase
           .from('activities')
-          .select('name_locked, provider, photo_url')
+          .select('name_locked, provider, photo_url, effort_confirmed')
           .eq('id', canonicalId)
           .maybeSingle()
         const updateFields: Record<string, unknown> = { ...fields }
         if (existingRow?.provider === 'strava' && !existingRow?.name_locked) updateFields.name = activity.name
+        // The athlete confirmed this activity is correct (effort_confirmed), so a
+        // re-sync scores all of it rather than the capped amount.
+        if (existingRow?.effort_confirmed) {
+          const full = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig, activity.distance, true)
+          updateFields.effort_score = full
+          updateFields.raw_effort_score = full
+        }
 
         const { error } = await supabase.from('activities').update(updateFields).eq('id', canonicalId)
         if (error) {

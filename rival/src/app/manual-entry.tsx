@@ -5,16 +5,16 @@ import { Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { calculateEffortScore, loadScoringConfig, ScoringConfig } from '../lib/effort';
+import { calculateEffortScore, effortBreakdown, loadScoringConfig, ScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { formatDuration } from '../lib/format';
 import { confirmAction } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
-import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG } from '../components/rival';
+import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG, rb } from '../components/rival';
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
@@ -80,8 +80,26 @@ export default function ManualEntryScreen() {
   // keeps this exact value, so opening and saving an activity never quietly
   // trims a Strava distance.
   const [loadedDistance, setLoadedDistance] = useState<{ shown: string; meters: number } | null>(null);
+  // The numbers an edited activity was loaded with, and whether its owner had
+  // confirmed it as correct. The confirmation holds only while those numbers
+  // stay the same; changing them means the new ones are checked again.
+  const [loadedReview, setLoadedReview] = useState<{ type: string; seconds: number; meters: number; climb: number; confirmed: boolean } | null>(null);
   const [elevationM, setElevationM] = useState('');
+  // Treadmills show incline, not metres climbed. On a Treadmill activity the
+  // climb is entered as the average incline and worked out from the distance:
+  // metres climbed = distance x incline %.
+  const [inclinePct, setInclinePct] = useState('');
+  const isTreadmill = workoutType === 'VirtualRun';
+  useEffect(() => {
+    // Phone only for now: desktop keeps its metres field (mobile-only phase).
+    if (!isTreadmill || wide) return;
+    const km = distanceKm.trim() === '' ? 0 : fromDisplayDistance(Number(distanceKm)) || 0;
+    const pct = Number(inclinePct) || 0;
+    const climbM = km > 0 && pct > 0 ? km * 1000 * (pct / 100) : 0;
+    setElevationM(climbM > 0 ? String(Math.round(toDisplayElevation(climbM))) : '');
+  }, [isTreadmill, inclinePct, distanceKm, wide]);
   const [notes, setNotes] = useState('');
+  const [journalOpen, setJournalOpen] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [showExercises, setShowExercises] = useState(false);
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg');
@@ -137,6 +155,14 @@ export default function ManualEntryScreen() {
         setDistanceKm('');
       }
       setElevationM(data.elevation_meters > 0 ? String(Math.round(toDisplayElevation(data.elevation_meters))) : '');
+      // A saved treadmill climb shows as the incline it came from.
+      if (data.activity_type === 'VirtualRun' && data.distance_meters > 0 && data.elevation_meters > 0) {
+        setInclinePct(String(Math.round((data.elevation_meters / data.distance_meters) * 1000) / 10));
+      }
+      setLoadedReview({
+        type: data.activity_type, seconds: data.duration_seconds ?? 0, meters: data.distance_meters ?? 0,
+        climb: data.elevation_meters ?? 0, confirmed: !!data.effort_confirmed,
+      });
       setNotes(data.notes || '');
       if (Array.isArray(data.exercises)) setExercises(data.exercises);
       const { data: mediaRows } = await supabase.from('activity_media').select(MEDIA_COLUMNS).eq('activity_id', editId);
@@ -273,12 +299,16 @@ export default function ManualEntryScreen() {
         ? loadedDistance.meters / 1000
         : distanceKm.trim() === '' ? 0 : fromDisplayDistance(Number(distanceKm));
       const elevation = elevationM.trim() === '' ? 0 : fromDisplayElevation(Number(elevationM));
+      const stillConfirmed = !!loadedReview?.confirmed && loadedReview.type === workoutType
+        && loadedReview.seconds === durationSeconds && Math.abs(loadedReview.meters - distance * 1000) < 1
+        && Math.abs(loadedReview.climb - elevation) < 1;
       const effortScore = calculateEffortScore(
         workoutType,
         durationSeconds,
         elevation,
         await loadScoringConfig(),
         distance * 1000,
+        stillConfirmed,
       );
 
       const [y, m, d] = isoDate.split('-').map(Number);
@@ -314,6 +344,7 @@ export default function ManualEntryScreen() {
             started_at: startedAt.toISOString(),
             effort_score: effortScore,
             raw_effort_score: effortScore,
+            effort_confirmed: stillConfirmed,
             notes: notes.trim() || null,
             exercises: exercisesPayload,
             race_id: raceId,
@@ -721,6 +752,17 @@ export default function ManualEntryScreen() {
     ...(scoresDistance && enteredKm > 0 ? [`${enteredKm} ${distanceUnit()}`] : []),
     ...(scoresClimb && enteredClimb > 0 ? [`${enteredClimb} ${elevationUnit()} climbed`] : []),
   ].join(' + ');
+  // Faster than the sport allows: less counts until it is confirmed, which
+  // the athlete is asked about once it is saved.
+  const overLimit = (() => {
+    if (!scoringConfig || durationSeconds <= 0) return false;
+    const km = distanceKm.trim() === '' ? 0 : fromDisplayDistance(Number(distanceKm)) || 0;
+    const climb = elevationM.trim() === '' ? 0 : fromDisplayElevation(Number(elevationM)) || 0;
+    const b = effortBreakdown(workoutType, durationSeconds, climb, scoringConfig, km * 1000);
+    const unchanged = !!loadedReview?.confirmed && loadedReview.type === workoutType && loadedReview.seconds === durationSeconds
+      && Math.abs(loadedReview.meters - km * 1000) < 1 && Math.abs(loadedReview.climb - climb) < 1;
+    return b.capped && !unchanged;
+  })();
   const effortNow = durationSeconds > 0
     ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))
     : null;
@@ -835,27 +877,28 @@ export default function ManualEntryScreen() {
           no card around it. Type and date have their own fields below, and
           Effort lives in the save bar, where it stays on screen while the
           numbers that change it are being edited. */}
-      {/* Name and activity together, no card title (the review note). */}
-      <View style={m.card}>
-        <Text style={m.fieldLabel}>Name</Text>
+      {/* Name and activity in the Add an activity style (Ricky, 2026-10-03):
+          no card around them, an outlined field, and the types as tiles with
+          a big faint icon behind the word; the chosen one lit peach. */}
+      <View style={m.typeBlock}>
         <TextInput
           style={m.nameField}
           value={workoutName}
           onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
           placeholder={namePlaceholder}
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor="rgba(255,255,255,0.35)"
+          accessibilityLabel="Name"
         />
         {fieldError?.field === 'name' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
-        {/* Seven tiles with round badges plus See all, four to a row; See
-            all opens the rest in the same grid. A pick outside the seven
-            shows in the eighth tile. */}
+        {/* Seven tiles plus See all, four to a row; See all opens the rest in
+            the same grid. A pick outside the seven shows in the eighth tile. */}
         <View style={m.tiles}>
           {(showAllTypes ? [...PHONE_TILES, ...MORE_TYPES] : PHONE_TILES).map((t) => {
             const on = workoutType === t;
             return (
               <TouchableOpacity key={t} style={[m.tile, on && m.tileOn]} onPress={() => setWorkoutType(t)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                <View style={[m.badge, on && m.badgeOn]}>
-                  <RivalIcon name={activityIconName(t)} size={16} color={on ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
+                <View style={m.tileArt} pointerEvents="none">
+                  <RivalIcon name={activityIconName(t)} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                 </View>
                 <Text style={[m.tileText, on && m.tileTextOn]} numberOfLines={1}>{tileLabel(t)}</Text>
               </TouchableOpacity>
@@ -865,8 +908,8 @@ export default function ManualEntryScreen() {
             const outside = !PHONE_TILES.includes(workoutType) && !(showAllTypes && MORE_TYPES.includes(workoutType));
             return (
               <TouchableOpacity style={[m.tile, outside ? m.tileOn : m.tileAll]} onPress={() => setShowAllTypes((v) => !v)} activeOpacity={0.8} accessibilityRole="button">
-                <View style={[m.badge, outside ? m.badgeOn : m.badgeAll]}>
-                  <RivalIcon name={outside ? activityIconName(workoutType) : 'apps'} size={16} color={outside ? RivalColors.surfaceLowest : RivalColors.accentText} />
+                <View style={m.tileArt} pointerEvents="none">
+                  <RivalIcon name={outside ? activityIconName(workoutType) : 'apps'} size={56} color={outside ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                 </View>
                 <Text style={[m.tileText, outside ? m.tileTextOn : m.tileAllText]} numberOfLines={1}>
                   {outside ? tileLabel(workoutType) : showAllTypes ? 'Fewer' : 'See all'}
@@ -917,14 +960,39 @@ export default function ManualEntryScreen() {
               {distanceKm ? <Text style={m.rowUnit}>{distanceUnit()}</Text> : null}
             </View>
           </GreyRow>
-          <GreyRow icon="elevation" label="Elevation">
-            <View style={m.timeRow}>
-              <TextInput style={[m.rowInput, m.wideInput]} value={elevationM} onChangeText={setElevationM} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="numeric" />
-              {elevationM ? <Text style={m.rowUnit}>{elevationUnit()}</Text> : null}
-            </View>
-          </GreyRow>
+          {isTreadmill ? (
+            <GreyRow icon="elevation" label="Incline">
+              <View style={m.timeRow}>
+                <TextInput style={[m.rowInput, m.wideInput]} value={inclinePct} onChangeText={setInclinePct} placeholder="Average" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" />
+                {inclinePct ? <Text style={m.rowUnit}>%</Text> : null}
+              </View>
+            </GreyRow>
+          ) : (
+            <GreyRow icon="elevation" label="Elevation">
+              <View style={m.timeRow}>
+                <TextInput style={[m.rowInput, m.wideInput]} value={elevationM} onChangeText={setElevationM} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="numeric" />
+                {elevationM ? <Text style={m.rowUnit}>{elevationUnit()}</Text> : null}
+              </View>
+            </GreyRow>
+          )}
           <GreyRow icon="calendar" label="Date" value={friendlyDate(dateStr)} onPress={() => setCalOpen(true)} />
+          {/* Lifts as one more row here rather than a card of its own; the
+              list opens below when tapped (Ricky, 2026-10-02). */}
+          <GreyRow
+            icon="weights"
+            label="Lifts"
+            value={exercises.length > 0 ? `${exercises.length} ${exercises.length === 1 ? 'lift' : 'lifts'}` : undefined}
+            placeholder="Optional"
+            onPress={() => setShowExercises((v) => !v)}
+          />
         </GreyRows>
+        {isTreadmill && Number(inclinePct) > 0 ? (
+          <Text style={styles.classHint}>
+            {elevationM
+              ? `About ${Number(elevationM).toLocaleString()} ${elevationUnit()} climbed at ${inclinePct}% over the distance.`
+              : 'Add the distance to work out the climb from the incline.'}
+          </Text>
+        ) : null}
         {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
         {fieldError?.field === 'date' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
         {scoringConfig && ((enteredKm > 0 && !scoresDistance) || (enteredClimb > 0 && !scoresClimb)) && (
@@ -953,40 +1021,55 @@ export default function ManualEntryScreen() {
 
       {/* Photos inline, Instagram-style: numbered in posting order, tap one
           to rearrange, the last tile adds more. */}
-      <View style={m.card}>
-        <View style={m.cardHead}>
-          <Text style={m.cardLabel}>Photos & videos</Text>
-          <Text style={m.cardHint}>{media.length}/{MAX_MEDIA}</Text>
+      {media.length === 0 ? (
+        // Nothing added yet: one wide, warm tile instead of a dark card
+        // with a small dashed box in it (Ricky, 2026-10-02).
+        <TouchableOpacity style={m.mediaEmpty} onPress={pickMedia} activeOpacity={0.85} accessibilityRole="button">
+          {/* A big tile like Upload on Add an activity: the camera large and
+              faint behind the words (Ricky, 2026-10-03). */}
+          <View style={m.tileArt} pointerEvents="none">
+            <RivalIcon name="addPhoto" size={92} color="rgba(255,181,158,0.18)" />
+          </View>
+          <Text style={m.mediaEmptyTitle}>Add photos or a video</Text>
+          <Text style={m.mediaEmptySub}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={m.card}>
+          <View style={m.cardHead}>
+            <Text style={m.cardLabel}>Photos & videos</Text>
+            <Text style={m.cardHint}>{media.length}/{MAX_MEDIA}</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={m.mediaRow}>
+            {media.map((item, i) => (
+              <TouchableOpacity
+                key={item.uri}
+                activeOpacity={0.85}
+                onPress={() => setMediaPicker({ items: media, saved: 0, savedVideos: 0 })}
+                style={m.thumbWrap}
+              >
+                {item.type === 'photo'
+                  ? <Image source={{ uri: item.uri }} style={m.thumb} />
+                  : <View style={[m.thumb, m.thumbVideo]}><RivalIcon name="video" size={22} color={RivalColors.accentText} /></View>}
+                <View style={m.thumbOrder} pointerEvents="none">
+                  <Text style={m.thumbOrderText}>{i + 1}</Text>
+                </View>
+                {i === 0 && item.type === 'photo' ? (
+                  <View style={m.thumbCover} pointerEvents="none"><Text style={m.thumbCoverText}>Cover</Text></View>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+            {media.length < MAX_MEDIA ? (
+              <TouchableOpacity style={[m.thumb, m.addTile]} onPress={pickMedia} activeOpacity={0.8}>
+                <RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} />
+                <Text style={m.addTileText}>Add</Text>
+              </TouchableOpacity>
+            ) : null}
+          </ScrollView>
+          <Text style={m.cardHint}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min · tap a photo to reorder</Text>
+          {mediaError && <Text style={styles.fieldError}>{mediaError}</Text>}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={m.mediaRow}>
-          {media.map((item, i) => (
-            <TouchableOpacity
-              key={item.uri}
-              activeOpacity={0.85}
-              onPress={() => setMediaPicker({ items: media, saved: 0, savedVideos: 0 })}
-              style={m.thumbWrap}
-            >
-              {item.type === 'photo'
-                ? <Image source={{ uri: item.uri }} style={m.thumb} />
-                : <View style={[m.thumb, m.thumbVideo]}><RivalIcon name="video" size={22} color={RivalColors.accentText} /></View>}
-              <View style={m.thumbOrder} pointerEvents="none">
-                <Text style={m.thumbOrderText}>{i + 1}</Text>
-              </View>
-              {i === 0 && item.type === 'photo' ? (
-                <View style={m.thumbCover} pointerEvents="none"><Text style={m.thumbCoverText}>Cover</Text></View>
-              ) : null}
-            </TouchableOpacity>
-          ))}
-          {media.length < MAX_MEDIA ? (
-            <TouchableOpacity style={[m.thumb, m.addTile]} onPress={pickMedia} activeOpacity={0.8}>
-              <RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} />
-              <Text style={m.addTileText}>Add</Text>
-            </TouchableOpacity>
-          ) : null}
-        </ScrollView>
-        <Text style={m.cardHint}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min · tap a photo to reorder</Text>
-        {mediaError && <Text style={styles.fieldError}>{mediaError}</Text>}
-      </View>
+      )}
+      {media.length === 0 && mediaError ? <Text style={styles.fieldError}>{mediaError}</Text> : null}
 
       {/* Same words and feel as the journal in the activity viewer — it is
           the same note, so it should read as the same thing. */}
@@ -994,16 +1077,19 @@ export default function ManualEntryScreen() {
         <Text style={m.cardLabel}>Journal</Text>
         <View style={m.journalRule} />
         <TextInput
-          style={m.journalInput}
+          // One line until it's used, then room to write (Ricky, 2026-10-02).
+          style={[m.journalInput, !journalOpen && !notes && m.journalInputShort]}
           value={notes}
           onChangeText={setNotes}
+          onFocus={() => setJournalOpen(true)}
+          onBlur={() => setJournalOpen(false)}
           placeholder="Add a note about this activity"
           placeholderTextColor="rgba(255,255,255,0.3)"
           multiline
         />
       </View>
 
-      {mobileLiftsCard}
+      {showExercises ? mobileLiftsCard : null}
 
       {/* Destructive, so it sits apart at the very end rather than next to
           the button you tap every time. */}
@@ -1037,7 +1123,9 @@ export default function ManualEntryScreen() {
                 <Text style={m.effortNum}>{effortNow}</Text>
                 <Text style={m.effortUnit}>Effort</Text>
               </View>
-              <Text style={m.effortSub} numberOfLines={1}>{effortParts}</Text>
+              {overLimit
+                ? <Text style={[m.effortSub, m.effortWarn]} numberOfLines={2}>Faster than realistic. Check it, or confirm it after saving.</Text>
+                : <Text style={m.effortSub} numberOfLines={1}>{effortParts}</Text>}
             </>
           ) : (
             <Text style={m.effortEmpty}>Add a time{'\n'}to see Effort</Text>
@@ -1261,26 +1349,28 @@ const m = StyleSheet.create({
   title: { flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText },
   headerDate: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   fieldLabel: { fontSize: 12.5, fontWeight: '600', color: RivalColors.textSecondary, marginBottom: -4 },
+  typeBlock: { gap: 12 },
   nameField: {
-    backgroundColor: RivalColors.surfaceContainer, borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright,
-    paddingHorizontal: 13, paddingVertical: 11, color: '#fff', fontSize: 15, fontWeight: '500',
+    backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border,
+    paddingHorizontal: 15, paddingVertical: 13, color: '#fff', fontSize: 16, fontWeight: '500',
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
   },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tile: {
-    width: '23.2%', alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    width: '23%', flexGrow: 1, height: 78, justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 9, overflow: 'hidden',
+    borderRadius: 16, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)',
   } as any,
-  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
-  tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
+  tileOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' } as any,
+  tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.45)', backgroundColor: 'rgba(255,209,190,0.03)' },
+  tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
     ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
   } as any,
   badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.5)' },
-  tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' } as any,
-  tileTextOn: { color: '#fff' },
+  tileText: { fontSize: 13, fontWeight: '800', color: '#fff' } as any,
+  tileTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
   tileAllText: { color: RivalColors.accentText },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
   rowInput: {
@@ -1303,13 +1393,13 @@ const m = StyleSheet.create({
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    backgroundColor: WARM_CARD, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border,
   },
   chipOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: RivalButtonColors.fill },
   chipText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.textSecondary },
   chipTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
-  card: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 12 },
+  card: { backgroundColor: PHONE_CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14, gap: 12 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   cardHint: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
@@ -1356,15 +1446,23 @@ const m = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 4,
     borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.35)',
   },
+  mediaEmpty: {
+    minHeight: 112, justifyContent: 'flex-end', paddingVertical: 14, paddingHorizontal: 16, overflow: 'hidden',
+    borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)', backgroundColor: RivalGhost.fill,
+  },
+  mediaEmptyIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,181,158,0.14)' },
+  mediaEmptyTitle: { fontSize: 16, fontWeight: '800', color: RivalColors.textPrimary },
+  mediaEmptySub: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
   addTileText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
 
-  journal: { borderRadius: 16, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 14, paddingVertical: 14 },
+  journal: { borderRadius: 16, backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 14, paddingVertical: 14 },
   journalRule: {
     width: 60, height: 1, marginTop: 6, marginBottom: 10,
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)',
     } as any : { backgroundColor: 'rgba(217,119,87,0.6)' }),
   },
+  journalInputShort: { minHeight: 24 },
   journalInput: {
     minHeight: 88, padding: 0, textAlignVertical: 'top',
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, lineHeight: 22, color: 'rgba(255,255,255,0.85)',
@@ -1416,7 +1514,7 @@ const m = StyleSheet.create({
 
   saveBar: {
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 8,
-    backgroundColor: GREY_PAGE_BG, borderTopWidth: 1, borderTopColor: RivalColors.surfaceBright,
+    backgroundColor: GREY_PAGE_BG, borderTopWidth: 1, borderTopColor: RivalGhost.hairline,
   },
   saveBarError: { textAlign: 'center' },
   saveRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -1425,6 +1523,7 @@ const m = StyleSheet.create({
   effortNum: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   effortUnit: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
   effortSub: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.45)', marginTop: 1 },
+  effortWarn: { color: RivalColors.accentText },
   effortEmpty: { fontSize: 11.5, fontWeight: '600', lineHeight: 15, color: 'rgba(255,255,255,0.45)' },
   saveBtn: { flex: 1, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.55 },
