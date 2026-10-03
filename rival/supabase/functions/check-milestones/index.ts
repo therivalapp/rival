@@ -1,3 +1,4 @@
+import { lifetimeSeconds } from '../_shared/lifetimeSeconds.ts'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendPushMessages } from '../_shared/push.ts';
@@ -30,12 +31,7 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 
     // Total lifetime minutes
-    const { data: activities } = await supabase
-      .from('activities')
-      .select('duration_seconds')
-      .eq('user_id', user.id)
-
-    const totalMinutes = (activities || []).reduce((s: number, a: any) => s + (a.duration_seconds || 0), 0) / 60
+    const totalMinutes = (await lifetimeSeconds(supabase, user.id)) / 60
     const totalHours = totalMinutes / 60
 
     // Which milestones already achieved

@@ -485,7 +485,9 @@ export default function TeamHub() {
           .in('user_id', memberIds)
           .order('started_at', { ascending: false })
           .limit(30),
-        supabase.from('exercise_entries').select('user_id, exercise_name, weight_kg').in('user_id', memberIds),
+        inChunks(memberIds, (slice) => selectAll((a, b) => supabase.from('exercise_entries')
+          .select('id, user_id, exercise_name, weight_kg').in('user_id', slice).order('id').range(a, b)))
+          .then((data) => ({ data, error: null })),
         // The database stops at 1,000 rows without saying so; these three are
         // paged (and the member list sliced) so a big team counts everything.
         inChunks(memberIds, (slice) => selectAll((from, to) => supabase.from('activities')
@@ -930,7 +932,7 @@ export default function TeamHub() {
                 <View style={styles.heroTextBlock}>
                   <Text style={styles.eyebrow}>Team Challenge</Text>
                   <Text style={styles.heroTitle}>{GOAL_METRIC_LABEL[league.goal_metric!]}</Text>
-                  <Text style={styles.heroSub}>Since {new Date(league.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · Due {new Date(league.goal_target_date!).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
+                  <Text style={styles.heroSub}>Since {new Date(league.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · Due {new Date(league.goal_target_date! + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
                 </View>
                 {/* For admins the ring itself opens the challenge for editing —
                     no separate button. Everyone else sees it as display only. */}
@@ -1394,7 +1396,7 @@ export default function TeamHub() {
                 refreshKey={challengesRefresh}
                 teamGoal={league.goal_metric && league.goal_target && league.goal_target_date ? {
                   title: GOAL_METRIC_LABEL[league.goal_metric],
-                  detail: `${league.goal_target.toLocaleString()} ${GOAL_METRIC_UNIT[league.goal_metric]} · Due ${new Date(league.goal_target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`,
+                  detail: `${league.goal_target.toLocaleString()} ${GOAL_METRIC_UNIT[league.goal_metric]} · Due ${new Date(league.goal_target_date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`,
                 } : null}
                 onEditTeamGoal={() => router.push({ pathname: '/create-team-challenge', params: { id } })}
                 onOpenMembers={() => setActiveTab('Members')}

@@ -5,6 +5,7 @@ import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInp
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm, rb, GreyPageHead, GreySheet, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
@@ -54,8 +55,11 @@ export default function LiftsScreen() {
     if (!user) { setLoading(false); return; }
 
     const [entriesRes, goalsRes] = await Promise.all([
-      supabase.from('exercise_entries').select('id, exercise_name, weight_kg, reps, performed_at')
-        .eq('user_id', user.id).order('performed_at', { ascending: false }),
+      // Paged: every set ever logged passes the 1,000-row limit, and the
+      // oldest entries (often the PB) were the ones left off.
+      selectAll((a, b) => supabase.from('exercise_entries').select('id, exercise_name, weight_kg, reps, performed_at')
+        .eq('user_id', user.id).order('performed_at', { ascending: false }).order('id').range(a, b))
+        .then((data) => ({ data, error: null })),
       supabase.from('exercise_goals').select('exercise_name, target_weight_kg, starting_weight_kg').eq('user_id', user.id),
     ]);
 

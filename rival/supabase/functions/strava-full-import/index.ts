@@ -1,3 +1,4 @@
+import { lifetimeSeconds } from '../_shared/lifetimeSeconds.ts'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { saveActivityRoute } from '../_shared/activityRoute.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -254,11 +255,7 @@ serve(async (req) => {
     // the last page — cheap either way, but no reason to spam a push per page.
     let newMilestoneTypes: string[] = []
     if (!hasMore) {
-      const { data: allActivities } = await supabase
-        .from('activities')
-        .select('duration_seconds')
-        .eq('user_id', user.id)
-      const totalHours = (allActivities || []).reduce((s: number, a: any) => s + (a.duration_seconds || 0), 0) / 3600
+      const totalHours = (await lifetimeSeconds(supabase, user.id)) / 3600
 
       const { data: existingMilestones } = await supabase.from('milestones').select('type').eq('user_id', user.id)
       const achieved = new Set((existingMilestones || []).map((m: any) => m.type))

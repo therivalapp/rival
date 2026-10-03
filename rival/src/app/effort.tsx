@@ -18,7 +18,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   {
     icon: 'distance',
     title: 'Distance sports score on distance',
-    body: 'Runs, rides, swims, hikes and rows earn most of their Effort from distance, with some for time. Indoor sessions count when a distance is recorded.',
+    body: 'Runs, rides, swims, hikes and rows earn most of their Effort from distance, with some for time. Indoor activities count when a distance is recorded.',
   },
   {
     icon: 'timer',

@@ -58,7 +58,9 @@ export default function SignUpScreen() {
     // auth metadata — date of birth isn't part of that, so it's a separate
     // write against the row the trigger just created.
     if (data.user) {
-      await supabase.from('users').update({ date_of_birth: dobIso }).eq('id', data.user.id);
+      // Not fatal (the account exists), but a silent failure would lose it.
+      const { error: dobError } = await supabase.from('users').update({ date_of_birth: dobIso }).eq('id', data.user.id);
+      if (dobError) console.warn('Date of birth not saved:', dobError.message);
     }
 
     // With email confirmation switched on there is no session yet, and every

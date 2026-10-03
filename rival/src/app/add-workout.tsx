@@ -60,7 +60,9 @@ export default function AddWorkoutScreen() {
           footer={<Text style={ms.tileNote}>Details are read automatically. Review before saving.</Text>}
         >
           {/* Four ways in, all the same size of tile (Ricky, 2026-10-02):
-              the two scans first, the photo tile lit. */}
+              the two scans first, the photo tile lit. Multi-day scan is a
+              pop-up too, so it takes this one's place rather than stacking
+              a second dark backdrop over it. */}
           <View style={[ms.tiles, ms.tilesTop]}>
             <TouchableOpacity style={[ms.tile, ms.tilePrimary]} onPress={() => scan('camera')} activeOpacity={0.85} accessibilityRole="button">
               <View style={ms.tileIconPrimary}><RivalIcon name="camera" size={26} color={ms.primaryText.color as string} /></View>
@@ -79,7 +81,7 @@ export default function AddWorkoutScreen() {
               <Text style={ms.tileTitle}>Manual entry</Text>
               <Text style={ms.tileSub}>Type in the details</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.push('/weekly-scan')} activeOpacity={0.85} accessibilityRole="button">
+            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.replace('/weekly-scan')} activeOpacity={0.85} accessibilityRole="button">
               <View style={ms.tileIconGhost}><RivalIcon name="batch" size={26} color={RivalColors.accentText} /></View>
               <Text style={ms.tileTitle}>Multi-day scan</Text>
               <Text style={ms.tileSub}>Several days at once</Text>

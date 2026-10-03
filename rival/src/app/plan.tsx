@@ -590,7 +590,7 @@ export default function PlanScreen() {
                   </TouchableOpacity>
                   <View style={styles.stepperValueBlock}>
                     <Text style={styles.stepperValue}>{sessions}</Text>
-                    <Text style={styles.stepperSub}>{sessions === 1 ? 'session' : 'sessions'} · {sessions * SESSION_MINUTES} min total</Text>
+                    <Text style={styles.stepperSub}>{sessions === 1 ? 'activity' : 'activities'} · {sessions * SESSION_MINUTES} min total</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.stepperBtn}
