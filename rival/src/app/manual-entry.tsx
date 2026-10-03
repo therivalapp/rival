@@ -14,7 +14,7 @@ import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG, rb } from '../components/rival';
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
@@ -877,28 +877,28 @@ export default function ManualEntryScreen() {
           no card around it. Type and date have their own fields below, and
           Effort lives in the save bar, where it stays on screen while the
           numbers that change it are being edited. */}
-      {/* Name and activity together, no card title (the review note). The
-          page's lead card, in the warm glass (Ricky, 2026-10-02). */}
-      <View style={[m.card, rb.hero]}>
-        <Text style={m.fieldLabel}>Name</Text>
+      {/* Name and activity in the Add an activity style (Ricky, 2026-10-03):
+          no card around them, an outlined field, and the types as tiles with
+          a big faint icon behind the word; the chosen one lit peach. */}
+      <View style={m.typeBlock}>
         <TextInput
           style={m.nameField}
           value={workoutName}
           onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
           placeholder={namePlaceholder}
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor="rgba(255,255,255,0.35)"
+          accessibilityLabel="Name"
         />
         {fieldError?.field === 'name' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
-        {/* Seven tiles with round badges plus See all, four to a row; See
-            all opens the rest in the same grid. A pick outside the seven
-            shows in the eighth tile. */}
+        {/* Seven tiles plus See all, four to a row; See all opens the rest in
+            the same grid. A pick outside the seven shows in the eighth tile. */}
         <View style={m.tiles}>
           {(showAllTypes ? [...PHONE_TILES, ...MORE_TYPES] : PHONE_TILES).map((t) => {
             const on = workoutType === t;
             return (
               <TouchableOpacity key={t} style={[m.tile, on && m.tileOn]} onPress={() => setWorkoutType(t)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                <View style={[m.badge, on && m.badgeOn]}>
-                  <RivalIcon name={activityIconName(t)} size={16} color={on ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
+                <View style={m.tileArt} pointerEvents="none">
+                  <RivalIcon name={activityIconName(t)} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                 </View>
                 <Text style={[m.tileText, on && m.tileTextOn]} numberOfLines={1}>{tileLabel(t)}</Text>
               </TouchableOpacity>
@@ -908,8 +908,8 @@ export default function ManualEntryScreen() {
             const outside = !PHONE_TILES.includes(workoutType) && !(showAllTypes && MORE_TYPES.includes(workoutType));
             return (
               <TouchableOpacity style={[m.tile, outside ? m.tileOn : m.tileAll]} onPress={() => setShowAllTypes((v) => !v)} activeOpacity={0.8} accessibilityRole="button">
-                <View style={[m.badge, outside ? m.badgeOn : m.badgeAll]}>
-                  <RivalIcon name={outside ? activityIconName(workoutType) : 'apps'} size={16} color={outside ? RivalColors.surfaceLowest : RivalColors.accentText} />
+                <View style={m.tileArt} pointerEvents="none">
+                  <RivalIcon name={outside ? activityIconName(workoutType) : 'apps'} size={56} color={outside ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                 </View>
                 <Text style={[m.tileText, outside ? m.tileTextOn : m.tileAllText]} numberOfLines={1}>
                   {outside ? tileLabel(workoutType) : showAllTypes ? 'Fewer' : 'See all'}
@@ -1025,12 +1025,13 @@ export default function ManualEntryScreen() {
         // Nothing added yet: one wide, warm tile instead of a dark card
         // with a small dashed box in it (Ricky, 2026-10-02).
         <TouchableOpacity style={m.mediaEmpty} onPress={pickMedia} activeOpacity={0.85} accessibilityRole="button">
-          <View style={m.mediaEmptyIcon}><RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={m.mediaEmptyTitle}>Add photos or a video</Text>
-            <Text style={m.mediaEmptySub}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min</Text>
+          {/* A big tile like Upload on Add an activity: the camera large and
+              faint behind the words (Ricky, 2026-10-03). */}
+          <View style={m.tileArt} pointerEvents="none">
+            <RivalIcon name="addPhoto" size={92} color="rgba(255,181,158,0.18)" />
           </View>
-          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+          <Text style={m.mediaEmptyTitle}>Add photos or a video</Text>
+          <Text style={m.mediaEmptySub}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min</Text>
         </TouchableOpacity>
       ) : (
         <View style={m.card}>
@@ -1348,26 +1349,28 @@ const m = StyleSheet.create({
   title: { flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText },
   headerDate: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   fieldLabel: { fontSize: 12.5, fontWeight: '600', color: RivalColors.textSecondary, marginBottom: -4 },
+  typeBlock: { gap: 12 },
   nameField: {
-    backgroundColor: RivalColors.surfaceContainer, borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright,
-    paddingHorizontal: 13, paddingVertical: 11, color: '#fff', fontSize: 15, fontWeight: '500',
+    backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border,
+    paddingHorizontal: 15, paddingVertical: 13, color: '#fff', fontSize: 16, fontWeight: '500',
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
   },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tile: {
-    width: '23.2%', alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    width: '23%', flexGrow: 1, height: 78, justifyContent: 'flex-end', paddingHorizontal: 10, paddingBottom: 9, overflow: 'hidden',
+    borderRadius: 16, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)',
   } as any,
-  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
-  tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
+  tileOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' } as any,
+  tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.45)', backgroundColor: 'rgba(255,209,190,0.03)' },
+  tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
     ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
   } as any,
   badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.5)' },
-  tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' } as any,
-  tileTextOn: { color: '#fff' },
+  tileText: { fontSize: 13, fontWeight: '800', color: '#fff' } as any,
+  tileTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
   tileAllText: { color: RivalColors.accentText },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
   rowInput: {
@@ -1390,13 +1393,13 @@ const m = StyleSheet.create({
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    backgroundColor: WARM_CARD, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border,
   },
   chipOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: RivalButtonColors.fill },
   chipText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.textSecondary },
   chipTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
-  card: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 12 },
+  card: { backgroundColor: PHONE_CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14, gap: 12 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   cardHint: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
@@ -1444,16 +1447,15 @@ const m = StyleSheet.create({
     borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.35)',
   },
   mediaEmpty: {
-    flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 16,
-    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,181,158,0.28)', backgroundColor: 'rgba(217,119,87,0.12)',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.06) 100%)' } as any : {}),
+    minHeight: 112, justifyContent: 'flex-end', paddingVertical: 14, paddingHorizontal: 16, overflow: 'hidden',
+    borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)', backgroundColor: RivalGhost.fill,
   },
   mediaEmptyIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,181,158,0.14)' },
-  mediaEmptyTitle: { fontSize: 15, fontWeight: '700', color: RivalColors.textPrimary },
+  mediaEmptyTitle: { fontSize: 16, fontWeight: '800', color: RivalColors.textPrimary },
   mediaEmptySub: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
   addTileText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
 
-  journal: { borderRadius: 16, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 14, paddingVertical: 14 },
+  journal: { borderRadius: 16, backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 14, paddingVertical: 14 },
   journalRule: {
     width: 60, height: 1, marginTop: 6, marginBottom: 10,
     ...(Platform.OS === 'web' ? {
@@ -1512,7 +1514,7 @@ const m = StyleSheet.create({
 
   saveBar: {
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 8,
-    backgroundColor: GREY_PAGE_BG, borderTopWidth: 1, borderTopColor: RivalColors.surfaceBright,
+    backgroundColor: GREY_PAGE_BG, borderTopWidth: 1, borderTopColor: RivalGhost.hairline,
   },
   saveBarError: { textAlign: 'center' },
   saveRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },

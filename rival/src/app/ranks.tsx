@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import type { RivalIconName } from '../components/rival/RivalIcon';
-import { rankBadgeSheen, rankSheen, rankTextSheen } from '../constants/rankSheen';
+import { rankSheen, rankTextSheen, rankTileFill, RANK_TILE_INK } from '../constants/rankSheen';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { getSeasonStartISO, getCurrentSeasonYear } from '../lib/season';
 import { Platform, StyleSheet, View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
@@ -36,9 +36,10 @@ function shortGuide(minXp: number): string | null {
   if (minXp <= 0) return null;
   const hours = minXp / TYPICAL_EFFORT_PER_HOUR;
   const perWeek = hours / TRAINING_WEEKS;
-  if (perWeek < 1) return `About ${Math.max(1, Math.round(hours))} h`;
+  // Total hours, rounded to a clean figure: 29 reads as 30h.
+  if (perWeek < 1) return `${hours < 20 ? Math.max(1, Math.round(hours)) : Math.round(hours / 5) * 5}h`;
   const w = perWeek < 10 ? Math.round(perWeek * 2) / 2 : Math.round(perWeek);
-  return `${w} h a week`;
+  return `${w}h a week`;
 }
 
 function weeklyGuide(minXp: number): string | null {
@@ -151,30 +152,37 @@ export default function RanksScreen() {
           <View style={ms.grid}>
             {LEVELS.filter((l) => l.level < 10).map((lvl) => {
               const sheen = rankSheen(lvl.level);
-              const isCurrent = lvl.level === currentLevel.level;
-              const isEarned = totalXp >= lvl.minXp && !isCurrent;
+              // Reached ranks, the current one included, are filled in their
+              // colour; the next one carries the progress bar and what's left
+              // (Ricky, 2026-10-03). Ranks further on stay dark.
+              const isEarned = totalXp >= lvl.minXp;
               const isNext = lvl.level === currentLevel.level + 1;
-              const lit = isEarned || isCurrent;
-              const pct = isCurrent && Number.isFinite(lvl.maxXp) ? Math.min(1, (totalXp - lvl.minXp) / (lvl.maxXp - lvl.minXp)) : 0;
+              const pct = isNext ? Math.min(1, Math.max(0, (totalXp - currentLevel.minXp) / (lvl.minXp - currentLevel.minXp))) : 0;
               const guide = shortGuide(lvl.minXp);
               return (
-                <View key={lvl.level} style={[ms.tile, isCurrent && [rb.hero, { borderColor: sheen.light + '66' }]]}>
-                  {isEarned ? (
-                    <View style={ms.tileCorner}><RivalIcon name="checkBold" size={12} color={RivalColors.accentText} /></View>
-                  ) : null}
-                  {/* Each rank in its own material (constants/rankSheen.ts):
-                      earned ones lit with a sheen, the rest waiting, dimmed. */}
-                  <View style={[ms.tileIcon, rankBadgeSheen(lvl.level, lit)]}>
-                    <RivalIcon name={RANK_ICONS[lvl.level - 1]} size={21} color={lit ? sheen.light : sheen.light + '70'} />
+                <View key={lvl.level} style={[ms.tile, isNext && [rb.hero, { borderColor: sheen.light + '66' }], isEarned && rankTileFill(lvl.level)]}>
+                  {/* Each rank's icon, large and centred behind its words
+                      (Ricky, 2026-10-03), in its own material
+                      (constants/rankSheen.ts): reached ones filled solid, the
+                      next one lit, the rest waiting, faint. */}
+                  <View style={ms.tileArt} pointerEvents="none">
+                    <RivalIcon
+                      name={RANK_ICONS[lvl.level - 1]}
+                      size={112}
+                      color={isEarned ? 'rgba(26,18,16,0.16)' : isNext ? sheen.light + '33' : sheen.light + '14'}
+                    />
                   </View>
-                  <Text style={[ms.tileName, lit ? rankTextSheen(lvl.level) : ms.tileNameOff]} numberOfLines={1}>{lvl.name}</Text>
-                  {isCurrent && Number.isFinite(lvl.maxXp) ? (
+                  <Text style={[ms.tileName, isEarned ? { color: RANK_TILE_INK } : isNext ? rankTextSheen(lvl.level) : ms.tileNameOff]} numberOfLines={1}>{lvl.name}</Text>
+                  {isNext ? (
                     <View style={ms.tileTrack}><View style={[ms.tileFill, { width: `${Math.max(4, Math.round(pct * 100))}%` as any, backgroundColor: sheen.light }]} /></View>
                   ) : null}
-                  <Text style={[ms.tileValue, isNext && ms.tileValueNext]} numberOfLines={1}>
-                    {isNext ? `${Math.ceil(lvl.minXp - totalXp).toLocaleString()} to go` : `${lvl.minXp.toLocaleString()} Effort`}
-                  </Text>
-                  {guide ? <Text style={ms.tileGuide} numberOfLines={1}>{guide}</Text> : null}
+                  {/* Rookie is where everyone starts: no "0 Effort" under it. */}
+                  {lvl.minXp > 0 ? (
+                    <Text style={[ms.tileValue, isNext && { color: sheen.light }, isEarned && ms.tileValueEarned]} numberOfLines={1}>
+                      {isNext ? `${Math.ceil(lvl.minXp - totalXp).toLocaleString()} to go` : `${lvl.minXp.toLocaleString()} Effort`}
+                    </Text>
+                  ) : null}
+                  {guide ? <Text style={[ms.tileGuide, isEarned && ms.tileGuideEarned]} numberOfLines={1}>{guide}</Text> : null}
                 </View>
               );
             })}
@@ -185,19 +193,25 @@ export default function RanksScreen() {
             const reached = totalXp >= top.minXp;
             const isNext = top.level === currentLevel.level + 1;
             return (
-              <View style={[ms.topTile, reached && rb.hero]}>
-                <View style={ms.topGlow} pointerEvents="none" />
-                <View style={[ms.topIcon, { borderColor: color + '77' }]}>
-                  <RivalIcon name="rankUnrivaled" size={30} color={color} />
+              <View style={[ms.topTile, reached && ms.topTileReached]}>
+                {/* No card: one big trophy on its own, like a team crest
+                    (Ricky, 2026-10-03), the words centred over it. Faint until
+                    reached, then solid gold with a glow and dark words. */}
+                <View style={[ms.topGlow, reached && ms.topGlowReached]} pointerEvents="none" />
+                <View style={ms.topArt} pointerEvents="none">
+                  <RivalIcon
+                    name="rankUnrivaled"
+                    size={250}
+                    color={color + '29'}
+                    gradient={reached ? [rankSheen(top.level).light, rankSheen(top.level).dark] : undefined}
+                  />
                 </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={ms.topKicker}>{reached ? 'You' : 'The top rank'}</Text>
-                  <Text style={ms.topName}>{top.name}</Text>
-                  <Text style={ms.topValue}>
-                    {isNext ? `${Math.ceil(top.minXp - totalXp).toLocaleString()} Effort to go` : `${top.minXp.toLocaleString()} Effort`}
-                    {shortGuide(top.minXp) ? ` · ${shortGuide(top.minXp)}` : ''}
-                  </Text>
-                </View>
+                <Text style={[ms.topKicker, reached && { color: RANK_TILE_INK }]}>{reached ? 'You' : 'The top rank'}</Text>
+                <Text style={[ms.topName, reached ? ms.topNameReached : rankTextSheen(top.level)]}>{top.name}</Text>
+                <Text style={[ms.topValue, reached && { color: RANK_TILE_INK }]}>
+                  {isNext ? `${Math.ceil(top.minXp - totalXp).toLocaleString()} Effort to go` : `${top.minXp.toLocaleString()} Effort`}
+                </Text>
+                {!reached && shortGuide(top.minXp) ? <Text style={[ms.topValue, ms.topGuide]}>{shortGuide(top.minXp)}</Text> : null}
               </View>
             );
           })()}
@@ -406,7 +420,7 @@ const ms = StyleSheet.create({
   youText: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: {
-    flexBasis: '30%', flexGrow: 1, alignItems: 'center', gap: 4, paddingTop: 16, paddingBottom: 14, paddingHorizontal: 8,
+    flexBasis: '30%', flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 132, paddingVertical: 14, paddingHorizontal: 8, overflow: 'hidden',
     borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, backgroundColor: RivalColors.surfaceLowest,
   },
   tileCorner: { position: 'absolute', top: 9, right: 9 },
@@ -415,22 +429,30 @@ const ms = StyleSheet.create({
   tileNameOff: { color: 'rgba(255,255,255,0.55)' },
   tileTrack: { alignSelf: 'stretch', height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', marginHorizontal: 6, marginVertical: 3 },
   tileFill: { height: 3, borderRadius: 2 },
+  tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  // An earned rank, filled in its colour: dark ink on it.
+  tileIconEarned: { backgroundColor: 'rgba(0,0,0,0.14)', borderColor: 'rgba(0,0,0,0.18)' },
+  tileValueEarned: { color: '#1a1210' },
+  tileGuideEarned: { color: '#2e231d', fontWeight: '600' },
   tileValue: { fontSize: 11.5, fontWeight: '700', color: 'rgba(255,255,255,0.7)', fontVariant: ['tabular-nums'] },
   tileValueNext: { color: RivalColors.accentText },
   tileGuide: { fontSize: 10.5, color: 'rgba(255,255,255,0.38)' },
-  topTile: {
-    flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 18, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,215,0,0.28)', backgroundColor: '#211c14',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(120deg, #1d1912 0%, #2a2214 60%, #3a2c12 100%)' } : {}),
-  } as any,
+  topTile: { height: 250, alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: 4 },
+  // Lift the words into the wide cup, clear of the narrow stem.
+  topTileReached: { paddingBottom: 56 },
   topGlow: {
-    position: 'absolute', left: -30, top: -40, width: 160, height: 160, borderRadius: 80,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(circle, rgba(255,215,0,0.22) 0%, rgba(255,215,0,0) 65%)' } : { backgroundColor: 'rgba(255,215,0,0.06)' }),
+    position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,215,0,0.12) 0%, rgba(255,215,0,0) 55%)' } : {}),
   } as any,
+  topGlowReached: Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,215,0,0.3) 0%, rgba(255,215,0,0) 58%)' } as any : {},
+  topArt: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
   topIcon: { width: 58, height: 58, borderRadius: 29, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,215,0,0.1)' },
   topKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: '#FFD700' },
-  topName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, lineHeight: 30, color: '#fff' },
-  topValue: { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontVariant: ['tabular-nums'] },
+  topName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 34, lineHeight: 40, color: '#fff' },
+  topValue: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.75)', fontVariant: ['tabular-nums'] },
+  topGuide: { fontWeight: '500', color: 'rgba(255,255,255,0.45)' },
+  // Reached: dark words inside the gold cup, a size that fits between the handles.
+  topNameReached: { color: '#1a1210', fontSize: 28, lineHeight: 34 },
   note: { fontSize: 12, lineHeight: 17, color: RivalColors.textSecondary, textAlign: 'center', paddingHorizontal: 16 },
   effortLink: { alignSelf: 'center', paddingVertical: 4 },
   effortLinkText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },

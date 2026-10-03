@@ -10,7 +10,7 @@ import { supabase, getAuthUser } from '../../lib/supabase';
 import { loadStravaSharing, startStravaConnect } from '../../lib/stravaSharing';
 import { fetchAllActivities } from '../../lib/fetchAllActivities';
 import { notify } from '../../lib/notify';
-import { getMondayOfWeek, calculateStreak } from '../../lib/streak';
+import { getMondayOfWeek, calculateStreak, STREAK_MIN_ACTIVITIES } from '../../lib/streak';
 import { getCurrentSeasonYear, daysUntilSeasonEnd, getSeasonStartISO, deviceTimeZone } from '../../lib/season';
 import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { lifetimePace } from '../../lib/rankPace';
@@ -1082,7 +1082,15 @@ type Milestone = {
   pct: number;
   /** Where tapping it goes: the ranks for a rank, Statistics for the rest. */
   href: '/ranks' | '/stats';
+  /** The rank this leads to, for a rank milestone: drawn in its colour. */
+  rankLevel?: number;
 };
+// The milestone bar's fill: a left-to-right fade between two colours.
+function milestoneFillIn(from: string, to: string): object {
+  return Platform.OS === 'web'
+    ? { backgroundColor: to, backgroundImage: `linear-gradient(90deg, ${from}, ${to})` }
+    : { backgroundColor: to };
+}
 function nextMilestone(km: number, activities: number, elevM: number, seasonEffort: number, respect: number): Milestone {
   const step = (value: number, size: number) => {
     const next = (Math.floor(value / size) + 1) * size;
@@ -1110,7 +1118,7 @@ function nextMilestone(km: number, activities: number, elevM: number, seasonEffo
   const nextLevel = LEVELS.find((l) => l.level === level.level + 1);
   if (nextLevel) {
     const p = xpProgressInLevel(seasonEffort);
-    candidates.push({ title: `${nextLevel.name} rank`, toGo: `${Math.ceil(p.needed - p.current).toLocaleString()} Effort to go`, pct: p.pct, href: '/ranks' });
+    candidates.push({ title: `${nextLevel.name} rank`, toGo: `${Math.ceil(p.needed - p.current).toLocaleString()} Effort to go`, pct: p.pct, href: '/ranks', rankLevel: nextLevel.level });
   }
   return candidates.reduce((best, c) => (c.pct > best.pct ? c : best));
 }
@@ -1750,6 +1758,7 @@ export default function HomeScreen() {
   const [lifetimeXp, setLifetimeXp] = useSnapState('home.lifetimeXp', 0);
   const [lifetimeActivityCount, setLifetimeActivityCount] = useSnapState('home.lifetimeActivityCount', 0);
   const [weeklyStreak, setWeeklyStreak] = useSnapState('home.weeklyStreak', 0);
+  const [streakWeekCount, setStreakWeekCount] = useSnapState('home.streakWeekCount', 0);
   // Today-only Effort — new, mobile Legacy section's "Effort today" stat.
   // Derived from the same `activities` array loadAll() already fetches, not
   // a new query.
@@ -1980,7 +1989,9 @@ export default function HomeScreen() {
     setTotalTimeMinutes(Math.round(activities.reduce((s, a) => s + (a.duration_seconds || 0), 0) / 60));
     setLifetimeXp(activities.reduce((s, a) => s + (a.effort_score || 0), 0));
     setLifetimeActivityCount(activities.length);
-    setWeeklyStreak(calculateStreak(activities).current);
+    const streakNow = calculateStreak(activities);
+    setWeeklyStreak(streakNow.current);
+    setStreakWeekCount(streakNow.thisWeek);
     // Same local-day-boundary approach as the league "recentCount" teaser
     // below — additive filter over the array already fetched above, no new query.
     setTodayEffort(activities.filter(a => dateLocalStr(new Date(a.started_at)) === today).reduce((s, a) => s + (a.effort_score || 0), 0));
@@ -2675,11 +2686,9 @@ export default function HomeScreen() {
                 >
                   {todayEffort > 0 || !lastActivity ? (
                     <>
-                      <RivalIcon name="bolt" size={16} color={RivalColors.accentFill} />
-                      <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueLg]}>
-                        <Text style={{ position: 'relative', top: 0, left: 1 }}>+</Text>
-                        <Text style={{ marginLeft: 3 }}>{Math.round(todayEffort)}</Text>
-                      </Text>
+                      <RivalIcon name="boltDrawn" size={16} color={RivalColors.accentGold} gradient={['#ffe6b0', '#f5b759']} />
+                      {/* Serif and larger, like the rank beside it (Ricky, 2026-10-03). */}
+                      <Text style={[styles.mLegacyStatValue, styles.mEffortTodayValue]} numberOfLines={1}>+{Math.round(todayEffort)}</Text>
                       <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]}>Effort today</Text>
                     </>
                   ) : (
@@ -2710,13 +2719,18 @@ export default function HomeScreen() {
                   <RivalIcon name="fire" size={16} color={RivalColors.accentFill} />
                   {weeklyStreak > 0 ? (
                     <>
-                      <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueLg]}>{weeklyStreak}</Text>
+                      <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueLg, { color: RivalColors.accentFill }]}>{weeklyStreak}</Text>
                       <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]}>Week streak</Text>
                     </>
                   ) : (
                     <>
-                      <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueSerif, styles.mLegacyStatValueSerifSm]} numberOfLines={1} adjustsFontSizeToFit>Next activity</Text>
-                      <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]}>Starts streak</Text>
+                      {/* A streak week takes three activities: this week's count
+                          out of three (Ricky, 2026-10-03: "1/3"). */}
+                      <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueSerif, styles.mStreakMoreValue]} numberOfLines={1}>
+                        {Math.min(STREAK_MIN_ACTIVITIES - 1, streakWeekCount)}
+                        <Text style={styles.mStreakOf}>/{STREAK_MIN_ACTIVITIES}</Text>
+                      </Text>
+                      <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]}>Start streak</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -2986,19 +3000,19 @@ export default function HomeScreen() {
                   <View style={[styles.mLegacyPage, legacyBoxWidth ? { width: legacyBoxWidth } : null]}>
                       <View style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}>
                         <RivalIcon name="fire" size={16} color={RivalColors.accentFill} />
-                        <Text style={styles.mLegacyStatValue}>{lifetimeActivityCount.toLocaleString()}</Text>
+                        <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueRow]}>{lifetimeActivityCount.toLocaleString()}</Text>
                         {legacyWeek.count > 0 ? <Text style={styles.mLegacyStatGain}>{`+${legacyWeek.count} this week`}</Text> : legacyGainRow ? <Text style={styles.mLegacyStatQuiet}>all time</Text> : null}
                         <Text style={styles.mLegacyStatLabel}>Activities</Text>
                       </View>
                       <View style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}>
                         <RivalIcon name="distance" size={16} color={RivalColors.accentFill} />
-                        <Text style={styles.mLegacyStatValue}>{distanceNumber(totalDistanceKm)} <Text style={styles.mLegacyStatUnit}>{distanceUnit()}</Text></Text>
+                        <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueRow]}>{distanceNumber(totalDistanceKm)} <Text style={styles.mLegacyStatUnit}>{distanceUnit()}</Text></Text>
                         {legacyWeek.count > 0 ? <Text style={styles.mLegacyStatGain}>{`+${formatDistanceWhole(legacyWeek.km)}`}</Text> : legacyGainRow ? <Text style={styles.mLegacyStatQuiet}>all time</Text> : null}
                         <Text style={styles.mLegacyStatLabel}>Distance</Text>
                       </View>
                       <View style={styles.mLegacyStatCell}>
                         <RivalIcon name="elevation" size={16} color={RivalColors.accentFill} />
-                        <Text style={styles.mLegacyStatValue}>{totalElevationM.toLocaleString()} <Text style={styles.mLegacyStatUnit}>m</Text></Text>
+                        <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueRow]}>{totalElevationM.toLocaleString()} <Text style={styles.mLegacyStatUnit}>m</Text></Text>
                         {legacyWeek.count > 0 ? <Text style={styles.mLegacyStatGain}>{`+${legacyWeek.elevM.toLocaleString()} m`}</Text> : legacyGainRow ? <Text style={styles.mLegacyStatQuiet}>all time</Text> : null}
                         <Text style={styles.mLegacyStatLabel}>Elevation</Text>
                       </View>
@@ -3037,6 +3051,10 @@ export default function HomeScreen() {
                       them rather than in a card of its own. */}
                   {(() => {
                     const m = nextMilestone(totalDistanceKm, lifetimeActivityCount, totalElevationM, seasonEffortTotal, respectReceived);
+                    // A rank milestone wears that rank's colour; the others stay
+                    // neutral (grey label, white figure, silver bar), so the
+                    // card isn't all one colour (Ricky, 2026-10-03).
+                    const ms = m.rankLevel ? rankSheen(m.rankLevel) : null;
                     return (
                       <TouchableOpacity
                         style={styles.mMilestone}
@@ -3047,16 +3065,16 @@ export default function HomeScreen() {
                       >
                         <View>
                           <View style={styles.mMilestoneHead}>
-                            <Text style={styles.mMilestoneLabel}>Next milestone</Text>
-                            <Text style={styles.mMilestoneToGo}>{m.toGo}</Text>
+                            <Text style={[styles.mMilestoneLabel, ms ? { color: ms.light } : styles.mMilestoneLabelNeutral]}>Next milestone</Text>
+                            <Text style={[styles.mMilestoneToGo, ms ? { color: ms.light } : styles.mMilestoneToGoNeutral]}>{m.toGo}</Text>
                           </View>
                           <View style={styles.mMilestoneTitleLine}>
-                            <Text style={styles.mMilestoneTitle} numberOfLines={1}>{m.title}</Text>
+                            <Text style={[styles.mMilestoneTitle, m.rankLevel ? rankTextSheen(m.rankLevel) : null]} numberOfLines={1}>{m.title}</Text>
                             <RivalIcon name="chevronRight" size={16} color="rgba(255,255,255,0.45)" />
                           </View>
                         </View>
                         <View style={styles.mMilestoneTrack}>
-                          <View style={[styles.mMilestoneFill, { width: `${Math.max(3, Math.min(100, Math.round(m.pct * 100)))}%` }]} />
+                          <View style={[styles.mMilestoneFill, ms ? milestoneFillIn(ms.dark, ms.light) : milestoneFillIn('rgba(255,255,255,0.45)', '#ffffff'), { width: `${Math.max(3, Math.min(100, Math.round(m.pct * 100)))}%` }]} />
                         </View>
                       </TouchableOpacity>
                     );
@@ -4434,10 +4452,22 @@ const styles = StyleSheet.create({
   // "Effort Today"/"Week Streak" (Ricky: "the word rank moved position").
   mLegacyStatValue: { fontFamily: RivalFontFamily, fontSize: 17, fontWeight: '700', lineHeight: 24, color: RivalColors.textPrimary, marginTop: 8 },
   mLegacyStatValueLg: { fontSize: 20, fontWeight: '800', lineHeight: 24 },
+  // "1/3": the same size as the Effort figure beside it, the "/3" quieter.
+  mStreakMoreValue: { fontSize: 26, lineHeight: 30, marginTop: 5, marginBottom: -3, fontVariant: ['tabular-nums'] },
+  mStreakOf: { color: 'rgba(255,255,255,0.45)' },
+  mEffortTodayValue: {
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 26, lineHeight: 30, marginTop: 5, marginBottom: -3,
+    color: RivalColors.accentGold, fontVariant: ['tabular-nums'],
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffe6b0 0%, #f5b759 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' } as any : {}),
+  },
   // Literal #FFD700 (same gold as the podium's #1 rank) — NOT accentGold
   // (#F5B759), which is a softer peach-gold used for gradient stops
   // elsewhere. Mockup's "LEGEND" text is pure gold.
   mLegacyStatValueGold: { fontFamily: RivalSerifFamily, fontWeight: '700', fontStyle: 'italic', textTransform: 'uppercase', color: '#FFD700', fontSize: 18, lineHeight: 24, letterSpacing: 1.44 },
+  // The small unit (km, m) made the value line taller than one without a
+  // unit, so Activities sat higher than Distance and Elevation. One fixed
+  // height for the line keeps all three rows level.
+  mLegacyStatValueRow: { height: 24, overflow: 'visible' },
   mLegacyStatUnit: { fontFamily: RivalFontFamily, fontSize: 9, color: RivalColors.textSecondary, fontWeight: '700' },
   // Mockup's small gray labels are regular weight, not bold — labelCaps
   // defaults to 700, so both label styles explicitly reset it to 400.
@@ -4481,6 +4511,8 @@ const styles = StyleSheet.create({
   mMilestoneHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   mMilestoneLabel: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   mMilestoneToGo: { fontFamily: RivalFontFamily, fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  mMilestoneLabelNeutral: { color: 'rgba(255,255,255,0.55)' },
+  mMilestoneToGoNeutral: { color: '#fff' },
   mMilestoneTitleLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   mMilestoneTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 17, fontWeight: '700', lineHeight: 22, color: '#fff', marginTop: 4, flexShrink: 1 },
   mMilestoneTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },

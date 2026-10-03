@@ -18,7 +18,7 @@ import {
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { RivalBackButton, RivalIcon, RivalTopNav, GreySheet, GreyLabel } from '@/components/rival';
 import { INBOX_ICON_FOR, goToInboxSubject, inboxTimeAgo } from '@/components/rival/NotificationsMenu';
-import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalType } from '@/constants/rivalTheme';
+import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalGhost } from '@/constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../lib/stravaSharing';
@@ -387,8 +387,8 @@ const m = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   content: { gap: 8, paddingBottom: 4 },
   card: {
-    backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
-    borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 13, gap: 12,
+    backgroundColor: RivalGhost.fill, borderRadius: 16,
+    borderWidth: 1, borderColor: RivalGhost.border, padding: 13, gap: 12,
   },
   cardOpen: { borderColor: 'rgba(255,181,158,0.35)' },
   badge: {
@@ -404,8 +404,8 @@ const m = StyleSheet.create({
   tagText: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
   secondary: { borderRadius: 999 },
   list: {
-    backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
-    borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13,
+    backgroundColor: RivalGhost.fill, borderRadius: 16,
+    borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 13,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rowRule: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
@@ -416,7 +416,7 @@ const m = StyleSheet.create({
   clear: { paddingLeft: 4, paddingVertical: 8 },
   empty: {
     flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8,
-    backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
-    borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14,
+    backgroundColor: RivalGhost.fill, borderRadius: 16,
+    borderWidth: 1, borderColor: RivalGhost.border, padding: 14,
   },
 });

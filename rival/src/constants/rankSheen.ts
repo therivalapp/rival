@@ -41,3 +41,14 @@ export function rankBadgeSheen(level: number, lit = true): object {
     ? { backgroundImage: `radial-gradient(circle at 35% 25%, ${light}33, ${dark}22 70%)`, borderColor: light + '66', boxShadow: `0 0 18px ${dark}33` }
     : { backgroundColor: dark + '33', borderColor: light + '66' };
 }
+
+/** An earned rank's tile, filled solid in its material (Ricky, 2026-10-03:
+ *  mockup B, full colour). Text on it is dark: RANK_TILE_INK. */
+export function rankTileFill(level: number): object {
+  const { light, dark } = rankSheen(level);
+  return Platform.OS === 'web'
+    ? { backgroundImage: `linear-gradient(160deg, ${light} 0%, ${dark} 100%)`, borderColor: light }
+    : { backgroundColor: dark, borderColor: light };
+}
+
+export const RANK_TILE_INK = '#1a1210';

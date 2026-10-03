@@ -1,6 +1,6 @@
 import { distanceNumber, distanceUnit, elevationNumber, elevationUnit } from '../lib/units';
 import { useEffect, useState } from 'react';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -234,7 +234,7 @@ const ms = StyleSheet.create({
   heroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 36 },
   timeHero: { alignItems: 'center' },
   timeValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  card: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16 },
+  card: { backgroundColor: PHONE_CARD_BG, borderColor: RivalGhost.border, borderRadius: 16 },
   serifNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
   highlight: { gap: 10 },
   sportRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

@@ -12,7 +12,7 @@ import { ALL_ACTIVITIES, computeGoalProgress, goalActivityLabel, goalContributio
 import { confirmAction, notify } from '../lib/notify';
 import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 
@@ -1387,7 +1387,7 @@ const ms = StyleSheet.create({
   recentRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 16 },
   recentChip: { borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.18)', backgroundColor: 'rgba(217,119,87,0.10)', paddingHorizontal: 10, paddingVertical: 4 },
   recentText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
-  goalCard: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
+  goalCard: { backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
   iconSm: { width: 36, height: 36, borderRadius: 18 },
   goalTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: '#fff' },
   goalNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', color: '#fff' },
@@ -1430,7 +1430,7 @@ const ms = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 22, paddingBottom: 36, gap: 10,
   },
   sheetTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', color: '#fff', marginBottom: 4, paddingHorizontal: 4, textAlign: 'center' },
-  sheetCard: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 18, padding: 14, gap: 10 },
+  sheetCard: { backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 18, padding: 14, gap: 10 },
   moreChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chip: { borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 16 },
   sheetActions: { gap: 10, marginTop: 10 },

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { RivalColors, RivalSerifFamily } from '../../../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalSerifFamily } from '../../../constants/rivalTheme';
 
 // Shared look for Team Hub's bottom sheets (challenge a teammate, challenge a
 // team, encourage, edit the Team Challenge). Same language as
@@ -43,4 +43,12 @@ export const sheet = StyleSheet.create({
   },
   secondaryBtnText: { fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
   error: { fontSize: 13, color: '#ff9b8f', marginTop: 10 },
+});
+
+// Phones: the Add an activity look (warm outlines, Ricky 2026-10-03), on top
+// of `sheet`. Desktop keeps the recessed greys.
+export const sheetPhone = StyleSheet.create({
+  chip: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  input: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  list: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
 });

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { RivalColors, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalButtonColors, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead } from '../components/rival';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Platform, ActivityIndicator, Image, Animated, Easing, useWindowDimensions } from 'react-native';
@@ -1489,18 +1489,18 @@ const styles = StyleSheet.create({
 const ms = StyleSheet.create({
   container: { backgroundColor: RivalColors.surfaceContainer },
   content: { paddingHorizontal: 16, paddingTop: 0 },
-  card: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16, gap: 6 },
+  card: { backgroundColor: PHONE_CARD_BG, borderColor: RivalGhost.border, borderRadius: 16, gap: 6 },
   sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
-  chip: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 14 },
+  chip: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border, borderRadius: 14 },
   chipOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
   thumb: { borderRadius: 12, borderColor: RivalColors.surfaceBright },
-  picker: { backgroundColor: RivalColors.surfaceLowest, borderColor: 'rgba(255,181,158,0.35)', borderStyle: 'dashed', borderWidth: 1.5, gap: 10 },
+  picker: { backgroundColor: RivalGhost.fill, borderColor: 'rgba(255,181,158,0.35)', borderStyle: 'dashed', borderWidth: 1.5, gap: 10 },
   pickerText: { color: RivalColors.accentText },
-  styleCard: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 14 },
+  styleCard: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border, borderRadius: 14 },
   styleCardOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
   styleLabel: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16 },
   caption: { fontFamily: RivalSerifFamily, fontSize: 15, lineHeight: 21, color: 'rgba(255,255,255,0.8)' },
-  stamp: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright, borderRadius: 16, paddingVertical: 14 },
+  stamp: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border, borderRadius: 16, paddingVertical: 14 },
   stampText: { flex: 1, gap: 2 },
   stampSub: { textAlign: 'left', fontSize: 12 },
   generate: { paddingVertical: 16, marginBottom: 28 },

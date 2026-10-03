@@ -2,7 +2,7 @@ import { createElement, useMemo, useState } from 'react';
 import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RivalColors, RivalRadius } from '../../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalGhost } from '../../constants/rivalTheme';
 import { RivalIcon } from './RivalIcon';
 import { confirmAction } from '../../lib/notify';
 import { CoverImage } from './CoverImage';
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
 const pm = StyleSheet.create({
   overlay: { backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end', alignItems: 'stretch' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 },
-  cell: { borderRadius: 12, overflow: 'hidden', backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  cell: { borderRadius: 12, overflow: 'hidden', backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
   cellOn: { borderColor: 'rgba(255,181,158,0.6)' },
   add: { alignItems: 'center', justifyContent: 'center', gap: 4, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
   cover: { position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.55)' },

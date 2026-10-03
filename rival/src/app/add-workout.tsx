@@ -13,6 +13,19 @@ const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }>
   { icon: 'verified', title: '3. Review and save', body: 'Confirm the details. Effort updates as soon as the activity is saved.' },
 ];
 
+// The tile's icon, large and centred behind the words, fading out towards
+// them (Ricky, 2026-10-03).
+function TileArt({ icon, primary }: { icon: RivalIconName; primary?: boolean }) {
+  return (
+    <>
+      <View style={ms.tileArt} pointerEvents="none">
+        <RivalIcon name={icon} size={118} color={primary ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.24)'} />
+      </View>
+      <View style={[ms.tileFade, primary ? ms.tileFadePrimary : ms.tileFadeGhost]} pointerEvents="none" />
+    </>
+  );
+}
+
 export default function AddWorkoutScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= BREAKPOINT_WIDE_LAYOUT;
@@ -65,24 +78,24 @@ export default function AddWorkoutScreen() {
               a second dark backdrop over it. */}
           <View style={[ms.tiles, ms.tilesTop]}>
             <TouchableOpacity style={[ms.tile, ms.tilePrimary]} onPress={() => scan('camera')} activeOpacity={0.85} accessibilityRole="button">
-              <View style={ms.tileIconPrimary}><RivalIcon name="camera" size={26} color={ms.primaryText.color as string} /></View>
+              <TileArt icon="camera" primary />
               <Text style={[ms.tileTitle, { color: ms.primaryText.color as string }]}>Take photo</Text>
               <Text style={[ms.tileSub, { color: ms.primaryText.color as string, opacity: 0.75 }]}>Use the camera</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => scan('gallery')} activeOpacity={0.85} accessibilityRole="button">
-              <View style={ms.tileIconGhost}><RivalIcon name="upload" size={26} color={RivalColors.accentText} /></View>
+              <TileArt icon="upload" />
               <Text style={ms.tileTitle}>Upload</Text>
               <Text style={ms.tileSub}>From the photo library</Text>
             </TouchableOpacity>
           </View>
           <View style={[ms.tiles, { marginTop: 10 }]}>
             <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.push('/manual-entry')} activeOpacity={0.85} accessibilityRole="button">
-              <View style={ms.tileIconGhost}><RivalIcon name="manual" size={26} color={RivalColors.accentText} /></View>
+              <TileArt icon="manual" />
               <Text style={ms.tileTitle}>Manual entry</Text>
               <Text style={ms.tileSub}>Type in the details</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.replace('/weekly-scan')} activeOpacity={0.85} accessibilityRole="button">
-              <View style={ms.tileIconGhost}><RivalIcon name="batch" size={26} color={RivalColors.accentText} /></View>
+              <TileArt icon="batch" />
               <Text style={ms.tileTitle}>Multi-day scan</Text>
               <Text style={ms.tileSub}>Several days at once</Text>
             </TouchableOpacity>
@@ -215,11 +228,15 @@ const ms = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   tiles: { flexDirection: 'row', gap: 10 },
   tilesTop: { marginTop: 14 },
-  tile: { flex: 1, minHeight: 132, borderRadius: 18, padding: 16, justifyContent: 'flex-end', gap: 3 },
+  tile: { flex: 1, minHeight: 132, borderRadius: 18, padding: 16, justifyContent: 'flex-end', gap: 3, overflow: 'hidden' },
   tilePrimary: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   tileGhost: { borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)', backgroundColor: 'rgba(255,209,190,0.05)' },
   tileIconPrimary: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.12)', marginBottom: 'auto' },
   tileIconGhost: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,181,158,0.1)', marginBottom: 'auto' },
+  tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  tileFade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  tileFadePrimary: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' } as any : {},
+  tileFadeGhost: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' } as any : {},
   tileTitle: { fontSize: 17, fontWeight: '800', color: RivalColors.textPrimary },
   tileSub: { fontSize: 12, fontWeight: '500', color: RivalColors.textSecondary },
   tileNote: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },

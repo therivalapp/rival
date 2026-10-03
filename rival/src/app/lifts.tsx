@@ -9,7 +9,7 @@ import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm, rb, GreyPageHead, GreySheet, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
@@ -690,7 +690,7 @@ const ms = StyleSheet.create({
   chipActive: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' },
   onGradient: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
   chipValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  modalBox: { backgroundColor: RivalWarm.card, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22, gap: 10 },
+  modalBox: { backgroundColor: RivalGhost.ground, borderColor: RivalGhost.border, borderRadius: 20, padding: 22, gap: 10 },
   modalTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', marginBottom: 4 },
   modalInput: { marginBottom: 0 },
 });
@@ -738,7 +738,7 @@ const pb = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   tile: {
     width: '31.9%', alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 12, paddingHorizontal: 4, minHeight: 78,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    borderRadius: 14, backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border,
   } as any,
   tileOn: { borderColor: 'rgba(255,181,158,0.6)', backgroundColor: 'rgba(217,119,87,0.10)' },
   tileAdd: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalSerifFamily } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalIcon, GreyPageHead, GreyLabel, GreyNote, GREY_PAGE_BG, type RivalIconName } from '../components/rival';
 import { activityTypeLabel } from '../components/rival/EffortBreakdownSheet';
 import { effortBreakdown, loadScoringConfig, type ScoringConfig } from '../lib/effort';
@@ -48,6 +49,8 @@ const EXAMPLES: { type: string; minutes: number; meters: number; climb: number }
 const TIME_PREVIEW = 8;
 
 export default function EffortScreen() {
+  // Phone: the Add an activity look (warm outlines); desktop keeps its own.
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   const [config, setConfig] = useState<ScoringConfig | null>(null);
   const [allTime, setAllTime] = useState(false);
   useEffect(() => { loadScoringConfig().then(setConfig); }, []);
@@ -68,7 +71,7 @@ export default function EffortScreen() {
   const climbPer = imperial ? `${num(climbRate * 100 / FEET_PER_METRE)} per 100 ft` : `${num(climbRate * 100)} per 100 m`;
 
   return (
-    <SafeAreaView style={s.page} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[s.page, !phone && s.pageWide]} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={s.content}>
         <GreyPageHead
           kicker="EFFORT"
@@ -77,9 +80,9 @@ export default function EffortScreen() {
           onBack={back}
         />
 
-        <View style={s.card}>
+        <View style={[s.card, phone && s.cardPhone]}>
           {IDEAS.map((idea, i) => (
-            <View key={idea.title} style={[s.idea, i > 0 && s.rule]}>
+            <View key={idea.title} style={[s.idea, i > 0 && (phone ? s.rulePhone : s.rule)]}>
               <View style={s.badge}>
                 <RivalIcon name={idea.icon} size={16} color={RivalColors.accentText} />
               </View>
@@ -94,7 +97,7 @@ export default function EffortScreen() {
         {config ? (
           <>
             <GreyLabel>Examples</GreyLabel>
-            <View style={s.card}>
+            <View style={[s.card, phone && s.cardPhone]}>
               {EXAMPLES.map((ex, i) => {
                 const b = effortBreakdown(ex.type, ex.minutes * 60, ex.climb, config, ex.meters);
                 const parts = b.basis === 'time' && b.climbScore === 0 ? 'Scored on time' : [
@@ -108,7 +111,7 @@ export default function EffortScreen() {
                   ex.climb > 0 ? `${formatElevation(ex.climb)} climbed` : null,
                 ].filter(Boolean).join(' · ');
                 return (
-                  <View key={i} style={[s.row, i > 0 && s.rule]}>
+                  <View key={i} style={[s.row, i > 0 && (phone ? s.rulePhone : s.rule)]}>
                     <View style={s.rowText}>
                       <Text style={s.rowTitle}>{activityTypeLabel(ex.type)} <Text style={s.rowMeta}>{what}</Text></Text>
                       <Text style={s.rowSub}>{parts}</Text>
@@ -120,9 +123,9 @@ export default function EffortScreen() {
             </View>
 
             <GreyLabel>Scored on distance</GreyLabel>
-            <View style={s.card}>
+            <View style={[s.card, phone && s.cardPhone]}>
               {distanceTypes.map((t, i) => (
-                <View key={t} style={[s.rateRow, i > 0 && s.rule]}>
+                <View key={t} style={[s.rateRow, i > 0 && (phone ? s.rulePhone : s.rule)]}>
                   <Text style={s.rateName} numberOfLines={1}>{activityTypeLabel(t)}</Text>
                   <Text style={s.rate}>
                     {num(perDist(config.distanceRates![t]))} / {distanceUnit()}
@@ -134,9 +137,9 @@ export default function EffortScreen() {
             <GreyNote>Climbing adds {climbPer} on foot, bike and skis.</GreyNote>
 
             <GreyLabel>Scored on time</GreyLabel>
-            <View style={s.card}>
+            <View style={[s.card, phone && s.cardPhone]}>
               {(allTime ? timeTypes : timeTypes.slice(0, TIME_PREVIEW)).map((t, i) => (
-                <View key={t} style={[s.rateRow, i > 0 && s.rule]}>
+                <View key={t} style={[s.rateRow, i > 0 && (phone ? s.rulePhone : s.rule)]}>
                   <Text style={s.rateName} numberOfLines={1}>{activityTypeLabel(t)}</Text>
                   <Text style={s.rate}>{num(config.multipliers[t])} / min</Text>
                 </View>
@@ -150,7 +153,7 @@ export default function EffortScreen() {
           </>
         ) : null}
 
-        <TouchableOpacity style={[s.card, s.link]} onPress={() => router.push('/ranks')} activeOpacity={0.8}>
+        <TouchableOpacity style={[s.card, phone && s.cardPhone, s.link]} onPress={() => router.push('/ranks')} activeOpacity={0.8}>
           <View style={s.badge}><RivalIcon name="crown" size={16} color={RivalColors.accentText} /></View>
           <View style={s.ideaText}>
             <Text style={s.ideaTitle}>Ranks</Text>
@@ -165,12 +168,15 @@ export default function EffortScreen() {
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
+  pageWide: { backgroundColor: RivalColors.surfaceContainer },
   content: { maxWidth: 560, width: '100%', alignSelf: 'center', paddingHorizontal: 16, paddingBottom: 120, gap: 0 },
   card: {
     backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
     borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13, marginTop: 12,
   },
+  cardPhone: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
   rule: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
+  rulePhone: { borderTopWidth: 1, borderTopColor: RivalGhost.hairline },
   badge: {
     width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.06)',

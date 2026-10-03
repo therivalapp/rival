@@ -4,7 +4,7 @@
 // Ionicons, Fontisto, AntDesign, MaterialSymbols and more, none of which this
 // app uses. That was ~3MB of fonts downloaded on first load for nothing.
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { StyleProp, TextStyle } from 'react-native';
 import { RivalColors } from '../../constants/rivalTheme';
 
@@ -125,6 +125,8 @@ const ICONS = {
   crown: ['mci', 'crown-outline'] as const,
   lock: 'lock',               // locked milestone/achievement
   bolt: 'bolt',
+  // The same bolt drawn as a path, so it can take a gradient fill.
+  boltDrawn: ['mci', 'bolt-material'] as const,
   rest: 'bedtime',            // idle / no recent activity
   trendUp: 'trending-up',
   trendDown: 'trending-down',
@@ -225,6 +227,8 @@ const MCI_PATHS: Record<string, string> = {
   'star-four-points': 'M12 0.98 9 9 0.98 12 9 15 12 23.02 15 15 23.02 12 15 9Z',
   'infinity': 'M18.61 6.61Q20.06 6.61 21.3 7.34Q22.55 8.06 23.27 9.3Q24 10.55 24 12Q24 13.45 23.27 14.7Q22.55 15.94 21.3 16.66Q20.06 17.39 18.61 17.39Q16.36 17.39 14.77 15.8L12 13.36L9.19 15.84Q8.44 16.59 7.45 16.99Q6.47 17.39 5.39 17.39Q3.94 17.39 2.7 16.66Q1.45 15.94 0.73 14.7Q0 13.45 0 12Q0 10.55 0.73 9.3Q1.45 8.06 2.7 7.34Q3.94 6.61 5.39 6.61Q6.47 6.61 7.45 7.03Q8.44 7.45 9.23 8.2L12 10.64L14.81 8.16Q15.56 7.41 16.55 7.01Q17.53 6.61 18.61 6.61ZM7.78 14.39 10.5 12 7.83 9.66Q6.8 8.62 5.39 8.62Q3.98 8.62 3 9.61Q2.02 10.59 2.02 12Q2.02 13.41 3 14.39Q3.98 15.38 5.39 15.38Q6.8 15.38 7.78 14.39ZM16.22 9.61 13.5 12 16.17 14.34Q17.2 15.38 18.61 15.38Q20.02 15.38 21 14.39Q21.98 13.41 21.98 12Q21.98 10.59 21 9.61Q20.02 8.62 18.61 8.62Q17.2 8.62 16.22 9.61Z',
   'lightning-bolt': 'M11.02 15H6L12.98 0.98V9H18L11.02 23.02Z',
+  // Material Icons 'bolt'.
+  'bolt-material': 'M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z',
   'trophy': 'M18 2.02Q17.3 2.02 16.64 2.65Q15.98 3.28 15.98 3.98H8.02Q8.02 3.28 7.36 2.65Q6.7 2.02 6 2.02H2.02V11.02Q2.02 11.77 2.62 12.38Q3.23 12.98 3.98 12.98H6.19Q6.52 14.67 7.59 15.66Q8.81 16.78 11.02 17.02V19.08Q9.98 19.22 9.28 19.73Q8.72 20.11 8.39 20.72Q8.16 21.14 8.06 21.61L8.02 21.98H15.98L15.94 21.61Q15.84 21.14 15.61 20.72Q15.28 20.11 14.72 19.73Q14.02 19.22 12.98 19.08V17.02Q15.19 16.78 16.41 15.66Q17.48 14.67 17.81 12.98H20.02Q20.77 12.98 21.38 12.38Q21.98 11.77 21.98 11.02V2.02ZM6 11.02H3.98V3.98H6ZM20.02 11.02H18V3.98H20.02Z',
   'lock-outline': 'M12 17.02Q11.16 17.02 10.57 16.43Q9.98 15.84 9.98 15Q9.98 14.16 10.57 13.57Q11.16 12.98 12 12.98Q12.84 12.98 13.43 13.57Q14.02 14.16 14.02 15Q14.02 15.84 13.43 16.43Q12.84 17.02 12 17.02ZM18 20.02V9.98H6V20.02ZM18 8.02Q18.84 8.02 19.43 8.6Q20.02 9.19 20.02 9.98V20.02Q20.02 20.81 19.43 21.4Q18.84 21.98 18 21.98H6Q5.16 21.98 4.57 21.4Q3.98 20.81 3.98 20.02V9.98Q3.98 9.19 4.57 8.6Q5.16 8.02 6 8.02H6.98V6Q6.98 4.64 7.66 3.49Q8.34 2.34 9.49 1.66Q10.64 0.98 12 0.98Q13.36 0.98 14.51 1.66Q15.66 2.34 16.34 3.49Q17.02 4.64 17.02 6V8.02ZM12 3Q10.73 3 9.87 3.87Q9 4.73 9 6V8.02H15V6Q15 4.73 14.13 3.87Q13.27 3 12 3Z',
   'check-bold': 'M9 20.44 2.81 14.2 5.62 11.39 9 14.77 18.89 4.88 21.7 7.69Z',
@@ -250,17 +254,28 @@ export function RivalIcon({
   size = 24,
   color = RivalColors.textPrimary,
   style,
+  gradient,
 }: {
   name: RivalIconName;
   size?: number;
   color?: string;
   style?: StyleProp<TextStyle>;
+  /** Top-to-bottom fill [from, to], for drawn (MCI) icons only. */
+  gradient?: readonly [string, string];
 }) {
   const glyph: string | readonly [string, string] = ICONS[name];
   if (Array.isArray(glyph)) {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" style={style as any}>
-        <Path d={MCI_PATHS[glyph[1]]} fill={color} />
+        {gradient ? (
+          <Defs>
+            <LinearGradient id={`rivalIconFill-${name}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={gradient[0]} />
+              <Stop offset="1" stopColor={gradient[1]} />
+            </LinearGradient>
+          </Defs>
+        ) : null}
+        <Path d={MCI_PATHS[glyph[1]]} fill={gradient ? `url(#rivalIconFill-${name})` : color} />
       </Svg>
     );
   }

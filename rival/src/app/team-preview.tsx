@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily, RivalGhost } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { formatTeamName } from '../lib/identity';
 import { BusyText } from '../components/rival/BusyText';
@@ -310,7 +310,7 @@ const ms = StyleSheet.create({
   peopleCard: { gap: 8, marginBottom: 12 },
   peopleNames: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, lineHeight: 23 },
   primaryBtn: { marginTop: 8 },
-  pending: { flexDirection: 'row', justifyContent: 'center', gap: 8, borderRadius: 999, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  pending: { flexDirection: 'row', justifyContent: 'center', gap: 8, borderRadius: 999, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
   pendingText: { color: RivalColors.textSecondary },
   ghostBtn: { paddingHorizontal: 22, marginTop: 8 },
   emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22 },

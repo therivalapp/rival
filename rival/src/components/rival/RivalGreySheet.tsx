@@ -1,6 +1,6 @@
 import { Children, Fragment, isValidElement, useRef, type ReactNode } from 'react';
 import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps } from 'react-native';
-import { RivalButtonColors, RivalColors, RivalSerifFamily } from '../../constants/rivalTheme';
+import { RivalButtonColors, RivalColors, RivalGhost, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
@@ -14,7 +14,7 @@ import { RivalBackButton } from './RivalBackButton';
 export function GreySheet({
   kicker, title, onClose, children, footer, overlay,
 }: {
-  kicker: string;
+  kicker?: string;
   title: string;
   onClose: () => void;
   children: ReactNode;
@@ -47,8 +47,8 @@ export function GreySheet({
       <View {...pan.panHandlers} style={g.dragZone}>
         <View style={g.grabber} />
         <View style={g.head}>
-          <Text style={g.kicker}>{kicker}</Text>
-          <Text style={g.title}>{title}</Text>
+          {kicker ? <Text style={g.kicker}>{kicker}</Text> : null}
+          <Text style={[g.title, !kicker && { marginTop: 0 }]}>{title}</Text>
         </View>
       </View>
       <ScrollView style={g.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -180,7 +180,7 @@ export function GreyCalendar({ value, onChange, onClose }: { value: string | nul
 }
 
 /** Background for a full page in the pop-up style. */
-export const GREY_PAGE_BG = RivalColors.surfaceContainer;
+export const GREY_PAGE_BG = RivalGhost.ground;
 
 /** The top of a full page in the pop-up style: the same warm glow, centred
  *  kicker and serif title as GreySheet, with a back button in place of the
@@ -220,9 +220,9 @@ const gp = StyleSheet.create({
 /** The blend for full pages (the review's "blend" column): the pop-up's
  *  greys on a page. Phone only; pages branch on width. */
 export const rb = StyleSheet.create({
-  page: { flex: 1, backgroundColor: RivalColors.surfaceContainer },
+  page: { flex: 1, backgroundColor: RivalGhost.ground },
   content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12 },
-  card: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 12 },
+  card: { backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14, gap: 12 },
   /** The one card a page leads with: warm glass with a soft glow from the
    *  top (Team settings' crest, Goals' main focus, the rank on Ranks).
    *  Goes on top of `card`: [rb.card, rb.hero]. One per page. */
@@ -235,12 +235,12 @@ export const rb = StyleSheet.create({
   /** Grey spaced caps: a card's own label, or a section label between cards. */
   label: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   section: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary, marginTop: 6, marginBottom: -4, marginLeft: 4 },
-  field: { backgroundColor: RivalColors.surfaceContainer, borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13, paddingVertical: 11 },
-  rule: { borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },
+  field: { backgroundColor: RivalGhost.fill, borderRadius: 12, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 13, paddingVertical: 11 },
+  rule: { borderTopWidth: 1, borderTopColor: RivalGhost.hairline },
   /** One segmented toggle: grey track, the chosen part lifted. */
-  seg: { flexDirection: 'row', backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, borderRadius: 999, padding: 3 },
+  seg: { flexDirection: 'row', backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 999, padding: 3 },
   segItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 999 },
-  segItemOn: { backgroundColor: RivalColors.surfaceBright },
+  segItemOn: { backgroundColor: RivalGhost.fillOn },
   segText: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
   segTextOn: { color: '#fff', fontWeight: '700' },
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
@@ -310,10 +310,10 @@ const g = StyleSheet.create({
   label: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, marginTop: 15, marginBottom: 8, textTransform: 'uppercase' },
 
   card: {
-    backgroundColor: RivalColors.surfaceLowest, borderRadius: 16,
-    borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13,
+    backgroundColor: RivalGhost.fill, borderRadius: 16,
+    borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 13,
   },
-  divider: { height: 1, backgroundColor: RivalColors.surfaceBright, opacity: 0.6 },
+  divider: { height: 1, backgroundColor: RivalGhost.hairline },
   row: { flexDirection: 'row', alignItems: 'center', minHeight: 46, gap: 10, paddingVertical: 4 },
   rowIcon: { width: 18, textAlign: 'center' },
   // At least 104 wide so short labels line up; longer ones take what they need.
@@ -327,8 +327,8 @@ const g = StyleSheet.create({
     backgroundColor: 'transparent', borderWidth: 0,
   },
   field: {
-    backgroundColor: RivalColors.surfaceLowest, borderRadius: 14,
-    borderWidth: 1, borderColor: RivalColors.surfaceBright,
+    backgroundColor: RivalGhost.fill, borderRadius: 14,
+    borderWidth: 1, borderColor: RivalGhost.border,
     paddingHorizontal: 14, paddingVertical: 13,
     color: RivalColors.textPrimary, fontSize: 16, fontWeight: '500',
   },
@@ -336,11 +336,11 @@ const g = StyleSheet.create({
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   tile: {
     alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 8,
-    borderRadius: 14, backgroundColor: RivalColors.surfaceLowest,
-    borderWidth: 1, borderColor: 'rgba(255,209,190,0.09)',
+    borderRadius: 14, backgroundColor: RivalGhost.fill,
+    borderWidth: 1, borderColor: RivalGhost.border,
   },
   tileShort: { paddingVertical: 12 },
-  tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
+  tileOn: { backgroundColor: RivalGhost.fillOn, borderColor: RivalGhost.borderOn },
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
@@ -482,9 +482,9 @@ export function RivalMiniTile({
 const mt = StyleSheet.create({
   tile: {
     width: 92, alignItems: 'center', gap: 6, paddingTop: 10, paddingBottom: 9, paddingHorizontal: 6,
-    borderRadius: 14, backgroundColor: 'rgba(14,14,14,0.8)',
-    borderWidth: 1, borderColor: 'rgba(255,209,190,0.14)',
-    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)' } : {}),
+    // Only Find a team uses it: the Add an activity look (warm outline).
+    borderRadius: 14, backgroundColor: RivalGhost.fill,
+    borderWidth: 1, borderColor: RivalGhost.border,
   } as any,
   badge: {
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
@@ -498,10 +498,12 @@ const mt = StyleSheet.create({
  *  tile; once it's set up, the page shows it as its own titled section and
  *  the tile drops out. Renders nothing when everything is set up. */
 export function RivalStartTiles({
-  tiles, title = "What's next",
+  tiles, title = "What's next", ghost,
 }: {
   tiles: { key: string; icon: RivalIconName; label: string; onPress: () => void }[];
   title?: string;
+  /** The Add an activity look (warm outline), for pages that aren't main tabs. */
+  ghost?: boolean;
 }) {
   if (tiles.length === 0) return null;
   return (
@@ -509,7 +511,7 @@ export function RivalStartTiles({
       <Text style={st.title}>{title}</Text>
       <View style={st.row}>
         {tiles.map((t) => (
-          <TouchableOpacity key={t.key} style={st.tile} onPress={t.onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.label}>
+          <TouchableOpacity key={t.key} style={[st.tile, ghost && st.tileGhost]} onPress={t.onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.label}>
             <View style={st.badge}>
               <RivalIcon name={t.icon} size={15} color={RivalColors.surfaceLowest} />
             </View>
@@ -536,6 +538,10 @@ const st = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'linear-gradient(180deg, #2a1d18 0%, #1c1a19 70%)' }
       : { backgroundColor: '#241b17' }),
+  } as any,
+  tileGhost: {
+    backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'none' } : {}),
   } as any,
   filler: { flexBasis: '22%', flexGrow: 1 },
   badge: {

@@ -1,6 +1,6 @@
 import { defaultActivityName } from '../lib/activityName';
 import { fitPhoto } from '../lib/imageResize';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +11,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
-import { RivalColors, RivalRadius, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm, rb, GreyPageHead, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
 import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB } from '../components/rival/MediaPicker';
 import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
@@ -164,6 +164,19 @@ export default function ScanWorkoutScreen() {
     if (entrySource === 'camera' || entrySource === 'gallery') { pickImage(entrySource); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Phone: there's no separate scan landing any more (Ricky, 2026-10-03).
+  // Opening this page with nothing to show, or clearing a scan with Start
+  // over, goes to the Add an activity pop-up instead. Waits while picked
+  // photos are still being read, so a scan in progress never bounces.
+  const landingRedirectOk = useRef(!entrySource && entryMode !== 'manual');
+  useEffect(() => {
+    if (scanImages.length > 0 || extractedWorkout) landingRedirectOk.current = true;
+  }, [scanImages.length, extractedWorkout]);
+  useEffect(() => {
+    if (wide || editParamId || !landingRedirectOk.current) return;
+    if (scanImages.length === 0 && !extractedWorkout && !successMsg) router.replace('/add-workout');
+  }, [wide, editParamId, scanImages.length, extractedWorkout, successMsg]);
 
   useEffect(() => {
     if (!editParamId) return;
@@ -1421,10 +1434,10 @@ const mobileStyles = {
     image: { width: '100%', maxHeight: 420, borderRadius: 16, backgroundColor: RivalWarm.card },
     scanImageThumb: { width: 150, height: 210, borderRadius: 14, backgroundColor: RivalWarm.card },
     scanImagesHint: { fontSize: 12, color: RivalWarm.muted, marginTop: 8, textAlign: 'center' },
-    loadingBox: { alignItems: 'center', paddingVertical: 28, gap: 12, backgroundColor: RivalWarm.card, borderRadius: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder },
+    loadingBox: { alignItems: 'center', paddingVertical: 28, gap: 12, backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border },
     loadingText: { color: RivalWarm.soft, fontSize: 15, fontWeight: '600' },
 
-    extractedBox: { backgroundColor: RivalWarm.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: RivalWarm.cardBorder, gap: 12 },
+    extractedBox: { backgroundColor: RivalGhost.fill, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: RivalGhost.border, gap: 12 },
     extractedLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
     fieldRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: RivalWarm.hairline },
     fieldLabel: { fontSize: 13, color: RivalWarm.soft, fontWeight: '600' },

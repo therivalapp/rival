@@ -13,6 +13,7 @@ import { getUnreadChats } from '../../lib/unreadChats';
 import { RivalColors, RivalType } from '../../constants/rivalTheme';
 import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 import { RivalIcon, RivalIconName } from './RivalIcon';
+import Svg, { Path } from 'react-native-svg';
 import { goToTab, type TabRoute } from '../../lib/tabNav';
 
 // Shared persistent top navigation, matching the Stitch mockups. Drop it in at
@@ -374,7 +375,16 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           >
             {/* Mockup's mobile header uses the plain calm bell (ti-bell), not
                 the "ringing" bell desktop keeps for its own header. */}
-            <RivalIcon name={narrow ? 'notificationsOutline' : 'notificationsActive'} size={narrow ? 21 : 22} color={RivalColors.accentText} />
+            {narrow ? (
+              // Phones: a fine-line bell, to match the thin type around it
+              // (Ricky, 2026-10-03, option B).
+              <Svg width={23} height={23} viewBox="0 0 24 24" fill="none" stroke={RivalColors.accentText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <Path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </Svg>
+            ) : (
+              <RivalIcon name="notificationsActive" size={22} color={RivalColors.accentText} />
+            )}
             {inboxCount > 0 ? (
               <View style={styles.notifDot}>
                 <Text style={styles.notifDotText}>{inboxCount > 9 ? '9+' : inboxCount}</Text>
@@ -509,7 +519,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 1200, marginHorizontal: 'auto', paddingHorizontal: 20, paddingVertical: 8, position: 'relative' },
   // Mockup's mobile header padding (14px 8px) is narrower than the desktop
   // bar built for a 1200px-wide row — desktop keeps its own spacing.
-  rowNarrow: { paddingHorizontal: 8, paddingVertical: 14 },
+  rowNarrow: { paddingHorizontal: 8, paddingVertical: 9 },
   logo: { ...RivalType.titleMd, color: RivalColors.accentText, letterSpacing: 4, fontWeight: '800' },
   // Mockup's mobile wordmark uses the same tri-color gradient-text recipe as
   // the hero numbers/"Total time earned" value elsewhere — desktop's plain
@@ -624,9 +634,9 @@ const styles = StyleSheet.create({
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: RivalColors.accentFill, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   // Mockup's mobile avatar is a plain filled circle, no ring border. Sized
   // 15% up from the mockup's literal 28px per Ricky's ask.
-  avatarNarrow: { width: 32, height: 32, borderRadius: 16 },
+  avatarNarrow: { width: 36, height: 36, borderRadius: 18 },
   avatarImg: { width: 42, height: 42, borderRadius: 21 },
-  avatarImgNarrow: { width: 32, height: 32, borderRadius: 16 },
+  avatarImgNarrow: { width: 36, height: 36, borderRadius: 18 },
   avatarInitial: { color: RivalColors.onAccentFill, fontWeight: '800', fontSize: 18 },
   avatarInitialNarrow: { fontSize: 14 },
   // Thin ring as a separate, slightly larger circle rather than a border ON
@@ -637,7 +647,8 @@ const styles = StyleSheet.create({
   avatarRing: { width: 45, height: 45, borderRadius: 22.5, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' },
   // Mockup's mobile avatar has no ring at all — collapse the ring to exactly
   // the avatar's own size with no border, rather than restructuring the JSX.
-  avatarRingNarrow: { width: 32, height: 32, borderRadius: 16, borderWidth: 0 },
+  // Phones (Ricky, 2026-10-03, option B): a 36px picture in a thin ring.
+  avatarRingNarrow: { width: 42, height: 42, borderRadius: 21, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
   // Wraps the ring+avatar + its dropdown so the menu can be absolutely
   // positioned relative to just the avatar, not the whole nav row. zIndex
   // so the menu paints above the rank badge / page content instead of
