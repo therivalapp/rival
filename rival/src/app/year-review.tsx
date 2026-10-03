@@ -11,7 +11,8 @@ import { notify } from '../lib/notify';
 import { fetchReactionsOn, impactTotals, type ImpactTotals } from '../lib/reactions';
 import { inLocalYear, buildYearReview, activityDisplayName, formatMinutes, type YearReview } from '../lib/yearReview';
 import { RivalIcon, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, activityIconName, type RivalIconName } from '../components/rival';
-import { RivalColors, RivalFontFamily, RivalSerifFamily, RANK_LEVEL_COLORS } from '../constants/rivalTheme';
+import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../constants/rivalTheme';
+import { rankTextSheen } from '../constants/rankSheen';
 import { goToTab } from '../lib/tabNav';
 
 // Year in review: a person's whole year of training, reachable from the
@@ -85,7 +86,6 @@ export default function YearReviewScreen() {
     }
   }
 
-  const rankColor = rank ? RANK_LEVEL_COLORS[rank.level - 1] ?? RivalColors.accentText : RivalColors.accentText;
 
   const stats: Stat[] = review ? ([
     { icon: 'workout', value: review.count.toLocaleString(), label: review.count === 1 ? 'Activity' : 'Activities' },
@@ -111,14 +111,14 @@ export default function YearReviewScreen() {
 
         {review && rank && (
           <>
-            <View style={[rb.card, s.hero]}>
+            <View style={[rb.card, rb.hero, s.hero]}>
               <View style={s.ruleRow}>
                 <View style={[s.rule, s.ruleLeft]} />
                 <Text style={s.ruleText}>{isCurrent ? 'So far this year' : 'Year in review'}</Text>
                 <View style={[s.rule, s.ruleRight]} />
               </View>
               <Text style={s.title}>{year}</Text>
-              <Text style={[s.rank, { color: rankColor }]}>{rank.name}</Text>
+              <Text style={[s.rank, rankTextSheen(rank.level)]}>{rank.name}</Text>
               <Text style={s.caps}>{isCurrent ? 'Rank so far' : 'Final rank'}</Text>
               <Text style={s.effort}>{review.effort.toLocaleString()}</Text>
               <Text style={s.capsAccent}>Total Effort</Text>

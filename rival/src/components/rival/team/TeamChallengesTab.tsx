@@ -9,6 +9,7 @@ import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../../const
 import { RivalIcon, type RivalIconName } from '../RivalIcon';
 import { sheet } from './sheetStyles';
 import { BusyText } from '../BusyText';
+import { selectAll, inChunks } from '../../../lib/selectAll';
 
 // Team Hub's Challenges tab: 1v1 challenges between teammates, and Team vs
 // Team. Ported from the old team page (league.tsx), which was the only place
@@ -82,12 +83,16 @@ async function scoreUsers(metric: ChallengeMetric, start: string, end: string, s
   const all = [...sideA, ...sideB];
   if (all.length === 0) return { challenger: 0, opponent: 0 };
   const { startIso, endIso } = windowIso(start, end);
-  const { data } = await supabase
+  // Paged and sliced: the database stops at 1,000 rows without saying so.
+  const data = await inChunks(all, (slice) => selectAll((from, to) => supabase
     .from('activities')
     .select('user_id, effort_score, distance_meters, elevation_meters, duration_seconds')
-    .in('user_id', all)
+    .in('user_id', slice)
     .gte('started_at', startIso)
-    .lt('started_at', endIso);
+    .lt('started_at', endIso)
+    .order('started_at')
+    .order('id')
+    .range(from, to)));
   const a = new Set(sideA);
   let challenger = 0, opponent = 0;
   (data || []).forEach((row: any) => {

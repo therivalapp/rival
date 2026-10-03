@@ -33,7 +33,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   {
     icon: 'check',
     title: 'Only what can be measured',
-    body: 'Distance counts up to the fastest believable pace for each sport, and climbing up to 2,500 m an hour. There is no bonus for heart rate or intensity.',
+    body: 'Each sport has a realistic top speed, such as 24 km/h running or 60 km/h cycling, and climbing is limited to 2,500 m an hour. An activity faster than that is sent to you to check: edit it, or confirm it is correct and all of it counts. There is no bonus for heart rate or intensity.',
   },
 ];
 

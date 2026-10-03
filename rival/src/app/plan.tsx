@@ -228,7 +228,7 @@ export default function PlanScreen() {
           <GreyPageHead kicker="THIS WEEK" title="Weekly plan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
           {/* Where the week stands, and where it could. */}
-          <View style={rb.card}>
+          <View style={[rb.card, rb.hero]}>
             <Text style={rb.label}>Effort</Text>
             <View style={ms.totals}>
               <View style={ms.total}>

@@ -125,6 +125,16 @@ export type EffortBreakdown = {
   climbRate: number;
   climbScore: number;
   total: number;
+  /** Metres climbed as recorded, before the allowance. */
+  recordedClimb: number;
+  /** The sport's fastest credited pace, minutes per km (0 = none). */
+  minPace: number;
+  /** True when the distance or the climbing went past what's realistic, so
+   *  less was counted. The athlete is asked to review it; once they confirm
+   *  it (`uncapped`), nothing is held back. */
+  capped: boolean;
+  cappedDistance: boolean;
+  cappedClimb: boolean;
 };
 
 // The parts behind an Effort figure, for the breakdown sheet. The total is
@@ -135,6 +145,8 @@ export function effortBreakdown(
   elevationMeters: number,
   config: ScoringConfig,
   distanceMeters = 0,
+  /** The athlete confirmed the activity is correct: count it all. */
+  uncapped = false,
 ): EffortBreakdown {
   const multiplier = config.multipliers[activityType] ?? DEFAULT_MULTIPLIER;
   const minutes = Math.max(0, durationSeconds || 0) / 60;
@@ -146,10 +158,14 @@ export function effortBreakdown(
   const basis = distanceRate > 0 && km > 0 ? 'distance' : 'time';
   let timeRate = multiplier;
   let creditedKm = 0;
+  let minPace = 0;
+  let cappedDistance = false;
   if (basis === 'distance') {
     timeRate = config.distanceTimeRates?.[activityType] ?? 0;
-    const minPace = config.minPaces?.[activityType] ?? 0;
-    creditedKm = minPace > 0 && minutes > 0 ? Math.min(km, minutes / minPace) : km;
+    minPace = config.minPaces?.[activityType] ?? 0;
+    const realistic = minPace > 0 && minutes > 0 ? minutes / minPace : km;
+    cappedDistance = km > realistic + 0.005;
+    creditedKm = uncapped ? km : Math.min(km, realistic);
   }
   const timeScore = minutes * timeRate;
   const distanceScore = creditedKm * distanceRate;
@@ -159,7 +175,11 @@ export function effortBreakdown(
   const allowance = hours > 0
     ? Math.max(hours * MAX_CLIMB_METRES_PER_HOUR, MIN_CLIMB_ALLOWANCE_METRES)
     : 0;
-  const climb = Math.min(Math.max(0, elevationMeters || 0), allowance);
+  const recordedClimb = Math.max(0, elevationMeters || 0);
+  // Only "too fast" counts as a cap to review: with no time logged there is
+  // no allowance at all, which is a missing duration, not a glitch.
+  const cappedClimb = hours > 0 && climbRate > 0 && recordedClimb > allowance + 0.5;
+  const climb = uncapped && hours > 0 ? recordedClimb : Math.min(recordedClimb, allowance);
   const climbScore = climb * climbRate;
 
   return {
@@ -167,6 +187,8 @@ export function effortBreakdown(
     km, creditedKm, distanceRate: basis === 'distance' ? distanceRate : 0, distanceScore,
     climb, climbRate, climbScore,
     total: Math.round((timeScore + distanceScore + climbScore) * 10) / 10,
+    recordedClimb, minPace,
+    capped: cappedDistance || cappedClimb, cappedDistance, cappedClimb,
   };
 }
 
@@ -176,6 +198,7 @@ export function calculateEffortScore(
   elevationMeters: number,
   config: ScoringConfig,
   distanceMeters = 0,
+  uncapped = false,
 ): number {
-  return effortBreakdown(activityType, durationSeconds, elevationMeters, config, distanceMeters).total;
+  return effortBreakdown(activityType, durationSeconds, elevationMeters, config, distanceMeters, uncapped).total;
 }

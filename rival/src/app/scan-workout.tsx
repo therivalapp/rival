@@ -5,6 +5,7 @@ import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, 
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pickScanFiles, takePendingScanFiles } from '../lib/scanHandoff';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
@@ -155,6 +156,11 @@ export default function ScanWorkoutScreen() {
   useEffect(() => {
     if (editParamId) return;
     if (entryMode === 'manual') { startManualEntry(); return; }
+    if (entrySource === 'picked') {
+      const files = takePendingScanFiles();
+      if (files) scanWebFiles(files);
+      return;
+    }
     if (entrySource === 'camera' || entrySource === 'gallery') { pickImage(entrySource); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -249,38 +255,34 @@ export default function ScanWorkoutScreen() {
     setWorkoutName('');
   }
 
+  // Web: read the chosen photos and scan them. Used by the buttons here and
+  // by photos handed over from Add an activity (lib/scanHandoff.ts).
+  async function scanWebFiles(files: File[]) {
+    resetForNewImage();
+
+    const readFile = (file: File) => new Promise<{ dataUri: string; base64: string; mimeType: string; w: number; h: number }>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUri = e.target?.result as string;
+        const base64 = dataUri.split(',')[1];
+        const mimeType = file.type || 'image/jpeg';
+        const img = document.createElement('img');
+        img.onload = () => resolve({ dataUri, base64, mimeType, w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve({ dataUri, base64, mimeType, w: 1, h: 1 });
+        img.src = dataUri;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const results = await Promise.all(files.map(readFile));
+    setScanImages(results.map(r => ({ uri: r.dataUri, aspectRatio: r.w / r.h })));
+
+    await analyzeImages(results.map(r => ({ base64Image: r.base64, mediaType: r.mimeType })));
+  }
+
   async function pickImage(source: 'camera' | 'gallery') {
     if (Platform.OS === 'web') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.multiple = true;
-      input.onchange = async () => {
-        const files = Array.from(input.files || []);
-        if (files.length === 0) return;
-
-        resetForNewImage();
-
-        const readFile = (file: File) => new Promise<{ dataUri: string; base64: string; mimeType: string; w: number; h: number }>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const dataUri = e.target?.result as string;
-            const base64 = dataUri.split(',')[1];
-            const mimeType = file.type || 'image/jpeg';
-            const img = document.createElement('img');
-            img.onload = () => resolve({ dataUri, base64, mimeType, w: img.naturalWidth, h: img.naturalHeight });
-            img.onerror = () => resolve({ dataUri, base64, mimeType, w: 1, h: 1 });
-            img.src = dataUri;
-          };
-          reader.readAsDataURL(file);
-        });
-
-        const results = await Promise.all(files.map(readFile));
-        setScanImages(results.map(r => ({ uri: r.dataUri, aspectRatio: r.w / r.h })));
-
-        await analyzeImages(results.map(r => ({ base64Image: r.base64, mediaType: r.mimeType })));
-      };
-      input.click();
+      pickScanFiles(source, (files) => { scanWebFiles(files); });
       return;
     }
 
@@ -820,7 +822,7 @@ export default function ScanWorkoutScreen() {
               <GreyRow icon="manual" label="Manual entry" onPress={() => router.push('/manual-entry')}>
                 <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
               </GreyRow>
-              <GreyRow icon="batch" label="Weekly scan" onPress={() => router.push('/weekly-scan')}>
+              <GreyRow icon="batch" label="Multi-day scan" onPress={() => router.push('/weekly-scan')}>
                 <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
               </GreyRow>
             </GreyRows>

@@ -4,6 +4,12 @@ import { ScrollViewStyleReset } from 'expo-router/html';
 // without these tags, iOS Safari always keeps its URL/back-forward bar visible;
 // with them, launching from a home-screen icon opens fully chrome-less, like a
 // native app.
+// [css width, css height, pixel ratio] for each iPhone screen size.
+const LAUNCH_SCREENS: [number, number, number][] = [
+  [440, 956, 3], [402, 874, 3], [430, 932, 3], [393, 852, 3], [428, 926, 3],
+  [390, 844, 3], [375, 812, 3], [414, 896, 3], [414, 896, 2], [375, 667, 2], [414, 736, 3],
+];
+
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -33,6 +39,19 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#0e0e0e" />
         <link rel="manifest" href="/manifest.json" />
 
+        {/* iOS launch screens for the home-screen app: plain app-dark, one
+            per iPhone size. Without them iOS shows a white screen while the
+            page loads. iOS reads these when the app is added to the home
+            screen, so an existing icon needs re-adding to pick them up. */}
+        {LAUNCH_SCREENS.map(([w, h, r]) => (
+          <link
+            key={`${w}x${h}`}
+            rel="apple-touch-startup-image"
+            href={`/splash/launch-${w * r}x${h * r}.png`}
+            media={`(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: portrait)`}
+          />
+        ))}
+
         {/* Open the connection to Supabase while the app's JavaScript is still
             downloading, so the first data request doesn't also have to wait
             for DNS, TCP and TLS setup. Rendered at build time, when the
@@ -56,6 +75,19 @@ export default function Root({ children }: { children: React.ReactNode }) {
             through — never a height/overflow override. */}
         <style dangerouslySetInnerHTML={{ __html: `
           html, body, #root { background-color: #0e0e0e; }
+          /* While the app's JavaScript loads, #root is empty: show the
+             wordmark, softly pulsing, instead of a blank screen. The app
+             covers it the moment it draws its first frame. */
+          #root:empty { background-color: transparent; }
+          body::before {
+            content: 'RIVAL'; position: fixed; left: 0; right: 0; top: 50%;
+            transform: translateY(-50%); text-align: center;
+            font: 600 22px/1 -apple-system, 'Helvetica Neue', Arial, sans-serif;
+            letter-spacing: 0.32em; text-indent: 0.32em; color: #ffb59e;
+            animation: rivalBootPulse 1.6s ease-in-out infinite;
+          }
+          body:has(#root:not(:empty))::before { display: none; }
+          @keyframes rivalBootPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
           /* Expo's reset gives html/body/#root height:100%, which resolves
              against the LAYOUT viewport. On iOS standalone that is 59px
              shorter than the real screen (measured on device 2026-08-24:

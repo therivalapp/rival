@@ -13,6 +13,7 @@ import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { matchCanonicalLift } from '../lib/lifts';
 import { goToTab } from '../lib/tabNav';
+import { MultiDayScan } from '../components/rival/MultiDayScan';
 
 type DayImage = { uri: string; base64: string; mimeType: string };
 type DayState = {
@@ -66,9 +67,16 @@ function applyClassDurationFloor(workoutType: string, durationSeconds: number): 
   return durationSeconds;
 }
 
-export default function WeeklyScanScreen() {
+// Phone: the multi-day scan pop-up (MultiDayScan.tsx). Desktop keeps this page.
+export default function WeeklyScanRoute() {
+  const wide = useWindowDimensions().width >= BREAKPOINT_WIDE_LAYOUT;
+  return wide ? <WeeklyScanScreen /> : <MultiDayScan />;
+}
+
+function WeeklyScanScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const wide = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
+
   const [days, setDays] = useState<DayState[]>(getCurrentWeekDays());
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState<DayResult[] | null>(null);

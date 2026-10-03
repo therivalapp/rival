@@ -210,7 +210,7 @@ export default function LiftsScreen() {
           {loading && <Text style={pb.muted}>Loading…</Text>}
 
           {!loading && active && (
-            <View style={[rb.card, pb.hero]}>
+            <View style={[rb.card, rb.hero, pb.hero]}>
               <View style={pb.glow} pointerEvents="none" />
               <Text style={pb.focus}>{active.name}</Text>
               {hasEntries ? (

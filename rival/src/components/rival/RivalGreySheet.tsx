@@ -223,6 +223,15 @@ export const rb = StyleSheet.create({
   page: { flex: 1, backgroundColor: RivalColors.surfaceContainer },
   content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12 },
   card: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14, gap: 12 },
+  /** The one card a page leads with: warm glass with a soft glow from the
+   *  top (Team settings' crest, Goals' main focus, the rank on Ranks).
+   *  Goes on top of `card`: [rb.card, rb.hero]. One per page. */
+  hero: {
+    borderColor: 'rgba(255,181,158,0.16)', backgroundColor: '#2d241f',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
+    } as any : {}),
+  },
   /** Grey spaced caps: a card's own label, or a section label between cards. */
   label: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   section: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary, marginTop: 6, marginBottom: -4, marginLeft: 4 },

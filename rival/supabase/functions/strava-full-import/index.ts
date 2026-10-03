@@ -194,15 +194,22 @@ serve(async (req) => {
         // a later Strava sync clobber a name/details set by whichever source created it.
         const { data: existingRow } = await supabase
           .from('activities')
-          .select('name_locked, provider')
+          .select('name_locked, provider, effort_confirmed')
           .eq('id', canonicalId)
           .maybeSingle()
         if (existingRow?.provider === 'strava' && !existingRow?.name_locked) fields.name = activity.name
+        // The athlete confirmed this activity is correct (effort_confirmed), so a
+        // re-sync scores all of it rather than the capped amount.
+        if (existingRow?.effort_confirmed) {
+          const full = calculateEffortScore(canonicalType, activity.moving_time, activity.total_elevation_gain, scoringConfig, activity.distance, true)
+          fields.effort_score = full
+          fields.raw_effort_score = full
+        }
 
         const { error } = await supabase.from('activities').update(fields).eq('id', canonicalId)
         if (error) return null
         await saveActivityRoute(supabase, canonicalId, user.id, activity.map?.summary_polyline)
-        return { seconds: activity.moving_time || 0, effort: effortScore }
+        return { seconds: activity.moving_time || 0, effort: Number(fields.effort_score) }
       }
 
       const { data: inserted, error } = await supabase

@@ -1,5 +1,6 @@
 import { supabase, getAuthUser } from './supabase';
 import { getPrefs, onPrefsChanged } from './prefs';
+import { calculateEffortScore, loadScoringConfig } from './effort';
 
 // The in-app inbox. Items are created by database triggers, never by the app —
 // see supabase/add_inbox_triggers.sql — so everything here reads, marks read,
@@ -12,7 +13,8 @@ export type InboxKind =
   | 'short_activity'
   | 'team_joined'
   | 'activity_tag'
-  | 'tag_accepted';
+  | 'tag_accepted'
+  | 'pace_review';
 
 export type InboxItem = {
   id: string;
@@ -35,7 +37,7 @@ const COLUMNS =
 // Kinds that ask a question. An informational item is done the moment it has
 // been seen; one of these stays open until it is actually answered, which is
 // why `resolved_at` is tracked separately from `read_at`.
-const ACTIONABLE: InboxKind[] = ['join_request', 'short_activity', 'activity_tag'];
+const ACTIONABLE: InboxKind[] = ['join_request', 'short_activity', 'activity_tag', 'pace_review'];
 
 export function isActionable(item: InboxItem): boolean {
   return ACTIONABLE.includes(item.kind) && !item.resolved_at;
@@ -188,6 +190,35 @@ export async function respondToShortActivity(
     if (error) return { ok: false, error: error.message };
   }
   return resolveItem(item.id, 'acted');
+}
+
+// "It's correct" on an activity that looked faster than possible: the athlete
+// vouches for it, so it scores in full from now on. The database closes the
+// inbox item once the activity is confirmed (effort_review_inbox.sql).
+export async function respondToPaceReview(item: InboxItem): Promise<{ ok: boolean; error?: string }> {
+  if (!item.subject_id) return { ok: false, error: 'That activity is no longer available.' };
+  const res = await confirmActivityEffort(item.subject_id);
+  if (!res.ok) return res;
+  return resolveItem(item.id, 'acted');
+}
+
+/** Confirm an activity is correct and score all of it, with no cap. */
+export async function confirmActivityEffort(activityId: string): Promise<{ ok: boolean; error?: string; effort?: number }> {
+  const { data: a, error: readErr } = await supabase
+    .from('activities')
+    .select('activity_type, duration_seconds, elevation_meters, distance_meters')
+    .eq('id', activityId)
+    .maybeSingle();
+  if (readErr || !a) return { ok: false, error: readErr?.message ?? 'That activity is no longer available.' };
+  const effort = calculateEffortScore(a.activity_type, a.duration_seconds ?? 0, a.elevation_meters ?? 0, await loadScoringConfig(), a.distance_meters ?? 0, true);
+  const { data: updated, error } = await supabase
+    .from('activities')
+    .update({ effort_confirmed: true, effort_score: effort, raw_effort_score: effort })
+    .eq('id', activityId)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!updated || updated.length === 0) return { ok: false, error: 'Only the person who logged this activity can confirm it.' };
+  return { ok: true, effort };
 }
 
 // Confirm or refuse that you were on somebody else's session.

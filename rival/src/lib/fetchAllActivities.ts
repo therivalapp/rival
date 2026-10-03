@@ -12,7 +12,7 @@ const PAGE = 1000;
 const SHARED_COLUMNS = [
   'id', 'name', 'activity_type', 'started_at', 'duration_seconds', 'distance_meters', 'elevation_meters',
   'effort_score', 'photo_url', 'photo_focal_x', 'photo_focal_y', 'exercises', 'race_id', 'notes', 'location',
-  'companions', 'shared_from_activity_id', 'pinned',
+  'companions', 'shared_from_activity_id', 'pinned', 'effort_confirmed',
 ];
 const SHARED = new Set(SHARED_COLUMNS);
 const FRESH_MS = 60_000;

@@ -5,13 +5,13 @@ import { Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { calculateEffortScore, loadScoringConfig, ScoringConfig } from '../lib/effort';
+import { calculateEffortScore, effortBreakdown, loadScoringConfig, ScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { formatDuration } from '../lib/format';
 import { confirmAction } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
-import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG } from '../components/rival';
+import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG, rb } from '../components/rival';
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors } from '../constants/rivalTheme';
@@ -80,8 +80,26 @@ export default function ManualEntryScreen() {
   // keeps this exact value, so opening and saving an activity never quietly
   // trims a Strava distance.
   const [loadedDistance, setLoadedDistance] = useState<{ shown: string; meters: number } | null>(null);
+  // The numbers an edited activity was loaded with, and whether its owner had
+  // confirmed it as correct. The confirmation holds only while those numbers
+  // stay the same; changing them means the new ones are checked again.
+  const [loadedReview, setLoadedReview] = useState<{ type: string; seconds: number; meters: number; climb: number; confirmed: boolean } | null>(null);
   const [elevationM, setElevationM] = useState('');
+  // Treadmills show incline, not metres climbed. On a Treadmill activity the
+  // climb is entered as the average incline and worked out from the distance:
+  // metres climbed = distance x incline %.
+  const [inclinePct, setInclinePct] = useState('');
+  const isTreadmill = workoutType === 'VirtualRun';
+  useEffect(() => {
+    // Phone only for now: desktop keeps its metres field (mobile-only phase).
+    if (!isTreadmill || wide) return;
+    const km = distanceKm.trim() === '' ? 0 : fromDisplayDistance(Number(distanceKm)) || 0;
+    const pct = Number(inclinePct) || 0;
+    const climbM = km > 0 && pct > 0 ? km * 1000 * (pct / 100) : 0;
+    setElevationM(climbM > 0 ? String(Math.round(toDisplayElevation(climbM))) : '');
+  }, [isTreadmill, inclinePct, distanceKm, wide]);
   const [notes, setNotes] = useState('');
+  const [journalOpen, setJournalOpen] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [showExercises, setShowExercises] = useState(false);
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg');
@@ -137,6 +155,14 @@ export default function ManualEntryScreen() {
         setDistanceKm('');
       }
       setElevationM(data.elevation_meters > 0 ? String(Math.round(toDisplayElevation(data.elevation_meters))) : '');
+      // A saved treadmill climb shows as the incline it came from.
+      if (data.activity_type === 'VirtualRun' && data.distance_meters > 0 && data.elevation_meters > 0) {
+        setInclinePct(String(Math.round((data.elevation_meters / data.distance_meters) * 1000) / 10));
+      }
+      setLoadedReview({
+        type: data.activity_type, seconds: data.duration_seconds ?? 0, meters: data.distance_meters ?? 0,
+        climb: data.elevation_meters ?? 0, confirmed: !!data.effort_confirmed,
+      });
       setNotes(data.notes || '');
       if (Array.isArray(data.exercises)) setExercises(data.exercises);
       const { data: mediaRows } = await supabase.from('activity_media').select(MEDIA_COLUMNS).eq('activity_id', editId);
@@ -273,12 +299,16 @@ export default function ManualEntryScreen() {
         ? loadedDistance.meters / 1000
         : distanceKm.trim() === '' ? 0 : fromDisplayDistance(Number(distanceKm));
       const elevation = elevationM.trim() === '' ? 0 : fromDisplayElevation(Number(elevationM));
+      const stillConfirmed = !!loadedReview?.confirmed && loadedReview.type === workoutType
+        && loadedReview.seconds === durationSeconds && Math.abs(loadedReview.meters - distance * 1000) < 1
+        && Math.abs(loadedReview.climb - elevation) < 1;
       const effortScore = calculateEffortScore(
         workoutType,
         durationSeconds,
         elevation,
         await loadScoringConfig(),
         distance * 1000,
+        stillConfirmed,
       );
 
       const [y, m, d] = isoDate.split('-').map(Number);
@@ -314,6 +344,7 @@ export default function ManualEntryScreen() {
             started_at: startedAt.toISOString(),
             effort_score: effortScore,
             raw_effort_score: effortScore,
+            effort_confirmed: stillConfirmed,
             notes: notes.trim() || null,
             exercises: exercisesPayload,
             race_id: raceId,
@@ -721,6 +752,17 @@ export default function ManualEntryScreen() {
     ...(scoresDistance && enteredKm > 0 ? [`${enteredKm} ${distanceUnit()}`] : []),
     ...(scoresClimb && enteredClimb > 0 ? [`${enteredClimb} ${elevationUnit()} climbed`] : []),
   ].join(' + ');
+  // Faster than the sport allows: less counts until it is confirmed, which
+  // the athlete is asked about once it is saved.
+  const overLimit = (() => {
+    if (!scoringConfig || durationSeconds <= 0) return false;
+    const km = distanceKm.trim() === '' ? 0 : fromDisplayDistance(Number(distanceKm)) || 0;
+    const climb = elevationM.trim() === '' ? 0 : fromDisplayElevation(Number(elevationM)) || 0;
+    const b = effortBreakdown(workoutType, durationSeconds, climb, scoringConfig, km * 1000);
+    const unchanged = !!loadedReview?.confirmed && loadedReview.type === workoutType && loadedReview.seconds === durationSeconds
+      && Math.abs(loadedReview.meters - km * 1000) < 1 && Math.abs(loadedReview.climb - climb) < 1;
+    return b.capped && !unchanged;
+  })();
   const effortNow = durationSeconds > 0
     ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))
     : null;
@@ -835,8 +877,9 @@ export default function ManualEntryScreen() {
           no card around it. Type and date have their own fields below, and
           Effort lives in the save bar, where it stays on screen while the
           numbers that change it are being edited. */}
-      {/* Name and activity together, no card title (the review note). */}
-      <View style={m.card}>
+      {/* Name and activity together, no card title (the review note). The
+          page's lead card, in the warm glass (Ricky, 2026-10-02). */}
+      <View style={[m.card, rb.hero]}>
         <Text style={m.fieldLabel}>Name</Text>
         <TextInput
           style={m.nameField}
@@ -917,14 +960,39 @@ export default function ManualEntryScreen() {
               {distanceKm ? <Text style={m.rowUnit}>{distanceUnit()}</Text> : null}
             </View>
           </GreyRow>
-          <GreyRow icon="elevation" label="Elevation">
-            <View style={m.timeRow}>
-              <TextInput style={[m.rowInput, m.wideInput]} value={elevationM} onChangeText={setElevationM} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="numeric" />
-              {elevationM ? <Text style={m.rowUnit}>{elevationUnit()}</Text> : null}
-            </View>
-          </GreyRow>
+          {isTreadmill ? (
+            <GreyRow icon="elevation" label="Incline">
+              <View style={m.timeRow}>
+                <TextInput style={[m.rowInput, m.wideInput]} value={inclinePct} onChangeText={setInclinePct} placeholder="Average" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" />
+                {inclinePct ? <Text style={m.rowUnit}>%</Text> : null}
+              </View>
+            </GreyRow>
+          ) : (
+            <GreyRow icon="elevation" label="Elevation">
+              <View style={m.timeRow}>
+                <TextInput style={[m.rowInput, m.wideInput]} value={elevationM} onChangeText={setElevationM} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="numeric" />
+                {elevationM ? <Text style={m.rowUnit}>{elevationUnit()}</Text> : null}
+              </View>
+            </GreyRow>
+          )}
           <GreyRow icon="calendar" label="Date" value={friendlyDate(dateStr)} onPress={() => setCalOpen(true)} />
+          {/* Lifts as one more row here rather than a card of its own; the
+              list opens below when tapped (Ricky, 2026-10-02). */}
+          <GreyRow
+            icon="weights"
+            label="Lifts"
+            value={exercises.length > 0 ? `${exercises.length} ${exercises.length === 1 ? 'lift' : 'lifts'}` : undefined}
+            placeholder="Optional"
+            onPress={() => setShowExercises((v) => !v)}
+          />
         </GreyRows>
+        {isTreadmill && Number(inclinePct) > 0 ? (
+          <Text style={styles.classHint}>
+            {elevationM
+              ? `About ${Number(elevationM).toLocaleString()} ${elevationUnit()} climbed at ${inclinePct}% over the distance.`
+              : 'Add the distance to work out the climb from the incline.'}
+          </Text>
+        ) : null}
         {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
         {fieldError?.field === 'date' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
         {scoringConfig && ((enteredKm > 0 && !scoresDistance) || (enteredClimb > 0 && !scoresClimb)) && (
@@ -953,40 +1021,54 @@ export default function ManualEntryScreen() {
 
       {/* Photos inline, Instagram-style: numbered in posting order, tap one
           to rearrange, the last tile adds more. */}
-      <View style={m.card}>
-        <View style={m.cardHead}>
-          <Text style={m.cardLabel}>Photos & videos</Text>
-          <Text style={m.cardHint}>{media.length}/{MAX_MEDIA}</Text>
+      {media.length === 0 ? (
+        // Nothing added yet: one wide, warm tile instead of a dark card
+        // with a small dashed box in it (Ricky, 2026-10-02).
+        <TouchableOpacity style={m.mediaEmpty} onPress={pickMedia} activeOpacity={0.85} accessibilityRole="button">
+          <View style={m.mediaEmptyIcon}><RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={m.mediaEmptyTitle}>Add photos or a video</Text>
+            <Text style={m.mediaEmptySub}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min</Text>
+          </View>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </TouchableOpacity>
+      ) : (
+        <View style={m.card}>
+          <View style={m.cardHead}>
+            <Text style={m.cardLabel}>Photos & videos</Text>
+            <Text style={m.cardHint}>{media.length}/{MAX_MEDIA}</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={m.mediaRow}>
+            {media.map((item, i) => (
+              <TouchableOpacity
+                key={item.uri}
+                activeOpacity={0.85}
+                onPress={() => setMediaPicker({ items: media, saved: 0, savedVideos: 0 })}
+                style={m.thumbWrap}
+              >
+                {item.type === 'photo'
+                  ? <Image source={{ uri: item.uri }} style={m.thumb} />
+                  : <View style={[m.thumb, m.thumbVideo]}><RivalIcon name="video" size={22} color={RivalColors.accentText} /></View>}
+                <View style={m.thumbOrder} pointerEvents="none">
+                  <Text style={m.thumbOrderText}>{i + 1}</Text>
+                </View>
+                {i === 0 && item.type === 'photo' ? (
+                  <View style={m.thumbCover} pointerEvents="none"><Text style={m.thumbCoverText}>Cover</Text></View>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+            {media.length < MAX_MEDIA ? (
+              <TouchableOpacity style={[m.thumb, m.addTile]} onPress={pickMedia} activeOpacity={0.8}>
+                <RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} />
+                <Text style={m.addTileText}>Add</Text>
+              </TouchableOpacity>
+            ) : null}
+          </ScrollView>
+          <Text style={m.cardHint}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min · tap a photo to reorder</Text>
+          {mediaError && <Text style={styles.fieldError}>{mediaError}</Text>}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={m.mediaRow}>
-          {media.map((item, i) => (
-            <TouchableOpacity
-              key={item.uri}
-              activeOpacity={0.85}
-              onPress={() => setMediaPicker({ items: media, saved: 0, savedVideos: 0 })}
-              style={m.thumbWrap}
-            >
-              {item.type === 'photo'
-                ? <Image source={{ uri: item.uri }} style={m.thumb} />
-                : <View style={[m.thumb, m.thumbVideo]}><RivalIcon name="video" size={22} color={RivalColors.accentText} /></View>}
-              <View style={m.thumbOrder} pointerEvents="none">
-                <Text style={m.thumbOrderText}>{i + 1}</Text>
-              </View>
-              {i === 0 && item.type === 'photo' ? (
-                <View style={m.thumbCover} pointerEvents="none"><Text style={m.thumbCoverText}>Cover</Text></View>
-              ) : null}
-            </TouchableOpacity>
-          ))}
-          {media.length < MAX_MEDIA ? (
-            <TouchableOpacity style={[m.thumb, m.addTile]} onPress={pickMedia} activeOpacity={0.8}>
-              <RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} />
-              <Text style={m.addTileText}>Add</Text>
-            </TouchableOpacity>
-          ) : null}
-        </ScrollView>
-        <Text style={m.cardHint}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min · tap a photo to reorder</Text>
-        {mediaError && <Text style={styles.fieldError}>{mediaError}</Text>}
-      </View>
+      )}
+      {media.length === 0 && mediaError ? <Text style={styles.fieldError}>{mediaError}</Text> : null}
 
       {/* Same words and feel as the journal in the activity viewer — it is
           the same note, so it should read as the same thing. */}
@@ -994,16 +1076,19 @@ export default function ManualEntryScreen() {
         <Text style={m.cardLabel}>Journal</Text>
         <View style={m.journalRule} />
         <TextInput
-          style={m.journalInput}
+          // One line until it's used, then room to write (Ricky, 2026-10-02).
+          style={[m.journalInput, !journalOpen && !notes && m.journalInputShort]}
           value={notes}
           onChangeText={setNotes}
+          onFocus={() => setJournalOpen(true)}
+          onBlur={() => setJournalOpen(false)}
           placeholder="Add a note about this activity"
           placeholderTextColor="rgba(255,255,255,0.3)"
           multiline
         />
       </View>
 
-      {mobileLiftsCard}
+      {showExercises ? mobileLiftsCard : null}
 
       {/* Destructive, so it sits apart at the very end rather than next to
           the button you tap every time. */}
@@ -1037,7 +1122,9 @@ export default function ManualEntryScreen() {
                 <Text style={m.effortNum}>{effortNow}</Text>
                 <Text style={m.effortUnit}>Effort</Text>
               </View>
-              <Text style={m.effortSub} numberOfLines={1}>{effortParts}</Text>
+              {overLimit
+                ? <Text style={[m.effortSub, m.effortWarn]} numberOfLines={2}>Faster than realistic. Check it, or confirm it after saving.</Text>
+                : <Text style={m.effortSub} numberOfLines={1}>{effortParts}</Text>}
             </>
           ) : (
             <Text style={m.effortEmpty}>Add a time{'\n'}to see Effort</Text>
@@ -1356,6 +1443,14 @@ const m = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 4,
     borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.35)',
   },
+  mediaEmpty: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 16,
+    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,181,158,0.28)', backgroundColor: 'rgba(217,119,87,0.12)',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.06) 100%)' } as any : {}),
+  },
+  mediaEmptyIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,181,158,0.14)' },
+  mediaEmptyTitle: { fontSize: 15, fontWeight: '700', color: RivalColors.textPrimary },
+  mediaEmptySub: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
   addTileText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
 
   journal: { borderRadius: 16, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 14, paddingVertical: 14 },
@@ -1365,6 +1460,7 @@ const m = StyleSheet.create({
       backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)',
     } as any : { backgroundColor: 'rgba(217,119,87,0.6)' }),
   },
+  journalInputShort: { minHeight: 24 },
   journalInput: {
     minHeight: 88, padding: 0, textAlignVertical: 'top',
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, lineHeight: 22, color: 'rgba(255,255,255,0.85)',
@@ -1425,6 +1521,7 @@ const m = StyleSheet.create({
   effortNum: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   effortUnit: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
   effortSub: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.45)', marginTop: 1 },
+  effortWarn: { color: RivalColors.accentText },
   effortEmpty: { fontSize: 11.5, fontWeight: '600', lineHeight: 15, color: 'rgba(255,255,255,0.45)' },
   saveBtn: { flex: 1, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.55 },

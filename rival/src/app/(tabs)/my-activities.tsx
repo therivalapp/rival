@@ -34,6 +34,8 @@ type ExerciseEntry = {
 
 type Activity = {
   id: string;
+  /** The owner confirmed it is correct, so it scores in full. */
+  effort_confirmed?: boolean;
   name: string | null;
   activity_type: string;
   started_at: string;
@@ -449,7 +451,7 @@ export default function MyActivitiesScreen() {
     // active account) while the older data sat in the table untouched.
     const data = await fetchAllActivities(
       user.id,
-      'id, name, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, shared_from_activity_id, pinned',
+      'id, name, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, shared_from_activity_id, pinned, effort_confirmed',
     );
     if (data) {
       setAllActivities(data);
@@ -633,6 +635,7 @@ export default function MyActivitiesScreen() {
       pinned: a.pinned,
       race_id: a.race_id,
       isPb: !!pbs[a.id],
+      effort_confirmed: a.effort_confirmed,
     };
   }
 
@@ -2020,7 +2023,7 @@ export default function MyActivitiesScreen() {
           <View style={styles.toolbarRow}>
             {([
               { key: 'refresh', icon: 'check' as const, label: 'Refresh', active: false, onPress: () => loadActivities() },
-              { key: 'logweek', icon: 'calendar' as const, label: 'Weekly scan', active: false, onPress: () => router.push('/weekly-scan') },
+              { key: 'logweek', icon: 'calendar' as const, label: 'Multi-day scan', active: false, onPress: () => router.push('/weekly-scan') },
               { key: 'filter', icon: 'search' as const, label: filterType === 'All' ? 'Filter by type' : `Filtered: ${filterType}`, active: filterType !== 'All', onPress: () => setShowTypeFilter(!showTypeFilter) },
               { key: 'sort', icon: sortOrder === 'latest' ? 'trendDown' as const : 'trendUp' as const, label: sortOrder === 'latest' ? 'Sorted: Latest first' : 'Sorted: Oldest first', active: false, onPress: () => setSortOrder(sortOrder === 'latest' ? 'oldest' : 'latest') },
               { key: 'prs', icon: 'fire' as const, label: 'PBs only', active: prOnly, onPress: () => setPrOnly(!prOnly) },

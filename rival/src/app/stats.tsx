@@ -11,9 +11,10 @@ import { fetchReactionsOn } from '../lib/reactions';
 import { getLevel, xpProgressInLevel, LEVELS } from '../lib/xp';
 import { calculateStreak, StreakResult } from '../lib/streak';
 import { getSeasonStartISO, getCurrentSeasonYear, daysUntilSeasonEnd } from '../lib/season';
-import { RivalCard, RivalProgressBar, RivalIcon, RivalTopNav, RivalBackButton, GreyPageHead, GreyLabel, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
+import { RivalCard, RivalProgressBar, RivalIcon, RivalTopNav, RivalBackButton, GreyPageHead, GreyLabel, GreyRows, GreyRow, GREY_PAGE_BG, rb } from '../components/rival';
 import { goToTab } from '../lib/tabNav';
 import { RivalColors, RivalRadius, RivalType, RANK_LEVEL_COLORS, RivalSerifFamily } from '../constants/rivalTheme';
+import { rankSheen, rankTextSheen } from '../constants/rankSheen';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 
 // Refined Ember rank ramp only has 4 confirmed anchor colors from the Stitch
@@ -218,7 +219,7 @@ export default function StatsScreen() {
 
           {!isOwnProfile && (avatarUrl || mindset) ? (
             <View style={pb.person}>
-              <View style={[pb.avatar, { borderColor: rankColor }]}>
+              <View style={[pb.avatar, { borderColor: rankSheen(lvl.level).light }]}>
                 {avatarUrl
                   ? <Image source={{ uri: avatarUrl }} style={pb.avatarImg} />
                   : <Text style={pb.avatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>}
@@ -227,9 +228,9 @@ export default function StatsScreen() {
             </View>
           ) : null}
 
-          <View style={[pb.card, pb.rank]}>
+          <View style={[pb.card, rb.hero, pb.rank]}>
             <Text style={pb.cap}>{seasonYear} rank</Text>
-            <Text style={pb.rankName}>{lvl.name}</Text>
+            <Text style={[pb.rankName, rankTextSheen(lvl.level)]}>{lvl.name}</Text>
             {!isMax ? (
               <>
                 <View style={pb.bar}><View style={[pb.barFill, { width: `${Math.max(2, Math.min(100, pct))}%` as any }]} /></View>

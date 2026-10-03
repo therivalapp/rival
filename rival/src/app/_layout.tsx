@@ -158,6 +158,8 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="inbox" options={popUp} />
           <Stack.Screen name="join-league" options={popUp} />
+          <Stack.Screen name="weekly-scan" options={popUp} />
+          <Stack.Screen name="add-workout" options={popUp} />
         </Stack>
       </View>
       {/* Once a day, over whichever page opens first — it loads underneath. */}

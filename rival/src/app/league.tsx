@@ -20,6 +20,7 @@ import { RivalIcon, RivalFixedBackground, RivalTopNav, RivalProgressBar, RivalAv
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { selectAll, inChunks } from '../lib/selectAll';
 
 const INSIGHT_ICON: Record<InsightTone, 'trophy' | 'fire' | 'trendUp'> = {
   record: 'trophy',
@@ -506,7 +507,7 @@ export default function LeagueScreen() {
     // Per-member trailing history for micro-insights ("Longest run in 3 months",
     // "4th swim this week") — a separate, wider window than the feed itself so
     // record/pace comparisons have enough history to be meaningful. Bounded to
-    // a year and a modest row cap since this is scoped to one team's members.
+    // a year, and paged so every activity in it counts.
     const oneYearAgo = new Date();
     oneYearAgo.setDate(oneYearAgo.getDate() - 365);
 
@@ -534,12 +535,13 @@ export default function LeagueScreen() {
         .gte('scheduled_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(20),
-      supabase.from('activities')
+      inChunks(memberIds, (slice) => selectAll((from, to) => supabase.from('activities')
         .select('user_id, activity_type, started_at, duration_seconds, distance_meters, elevation_meters')
-        .in('user_id', memberIds)
+        .in('user_id', slice)
         .gte('started_at', oneYearAgo.toISOString())
         .order('started_at', { ascending: false })
-        .limit(500),
+        .order('id')
+        .range(from, to))).then((data) => ({ data })),
     ]);
 
     const insightHistoryByUser: Record<string, InsightActivity[]> = {};
@@ -1032,11 +1034,15 @@ export default function LeagueScreen() {
     const allIds = [...challengerIds, ...opponentIds];
     if (allIds.length === 0) return { challenger: 0, opponent: 0 };
 
-    const { data } = await supabase.from('activities')
+    // Paged and sliced: the database stops at 1,000 rows without saying so.
+    const data = await inChunks(allIds, (slice) => selectAll((from, to) => supabase.from('activities')
       .select('user_id, effort_score, distance_meters, elevation_meters, duration_seconds')
-      .in('user_id', allIds)
+      .in('user_id', slice)
       .gte('started_at', startIso)
-      .lt('started_at', endIso);
+      .lt('started_at', endIso)
+      .order('started_at')
+      .order('id')
+      .range(from, to)));
 
     let challengerScore = 0, opponentScore = 0;
     const challengerSet = new Set(challengerIds);

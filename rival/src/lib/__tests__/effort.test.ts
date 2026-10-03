@@ -153,4 +153,31 @@ describe('effortBreakdown', () => {
     expect(b.basis).toBe('time');
     expect(b.total).toBe(75);
   });
+
+  it('flags a run faster than the realistic pace and counts the realistic part', () => {
+    // 20 km in 30 minutes is 40 km/h; the cap is 2.5 min/km, so 12 km counts.
+    const b = effortBreakdown('Run', 30 * 60, 0, D, 20000);
+    expect(b.capped).toBe(true);
+    expect(b.cappedDistance).toBe(true);
+    expect(b.creditedKm).toBeCloseTo(12);
+  });
+
+  it('counts all of it once the owner confirms it', () => {
+    const capped = effortBreakdown('Run', 30 * 60, 0, D, 20000);
+    const confirmed = effortBreakdown('Run', 30 * 60, 0, D, 20000, true);
+    expect(confirmed.creditedKm).toBeCloseTo(20);
+    expect(confirmed.total).toBeGreaterThan(capped.total);
+    expect(confirmed.total).toBe(calculateEffortScore('Run', 30 * 60, 0, D, 20000, true));
+  });
+
+  it('does not flag a normal run', () => {
+    expect(effortBreakdown('Run', 41 * 60, 18, D, 6400).capped).toBe(false);
+  });
+
+  it('flags climbing faster than 2,500 m an hour', () => {
+    const b = effortBreakdown('Run', 30 * 60, 2000, D, 5000);
+    expect(b.cappedClimb).toBe(true);
+    expect(b.climb).toBe(1500);
+    expect(effortBreakdown('Run', 30 * 60, 2000, D, 5000, true).climb).toBe(2000);
+  });
 });

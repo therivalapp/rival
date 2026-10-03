@@ -46,6 +46,7 @@ import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/r
 import { matchCanonicalLift } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { selectAll, inChunks } from '../lib/selectAll';
 
 // Matches chat.tsx's SESSION_GRACE_MS — a session stays "upcoming" for 12
 // hours past its start, since sessions carry no duration.
@@ -485,28 +486,37 @@ export default function TeamHub() {
           .order('started_at', { ascending: false })
           .limit(30),
         supabase.from('exercise_entries').select('user_id, exercise_name, weight_kg').in('user_id', memberIds),
-        supabase.from('activities')
+        // The database stops at 1,000 rows without saying so; these three are
+        // paged (and the member list sliced) so a big team counts everything.
+        inChunks(memberIds, (slice) => selectAll((from, to) => supabase.from('activities')
           .select('user_id, activity_type, started_at, duration_seconds, distance_meters, elevation_meters')
-          .in('user_id', memberIds)
+          .in('user_id', slice)
           .gte('started_at', oneYearAgo.toISOString())
           .order('started_at', { ascending: false })
-          .limit(500),
+          .order('id')
+          .range(from, to))).then((data) => ({ data })),
         // Fetched unconditionally (not just when a Team Challenge exists) so it
         // can double as the "All Time" standings source when there isn't one.
-        supabase
+        inChunks(memberIds, (slice) => selectAll((from, to) => supabase
           .from('activities')
           .select('user_id, activity_type, effort_score, distance_meters, elevation_meters, duration_seconds')
-          .in('user_id', memberIds)
-          .gte('started_at', leagueData.created_at),
+          .in('user_id', slice)
+          .gte('started_at', leagueData.created_at)
+          .order('started_at')
+          .order('id')
+          .range(from, to))).then((data) => ({ data })),
         // Standings should still show even without an active Team Challenge —
         // ranked by this week's Effort in that case, same basis as the rest of
         // the app's weekly leaderboards.
-        supabase
+        inChunks(memberIds, (slice) => selectAll((from, to) => supabase
           .from('activities')
           .select('user_id, activity_type, effort_score, distance_meters, elevation_meters, duration_seconds')
-          .in('user_id', memberIds)
+          .in('user_id', slice)
           .gte('started_at', weekStart.toISOString())
-          .lt('started_at', weekEnd.toISOString()),
+          .lt('started_at', weekEnd.toISOString())
+          .order('started_at')
+          .order('id')
+          .range(from, to))).then((data) => ({ data })),
         supabase
           .from('league_messages')
           .select('id, user_id, title, body, pinned, created_at')

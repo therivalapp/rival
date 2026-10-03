@@ -105,7 +105,7 @@ export default function RecapScreen() {
 
             {/* Time Earned — big headline */}
             {(recap.total_hours > 0 || recap.total_minutes_remainder > 0) && (
-              <View style={[styles.timeHeroCard, m && [rb.card, ms.timeHero]]}>
+              <View style={[styles.timeHeroCard, m && [rb.card, rb.hero, ms.timeHero]]}>
                 <Text style={styles.timeHeroLabel}>{m ? 'Time earned' : '⏱ Time Earned'}</Text>
                 <Text style={[styles.timeHeroValue, m && ms.timeValue]}>
                   {recap.total_hours > 0 ? `${recap.total_hours.toLocaleString()}h ` : ''}{recap.total_minutes_remainder}m

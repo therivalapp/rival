@@ -44,6 +44,8 @@ export type DiaryActivity = {
   pinned: boolean;
   race_id: string | null;
   isPb: boolean;
+  /** The owner confirmed it is correct, so it scores in full (no cap). */
+  effort_confirmed?: boolean;
 };
 
 function formatViewerDate(dateStr: string): string {
@@ -293,7 +295,14 @@ export function ActivityDiaryViewer({
 
   return (
     <Animated.View style={[styles.overlay, { transform: [{ translateY: dragY }] }]}>
-      <EffortBreakdownSheet activity={breakdownFor} onClose={() => setBreakdownFor(null)} />
+      <EffortBreakdownSheet
+        activity={breakdownFor ? { ...breakdownFor, canReview: !breakdownFor.shared_from_activity_id } : null}
+        onClose={() => setBreakdownFor(null)}
+        onConfirmed={(id, effort) => {
+          onUpdate(id, { effort_score: effort, effort_confirmed: true });
+          setBreakdownFor((cur) => (cur && cur.id === id ? { ...cur, effort_score: effort, effort_confirmed: true } : cur));
+        }}
+      />
       <View style={styles.dragHandleArea} {...panResponder.panHandlers}>
         <View style={styles.dragHandle} />
       </View>

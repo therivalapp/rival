@@ -86,7 +86,7 @@ const OUTLINE_LEAVES = false;
 
 /** Sits centred behind a picture of `avatarSize`; place it inside the
  *  picture's own (position: relative) wrapper. */
-export function LaurelWreath({ avatarSize }: { avatarSize: number }) {
+export function LaurelWreath({ avatarSize, shadow = true }: { avatarSize: number; shadow?: boolean }) {
   const gradId = `laurel${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const { size, stems, leaves, tips } = useMemo(() => build(avatarSize), [avatarSize]);
   const fill = `url(#${gradId})`;
@@ -98,7 +98,7 @@ export function LaurelWreath({ avatarSize }: { avatarSize: number }) {
       pointerEvents="none"
       style={[
         { position: 'absolute', left: -PAD, top: -PAD, overflow: 'visible' } as any,
-        Platform.OS === 'web'
+        Platform.OS === 'web' && shadow
           ? ({ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.55))' } as any)
           : null,
       ]}

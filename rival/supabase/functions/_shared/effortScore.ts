@@ -67,6 +67,9 @@ export function calculateEffortScore(
   elevationMeters: number,
   config: ScoringConfig,
   distanceMeters = 0,
+  // The athlete confirmed the activity is correct (activities.effort_confirmed):
+  // count all of it, with no pace or climbing cap.
+  uncapped = false,
 ): number {
   const multiplier = config.multipliers[activityType] ?? DEFAULT_MULTIPLIER
   const minutes = movingTimeSeconds / 60
@@ -78,7 +81,7 @@ export function calculateEffortScore(
   if (distanceRate > 0 && km > 0) {
     timeScore = minutes * (config.distanceTimeRates?.[activityType] ?? 0)
     const minPace = config.minPaces?.[activityType] ?? 0
-    const creditedKm = minPace > 0 && minutes > 0 ? Math.min(km, minutes / minPace) : km
+    const creditedKm = uncapped ? km : minPace > 0 && minutes > 0 ? Math.min(km, minutes / minPace) : km
     distanceScore = creditedKm * distanceRate
   }
 
@@ -89,7 +92,8 @@ export function calculateEffortScore(
   const allowance = hours > 0
     ? Math.max(hours * MAX_CLIMB_METRES_PER_HOUR, MIN_CLIMB_ALLOWANCE_METRES)
     : 0
-  const climb = Math.min(Math.max(0, elevationMeters || 0), allowance)
+  const recordedClimb = Math.max(0, elevationMeters || 0)
+  const climb = uncapped && hours > 0 ? recordedClimb : Math.min(recordedClimb, allowance)
   const elevationScore = climb * rate
 
   return Math.round((timeScore + distanceScore + elevationScore) * 10) / 10
