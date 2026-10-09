@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
@@ -45,7 +45,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
 export default function GettingStartedScreen() {
   const { welcome } = useLocalSearchParams<{ welcome?: string }>();
   const isWelcome = welcome === '1';
-  const wide = useWindowDimensions().width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(useWindowDimensions().width);
   const [strava, setStrava] = useState<boolean | null>(null);
   const [inTeam, setInTeam] = useState<boolean | null>(null);
   const [firstName, setFirstName] = useState('');

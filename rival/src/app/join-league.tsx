@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalRowLink, RivalTopNav, rm, GreySheet, GreyNote, GreyLabel, GreyField, GreyRows, GreyRow, GreyPrimary } from '../components/rival';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -20,7 +20,7 @@ export default function JoinLeagueScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
 
   async function handleJoin() {
     if (code.trim().length < 4) {

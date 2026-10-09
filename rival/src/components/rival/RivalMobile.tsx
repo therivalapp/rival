@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT, SIDE_SHEET_MAX_WIDTH } from '../../constants/breakpoints';
 import { RivalButtonColors, RivalColors, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalBackButton } from './RivalBackButton';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
@@ -147,8 +148,10 @@ const styles = StyleSheet.create({
 //     of a long scroll
 
 export function RivalSheet({ title, children, footer }: { title: string; children: ReactNode; footer: ReactNode }) {
+  // On a wide screen the sheet is a centred dialog, like the other pop-ups.
+  const dialog = useWindowDimensions().width >= BREAKPOINT_WIDE_LAYOUT;
   return (
-    <View style={sheet.shell}>
+    <View style={[sheet.shell, dialog && sheet.shellDialog]}>
       <ScrollView style={sheet.scroll} contentContainerStyle={sheet.body} keyboardShouldPersistTaps="handled">
         <Text style={sheet.title}>{title}</Text>
         {children}
@@ -214,6 +217,10 @@ const sheet = StyleSheet.create({
   shell: {
     maxHeight: '92%', backgroundColor: RivalWarm.page, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,209,190,0.18)', overflow: 'hidden',
+  },
+  shellDialog: {
+    alignSelf: 'center', width: '100%', maxWidth: SIDE_SHEET_MAX_WIDTH, maxHeight: '86%',
+    marginTop: 'auto', marginBottom: 'auto', borderRadius: 24, borderWidth: 1,
   },
   scroll: { flexGrow: 0 },
   body: { paddingHorizontal: 16, paddingTop: 22, paddingBottom: 12, gap: 10 },

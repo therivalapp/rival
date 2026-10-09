@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { RivalColors, RivalButtonColors, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead } from '../components/rival';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Platform, ActivityIndicator, Image, Animated, Easing, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -81,7 +81,7 @@ export default function AiShareScreen() {
   // Phone: the RIVAL look, and real icons in place of emoji. The flow and
   // every action are the same on both layouts.
   const { width: windowWidth } = useWindowDimensions();
-  const mob = windowWidth < BREAKPOINT_WIDE_LAYOUT;
+  const mob = !sidePageWide(windowWidth);
   const em = (t: string) => (mob ? t.replace(/^[^\p{L}\p{N}]+/u, '').trim() : t);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const msgOpacity = useRef(new Animated.Value(1)).current;
@@ -1488,7 +1488,7 @@ const styles = StyleSheet.create({
 // Phone only — the blend (grey page, recessed cards).
 const ms = StyleSheet.create({
   container: { backgroundColor: RivalColors.surfaceContainer },
-  content: { paddingHorizontal: 16, paddingTop: 0 },
+  content: { paddingHorizontal: 16, paddingTop: 0, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
   card: { backgroundColor: PHONE_CARD_BG, borderColor: RivalGhost.border, borderRadius: 16, gap: 6 },
   sectionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
   chip: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border, borderRadius: 14 },

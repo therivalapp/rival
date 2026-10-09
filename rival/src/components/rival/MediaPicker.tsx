@@ -7,7 +7,7 @@ import { RivalIcon } from './RivalIcon';
 import { confirmAction } from '../../lib/notify';
 import { CoverImage } from './CoverImage';
 import { GreySheet, GreyNote, GreyPrimary } from './RivalGreySheet';
-import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { sidePageWide } from '../../constants/breakpoints';
 
 // Choosing photos and videos the way Instagram does: every item carries a
 // number showing the order it will post in, the number follows the order you
@@ -282,7 +282,7 @@ export function MediaPicker({
 
   // Phone: the grey pop-up. Numbered thumbnails in posting order, Add more
   // as the last tile, Done pinned; tapping outside cancels.
-  if (width < BREAKPOINT_WIDE_LAYOUT) {
+  if (!sidePageWide(width)) {
     const pcols = 3;
     const pgap = 7;
     const pcell = Math.floor((width - 36 - pgap * (pcols - 1)) / pcols);

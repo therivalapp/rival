@@ -137,7 +137,7 @@ export const QUOTES: Quote[] = [
   { text: "Hours in training deserve a few minutes in the kitchen.", category: 'nutrition', tone: 'balanced' },
 
   // ── COMMUNITY ─────────────────────────────────────────────────
-  { text: "Training partners lend you motivation on the days you're short of it.", category: 'community', tone: 'balanced' },
+  { text: "Activity partners lend you motivation on the days you're short of it.", category: 'community', tone: 'balanced' },
   { text: "The people around you set your baseline without you noticing.", category: 'community', tone: 'balanced' },
   { text: "Shared effort feels lighter than solo effort.", category: 'community', tone: 'balanced' },
   { text: "Community turns discipline into routine.", category: 'community', tone: 'balanced' },

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { fitPhoto } from '../lib/imageResize';
 import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead, GREY_PAGE_BG } from '../components/rival';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { notify } from '../lib/notify';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -69,13 +69,13 @@ function applyClassDurationFloor(workoutType: string, durationSeconds: number): 
 
 // Phone: the multi-day scan pop-up (MultiDayScan.tsx). Desktop keeps this page.
 export default function WeeklyScanRoute() {
-  const wide = useWindowDimensions().width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(useWindowDimensions().width);
   return wide ? <WeeklyScanScreen /> : <MultiDayScan />;
 }
 
 function WeeklyScanScreen() {
   const { width: windowWidth } = useWindowDimensions();
-  const wide = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(windowWidth);
 
   const [days, setDays] = useState<DayState[]>(getCurrentWeekDays());
   const [processing, setProcessing] = useState(false);

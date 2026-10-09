@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { RivalColors, RivalSerifFamily, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalAvatar, GreyPageHead, GREY_PAGE_BG } from '../components/rival';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
 import { confirmAction, notify } from '../lib/notify';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -49,7 +49,7 @@ export default function LeagueSettingsScreen() {
   // Mobile gets the redesigned layout below; desktop keeps this page as it
   // was until the mobile app is finished.
   const { width: windowWidth } = useWindowDimensions();
-  const wide = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(windowWidth);
   // Which member's actions are open. One at a time: each row carries a quiet
   // "more" button instead of two outlined buttons, which stacked up into a
   // wall of Make Admin / Remove on a team of any real size.
@@ -1121,7 +1121,7 @@ const ms = StyleSheet.create({
   deleteBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#b54848', alignItems: 'center' },
   deleteBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
-  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12 },
+  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   headerTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText },
 

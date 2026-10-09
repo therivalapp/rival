@@ -10,7 +10,7 @@ import { notify } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm, rb, GreyPageHead, GreySheet, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 
@@ -23,7 +23,7 @@ type LiftCard = { name: string; pb: number; goal: number | null; goalStart: numb
 
 export default function LiftsScreen() {
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
 
   const [cards, setCards] = useSnapState<LiftCard[]>('lifts.cards', []);
   const [loading, setLoading] = useSnapState('lifts.loading', true);

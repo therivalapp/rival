@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily, RivalGhost } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { formatTeamName } from '../lib/identity';
 import { BusyText } from '../components/rival/BusyText';
 
@@ -43,7 +43,7 @@ export default function TeamPreviewScreen() {
   const [signedIn, setSignedIn] = useState(true);
   // Phone: the RIVAL look; same content and actions as desktop.
   const { width } = useWindowDimensions();
-  const mob = width < BREAKPOINT_WIDE_LAYOUT;
+  const mob = !sidePageWide(width);
 
   useEffect(() => {
     load();

@@ -19,8 +19,8 @@ import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, Tou
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyPageHead } from '../components/rival';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyPageHead, rb } from '../components/rival';
+import { sidePageWide } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 
@@ -163,7 +163,7 @@ export default function CreateTeamChallenge() {
   // Phone: the app's own terracotta→salmon gradient and warm cards, and
   // sentence-case labels. Desktop keeps this page's original treatment.
   const { width } = useWindowDimensions();
-  const mob = width < BREAKPOINT_WIDE_LAYOUT;
+  const mob = !sidePageWide(width);
   const sc = (t: string) => (mob ? t.charAt(0) + t.slice(1).toLowerCase() : t);
 
   const selectedMetric = METRICS.find((m) => m.value === metric)!;
@@ -270,7 +270,7 @@ export default function CreateTeamChallenge() {
             so without this everything below the fold was cut off. */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 60 }}
+          contentContainerStyle={[{ paddingBottom: 60 }, mob && rb.column]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

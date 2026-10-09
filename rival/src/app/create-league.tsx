@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Platform, Image, Linking, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { GreySheet, GreyLabel, GreyField, GreyTiles, GreyRows, GreyRow, GreyRowInput, GreyPrimary, GreyCalendar, GreyNote, GreyPageHead, rb } from '../components/rival';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -280,7 +280,7 @@ export default function CreateLeagueScreen() {
   const [showAddRace, setShowAddRace] = useState(false);
   const [raceCalOpen, setRaceCalOpen] = useState(false);
   const [goalCalOpen, setGoalCalOpen] = useState(false);
-  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phone = !sidePageWide(useWindowDimensions().width);
   const [raceName, setRaceName] = useState('');
   const [raceType, setRaceType] = useState('Run');
   const [distanceKm, setDistanceKm] = useState('');

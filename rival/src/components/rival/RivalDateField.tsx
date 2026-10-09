@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal, StyleProp, StyleSheet, TextInput, TextStyle, TouchableOpacity, View, ViewStyle, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { sidePageWide } from '../../constants/breakpoints';
 import { GreyCalendar } from './RivalGreySheet';
 import { RivalColors, RivalRadius } from '../../constants/rivalTheme';
 import { displayToIsoDate, isoToDisplayDate, maskDateInput } from '../../lib/dateFormat';
@@ -26,7 +26,7 @@ export function RivalDateField({
   containerStyle?: StyleProp<ViewStyle>;
 }) {
   const [open, setOpen] = useState(false);
-  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phone = !sidePageWide(useWindowDimensions().width);
   const iso = displayToIsoDate(value);
 
   return (
