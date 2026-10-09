@@ -92,6 +92,13 @@ function firstNameOnly(profile: { display_name?: string | null; email?: string |
   return raw.trim().split(/\s+/)[0];
 }
 
+// Georgia has only old-style numerals: 3, 4, 5, 7 and 9 hang below the line
+// like a "g". The words beside the headline number are lowered to suit those;
+// a number with none of them (1, 2, 10, 20) then floated above the words, so
+// it moves down as a whole by the same amount. Digits are never moved one by
+// one (Ricky, 2026-10-05).
+const HANGING_DIGITS = /[34579]/;
+
 function weeklyRankStory(standings: WeeklyLeaderEntry[], selfIndex: number): RankStory {
   const leader = standings[0];
   if (selfIndex === 0) {
@@ -1692,7 +1699,10 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                         const story = selfIndex !== -1 ? weeklyRankStory(standings, selfIndex) : null;
                         // The gap is always salmon, leading or chasing (Ricky,
                         // 2026-09-26).
-                        const numberStyle = [styles.mStatusNumber, { color: RivalColors.accentText }];
+                        const numberStyle = [
+                          styles.mStatusNumber, { color: RivalColors.accentText },
+                          story && story.gap !== null && !HANGING_DIGITS.test(String(story.gap)) && styles.mStatusNumberLow,
+                        ];
                         return (
                           // No capsule: a grey bordered box read as a generic
                           // UI chip bolted onto the podium. This is a headline
@@ -3737,23 +3747,31 @@ export default function HomeScreen() {
               {rankName && (
                 <TouchableOpacity onPress={() => router.push('/ranks')} style={{ alignItems: 'center' }}>
                   <Text style={styles.gridCardLabel}>RIVAL RANK</Text>
+                  {/* In the rank's own colour, as on the phone (2026-10-03). */}
                   <Text
                     style={[
                       styles.seasonWrapValue,
                       { color: '#D8A81D', fontStyle: 'italic', letterSpacing: 1.5, fontSize: 26, lineHeight: 24 },
-                      ...(Platform.OS === 'web' ? [{
-                        backgroundImage: 'linear-gradient(180deg, #FFE48A, #D8A81D)',
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        color: 'transparent',
-                      } as any] : []),
+                      rankTextSheen(getLevel(seasonEffortTotal).level),
                     ]}
                   >
                     {rankName.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               )}
-              <View style={{ alignItems: 'center' }}><Text style={styles.gridCardLabel}>WEEKLY STREAK</Text><Text style={styles.seasonWrapValue}>{weeklyStreak}</Text></View>
+              {/* As on the phone: the streak in the flame colour once there is
+                  one, and before that this week's count out of three. */}
+              <View style={{ alignItems: 'center' }}>
+                <Text style={styles.gridCardLabel}>{weeklyStreak > 0 ? 'WEEKLY STREAK' : 'START STREAK'}</Text>
+                {weeklyStreak > 0 ? (
+                  <Text style={[styles.seasonWrapValue, { color: RivalColors.accentFill }]}>{weeklyStreak}</Text>
+                ) : (
+                  <Text style={styles.seasonWrapValue}>
+                    {Math.min(STREAK_MIN_ACTIVITIES - 1, streakWeekCount)}
+                    <Text style={styles.mStreakOf}>/{STREAK_MIN_ACTIVITIES}</Text>
+                  </Text>
+                )}
+              </View>
             </View>
           </RivalCard>
           </>
@@ -4356,8 +4374,9 @@ const styles = StyleSheet.create({
   // old-style numerals — 3, 4, 5, 7 and 9 hang below the line like a
   // descender (there is no lining-figure alternative to switch to) — so on a
   // shared baseline the words sat level with the top of a "7" and read as
-  // floating. Lowered, they sit across the middle of the hanging digits, which
-  // are most of them; short digits like 1, 2 and 0 end up within a pixel.
+  // floating. Lowered, they sit across the middle of the hanging digits. A
+  // number with no hanging digit moves down to match (mStatusNumberLow).
+  mStatusNumberLow: { position: 'relative', top: 4 },
   mStatusLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8, flexWrap: 'wrap' },
   mStatusNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 34, fontWeight: '700' },
   mStatusCountdown: { flexDirection: 'row', alignItems: 'center', gap: 7 },

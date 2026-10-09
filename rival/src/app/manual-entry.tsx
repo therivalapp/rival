@@ -15,8 +15,10 @@ import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, R
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
+import { TrainingPartners } from '../components/rival/TrainingPartners';
+import { tagTeammates, withinTagWindow, TAG_WINDOW_HOURS } from '../lib/sharedActivities';
 import { goToTab } from '../lib/tabNav';
 
 type Exercise = { name: string; sets?: number; reps?: number; weight?: number };
@@ -40,6 +42,10 @@ const TYPE_OPTIONS: Array<{ type: string; label: string }> = [
 const PHONE_TILES = ['Run', 'Ride', 'Swim', 'CrossFit', 'Hike', 'WeightTraining', 'HIIT'];
 const MORE_TYPES = ['Walk', 'TrailRun', 'Rowing', 'Hyrox', 'Bootcamp', 'Yoga', 'Pilates', 'Workout'];
 const TILE_NAMES: Record<string, string> = { WeightTraining: 'Weights', Hyrox: 'HYROX', TrailRun: 'Trail run', HIIT: 'HIIT', CrossFit: 'CrossFit', VirtualRun: 'Treadmill', VirtualRide: 'Indoor ride' };
+// The activity name is a short label that fits one line on a feed card; the
+// story goes in the journal (Ricky, 2026-10-08).
+const NAME_MAX = 30;
+
 function tileLabel(t: string): string {
   if (TILE_NAMES[t]) return TILE_NAMES[t];
   const words = t.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
@@ -59,7 +65,7 @@ function todayDisplay(): string {
 
 export default function ManualEntryScreen() {
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
   // Prefills the date when opened from the Month calendar ("tap a logged-
   // looking empty day" → jump straight to logging that day), passed as
   // ?date=YYYY-MM-DD. Falls back to today for every other entry point
@@ -99,6 +105,8 @@ export default function ManualEntryScreen() {
     setElevationM(climbM > 0 ? String(Math.round(toDisplayElevation(climbM))) : '');
   }, [isTreadmill, inclinePct, distanceKm, wide]);
   const [notes, setNotes] = useState('');
+  // Teammates picked before the activity exists; tagged once it has saved.
+  const [partnerIds, setPartnerIds] = useState<string[]>([]);
   const [journalOpen, setJournalOpen] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [showExercises, setShowExercises] = useState(false);
@@ -399,6 +407,10 @@ export default function ManualEntryScreen() {
           return;
         }
         activityId = inserted.id;
+        if (partnerIds.length > 0) {
+          const tagged = await tagTeammates(activityId, partnerIds);
+          if (!tagged.ok) setGeneralError(`Activity saved, but the activity partners were not added: ${tagged.error ?? 'try again from the activity'}`);
+        }
       }
 
       // Lift entries feed the PR tracker. Use the canonical name when we
@@ -501,6 +513,7 @@ export default function ManualEntryScreen() {
           onChangeText={(v) => { setWorkoutName(v); if (fieldError?.field === 'name') setFieldError(null); }}
           placeholder={namePlaceholder}
           placeholderTextColor={RivalColors.textSecondary}
+          maxLength={NAME_MAX}
         />
         {fieldError?.field === 'name' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
       </View>
@@ -782,6 +795,31 @@ export default function ManualEntryScreen() {
 
   // Lifts, in the same warm cards as the rest of the mobile page. Same state
   // and handlers as the desktop card — only the presentation differs.
+  // The new activity's start: the chosen day at the current time of day, as
+  // saveSession() builds it.
+  const draftStart = (() => {
+    const iso = displayToIsoDate(dateStr);
+    if (!iso) return null;
+    const [y, mo, d] = iso.split('-').map(Number);
+    const now = new Date();
+    return new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+  })();
+  const partnersStart = isEditMode ? originalStartedAt?.toISOString() ?? null : draftStart;
+  const partnersOpen = !!partnersStart && withinTagWindow(partnersStart);
+  const partnersCard = isEditMode ? (
+    editId && partnersStart ? (
+      <View style={m.journal}>
+        <Text style={m.cardLabel}>Activity partners</Text>
+        <TrainingPartners activityId={editId} startedAt={partnersStart} companions={null} />
+      </View>
+    ) : null
+  ) : partnersOpen && partnersStart ? (
+    <View style={m.journal}>
+      <Text style={m.cardLabel}>Activity partners</Text>
+      <TrainingPartners activityId={null} startedAt={partnersStart} companions={null} draftIds={partnerIds} onDraftChange={setPartnerIds} />
+    </View>
+  ) : null;
+
   const mobileLiftsCard = (
     <View style={m.card}>
       <TouchableOpacity style={m.liftsHead} onPress={() => setShowExercises((v) => !v)} activeOpacity={0.8}>
@@ -888,7 +926,11 @@ export default function ManualEntryScreen() {
           placeholder={namePlaceholder}
           placeholderTextColor="rgba(255,255,255,0.35)"
           accessibilityLabel="Name"
+          maxLength={NAME_MAX}
         />
+        {workoutName.length >= NAME_MAX - 10 ? (
+          <Text style={m.nameCount}>{workoutName.length}/{NAME_MAX}</Text>
+        ) : null}
         {fieldError?.field === 'name' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
         {/* Seven tiles plus See all, four to a row; See all opens the rest in
             the same grid. A pick outside the seven shows in the eighth tile. */}
@@ -1083,11 +1125,15 @@ export default function ManualEntryScreen() {
           onChangeText={setNotes}
           onFocus={() => setJournalOpen(true)}
           onBlur={() => setJournalOpen(false)}
-          placeholder="Add a note about this activity"
+          placeholder="How did it go?"
           placeholderTextColor="rgba(255,255,255,0.3)"
           multiline
         />
       </View>
+
+      {/* Who else was there. Partners can only be added within the tagging
+          window, so an older date shows who is already on it and nothing more. */}
+      {partnersCard}
 
       {showExercises ? mobileLiftsCard : null}
 
@@ -1342,7 +1388,7 @@ const styles = StyleSheet.create({
 const WARM_CARD = '#1d1714';
 const m = StyleSheet.create({
   page: { backgroundColor: GREY_PAGE_BG },
-  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 32 },
+  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 32, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, marginBottom: 6 },
   // Small, so it labels the page without competing with the session's own
   // name, which is the real title just below.
@@ -1455,6 +1501,7 @@ const m = StyleSheet.create({
   mediaEmptySub: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
   addTileText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
 
+  nameCount: { alignSelf: 'flex-end', fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.45)', marginTop: -4 },
   journal: { borderRadius: 16, backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 14, paddingVertical: 14 },
   journalRule: {
     width: 60, height: 1, marginTop: 6, marginBottom: 10,
@@ -1517,15 +1564,17 @@ const m = StyleSheet.create({
     backgroundColor: GREY_PAGE_BG, borderTopWidth: 1, borderTopColor: RivalGhost.hairline,
   },
   saveBarError: { textAlign: 'center' },
-  saveRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  effortBlock: { minWidth: 92 },
+  saveRow: { flexDirection: 'row', alignItems: 'center', gap: 14, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH - 32, alignSelf: 'center' },
+  // Capped at half the bar: a long note ("Faster than realistic…") wraps
+  // inside it instead of squeezing the button into a sliver.
+  effortBlock: { minWidth: 92, maxWidth: '50%', flexShrink: 1 },
   effortLine: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
   effortNum: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   effortUnit: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
   effortSub: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.45)', marginTop: 1 },
   effortWarn: { color: RivalColors.accentText },
   effortEmpty: { fontSize: 11.5, fontWeight: '600', lineHeight: 15, color: 'rgba(255,255,255,0.45)' },
-  saveBtn: { flex: 1, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
+  saveBtn: { flex: 1, minWidth: 140, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.55 },
   saveBtnText: { fontSize: 15.5, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill), letterSpacing: 0.2 },
 });

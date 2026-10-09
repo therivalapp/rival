@@ -7,7 +7,7 @@ import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost } from '..
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
-import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { BREAKPOINT_WIDE_LAYOUT, sidePageWide, SIDE_SHEET_MAX_WIDTH } from '../../constants/breakpoints';
 
 // Planning a meet-up, in one sheet, from anywhere.
 //
@@ -171,7 +171,9 @@ export function PlanSessionSheet({
   const [hh, mm] = [wheelTime.split(':')[0] ?? '07', wheelTime.split(':')[1] ?? '00'];
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   // Phones get the tile grid and centred title; desktop keeps the chips.
-  const m = windowWidth < BREAKPOINT_WIDE_LAYOUT;
+  const m = !sidePageWide(windowWidth);
+  // On a wide screen the sheet is a centred dialog, like the other pop-ups.
+  const dialog = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
 
   // Load the session being edited into the form. Keyed on the row's id rather
   // than the object, so a refetch that returns an equal-but-new object can't
@@ -370,12 +372,12 @@ export function PlanSessionSheet({
             cap exists only so a genuinely short viewport (landscape, or a small
             device with the keyboard up) degrades to scrolling instead of
             pushing the post button off-screen. */}
-        <View style={[styles.sheet, { maxHeight: windowHeight * 0.92 }]}>
+        <View style={[styles.sheet, dialog && styles.sheetDialog, { maxHeight: windowHeight * (dialog ? 0.86 : 0.92) }]}>
           {/* Warm glow bleeding down from the top edge. The sheet was one flat
               tone end to end, so nothing said "this is the top" — a light
               source does that without adding a single line of chrome. */}
           <View style={styles.glow} pointerEvents="none" />
-          <View style={styles.grabber} />
+          {dialog ? null : <View style={styles.grabber} />}
 
           {m ? (
             // Centred kicker and serif title, the Edit team challenge header.
@@ -799,6 +801,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18, paddingTop: 10, paddingBottom: 26,
     borderTopWidth: 1, borderColor: RivalColors.surfaceBright,
     overflow: 'hidden',
+  },
+  sheetDialog: {
+    alignSelf: 'center', width: '100%', maxWidth: SIDE_SHEET_MAX_WIDTH,
+    marginTop: 'auto', marginBottom: 'auto',
+    borderRadius: 22, borderWidth: 1, paddingTop: 22,
   },
   glow: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 150,

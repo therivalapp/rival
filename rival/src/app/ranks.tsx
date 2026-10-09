@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { rankSheen, rankTextSheen, rankTileFill, RANK_TILE_INK } from '../constants/rankSheen';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { getSeasonStartISO, getCurrentSeasonYear } from '../lib/season';
 import { Platform, StyleSheet, View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { goToTab } from '../lib/tabNav';
@@ -54,7 +54,7 @@ function weeklyGuide(minXp: number): string | null {
 
 export default function RanksScreen() {
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
   const [totalXp, setTotalXp] = useState(0);
   const [pace, setPace] = useState<RankPace | null>(null);
 

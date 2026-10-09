@@ -1,7 +1,7 @@
 import { useSnapState } from '../lib/snapState';
 import { useCallback, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import {
@@ -32,7 +32,7 @@ export default function InboxScreen() {
   const [loading, setLoading] = useSnapState('inbox.loading', true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorFor, setErrorFor] = useState<Record<string, string>>({});
-  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phone = !sidePageWide(useWindowDimensions().width);
 
   const load = useCallback(async () => {
     const rows = await fetchInbox();

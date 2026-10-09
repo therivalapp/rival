@@ -373,18 +373,12 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
             accessibilityLabel="Notifications"
             style={[styles.notifBtn, narrow && styles.notifBtnNarrow]}
           >
-            {/* Mockup's mobile header uses the plain calm bell (ti-bell), not
-                the "ringing" bell desktop keeps for its own header. */}
-            {narrow ? (
-              // Phones: a fine-line bell, to match the thin type around it
-              // (Ricky, 2026-10-03, option B).
-              <Svg width={23} height={23} viewBox="0 0 24 24" fill="none" stroke={RivalColors.accentText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                <Path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-              </Svg>
-            ) : (
-              <RivalIcon name="notificationsActive" size={22} color={RivalColors.accentText} />
-            )}
+            {/* A fine-line bell, to match the thin type around it (Ricky,
+                2026-10-03, option B; desktop too since that night). */}
+            <Svg width={narrow ? 23 : 24} height={narrow ? 23 : 24} viewBox="0 0 24 24" fill="none" stroke={RivalColors.accentText} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <Path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </Svg>
             {inboxCount > 0 ? (
               <View style={styles.notifDot}>
                 <Text style={styles.notifDotText}>{inboxCount > 9 ? '9+' : inboxCount}</Text>

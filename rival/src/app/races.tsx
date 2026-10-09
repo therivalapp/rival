@@ -9,7 +9,7 @@ import { formatDisplayName, formatRaceName } from '../lib/identity';
 import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
 import { formatGoalTimeMask } from '../lib/format';
 import { RivalTopNav, RivalPageHeader, RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, GreySegment, RivalSheet, RivalSheetCard, RivalTiles, RivalMoreRow, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import type { RivalIconName } from '../components/rival';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
@@ -246,7 +246,7 @@ export default function RacesScreen() {
   }
 
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
   const m = !wide;
 
   useFocusEffect(useCallback(() => { load(); }, []));

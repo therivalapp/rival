@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../../../constants/breakpoints';
+import { sidePageWide } from '../../../constants/breakpoints';
 import { supabase } from '../../../lib/supabase';
 import { RivalColors } from '../../../constants/rivalTheme';
 import { RivalIcon } from '../RivalIcon';
@@ -78,7 +78,7 @@ export function EncourageSheet({
 
   const canSend = !!message.trim() && !sending;
 
-  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phoneSheet = !sidePageWide(useWindowDimensions().width);
   // Phone: the grey pop-up. Ready messages as one-line rows (tiles wrapped
   // them onto two lines), your own words below, Send pinned.
   if (phoneSheet) {

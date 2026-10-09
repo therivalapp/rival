@@ -5,6 +5,7 @@ import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
 import { RivalBackButton } from './RivalBackButton';
+import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGE_MAX_WIDTH, SIDE_SHEET_MAX_WIDTH } from '../../constants/breakpoints';
 
 // The phone pop-up style set by Plan an activity: grey sheet with a warm glow
 // at the top, centred kicker and serif title, grey caps labels, recessed cards
@@ -22,7 +23,10 @@ export function GreySheet({
   /** Drawn over the whole sheet, for the calendar or time picker. */
   overlay?: ReactNode;
 }) {
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
+  // On a wide screen the pop-up is a centred dialog rather than a sheet
+  // rising from the bottom edge.
+  const dialog = width >= BREAKPOINT_WIDE_LAYOUT;
   // No close button: a pop-up closes by tapping outside it (the caller's
   // backdrop) or by dragging it down from the top.
   const dragY = useRef(new Animated.Value(0)).current;
@@ -42,10 +46,10 @@ export function GreySheet({
     onPanResponderTerminate: () => Animated.spring(dragY, { toValue: 0, useNativeDriver: false }).start(),
   })).current;
   return (
-    <Animated.View style={[g.sheet, { maxHeight: height * 0.92, transform: [{ translateY: dragY }] }]}>
+    <Animated.View style={[g.sheet, dialog && g.sheetDialog, { maxHeight: height * (dialog ? 0.86 : 0.92), transform: [{ translateY: dragY }] }]}>
       <View style={g.glow} pointerEvents="none" />
       <View {...pan.panHandlers} style={g.dragZone}>
-        <View style={g.grabber} />
+        {dialog ? null : <View style={g.grabber} />}
         <View style={g.head}>
           {kicker ? <Text style={g.kicker}>{kicker}</Text> : null}
           <Text style={[g.title, !kicker && { marginTop: 0 }]}>{title}</Text>
@@ -193,9 +197,12 @@ export function GreyPageHead({
   sub?: string;
   onBack?: () => void;
 }) {
+  // On a wide screen the page sits in a centred column; the glow spreads past
+  // it so its sides fade out instead of ending in a hard edge.
+  const wide = useWindowDimensions().width >= BREAKPOINT_WIDE_LAYOUT;
   return (
     <View style={gp.head}>
-      <View style={gp.glow} pointerEvents="none" />
+      <View style={[gp.glow, wide && gp.glowWide]} pointerEvents="none" />
       {onBack ? <RivalBackButton onPress={onBack} style={gp.back} /> : null}
       <Text style={g.kicker}>{kicker}</Text>
       <Text style={gp.title}>{title}</Text>
@@ -212,6 +219,11 @@ const gp = StyleSheet.create({
       ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }
       : { backgroundColor: 'rgba(217,119,87,0.05)' }),
   } as any,
+  // Its ellipse reaches exactly the box's sides, so nothing shows at the edge.
+  glowWide: {
+    left: -260, right: -260,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 50% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' } : {}),
+  } as any,
   back: { position: 'absolute', left: 16, top: 8 },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 28, lineHeight: 34, color: '#fff', textAlign: 'center', marginTop: 3 },
   sub: { fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 4 },
@@ -221,7 +233,10 @@ const gp = StyleSheet.create({
  *  greys on a page. Phone only; pages branch on width. */
 export const rb = StyleSheet.create({
   page: { flex: 1, backgroundColor: RivalGhost.ground },
-  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12 },
+  // Held to a centred column on a wide screen; no effect on a phone.
+  content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
+  /** Holds any page's content to the same centred column as `content`. */
+  column: { width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
   card: { backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14, gap: 12 },
   /** The one card a page leads with: warm glass with a soft glow from the
    *  top (Team settings' crest, Goals' main focus, the rank on Ranks).
@@ -287,6 +302,11 @@ const g = StyleSheet.create({
     paddingHorizontal: 18, paddingTop: 10,
     borderTopWidth: 1, borderColor: RivalColors.surfaceBright,
     overflow: 'hidden',
+  },
+  sheetDialog: {
+    alignSelf: 'center', width: '100%', maxWidth: SIDE_SHEET_MAX_WIDTH,
+    marginTop: 'auto', marginBottom: 'auto',
+    borderRadius: 22, borderWidth: 1, paddingTop: 22,
   },
   glow: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 150,

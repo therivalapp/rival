@@ -15,7 +15,7 @@ import { RivalCard, RivalProgressBar, RivalIcon, RivalTopNav, RivalBackButton, G
 import { goToTab } from '../lib/tabNav';
 import { RivalColors, RivalRadius, RivalType, RANK_LEVEL_COLORS, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { rankSheen, rankTextSheen } from '../constants/rankSheen';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
 
 // Refined Ember rank ramp only has 4 confirmed anchor colors from the Stitch
 // export (see rivalTheme.ts) — the interpolated 10-level ramp is provisional.
@@ -34,7 +34,7 @@ export default function StatsScreen() {
   // Stored in users.bio; "Mindset" is the name people see.
   const [mindset, setMindset] = useSnapState(`stats.${viewedUserId ?? 'me'}.mindset`, '');
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
   const [totalPoints, setTotalPoints] = useSnapState(`stats.${viewedUserId ?? 'me'}.totalPoints`, 0);
   const [seasonPoints, setSeasonPoints] = useSnapState(`stats.${viewedUserId ?? 'me'}.seasonPoints`, 0);
   const [pastSeasons, setPastSeasons] = useSnapState<Array<{ year: number; final_xp: number; final_rank_name: string }>>(`stats.${viewedUserId ?? 'me'}.pastSeasons`, []);
@@ -755,7 +755,7 @@ const styles = StyleSheet.create({
 
 // Phone only: the blend (grey page, recessed cards, serif numbers).
 const pb = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingBottom: 120, gap: 10 },
+  content: { paddingHorizontal: 16, paddingBottom: 120, gap: 10, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
   card: { backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 16, paddingHorizontal: 14 },
   cap: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   person: { alignItems: 'center', gap: 8, marginBottom: 2 },

@@ -7,7 +7,7 @@ import { invalidateActivityCache } from '../lib/fetchAllActivities';
 import '../global.css';
 import { useEffect, useState } from 'react';
 import { AppState, AppStateStatus, Platform, View, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGES_USE_PHONE_DESIGN } from '../constants/breakpoints';
 import { Stack, router, usePathname } from 'expo-router';
 import { setCurrentPath } from '../lib/tabNav';
 import { StatusBar } from 'expo-status-bar';
@@ -31,8 +31,12 @@ export default function RootLayout() {
   useAppFonts();
   // Short pages open on phone as a pop-up over the screen they came from,
   // rather than a whole page with empty space under a few rows.
+  // On desktop they open the same way, as a centred dialog that fades in
+  // (2026-10-03, see SIDE_PAGES_USE_PHONE_DESIGN).
   const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
-  const popUp = phone ? { presentation: 'transparentModal' as const, animation: 'slide_from_bottom' as const } : {};
+  const popUp = phone
+    ? { presentation: 'transparentModal' as const, animation: 'slide_from_bottom' as const }
+    : SIDE_PAGES_USE_PHONE_DESIGN ? { presentation: 'transparentModal' as const, animation: 'fade' as const } : {};
 
   useEffect(() => {
     registerForPushNotifications();

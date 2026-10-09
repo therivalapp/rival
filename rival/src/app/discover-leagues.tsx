@@ -10,7 +10,7 @@ import { RivalTopNav, RivalIcon, RivalFixedBackground, RivalWarm, RivalMiniTile,
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
-import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BREAKPOINT_TWO_UP_GRID, sidePageWide } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 
 type MembershipState = 'none' | 'pending' | 'active';
@@ -61,7 +61,7 @@ export default function DiscoverLeaguesScreen() {
   const wide = windowWidth >= BREAKPOINT_TWO_UP_GRID;
   // Phone: the RIVAL look on headings and the Discover rows. The team cards
   // keep their own design.
-  const mob = windowWidth < BREAKPOINT_WIDE_LAYOUT;
+  const mob = !sidePageWide(windowWidth);
 
   const [myTeams, setMyTeams] = useState<TeamRow[]>([]);
   const [publicTeams, setPublicTeams] = useState<TeamRow[]>([]);

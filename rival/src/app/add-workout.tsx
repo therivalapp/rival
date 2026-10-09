@@ -5,7 +5,7 @@ import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBac
 import { goToTab } from '../lib/tabNav';
 import { pickScanFiles, setPendingScanFiles } from '../lib/scanHandoff';
 import { RivalButtonColors, RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
   { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a training app screen, gym whiteboard or workout card.' },
@@ -28,7 +28,7 @@ function TileArt({ icon, primary }: { icon: RivalIconName; primary?: boolean }) 
 
 export default function AddWorkoutScreen() {
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
 
   const card = (
     icon: RivalIconName,

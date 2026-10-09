@@ -16,7 +16,7 @@ import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/p
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
 import { RivalSerifFamily } from '../constants/rivalTheme';
@@ -32,7 +32,7 @@ const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
 const NOTIFY_OPTIONS: Array<{ key: NotifyKey; label: string; sub: string }> = [
   { key: 'reaction', label: 'Respect and Inspired', sub: 'When someone recognises an activity.' },
   { key: 'comment', label: 'Comments', sub: 'When someone comments on an activity.' },
-  { key: 'tag_accepted', label: 'Training partners', sub: 'When someone confirms they trained with you.' },
+  { key: 'tag_accepted', label: 'Activity partners', sub: 'When someone confirms they trained with you.' },
   { key: 'team_joined', label: 'Team updates', sub: 'When a request to join a team is approved.' },
 ];
 
@@ -67,7 +67,7 @@ function MenuSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean
 export default function ProfileScreen() {
   const { userId: viewedUserId, tab: tabParam } = useLocalSearchParams<{ userId?: string; tab?: TabId }>();
   const { width: windowWidth } = useWindowDimensions();
-  const wide = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(windowWidth);
 
   const [currentAuthUserId, setCurrentAuthUserId] = useState('');
   const isOwnProfile = !viewedUserId || viewedUserId === currentAuthUserId;
@@ -820,7 +820,7 @@ export default function ProfileScreen() {
   const notificationsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Notifications</Text>}
-      <Text style={styles.panelSub}>Choose what appears under the bell. Requests that need an answer, such as join requests and training partner confirmations, always appear.</Text>
+      <Text style={styles.panelSub}>Choose what appears under the bell. Requests that need an answer, such as join requests and activity partner confirmations, always appear.</Text>
 
       <View style={styles.subSectionFirst}>
         {NOTIFY_OPTIONS.map((o) => switchRow(o.key, o.label, o.sub, prefs.notify[o.key], (v) => savePref({ notify: { ...prefs.notify, [o.key]: v } })))}

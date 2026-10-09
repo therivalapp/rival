@@ -14,7 +14,7 @@ import { SessionCard } from '../components/rival/SessionCard';
 import { PlanSessionSheet, EditableSession } from '../components/rival/PlanSessionSheet';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { GreyPageHead, GreySegment, GREY_PAGE_BG, rb } from '../components/rival/RivalGreySheet';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 
 // Every planned activity for one team, upcoming and past. Team Hub's Coming
 // Up shows the next three; its "See all" used to fall through to the old team
@@ -44,7 +44,7 @@ export default function TeamSessionsScreen() {
   const [editing, setEditing] = useState<EditableSession | null>(null);
   // Phone: the RIVAL look (warm page, gradient on the chosen tab).
   const { width } = useWindowDimensions();
-  const mob = width < BREAKPOINT_WIDE_LAYOUT;
+  const mob = !sidePageWide(width);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -114,7 +114,7 @@ const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(()
 
   return (
     <View style={{ flex: 1, backgroundColor: mob ? GREY_PAGE_BG : RivalColors.surfaceLow }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={[{ flex: 1 }, mob && rb.column]} edges={['top', 'left', 'right']}>
         <RivalTopNav active="teams" hideBar />
         {mob ? (
           // Phone: the blend. Team name over the title; one segmented

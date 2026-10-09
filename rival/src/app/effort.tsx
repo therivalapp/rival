@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensio
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { RivalColors, RivalGhost, RivalSerifFamily } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { RivalIcon, GreyPageHead, GreyLabel, GreyNote, GREY_PAGE_BG, type RivalIconName } from '../components/rival';
 import { activityTypeLabel } from '../components/rival/EffortBreakdownSheet';
 import { effortBreakdown, loadScoringConfig, type ScoringConfig } from '../lib/effort';
@@ -50,7 +50,7 @@ const TIME_PREVIEW = 8;
 
 export default function EffortScreen() {
   // Phone: the Add an activity look (warm outlines); desktop keeps its own.
-  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phone = !sidePageWide(useWindowDimensions().width);
   const [config, setConfig] = useState<ScoringConfig | null>(null);
   const [allTime, setAllTime] = useState(false);
   useEffect(() => { loadScoringConfig().then(setConfig); }, []);

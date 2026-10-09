@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { RivalColors, RivalButtonColors, RivalSerifFamily, RivalGhost } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -59,7 +59,7 @@ export default function PlanScreen() {
   const [showAllTypes, setShowAllTypes] = useState(false);
 
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
 
   useFocusEffect(useCallback(() => { load(); }, []));
 

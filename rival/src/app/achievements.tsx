@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalGhost, RivalSerifFamily } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { Platform, StyleSheet, View, Text, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { goToTab } from '../lib/tabNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ const CATEGORY_ICON: Record<string, RivalIconName> = {
 
 export default function AchievementsScreen() {
   const { width } = useWindowDimensions();
-  const wide = width >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(width);
   const [earnedIds, setEarnedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [newlyEarned, setNewlyEarned] = useState<string[]>([]);

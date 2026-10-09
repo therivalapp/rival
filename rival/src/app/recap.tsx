@@ -1,7 +1,7 @@
 import { distanceNumber, distanceUnit, elevationNumber, elevationUnit } from '../lib/units';
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -28,7 +28,7 @@ type RecapData = {
 export default function RecapScreen() {
   // Phone: the RIVAL look, real icons in place of emoji.
   const { width } = useWindowDimensions();
-  const m = width < BREAKPOINT_WIDE_LAYOUT;
+  const m = !sidePageWide(width);
   const { type } = useLocalSearchParams<{ type?: string }>();
   const recapType = type ?? 'monthly';
   const [recap, setRecap] = useState<RecapData | null>(null);
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
 
 // Phone only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 },
+  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
   heroBlock: { gap: 10, marginBottom: 20 },
   heroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 36 },
   timeHero: { alignItems: 'center' },

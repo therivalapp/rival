@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { RivalStartTiles, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyField, GreyNote, GreyPrimary } from '../RivalGreySheet';
-import { BREAKPOINT_WIDE_LAYOUT } from '../../../constants/breakpoints';
+import { sidePageWide } from '../../../constants/breakpoints';
 import { supabase } from '../../../lib/supabase';
 import { notify } from '../../../lib/notify';
 import { formatTeamName } from '../../../lib/identity';
@@ -146,7 +146,7 @@ export function TeamChallengesTab({
   onOpenMembers?: () => void;
   onEndTeamGoal?: () => void;
 }) {
-  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phone = !sidePageWide(useWindowDimensions().width);
   const [loading, setLoading] = useState(true);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [scores, setScores] = useState<Record<string, Score>>({});
@@ -516,7 +516,7 @@ export function ChallengeTeammateSheet({
     onClose();
   }
 
-  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phoneSheet = !sidePageWide(useWindowDimensions().width);
   if (phoneSheet) {
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -618,7 +618,7 @@ function ChallengeTeamSheet({
     onClose();
   }
 
-  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phoneSheet = !sidePageWide(useWindowDimensions().width);
   if (phoneSheet) {
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -714,7 +714,7 @@ function GreyMetricAndDuration({
   days: number; setDays: (d: number) => void;
   customDays: string; setCustomDays: (v: string) => void;
 }) {
-  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phoneSheet = !sidePageWide(useWindowDimensions().width);
   return (
     <>
       <GreyLabel>Compete on</GreyLabel>
@@ -752,7 +752,7 @@ function MetricAndDuration({
   days: number; setDays: (d: number) => void;
   customDays: string; setCustomDays: (v: string) => void;
 }) {
-  const phoneSheet = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const phoneSheet = !sidePageWide(useWindowDimensions().width);
   return (
     <>
       <Text style={sheet.label}>Measured by</Text>

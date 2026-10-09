@@ -2,7 +2,7 @@ import { defaultActivityName } from '../lib/activityName';
 import { fitPhoto } from '../lib/imageResize';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { sidePageWide } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pickScanFiles, takePendingScanFiles } from '../lib/scanHandoff';
@@ -143,7 +143,7 @@ export default function ScanWorkoutScreen() {
   // the review form is long and shared — with mobile styles swapped in and
   // emoji replaced by real icons.
   const { width: windowWidth } = useWindowDimensions();
-  const wide = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
+  const wide = sidePageWide(windowWidth);
   const st = (wide ? styles : mobileStyles) as typeof styles;
   const em = (glyph: string) => (wide ? glyph : '');
 

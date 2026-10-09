@@ -20,7 +20,12 @@ import { RivalTopNav, RivalIcon, RivalIconName, activityIconName, TrainingPartne
 import { withinTagWindow } from '../../lib/tagWindow';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { RESPECT_COLOUR, INSPIRED_COLOUR, respectGivenText, inspiredGivenText, effortGoldText } from '../../constants/reactionColours';
 import { BusyText } from '../../components/rival/BusyText';
+import { RespectStar } from '../../components/rival/RespectStar';
+import { CommentThread } from '../../components/rival/team/CommentThread';
+import { titleFit } from '../../lib/titleFit';
+import { InspiredBolt } from '../../components/rival/InspiredBolt';
 
 // Combined multi-team activity feed — separate destination from league.tsx's
 // existing per-team feed tab (per the Team architecture split: Feed = watch,
@@ -328,7 +333,7 @@ type FeedSnapshot = {
   avatarMap: Record<string, string | null>;
   nameMap: Record<string, string>;
   reactionsMap: Record<string, Array<{ user_id: string; emoji: string }>>;
-  commentsMap: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>;
+  commentsMap: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>>;
   hasMore: boolean;
   ctx: FeedContext | null;
   cursor: string | null;
@@ -349,7 +354,7 @@ export default function TeamFeedScreen() {
   // Route maps, only for people who chose to share them with their teams.
   const [routesMap, setRoutesMap] = useState<Record<string, string>>({});
   const [reactionsMap, setReactionsMap] = useState<Record<string, Array<{ user_id: string; emoji: string }>>>(() => feedSnap?.reactionsMap ?? {});
-  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(() => feedSnap?.commentsMap ?? {});
+  const [commentsMap, setCommentsMap] = useState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>>>(() => feedSnap?.commentsMap ?? {});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 
@@ -378,15 +383,15 @@ export default function TeamFeedScreen() {
     }
     const [reactionsRes, commentsRes] = await Promise.all([
       supabase.from('feed_reactions').select('target_type, target_id, user_id, emoji').in('target_id', ids),
-      supabase.from('feed_comments').select('id, target_type, target_id, user_id, body, created_at').in('target_id', ids).order('created_at', { ascending: true }),
+      supabase.from('feed_comments').select('*').in('target_id', ids).order('created_at', { ascending: true }),
     ]);
     const newReactions: Record<string, Array<{ user_id: string; emoji: string }>> = {};
     (reactionsRes.data || []).forEach((r: any) => {
       (newReactions[feedTargetKey(r.target_type, r.target_id)] ??= []).push({ user_id: r.user_id, emoji: r.emoji });
     });
-    const newComments: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>> = {};
+    const newComments: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>> = {};
     (commentsRes.data || []).forEach((c: any) => {
-      (newComments[feedTargetKey(c.target_type, c.target_id)] ??= []).push({ id: c.id, user_id: c.user_id, body: c.body, created_at: c.created_at });
+      (newComments[feedTargetKey(c.target_type, c.target_id)] ??= []).push({ id: c.id, user_id: c.user_id, body: c.body, created_at: c.created_at, reply_to_id: c.reply_to_id ?? null });
     });
     setReactionsMap((prev) => (replace ? newReactions : { ...prev, ...newReactions }));
     setCommentsMap((prev) => (replace ? newComments : { ...prev, ...newComments }));
@@ -614,7 +619,7 @@ export default function TeamFeedScreen() {
     });
   }
 
-  async function postComment(targetType: 'activity' | 'race' | 'day_roll', targetId: string, teamId: string) {
+  async function postComment(targetType: 'activity' | 'race' | 'day_roll', targetId: string, teamId: string, replyToId: string | null = null) {
     if (!currentUserId) return;
     const key = feedTargetKey(targetType, targetId);
     const text = (commentDrafts[key] || '').trim();
@@ -622,8 +627,8 @@ export default function TeamFeedScreen() {
 
     setCommentDrafts((prev) => ({ ...prev, [key]: '' }));
     const { data: inserted, error: cErr } = await supabase.from('feed_comments')
-      .insert({ league_id: teamId, target_type: targetType, target_id: targetId, user_id: currentUserId, body: text })
-      .select('id, user_id, body, created_at')
+      .insert({ league_id: teamId, target_type: targetType, target_id: targetId, user_id: currentUserId, body: text, ...(replyToId ? { reply_to_id: replyToId } : {}) })
+      .select('*')
       .single();
     if (cErr) {
       // The draft was cleared optimistically — hand the text back rather than
@@ -740,7 +745,7 @@ export default function TeamFeedScreen() {
                   onToggleComments={() => toggleComments(feedTargetKey(reactionTargetType(post.kind), post.id))}
                   commentDraft={commentDrafts[feedTargetKey(reactionTargetType(post.kind), post.id)] || ''}
                   onChangeCommentDraft={(v) => setCommentDrafts((prev) => ({ ...prev, [feedTargetKey(reactionTargetType(post.kind), post.id)]: v }))}
-                  onPostComment={() => postComment(reactionTargetType(post.kind), post.id, post.teamIds[0])}
+                  onPostComment={(replyToId) => postComment(reactionTargetType(post.kind), post.id, post.teamIds[0], replyToId ?? null)}
                   onDeleted={() => setItems((prev) => prev.filter((it) => it.id !== post.id))}
                   onPhotoAdded={(id, url) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, photoUrl: url } : it)))}
                 />
@@ -756,6 +761,18 @@ export default function TeamFeedScreen() {
   );
 }
 
+// A big faint icon filling an empty photo panel, under its words.
+function PanelArt({ icon }: { icon: RivalIconName }) {
+  return (
+    <>
+      <View style={styles.panelArt} pointerEvents="none">
+        <RivalIcon name={icon} size={132} color="rgba(255,181,158,0.24)" />
+      </View>
+      <View style={styles.panelArtFade} pointerEvents="none" />
+    </>
+  );
+}
+
 function PostCard({
   post, currentUserId, avatarUrl, routePolyline, reactions, comments, nameMap, onReact,
   isCommentsOpen, onToggleComments, commentDraft, onChangeCommentDraft, onPostComment, onDeleted, onPhotoAdded,
@@ -765,17 +782,21 @@ function PostCard({
   avatarUrl: string | null;
   routePolyline: string | null;
   reactions: Array<{ user_id: string; emoji: string }>;
-  comments: Array<{ id: string; user_id: string; body: string; created_at: string }>;
+  comments: Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>;
   nameMap: Record<string, string>;
   onReact: (emoji: 'respect' | 'inspired') => void;
   isCommentsOpen: boolean;
   onToggleComments: () => void;
   commentDraft: string;
   onChangeCommentDraft: (v: string) => void;
-  onPostComment: () => void;
+  onPostComment: (replyToId?: string | null) => void;
   onDeleted: () => void;
   onPhotoAdded: (activityId: string, url: string) => void;
 }) {
+  // Phones: the empty photo panel shows a big faint icon behind its words,
+  // like the Add an activity tiles (Ricky, 2026-10-05, option A).
+  const bigArt = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const reactPhone = bigArt;
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -893,7 +914,9 @@ function PostCard({
               ? 'Signed up for an event'
               : post.kind === 'dayRoll'
                 ? `${post.count} ${post.typeLabel}`
-                : (post.activityName || post.activityType)} · {timeAgo(post.ts)}
+                : reactPhone && post.kind === 'activity'
+                  ? null
+                  : <>{post.activityName || post.activityType} · </>}{timeAgo(post.ts)}
             {post.userId !== currentUserId ? (
               <> · <Text style={styles.postTeamTag}>{primaryTeamName}{extraTeamCount > 0 ? ` +${extraTeamCount}` : ''}</Text></>
             ) : null}
@@ -935,6 +958,25 @@ function PostCard({
         )}
       </View>
 
+      {/* Journal card layout (phone, Ricky 2026-10-05): the activity name is
+          the card's title, on its own line under the person. */}
+      {reactPhone && post.kind === 'activity' ? (
+        // Layout C: title and distance on the left, Effort on the right, all
+        // above the photo, so Respect and Inspired sit straight under it.
+        <View style={styles.titleRowPhone}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.postTitlePhone, { marginTop: 0, paddingHorizontal: 0 }, titleFit(post.activityName || post.activityType)]}>{post.activityName || post.activityType}</Text>
+            {statsLine ? <Text style={styles.statsUnderTitle}>{statsLine}</Text> : null}
+          </View>
+          {post.xp > 0 ? (
+            <View style={styles.effortLine}>
+              <Text style={[styles.effortNum, styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : effortGoldText]}>{post.xp}</Text>
+              <Text style={styles.effortUnit}>Effort</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {post.kind === 'dayRoll' ? (
         <View style={styles.noPhotoPanel}>
           <RivalIcon name="walk" size={28} color={RivalColors.accentText} />
@@ -963,22 +1005,34 @@ function PostCard({
           )}
         </View>
       ) : post.userId === currentUserId ? (
-        <TouchableOpacity style={[styles.noPhotoPanel, styles.addPhotoPanel]} activeOpacity={0.85} onPress={addPhotoFromFeed} disabled={uploadingPhoto}>
-          <View style={styles.addPhotoCircle}>
-            <RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} />
-          </View>
+        <TouchableOpacity style={[styles.noPhotoPanel, styles.addPhotoPanel, bigArt && styles.panelBigArt]} activeOpacity={0.85} onPress={addPhotoFromFeed} disabled={uploadingPhoto}>
+          {bigArt ? <PanelArt icon="addPhoto" /> : (
+            <View style={styles.addPhotoCircle}>
+              <RivalIcon name="addPhoto" size={22} color={RivalColors.accentText} />
+            </View>
+          )}
           <BusyText busy={!!(uploadingPhoto)} style={styles.addPhotoTitle}>{uploadingPhoto ? 'Uploading…' : 'Add a photo'}</BusyText>
           {!uploadingPhoto && <Text style={styles.addPhotoSub}>Photos bring the team feed to life.</Text>}
         </TouchableOpacity>
       ) : (
-        <View style={styles.noPhotoPanel}>
-          <RivalIcon name={activityIconName(post.activityType)} size={28} color={RivalColors.accentText} />
+        <View style={[styles.noPhotoPanel, bigArt && styles.panelBigArt]}>
+          {bigArt
+            ? <PanelArt icon={activityIconName(post.activityType)} />
+            : <RivalIcon name={activityIconName(post.activityType)} size={28} color={RivalColors.accentText} />}
           <Text style={styles.noPhotoBody}>No photo this time, still counts.</Text>
         </View>
       )}
 
       {(post.kind === 'activity' || post.kind === 'dayRoll') && (
         <>
+          {reactPhone && post.kind === 'activity' ? (
+            badge ? (
+              <View style={styles.badgeLine}>
+                <RivalIcon name={badge.icon} size={13} color={badge.color} />
+                <Text style={[styles.badgeLineText, { color: badge.color }]} numberOfLines={1}>{badge.label}</Text>
+              </View>
+            ) : null
+          ) : (<>
           <View style={styles.postFooterRow}>
             {badge ? (
               <View style={styles.badgeLine}>
@@ -986,16 +1040,17 @@ function PostCard({
                 <Text style={[styles.badgeLineText, { color: badge.color }]} numberOfLines={1}>{badge.label}</Text>
               </View>
             ) : (
-              <Text style={styles.statsLine}>{statsLine}</Text>
+              <Text style={[styles.statsLine, reactPhone && styles.statsLinePhone]}>{statsLine}</Text>
             )}
             {post.xp > 0 && (
               <View style={styles.effortLine}>
-                <Text style={[styles.effortNum, isPb && { color: RivalColors.rankAnchors.unrivaled }]}>{post.xp}</Text>
+                <Text style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{post.xp}</Text>
                 <Text style={styles.effortUnit}>Effort</Text>
               </View>
             )}
           </View>
-          {badge && statsLine ? <Text style={styles.statsLine}>{statsLine}</Text> : null}
+          {badge && statsLine ? <Text style={[styles.statsLine, reactPhone && styles.statsLinePhone]}>{statsLine}</Text> : null}
+          </>)}
           {post.kind === 'activity'
             && post.userId === currentUserId
             && post.durationSeconds > 0
@@ -1012,7 +1067,11 @@ function PostCard({
       {/* Who else was there. The owner can add people for as long as the
           database allows tagging; everyone else sees the confirmed names. */}
       {post.kind === 'activity' ? (
-        post.userId === currentUserId && !post.isSharedCopy && withinTagWindow(post.ts) ? (
+        // On phones partners are added on the Log an activity page; the card
+        // only shows who was there (Ricky, 2026-10-05).
+        reactPhone ? (
+          <TrainingPartners activityId={post.id} startedAt={post.ts} companions={post.companions} readOnly hideWhenEmpty avatars acceptedOnly />
+        ) : post.userId === currentUserId && !post.isSharedCopy && withinTagWindow(post.ts) ? (
           <TrainingPartners activityId={post.id} startedAt={post.ts} companions={post.companions} />
         ) : post.companions ? (
           <View style={styles.partnersLine}>
@@ -1022,18 +1081,18 @@ function PostCard({
         ) : null
       ) : null}
 
-      {post.kind === 'activity' && post.notes ? <Text style={styles.caption}>{post.notes}</Text> : null}
+      {!reactPhone && post.kind === 'activity' && post.notes ? <Text style={styles.caption}>{post.notes}</Text> : null}
 
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
-          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentText : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentText }]}>Respect</Text>
-          <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive]}>{respectCount}</Text>
+          <RespectStar on={myReaction === 'respect'} size={15} onColour={reactPhone ? RESPECT_COLOUR : RivalColors.accentText} offColour={RivalColors.onSurface} animate={reactPhone} />
+          <Text style={[styles.reactionLabel, myReaction === 'respect' && (reactPhone ? respectGivenText : { color: RivalColors.accentText })]}>Respect</Text>
+          <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'respect' && respectGivenText]}>{respectCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
-          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.rankAnchors.unrivaled : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.rankAnchors.unrivaled }]}>Inspired</Text>
-          <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive]}>{inspiredCount}</Text>
+          <InspiredBolt on={myReaction === 'inspired'} size={15} onColour={reactPhone ? INSPIRED_COLOUR : RivalColors.rankAnchors.unrivaled} offColour={RivalColors.onSurface} onStyle={reactPhone && inspiredGivenText} animate={reactPhone} />
+          <Text style={[styles.reactionLabel, myReaction === 'inspired' && (reactPhone ? inspiredGivenText : { color: RivalColors.rankAnchors.unrivaled })]}>Inspired</Text>
+          <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'inspired' && inspiredGivenText]}>{inspiredCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>
           <RivalIcon name="chat" size={15} color={RivalColors.onSurface} />
@@ -1041,12 +1100,33 @@ function PostCard({
         </TouchableOpacity>
       </View>
 
-      {isCommentsOpen && (
+      {reactPhone && post.kind === 'activity' && post.notes ? (
+        <View style={styles.journalCard}>
+          <Text style={styles.journalLabel}>Journal</Text>
+          <Text style={[styles.caption, styles.captionPhone]}>{post.notes}</Text>
+        </View>
+      ) : null}
+
+      {/* Sets the open conversation apart from the notes above it (phone). */}
+      {reactPhone && isCommentsOpen && post.kind === 'activity' && post.notes ? <View style={styles.commentsDivider} /> : null}
+
+      {isCommentsOpen && reactPhone ? (
+        <CommentThread
+          comments={comments}
+          currentUserId={currentUserId}
+          nameFor={(uid) => nameMap[uid] ?? 'Athlete'}
+          draft={commentDraft}
+          onChangeDraft={onChangeCommentDraft}
+          onPost={onPostComment}
+        />
+      ) : null}
+
+      {isCommentsOpen && !reactPhone && (
         <View style={styles.commentsBlock}>
           {comments.map((c) => (
             <View key={c.id} style={styles.commentRow}>
-              <Text style={styles.commentAuthor}>{nameMap[c.user_id] ?? 'Athlete'}</Text>
-              <Text style={styles.commentBody}>{c.body}</Text>
+              <Text style={[styles.commentAuthor, reactPhone && styles.commentAuthorPhone]}>{nameMap[c.user_id] ?? 'Athlete'}</Text>
+              <Text style={[styles.commentBody, reactPhone && styles.commentBodyPhone]}>{c.body}</Text>
             </View>
           ))}
           <View style={styles.commentInputRow}>
@@ -1056,9 +1136,9 @@ function PostCard({
               onChangeText={onChangeCommentDraft}
               placeholder="Add a comment…"
               placeholderTextColor="rgba(255,255,255,0.4)"
-              onSubmitEditing={onPostComment}
+              onSubmitEditing={() => onPostComment()}
             />
-            <TouchableOpacity onPress={onPostComment} disabled={!commentDraft.trim()}>
+            <TouchableOpacity onPress={() => onPostComment()} disabled={!commentDraft.trim()}>
               <Text style={[styles.commentSendText, !commentDraft.trim() && { opacity: 0.4 }]}>Post</Text>
             </TouchableOpacity>
           </View>
@@ -1178,14 +1258,23 @@ const styles = StyleSheet.create({
   postFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   badgeLine: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   badgeLineText: { fontSize: 11.5, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', flexShrink: 1 },
+  postTitlePhone: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 16, lineHeight: 20, color: 'rgba(255,255,255,0.92)', marginTop: -6, paddingHorizontal: 2 },
+  statsLinePhone: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  journalCard: { backgroundColor: 'rgba(0,0,0,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, gap: 5 },
+  journalLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: RivalColors.accentText },
+  titleRowPhone: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: -6, paddingHorizontal: 2 },
+  statsUnderTitle: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginTop: 3 },
   statsLine: { fontSize: 14.5, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   effortLine: { alignItems: 'flex-end' },
   effortNum: { fontSize: 19, fontWeight: '800', color: RivalColors.accentText, lineHeight: 20 },
+  // Phones: the brand serif, like "+48 Effort today" (Ricky, 2026-10-05).
+  effortNumSerif: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, lineHeight: 24 },
   effortUnit: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 9, letterSpacing: 0.4, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', marginTop: 1 },
 
   partnersLine: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   partnersText: { flex: 1, fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
   caption: { fontSize: 12.5, color: RivalColors.onSurface, lineHeight: 18, paddingHorizontal: 2 },
+  captionPhone: { color: '#fff', fontSize: 13.5, lineHeight: 19, fontWeight: '700' },
 
   routeWrap: { position: 'relative' },
   routeAddPhoto: {
@@ -1206,6 +1295,12 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'radial-gradient(ellipse 90% 60% at 50% 40%, rgba(255,209,190,0.10) 0%, rgba(19,19,19,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
     } as any : {}),
+  },
+  panelBigArt: { minHeight: 150, justifyContent: 'center' },
+  panelArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  panelArtFade: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(38,33,32,0.55), rgba(38,33,32,0) 65%)' } as any : {}),
   },
   noPhotoBody: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   addPhotoPanel: { borderWidth: 1.5, borderColor: 'rgba(255,209,190,0.35)', borderStyle: 'dashed' as any },
@@ -1231,9 +1326,14 @@ const styles = StyleSheet.create({
   commentCountText: { fontSize: 12.5, fontWeight: '800', color: RivalColors.onSurface },
   commentCountTextFaint: { fontWeight: '400', color: RivalColors.textSecondary },
 
+  commentsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 2 },
   commentsBlock: { gap: 8, paddingHorizontal: 2 },
   commentRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   commentAuthor: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  // Phones: the name in bright white, the comment in white at a lighter
+  // weight, so what was written stands out (Ricky, 2026-10-05).
+  commentAuthorPhone: { color: '#fff', fontSize: 13.5, fontWeight: '800' },
+  commentBodyPhone: { color: '#fff', fontSize: 13.5, fontWeight: '400' },
   commentBody: { fontSize: 12.5, color: RivalColors.onSurface, flexShrink: 1 },
   commentInputRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   commentInput: {

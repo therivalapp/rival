@@ -23,7 +23,8 @@ import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { RivalMiniTile, RivalStartTiles, GreySheet, GreyPrimary, GreyNote, GreyField, GreyLabel, GreyRows } from '../components/rival/RivalGreySheet';
-import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
+import { BREAKPOINT_WIDE_LAYOUT, sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
+import { RESPECT_COLOUR, INSPIRED_COLOUR, respectGivenText, inspiredGivenText, effortGoldText } from '../constants/reactionColours';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -45,6 +46,10 @@ import { EncourageSheet, loadEncouragedToday } from '../components/rival/team/En
 import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { matchCanonicalLift } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
+import { RespectStar } from '../components/rival/RespectStar';
+import { InspiredBolt } from '../components/rival/InspiredBolt';
+import { CommentThread } from '../components/rival/team/CommentThread';
+import { titleFit } from '../lib/titleFit';
 import { goToTab } from '../lib/tabNav';
 import { selectAll, inChunks } from '../lib/selectAll';
 
@@ -158,22 +163,26 @@ function getWeekWindow(): { start: Date; end: Date } {
 // the div that actually paints the photo, so web renders raw CSS instead.
 // `fade` is the colour the photo fades into at the bottom: the page's own
 // ground, so there's no seam where the photo ends.
-function HeroPhoto({ style, children, fade = '19,19,19' }: { style?: any; children?: React.ReactNode; fade?: string }) {
+function HeroPhoto({ style, children, fade = '19,19,19', sideFade = false }: { style?: any; children?: React.ReactNode; fade?: string; sideFade?: boolean }) {
   if (Platform.OS === 'web') {
     const uri = Asset.fromModule(HERO_PHOTO).uri;
+    // In a centred column on a wide screen, the photo also fades into the
+    // page at its sides rather than ending in a hard edge.
+    const sides = sideFade ? [`linear-gradient(90deg, rgb(${fade}) 0%, rgba(${fade},0) 16%, rgba(${fade},0) 84%, rgb(${fade}) 100%)`] : [];
     return (
       <View
         style={[
           style,
           {
             backgroundImage: [
+              ...sides,
               `linear-gradient(180deg, rgba(20,14,10,0.15) 0%, rgba(${fade},0.62) 50%, rgba(${fade},0.97) 86%, rgb(${fade}) 100%)`,
               'radial-gradient(120% 70% at 50% 0%, rgba(217,119,87,0.28) 0%, rgba(217,119,87,0) 60%)',
               `url(${uri})`,
             ].join(', '),
-            backgroundPosition: '0 0, 0 0, center 45%',
-            backgroundSize: 'auto, auto, cover',
-            backgroundRepeat: 'no-repeat, no-repeat, no-repeat',
+            backgroundPosition: [...sides.map(() => '0 0'), '0 0, 0 0, center 45%'].join(', '),
+            backgroundSize: [...sides.map(() => 'auto'), 'auto, auto, cover'].join(', '),
+            backgroundRepeat: [...sides.map(() => 'no-repeat'), 'no-repeat, no-repeat, no-repeat'].join(', '),
           } as any,
         ]}
       >
@@ -199,6 +208,8 @@ const heroScrimWeb = Platform.OS === 'web'
   : null;
 // Phones fade into the warm grey page instead of near-black, so the photo
 // has no hard edge where the page begins.
+// On a wide screen the phone design is held to a centred column.
+const hubColumn = { width: '100%' as const, maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' as const };
 const heroScrimPhoneWeb = Platform.OS === 'web'
   ? ({ backgroundImage: 'linear-gradient(0deg, rgb(35,33,32) 0%, rgba(35,33,32,0.9) 12%, transparent 45%)', backgroundColor: 'transparent' } as any)
   : null;
@@ -252,7 +263,9 @@ type SessionRow = {
 };
 
 export default function TeamHub() {
-  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  const winWidth = useWindowDimensions().width;
+  const phone = !sidePageWide(winWidth);
+  const wideWindow = winWidth >= BREAKPOINT_WIDE_LAYOUT;
   const styles = phone ? phoneHubStyles : desktopHubStyles;
   const { id } = useLocalSearchParams<{ id: string }>();
   // The data below is remembered per team (lib/snapState.ts), so returning to
@@ -285,7 +298,7 @@ export default function TeamHub() {
   const [postingBoard, setPostingBoard] = useState(false);
   const [boardError, setBoardError] = useState('');
   const [boardReactionsMap, setBoardReactionsMap] = useSnapState<Record<string, Array<{ user_id: string; emoji: string }>>>(`hub.${id}.boardReactionsMap`, {});
-  const [boardCommentsMap, setBoardCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(`hub.${id}.boardCommentsMap`, {});
+  const [boardCommentsMap, setBoardCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>>>(`hub.${id}.boardCommentsMap`, {});
   const [boardCommentDrafts, setBoardCommentDrafts] = useState<Record<string, string>>({});
   const [expandedBoardComments, setExpandedBoardComments] = useState<Set<string>>(new Set());
   const [recentActivity, setRecentActivity] = useSnapState<ActivityRow[]>(`hub.${id}.recentActivity`, []);
@@ -319,7 +332,7 @@ export default function TeamHub() {
   const [editingSession, setEditingSession] = useState<EditableSession | null>(null);
   const [feedActivity, setFeedActivity] = useSnapState<ActivityRow[]>(`hub.${id}.feedActivity`, []);
   const [reactionsMap, setReactionsMap] = useSnapState<Record<string, Array<{ user_id: string; emoji: string }>>>(`hub.${id}.reactionsMap`, {});
-  const [commentsMap, setCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>>>(`hub.${id}.commentsMap`, {});
+  const [commentsMap, setCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>>>(`hub.${id}.commentsMap`, {});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 
@@ -592,7 +605,7 @@ export default function TeamHub() {
       const none = Promise.resolve({ data: [] as any[] });
       const [reactionsRes, commentsRes, boardReactionsRes, boardCommentsRes] = await Promise.all([
         feedIds.length ? supabase.from('feed_reactions').select('target_id, user_id, emoji').eq('target_type', 'activity').in('target_id', feedIds) : none,
-        feedIds.length ? supabase.from('feed_comments').select('id, target_id, user_id, body, created_at').eq('target_type', 'activity').in('target_id', feedIds).order('created_at', { ascending: true }) : none,
+        feedIds.length ? supabase.from('feed_comments').select('*').eq('target_type', 'activity').in('target_id', feedIds).order('created_at', { ascending: true }) : none,
         boardIds.length ? supabase.from('feed_reactions').select('target_id, user_id, emoji').eq('target_type', 'board').in('target_id', boardIds) : none,
         boardIds.length ? supabase.from('feed_comments').select('id, target_id, user_id, body, created_at').eq('target_type', 'board').in('target_id', boardIds).order('created_at', { ascending: true }) : none,
       ]);
@@ -604,10 +617,10 @@ export default function TeamHub() {
           (newReactionsMap[key] ??= []).push({ user_id: r.user_id, emoji: r.emoji });
         });
         setReactionsMap(newReactionsMap);
-        const newCommentsMap: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>> = {};
+        const newCommentsMap: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>> = {};
         (commentsRes.data || []).forEach((c: any) => {
           const key = feedTargetKey(c.target_id);
-          (newCommentsMap[key] ??= []).push({ id: c.id, user_id: c.user_id, body: c.body, created_at: c.created_at });
+          (newCommentsMap[key] ??= []).push({ id: c.id, user_id: c.user_id, body: c.body, created_at: c.created_at, reply_to_id: c.reply_to_id ?? null });
         });
         setCommentsMap(newCommentsMap);
       }
@@ -619,7 +632,7 @@ export default function TeamHub() {
           (newBoardReactions[key] ??= []).push({ user_id: r.user_id, emoji: r.emoji });
         });
         setBoardReactionsMap(newBoardReactions);
-        const newBoardComments: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string }>> = {};
+        const newBoardComments: Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>> = {};
         (boardCommentsRes.data || []).forEach((c: any) => {
           const key = boardTargetKey(c.target_id);
           (newBoardComments[key] ??= []).push({ id: c.id, user_id: c.user_id, body: c.body, created_at: c.created_at });
@@ -817,15 +830,15 @@ export default function TeamHub() {
     });
   }
 
-  async function postComment(targetId: string) {
+  async function postComment(targetId: string, replyToId: string | null = null) {
     if (!currentUserId || !id) return;
     const key = feedTargetKey(targetId);
     const text = (commentDrafts[key] || '').trim();
     if (!text) return;
     setCommentDrafts(prev => ({ ...prev, [key]: '' }));
     const { data: inserted } = await supabase.from('feed_comments')
-      .insert({ league_id: id, target_type: 'activity', target_id: targetId, user_id: currentUserId, body: text })
-      .select('id, user_id, body, created_at')
+      .insert({ league_id: id, target_type: 'activity', target_id: targetId, user_id: currentUserId, body: text, ...(replyToId ? { reply_to_id: replyToId } : {}) })
+      .select('*')
       .single();
     if (inserted) setCommentsMap(prev => ({ ...prev, [key]: [...(prev[key] || []), inserted] }));
   }
@@ -897,9 +910,9 @@ export default function TeamHub() {
             with its own back and settings buttons. You arrive here from the
             Teams tab, so Teams stays lit and the tabs stay one tap away. */}
         <RivalTopNav active="teams" hideBar />
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} {...pullProps}>
+        <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, phone && hubColumn]} {...pullProps}>
           {pullIndicator}
-          <HeroPhoto fade={phone ? '35,33,32' : undefined} style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
+          <HeroPhoto fade={phone ? '35,33,32' : undefined} sideFade={phone && wideWindow} style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
             <View style={[styles.heroScrim, phone ? heroScrimPhoneWeb : heroScrimWeb]} />
 
             <View style={styles.header}>
@@ -1383,7 +1396,7 @@ export default function TeamHub() {
                         onToggleComments={() => toggleComments(key)}
                         commentDraft={commentDrafts[key] || ''}
                         onChangeCommentDraft={(v) => setCommentDrafts(prev => ({ ...prev, [key]: v }))}
-                        onPostComment={() => postComment(a.id)}
+                        onPostComment={(replyToId) => postComment(a.id, replyToId ?? null)}
                         onReact={(emoji) => toggleReaction(a.id, emoji)}
                         onDeleted={() => setFeedActivity(prev => prev.filter(it => it.id !== a.id))}
                         nameForUser={memberName}
@@ -1722,16 +1735,17 @@ function ActivityPostCard({
   avatarUrl: string | null;
   currentUserId: string;
   reactions: Array<{ user_id: string; emoji: string }>;
-  comments: Array<{ id: string; user_id: string; body: string; created_at: string }>;
+  comments: Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>;
   nameForUser: (userId: string) => string;
   isCommentsOpen: boolean;
   onToggleComments: () => void;
   commentDraft: string;
   onChangeCommentDraft: (v: string) => void;
-  onPostComment: () => void;
+  onPostComment: (replyToId?: string | null) => void;
   onReact: (emoji: 'respect' | 'inspired') => void;
   onDeleted: () => void;
 }) {
+  const reactPhone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -1805,7 +1819,7 @@ function ActivityPostCard({
         {/* The name opens their profile too, not just the small avatar. */}
         <TouchableOpacity style={{ flex: 1, minWidth: 0 }} activeOpacity={0.7} onPress={() => router.push(`/stats?userId=${a.user_id}` as any)}>
           <Text style={styles.postName}>{displayedName}</Text>
-          <Text style={styles.postMeta}>{a.name || a.activity_type} · {timeAgo(a.started_at)}</Text>
+          <Text style={styles.postMeta}>{reactPhone ? '' : `${a.name || a.activity_type} · `}{timeAgo(a.started_at)}</Text>
         </TouchableOpacity>
         {a.user_id === currentUserId && (
           <View style={styles.postMoreWrap}>
@@ -1835,6 +1849,25 @@ function ActivityPostCard({
         )}
       </View>
 
+      {/* Journal card layout (phone, Ricky 2026-10-05): the activity name is
+          the card's title, on its own line under the person. */}
+      {reactPhone ? (
+        // Layout C: title and distance on the left, Effort on the right, all
+        // above the photo, so Respect and Inspired sit straight under it.
+        <View style={styles.titleRowPhone}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.postTitlePhone, { marginTop: 0, paddingHorizontal: 0 }, titleFit(a.name || a.activity_type)]}>{a.name || a.activity_type}</Text>
+            {statsLine ? <Text style={styles.statsUnderTitle}>{statsLine}</Text> : null}
+          </View>
+          {a.effort_score ? (
+            <View style={styles.effortLine}>
+              <Text style={[styles.effortNum, styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</Text>
+              <Text style={styles.effortUnit}>Effort</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {a.photo_url ? (
         <View style={[styles.postPhotoWrap, isPb && styles.postPhotoWrapPb]}>
           <Image source={{ uri: a.photo_url }} style={styles.postPhoto} />
@@ -1846,6 +1879,14 @@ function ActivityPostCard({
         </View>
       )}
 
+      {reactPhone ? (
+        badge ? (
+          <View style={styles.badgeLine}>
+            <RivalIcon name={badge.icon} size={13} color={badge.color} />
+            <Text style={[styles.badgeLineText, { color: badge.color }]} numberOfLines={1}>{badge.label}</Text>
+          </View>
+        ) : null
+      ) : (<>
       <View style={styles.postFooterRow}>
         {badge ? (
           <View style={styles.badgeLine}>
@@ -1853,29 +1894,30 @@ function ActivityPostCard({
             <Text style={[styles.badgeLineText, { color: badge.color }]} numberOfLines={1}>{badge.label}</Text>
           </View>
         ) : (
-          <Text style={styles.statsLine}>{statsLine || '—'}</Text>
+          <Text style={[styles.statsLine, reactPhone && styles.statsLinePhone]}>{statsLine || '—'}</Text>
         )}
         {a.effort_score ? (
           <View style={styles.effortLine}>
-            <Text style={[styles.effortNum, isPb && { color: RivalColors.rankAnchors.unrivaled }]}>{Math.round(a.effort_score * 10) / 10}</Text>
+            <Text style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</Text>
             <Text style={styles.effortUnit}>Effort</Text>
           </View>
         ) : null}
       </View>
-      {badge && statsLine ? <Text style={styles.statsLine}>{statsLine}</Text> : null}
+      {badge && statsLine ? <Text style={[styles.statsLine, reactPhone && styles.statsLinePhone]}>{statsLine}</Text> : null}
+      </>)}
 
-      {a.notes ? <Text style={styles.caption}>{a.notes}</Text> : null}
+      {!reactPhone && a.notes ? <Text style={styles.caption}>{a.notes}</Text> : null}
 
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
-          <RivalIcon name={myReaction === 'respect' ? 'star' : 'starOutline'} size={15} color={myReaction === 'respect' ? RivalColors.accentText : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && { color: RivalColors.accentText }]}>Respect</Text>
-          <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive]}>{respectCount}</Text>
+          <RespectStar on={myReaction === 'respect'} size={15} onColour={reactPhone ? RESPECT_COLOUR : RivalColors.accentText} offColour={RivalColors.onSurface} animate={reactPhone} />
+          <Text style={[styles.reactionLabel, myReaction === 'respect' && (reactPhone ? respectGivenText : { color: RivalColors.accentText })]}>Respect</Text>
+          <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'respect' && respectGivenText]}>{respectCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
-          <RivalIcon name="bolt" size={15} color={myReaction === 'inspired' ? RivalColors.rankAnchors.unrivaled : RivalColors.onSurface} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && { color: RivalColors.rankAnchors.unrivaled }]}>Inspired</Text>
-          <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive]}>{inspiredCount}</Text>
+          <InspiredBolt on={myReaction === 'inspired'} size={15} onColour={reactPhone ? INSPIRED_COLOUR : RivalColors.rankAnchors.unrivaled} offColour={RivalColors.onSurface} onStyle={reactPhone && inspiredGivenText} animate={reactPhone} />
+          <Text style={[styles.reactionLabel, myReaction === 'inspired' && (reactPhone ? inspiredGivenText : { color: RivalColors.rankAnchors.unrivaled })]}>Inspired</Text>
+          <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'inspired' && inspiredGivenText]}>{inspiredCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>
           <RivalIcon name="chat" size={15} color={RivalColors.onSurface} />
@@ -1883,12 +1925,33 @@ function ActivityPostCard({
         </TouchableOpacity>
       </View>
 
-      {isCommentsOpen && (
+      {reactPhone && a.notes ? (
+        <View style={styles.journalCard}>
+          <Text style={styles.journalLabel}>Journal</Text>
+          <Text style={[styles.caption, styles.captionPhone]}>{a.notes}</Text>
+        </View>
+      ) : null}
+
+      {/* Sets the open conversation apart from the notes above it (phone). */}
+      {reactPhone && isCommentsOpen && a.notes ? <View style={styles.commentsDivider} /> : null}
+
+      {isCommentsOpen && reactPhone ? (
+        <CommentThread
+          comments={comments}
+          currentUserId={currentUserId}
+          nameFor={nameForUser}
+          draft={commentDraft}
+          onChangeDraft={onChangeCommentDraft}
+          onPost={onPostComment}
+        />
+      ) : null}
+
+      {isCommentsOpen && !reactPhone && (
         <View style={styles.commentsBlock}>
           {comments.map((c) => (
             <View key={c.id} style={styles.commentRow}>
-              <Text style={styles.commentAuthor}>{nameForUser(c.user_id)}</Text>
-              <Text style={styles.commentBody}>{c.body}</Text>
+              <Text style={[styles.commentAuthor, reactPhone && styles.commentAuthorPhone]}>{nameForUser(c.user_id)}</Text>
+              <Text style={[styles.commentBody, reactPhone && styles.commentBodyPhone]}>{c.body}</Text>
             </View>
           ))}
           <View style={styles.commentInputRow}>
@@ -1898,9 +1961,9 @@ function ActivityPostCard({
               onChangeText={onChangeCommentDraft}
               placeholder="Add a comment…"
               placeholderTextColor="rgba(255,255,255,0.4)"
-              onSubmitEditing={onPostComment}
+              onSubmitEditing={() => onPostComment()}
             />
-            <TouchableOpacity onPress={onPostComment} disabled={!commentDraft.trim()}>
+            <TouchableOpacity onPress={() => onPostComment()} disabled={!commentDraft.trim()}>
               <Text style={[styles.commentSendText, !commentDraft.trim() && { opacity: 0.4 }]}>Post</Text>
             </TouchableOpacity>
           </View>
@@ -2205,12 +2268,21 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   postFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   badgeLine: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   badgeLineText: { fontSize: 11.5, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', flexShrink: 1 },
+  postTitlePhone: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 16, lineHeight: 20, color: 'rgba(255,255,255,0.92)', marginTop: -6, paddingHorizontal: 2 },
+  statsLinePhone: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  journalCard: { backgroundColor: 'rgba(0,0,0,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, gap: 5 },
+  journalLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: RivalColors.accentText },
+  titleRowPhone: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: -6, paddingHorizontal: 2 },
+  statsUnderTitle: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginTop: 3 },
   statsLine: { fontSize: 14.5, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   effortLine: { alignItems: 'flex-end' },
   effortNum: { fontSize: 19, fontWeight: '800', color: RivalColors.accentText, lineHeight: 20 },
+  // Phones: the brand serif, like "+48 Effort today" (Ricky, 2026-10-05).
+  effortNumSerif: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, lineHeight: 24 },
   effortUnit: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 9, letterSpacing: 0.4, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', marginTop: 1 },
 
   caption: { fontSize: 12.5, color: RivalColors.onSurface, lineHeight: 18, paddingHorizontal: 2 },
+  captionPhone: { color: '#fff', fontSize: 13.5, lineHeight: 19, fontWeight: '700' },
 
   postDeleting: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
@@ -2236,9 +2308,14 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   commentCountText: { fontSize: 12.5, fontWeight: '800', color: RivalColors.onSurface },
   commentCountTextFaint: { fontWeight: '400', color: RivalColors.textSecondary },
 
+  commentsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 2 },
   commentsBlock: { gap: 8, paddingHorizontal: 2 },
   commentRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   commentAuthor: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  // Phones: the name in bright white, the comment in white at a lighter
+  // weight, so what was written stands out (Ricky, 2026-10-05).
+  commentAuthorPhone: { color: '#fff', fontSize: 13.5, fontWeight: '800' },
+  commentBodyPhone: { color: '#fff', fontSize: 13.5, fontWeight: '400' },
   commentBody: { fontSize: 12.5, color: RivalColors.onSurface, flexShrink: 1 },
   commentInputRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   commentInput: {
