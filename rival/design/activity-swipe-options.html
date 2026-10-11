@@ -1,0 +1,90 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Activity Swipe Options</title>
+<style>
+:root{--bg:#0e0c0b;--surface:#1b1816;--surfaceHigh:#24201d;--bright:#2e2925;--accent:#ffb59e;--text:#fff;--muted:rgba(255,255,255,.55);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:24px 16px 60px}
+h1{font:italic 600 26px Georgia,serif;margin:0 0 4px;text-align:center}
+.lead{color:var(--muted);text-align:center;margin:0 0 24px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.opt{display:flex;flex-direction:column;align-items:center;gap:10px;width:300px}
+.optT{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700}
+.optD{color:var(--muted);font-size:12.5px;text-align:center;min-height:36px}
+.phone{width:300px;height:610px;border-radius:38px;background:#000;padding:10px;box-shadow:0 0 0 1px #333,0 20px 50px rgba(0,0,0,.6)}
+.screen{position:relative;width:100%;height:100%;border-radius:30px;overflow:hidden;background:var(--surfaceHigh)}
+.track{position:absolute;inset:0}
+.page{position:absolute;inset:0;background:var(--surfaceHigh);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+.photo{position:absolute;left:0;right:0;top:0;height:56%;transition:background .12s}
+.melt{position:absolute;left:0;right:0;bottom:0;height:45%;background:linear-gradient(transparent,var(--surfaceHigh))}
+.ptitle{position:absolute;left:16px;right:16px;bottom:8px}
+.kick{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700}
+.name{font:600 20px/26px -apple-system,sans-serif}
+.foot{position:absolute;left:0;right:0;top:56%;padding:8px 14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--bright);border-radius:14px;padding:10px 4px;text-align:center}
+.stats b{display:block;font-size:15px}.stats span{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.eff b{background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.diary{margin-top:10px;background:var(--surface);border-radius:14px;padding:12px;height:110px}
+.diary .h{font-size:10px;letter-spacing:1.4px;color:var(--muted);font-weight:700}
+.diary .l{border-bottom:1px solid rgba(255,255,255,.08);height:22px}
+.bars{position:absolute;top:14px;left:12px;right:12px;display:flex;gap:4px;z-index:5}
+.bars i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.3);overflow:hidden}
+.bars i.on{background:#fff}
+.bars.flash i{animation:pop .4s}
+@keyframes pop{0%{transform:scaleY(1)}40%{transform:scaleY(2.2)}100%{transform:scaleY(1)}}
+.close{position:absolute;top:26px;right:12px;z-index:5;width:28px;height:28px;border-radius:14px;background:rgba(0,0,0,.35);display:grid;place-items:center;font-size:14px}
+.tap{position:absolute;top:0;height:56%;width:40%;z-index:4;cursor:pointer}
+.tap.l{left:0}.tap.r{right:0}
+.ctl{display:flex;gap:8px}
+button{background:var(--bright);color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:7px 16px;font-weight:600;cursor:pointer}
+.where{font-size:11.5px;color:var(--muted)}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Moving to the next activity</h1>
+<p class="lead">Tap either side of the photo, or use the buttons. Three activities: Vale (3 photos), Ride (1), Swim (2).</p>
+<div class="row">
+  <div class="opt" data-bars="1" data-slide="0"><div class="optT">Option 1 · Bars</div><div class="optD">One bar per photo. The bars reset when a new activity starts.</div></div>
+  <div class="opt" data-bars="0" data-slide="1"><div class="optT">Option 2 · Slide</div><div class="optD">Photos swap in place. A new activity slides in from the side.</div></div>
+  <div class="opt" data-bars="1" data-slide="1"><div class="optT rec">1 and 2 together · recommended</div><div class="optD">Bars show the photos left; the slide marks a new activity.</div></div>
+</div>
+<script>
+const ACTS=[
+ {k:'Run · Fri 9 Oct',n:'Vale',s:['42:10','5.0 km','38 m','62'],p:['linear-gradient(160deg,#3d5a6c,#c98b5b)','linear-gradient(200deg,#5b6f4d,#d9b26a)','linear-gradient(140deg,#6c3d4f,#e0956b)']},
+ {k:'Ride · Thu 8 Oct',n:'Coast loop',s:['1:12:40','31.4 km','210 m','88'],p:['linear-gradient(170deg,#2f4a63,#8fb3c9)']},
+ {k:'Swim · Wed 7 Oct',n:'Morning swim',s:['35:00','1.6 km','0 m','41'],p:['linear-gradient(180deg,#1d5e75,#5fc1d0)','linear-gradient(200deg,#174a63,#7fd1df)']},
+];
+function pageHTML(a,pi,bars){
+ return `${bars?`<div class="bars">${a.p.map((_,i)=>`<i class="${i<=pi?'on':''}"></i>`).join('')}</div>`:''}
+ <div class="photo" style="background:${a.p[pi]}"><div class="melt"></div>
+ <div class="ptitle"><div class="kick">${a.k}</div><div class="name">${a.n}</div></div></div>
+ <div class="foot"><div class="stats">${['Time','Distance','Climb','Effort'].map((l,i)=>`<div class="${i==3?'eff':''}"><b>${a.s[i]}</b><span>${l}</span></div>`).join('')}</div>
+ <div class="diary"><div class="h">JOURNAL</div><div class="l"></div><div class="l"></div><div class="l"></div></div></div>`;
+}
+document.querySelectorAll('.opt').forEach(opt=>{
+ const bars=opt.dataset.bars==='1',slide=opt.dataset.slide==='1';
+ let ai=0,pi=0,busy=false;
+ opt.insertAdjacentHTML('beforeend',`<div class="phone"><div class="screen"><div class="track"></div><div class="close">✕</div><div class="tap l"></div><div class="tap r"></div></div></div>
+ <div class="ctl"><button data-d="-1">Back</button><button data-d="1">Next</button></div><div class="where"></div>`);
+ const track=opt.querySelector('.track'),where=opt.querySelector('.where');
+ const render=()=>{track.innerHTML=`<div class="page">${pageHTML(ACTS[ai],pi,bars)}</div>`;where.textContent=`Activity ${ai+1} of 3 · photo ${pi+1} of ${ACTS[ai].p.length}`;};
+ const go=d=>{
+  if(busy)return;
+  const a=ACTS[ai];
+  if(d==1&&pi<a.p.length-1){pi++;render();return}
+  if(d==-1&&pi>0){pi--;render();return}
+  const n=ai+d; if(n<0||n>=ACTS.length)return;
+  const npi=d==1?0:ACTS[n].p.length-1;
+  if(!slide){ai=n;pi=npi;render();if(bars){const b=track.querySelector('.bars');b&&b.classList.add('flash')}return}
+  busy=true;
+  const old=track.querySelector('.page'),nw=document.createElement('div');
+  nw.className='page';nw.innerHTML=pageHTML(ACTS[n],npi,bars);nw.style.transform=`translateX(${d*100}%)`;nw.style.transition='none';
+  track.appendChild(nw);nw.offsetWidth;nw.style.transition='';
+  requestAnimationFrame(()=>{old.style.transform=`translateX(${-d*30}%)`;old.style.filter='brightness(.5)';nw.style.transform='translateX(0)';});
+  setTimeout(()=>{ai=n;pi=npi;render();busy=false},400);
+ };
+ opt.querySelector('.tap.l').onclick=()=>go(-1);opt.querySelector('.tap.r').onclick=()=>go(1);
+ opt.querySelectorAll('button').forEach(b=>b.onclick=()=>go(+b.dataset.d));
+ render();
+});
+</script>
+</body></html>

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { confirmAction, notify } from '../../lib/notify';
 import { formatDurationClock } from '../../lib/format';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalButtonColors, RivalGhost } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { CoverImage } from './CoverImage';
 import { RivalBackButton } from './RivalBackButton';
@@ -48,6 +48,14 @@ export type DiaryActivity = {
   effort_confirmed?: boolean;
 };
 
+// "Wed 7 Oct · 9:33 am" in the viewer's own format, like a diary entry's date.
+function diaryStamp(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `${day} · ${time}`;
+}
+
 function formatViewerDate(dateStr: string): string {
   const d = new Date(dateStr);
   const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
@@ -85,6 +93,7 @@ export function ActivityDiaryViewer({
   activities,
   startIndex,
   onClose,
+  closeSignal,
   onUpdate,
   onUploadPhoto,
   onArrangeMedia,
@@ -93,6 +102,8 @@ export function ActivityDiaryViewer({
   activities: DiaryActivity[];
   startIndex: number;
   onClose: () => void;
+  // Goes up by one each time the Activity tab is tapped again: closes the viewer.
+  closeSignal?: number;
   onUpdate: (id: string, patch: Partial<DiaryActivity>) => void;
   // Reuses the same upload flow the old card grid exposed via a camera icon —
   // without this, activities without a photo would have no way to get one
@@ -213,6 +224,11 @@ export function ActivityDiaryViewer({
     if (dirty && !(await confirmAction({ title: 'Discard unsaved changes?', confirmLabel: 'Discard', destructive: true }))) return;
     onClose();
   }
+  const firstCloseSignal = useRef(closeSignal);
+  useEffect(() => {
+    if (closeSignal !== firstCloseSignal.current) handleClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeSignal]);
 
   async function togglePin() {
     if (!activity) return;
@@ -251,13 +267,32 @@ export function ActivityDiaryViewer({
     const next = index + dir;
     if (next < 0) return;
     if (next >= activities.length) { onClose(); return; }
-    setIndex(next);
-    setPhotoIdx(dir === 1 ? 0 : Math.max(0, photosOf(activities[next]).length - 1));
+    const nextPhoto = dir === 1 ? 0 : Math.max(0, photosOf(activities[next]).length - 1);
+    if (wide) { setIndex(next); setPhotoIdx(nextPhoto); return; }
+    // Phones: a new activity slides in from the side, so moving on to the
+    // next activity reads differently from moving to the next photo, which
+    // changes in place (Ricky, 2026-10-11).
+    if (sliding.current) return;
+    sliding.current = true;
+    const native = Platform.OS !== 'web';
+    Animated.timing(slideX, { toValue: -dir * windowWidth, duration: 160, useNativeDriver: native }).start(() => {
+      setIndex(next);
+      setPhotoIdx(nextPhoto);
+      slideX.setValue(dir * windowWidth);
+      Animated.timing(slideX, { toValue: 0, duration: 240, useNativeDriver: native }).start(() => { sliding.current = false; });
+    });
   }
+  const slideX = useRef(new Animated.Value(0)).current;
+  const sliding = useRef(false);
 
   // Swiping across the photo does what tapping its edges does. The responder
   // is created once, so it reaches the current advance() through a ref
   // rather than the stale one it would otherwise close over.
+  // A swipe that ends over a tap zone also fires that zone's tap on the web,
+  // which moved two photos at once. Taps straight after a swipe are ignored
+  // so each swipe moves exactly one (Ricky, 2026-10-11).
+  const lastSwipeAt = useRef(0);
+  const tapAdvance = (dir: 1 | -1) => { if (Date.now() - lastSwipeAt.current > 400) advance(dir); };
   const advanceRef = useRef(advance);
   advanceRef.current = advance;
   const swipe = useRef(
@@ -266,6 +301,7 @@ export function ActivityDiaryViewer({
       // the tap zones and a vertical drag still scrolls the page.
       onMoveShouldSetPanResponderCapture: (_e, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
       onPanResponderRelease: (_e, g) => {
+        if (Math.abs(g.dx) >= 40) lastSwipeAt.current = Date.now();
         if (g.dx <= -40) advanceRef.current(1);
         else if (g.dx >= 40) advanceRef.current(-1);
       },
@@ -293,6 +329,33 @@ export function ActivityDiaryViewer({
   const duration = activity.duration_seconds > 0 ? formatDurationClock(activity.duration_seconds) : null;
   const elevation = (activity.elevation_meters || 0) > 0 ? `↑ ${formatElevation(activity.elevation_meters!)}` : null;
 
+  // Where and who. On phones they sit in one card under the numbers, each
+  // with its icon on the same line height; the owner can still add partners
+  // here (Ricky, 2026-10-11).
+  const whoAndWhere = (
+    <>
+      <View style={[styles.locationRow, !wide && styles.detailRow]}>
+        <RivalIcon name="location" size={wide ? 12 : 14} color="rgba(255,255,255,0.5)" />
+        <TextInput
+          style={[styles.locationInput, !wide && styles.detailText]}
+          value={location}
+          onChangeText={(v) => edit('location', v)}
+          placeholder="Add a location"
+          placeholderTextColor="rgba(255,255,255,0.45)"
+        />
+      </View>
+      <TrainingPartners
+        activityId={activity.id}
+        startedAt={activity.started_at}
+        companions={activity.companions}
+        readOnly={!!activity.shared_from_activity_id}
+        hideWhenEmpty={!wide}
+        avatars={!wide}
+        onChanged={() => onUpdate(activity.id, {})}
+      />
+    </>
+  );
+
   return (
     <Animated.View style={[styles.overlay, { transform: [{ translateY: dragY }] }]}>
       <EffortBreakdownSheet
@@ -306,8 +369,18 @@ export function ActivityDiaryViewer({
       <View style={styles.dragHandleArea} {...panResponder.panHandlers}>
         <View style={styles.dragHandle} />
       </View>
+      <Animated.View style={[styles.scroll, { transform: [{ translateX: slideX }] }]}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.photoArea} {...swipe.panHandlers}>
+        <View style={[styles.photoArea, !wide && styles.photoAreaPhone]} {...swipe.panHandlers}>
+          {/* Phones: one bar per photo across the top, like stories. They
+              start again when the next activity begins (Ricky, 2026-10-11). */}
+          {!wide && photos.length > 0 ? (
+            <View style={[styles.storyBars, { top: insets.top + 4 }]} pointerEvents="none">
+              {photos.map((m, i) => (
+                <View key={m.url} style={[styles.storyBar, i <= shownPhotoIdx && styles.storyBarOn]} />
+              ))}
+            </View>
+          ) : null}
           {shown?.type === 'video' ? (
             // Plays muted and loops, like an Instagram carousel video. No
             // controls: the tap zones over it still move between items.
@@ -321,21 +394,39 @@ export function ActivityDiaryViewer({
             />
           ) : (
             <TouchableOpacity
-              style={styles.photoFallback}
+              style={[styles.photoFallback, !wide && styles.photoFallbackPhone]}
               activeOpacity={0.85}
               disabled={!onUploadPhoto}
               onPress={() => onUploadPhoto?.(activity.id)}
             >
-              <View style={styles.addPhotoCircle}>
-                <RivalIcon name="addPhoto" size={26} color={RivalColors.accentText} />
-              </View>
-              <Text style={styles.addPhotoLabel}>Add Photo</Text>
-              <Text style={styles.addPhotoSub}>Activities with photos get seen and remembered</Text>
+              {wide ? (
+                <>
+                  <View style={styles.addPhotoCircle}>
+                    <RivalIcon name="addPhoto" size={26} color={RivalColors.accentText} />
+                  </View>
+                  <Text style={styles.addPhotoLabel}>Add Photo</Text>
+                  <Text style={styles.addPhotoSub}>Activities with photos get seen and remembered</Text>
+                </>
+              ) : (
+                // Phones: the feed card's no-photo look (Ricky, 2026-10-11) —
+                // large and faint behind serif words: the camera on your own
+                // activity, the activity's icon on someone else's.
+                <>
+                  <View style={styles.fallbackArt} pointerEvents="none">
+                    <RivalIcon name={onUploadPhoto ? 'addPhoto' : activityIconName(activity.activity_type)} size={240} color="rgba(255,181,158,0.2)" />
+                  </View>
+                  <View style={styles.fallbackFade} pointerEvents="none" />
+                  <Text style={styles.fallbackTitle}>{onUploadPhoto ? 'Add a photo' : 'No photo this time, still counts.'}</Text>
+                  {onUploadPhoto ? <Text style={styles.fallbackSub}>Activities with photos get seen and remembered.</Text> : null}
+                </>
+              )}
             </TouchableOpacity>
           )}
 
           {/* Top scrim + header — date left, pin/counter/close right. */}
-          <View style={[styles.headerScrim, { height: 90 + insets.top }, scrimStyle('toTop')]} pointerEvents="none" />
+          {/* Phones keep a photo clear of everything but the two buttons
+              (Ricky, 2026-10-11): no scrims, no stats over it. */}
+          {wide || !shown ? <View style={[styles.headerScrim, { height: 90 + insets.top }, scrimStyle('toTop')]} pointerEvents="none" /> : null}
           {wide ? (
             <View style={[styles.header, { top: insets.top + 12 }]}>
               <View>
@@ -413,10 +504,10 @@ export function ActivityDiaryViewer({
           )}
 
           {/* Bottom scrim + overlaid stats — 3 chips left, effort pill right. */}
-          <View style={[styles.photoBottomScrim, scrimStyle('toBottom')]} pointerEvents="none" />
+          {wide ? <View style={[styles.photoBottomScrim, scrimStyle('toBottom')]} pointerEvents="none" /> : null}
           {/* Above the tap zones, so the Effort pill opens its breakdown;
               box-none leaves the rest of the strip to the tap zones. */}
-          <View style={[styles.photoStats, { zIndex: 3 }]} pointerEvents="box-none">
+          {wide ? <View style={[styles.photoStats, { zIndex: 3 }]} pointerEvents="box-none">
             <View style={styles.photoChips} pointerEvents="none">
               {duration && <View style={styles.photoChip}><Text style={styles.photoChipText}>{duration}</Text></View>}
               {distance && <View style={styles.photoChip}><Text style={styles.photoChipText}>{distance}</Text></View>}
@@ -431,22 +522,44 @@ export function ActivityDiaryViewer({
             >
               <Text style={styles.photoEffortNum}>{activity.effort_score}</Text>
               <Text style={styles.photoEffortUnit}>Effort</Text>
-              {!wide && <RivalIcon name="chevronRight" size={13} color="rgba(255,255,255,0.6)" style={{ alignSelf: 'center', marginRight: -4 }} />}
             </TouchableOpacity>
-          </View>
+          </View> : null}
 
           {/* Tap zones over the photo — left/right step through this
               activity's photos, then on through the continuous activity
               order, matching the row's own ordering. */}
-          <TouchableOpacity style={[styles.tapArea, styles.tapAreaLeft]} activeOpacity={1} onPress={() => advance(-1)} />
-          <TouchableOpacity style={[styles.tapArea, styles.tapAreaRight]} activeOpacity={1} onPress={() => advance(1)} />
+          <TouchableOpacity style={[styles.tapArea, styles.tapAreaLeft]} activeOpacity={1} onPress={() => tapAdvance(-1)} />
+          <TouchableOpacity style={[styles.tapArea, styles.tapAreaRight]} activeOpacity={1} onPress={() => tapAdvance(1)} />
+
+          {/* Phones, layout C (Ricky, 2026-10-11): the photo melts into the
+              page, and only the type and title rest on that fade at the
+              very bottom, so the photo and the details read as one piece. */}
+          {!wide ? (
+            <>
+              <View style={styles.photoMelt} pointerEvents="none" />
+              <View style={styles.photoTitle} pointerEvents="box-none">
+                {/* The date lives on the journal's diary line, not on the photo. */}
+                <Text style={styles.typeKicker}>{activity.activity_type}</Text>
+                <TextInput
+                  style={[styles.nameInput, styles.nameInputPhone]}
+                  value={name}
+                  onChangeText={(v) => edit('name', v)}
+                  placeholder={defaultActivityName(activity.activity_type, new Date(activity.started_at))}
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  maxLength={30}
+                />
+              </View>
+            </>
+          ) : null}
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, !wide && styles.footerPhone]}>
+          {/* The Add an activity pop-up's warm glow along the top edge. */}
+
           {/* Instagram-style dots directly under the photo, one per photo —
               shown even for a single photo, so every activity with a photo
               reads the same way and a second one is visibly an addition. */}
-          {photos.length > 0 && (
+          {wide && photos.length > 0 && (
             <View style={styles.dots}>
               {photos.map((m, i) => (
                 <View key={m.url} style={[styles.dot, i === shownPhotoIdx && styles.dotActive]} />
@@ -454,61 +567,99 @@ export function ActivityDiaryViewer({
             </View>
           )}
           {wide ? (
-            <Text style={styles.typeKicker}>{activity.activity_type}</Text>
-          ) : (
-            // The date sits with the activity type now: it describes the
-            // session, and the header over the photo is left for controls.
-            <Text style={styles.typeKicker}>
-              {activity.activity_type}
-              <Text style={styles.kickerDate}>  ·  {formatViewerDate(activity.started_at)}</Text>
-            </Text>
-          )}
-          <TextInput
-            style={styles.nameInput}
-            value={name}
-            onChangeText={(v) => edit('name', v)}
-            placeholder={defaultActivityName(activity.activity_type, new Date(activity.started_at))}
-            placeholderTextColor="rgba(255,255,255,0.3)"
-          />
-          {/* Same fade-at-the-tips underline treatment as the Month calendar's
-              title, just tinted the journal card's cream/brown instead of the
-              orange accent. */}
-          <View style={styles.nameUnderline} />
-          <View style={styles.locationRow}>
-            <RivalIcon name="location" size={12} color="rgba(255,255,255,0.5)" />
-            <TextInput
-              style={styles.locationInput}
-              value={location}
-              onChangeText={(v) => edit('location', v)}
-              placeholder="Add a location"
-              placeholderTextColor="rgba(255,255,255,0.45)"
-            />
-          </View>
-          <TrainingPartners
-            activityId={activity.id}
-            startedAt={activity.started_at}
-            companions={activity.companions}
-            readOnly={!!activity.shared_from_activity_id}
-            onChanged={() => onUpdate(activity.id, {})}
-          />
+            <>
+              <Text style={styles.typeKicker}>{activity.activity_type}</Text>
+              <TextInput
+                style={styles.nameInput}
+                value={name}
+                onChangeText={(v) => edit('name', v)}
+                placeholder={defaultActivityName(activity.activity_type, new Date(activity.started_at))}
+                placeholderTextColor="rgba(255,255,255,0.3)"
+              />
+              {/* Same fade-at-the-tips underline treatment as the Month calendar's
+                  title, just tinted the journal card's cream/brown instead of the
+                  orange accent. */}
+              <View style={styles.nameUnderline} />
+              {whoAndWhere}
 
-          {/* Subtle warm dark panel (not the bright beige "input field" look
-              this replaced) with the label sitting inside it, top-left —
-              text reads as ink on a page, not as filled-out form UI. */}
-          <View style={styles.journalPanel}>
-            <Text style={styles.journalPanelLabel}>Journal</Text>
-            <View style={styles.journalPanelRule} />
-            <TextInput
-              ref={journalRef}
-              style={[styles.journalInput, { height: journalHeight }]}
-              value={notes}
-              onChangeText={(v) => edit('notes', v)}
-              onContentSizeChange={(e) => setJournalHeight(Math.max(22, e.nativeEvent.contentSize.height))}
-              placeholder="What made this one worth remembering?"
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              multiline
-            />
-          </View>
+              {/* Subtle warm dark panel (not the bright beige "input field" look
+                  this replaced) with the label sitting inside it, top-left —
+                  text reads as ink on a page, not as filled-out form UI. */}
+              <View style={styles.journalPanel}>
+                <Text style={styles.journalPanelLabel}>Journal</Text>
+                <View style={styles.journalPanelRule} />
+                <TextInput
+                  ref={journalRef}
+                  style={[styles.journalInput, { height: journalHeight }]}
+                  value={notes}
+                  onChangeText={(v) => edit('notes', v)}
+                  onContentSizeChange={(e) => setJournalHeight(Math.max(22, e.nativeEvent.contentSize.height))}
+                  placeholder="What made this one worth remembering?"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  multiline
+                />
+              </View>
+            </>
+          ) : (
+            // Phones (Ricky, 2026-10-11): the photo full length as before, the
+            // numbers straight under it with Effort among them, then the title,
+            // then the journal as the most inviting thing on the page.
+            <>
+              {/* The pop-up sheets' look (GreySheet): their lifted grey with the
+                  warm glow from the top edge (Ricky, 2026-10-11). */}
+              <View style={[styles.statCard, styles.statCardPop]}>
+                {duration ? <View style={styles.stat}><Text style={styles.statLabel}>Time</Text><Text style={styles.statValue}>{duration}</Text></View> : null}
+                {distance ? <View style={[styles.stat, !!duration && styles.statDivided]}><Text style={styles.statLabel}>Distance</Text><Text style={styles.statValue}>{distance}</Text></View> : null}
+                {elevation ? <View style={[styles.stat, !!(duration || distance) && styles.statDivided]}><Text style={styles.statLabel}>Climb</Text><Text style={styles.statValue}>{elevation.replace('↑ ', '')}</Text></View> : null}
+                <TouchableOpacity
+                  style={[styles.stat, !!(duration || distance || elevation) && styles.statDivided]}
+                  onPress={() => setBreakdownFor(activity)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${activity.effort_score} Effort. Show breakdown`}
+                >
+                  <Text style={styles.statLabel}>Effort ›</Text>
+                  <Text style={[styles.statValue, styles.statEffort, styles.statEffortBright]}>{activity.effort_score}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* The journal as a diary page: dated like an entry, with faint
+                  writing lines while it is empty (Ricky, 2026-10-11). */}
+              <TouchableOpacity style={styles.diary} activeOpacity={1} onPress={() => journalRef.current?.focus()}>
+                <View style={styles.diaryHead}>
+                  <Text style={styles.diaryLabel}>Journal</Text>
+                  <Text style={styles.diaryDate}>{diaryStamp(activity.started_at)}</Text>
+                </View>
+                {/* While empty the prompt sits on the first ruled line, with two
+                    more below, so it reads as writing on the page. */}
+                <View>
+                  <TextInput
+                    ref={journalRef}
+                    style={[styles.journalInput, styles.journalInputPhone, !notes && styles.journalPromptBold, { height: journalHeight }]}
+                    value={notes}
+                    onChangeText={(v) => edit('notes', v)}
+                    onContentSizeChange={(e) => setJournalHeight(Math.max(26, e.nativeEvent.contentSize.height))}
+                    placeholder="How did it go?"
+                    placeholderTextColor="#fff"
+                    multiline
+                  />
+                  {/* The lines are their own views, never padding or a border on the
+                      input: on web a multiline input's measured height includes its
+                      padding, so growing it fed back into its own size and looped. */}
+                  {!notes.trim() ? (
+                    <>
+                      <View style={styles.diaryRuled} />
+                      <View style={styles.diaryLine} />
+                      <View style={styles.diaryLine} />
+                    </>
+                  ) : null}
+                </View>
+                {!notes.trim() ? <Text style={styles.diaryNote}>Shown with the activity on the team feed.</Text> : null}
+              </TouchableOpacity>
+
+              <View style={styles.detailsCard}>{whoAndWhere}</View>
+            </>
+          )}
 
           {dirty && (
             <View style={styles.saveRow}>
@@ -522,6 +673,7 @@ export function ActivityDiaryViewer({
           )}
         </View>
       </ScrollView>
+      </Animated.View>
 
       {/* Ring sits OUTSIDE the ScrollView so it never scrolls with content —
           same reasoning as the mockup's #viewerRing sibling element. A plain
@@ -542,8 +694,64 @@ const styles = StyleSheet.create({
 
   photoArea: { height: '70%' as any, minHeight: 400, position: 'relative', overflow: 'hidden', backgroundColor: '#211c19' },
   photo: { width: '100%', height: '100%' },
+  // Phones: 20% shorter than the 70% / 400 desktop hero (Ricky, 2026-10-11).
+  photoAreaPhone: { height: '56%' as any, minHeight: 320 },
+  nameInputPhone: { marginTop: 2, fontSize: 20, lineHeight: 26 },
+  statEffort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22 },
+  // A brighter run of the same faded gold: on the card's warm glow the usual
+  // fade (#ffe6b0 to #f5b759) read dull and brownish (Ricky, 2026-10-11).
+  statEffortBright: Platform.OS === 'web'
+    ? ({ color: '#ffc94d', backgroundImage: 'linear-gradient(180deg, #fff4d6 0%, #ffc94d 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' } as any)
+    : { color: '#ffc94d' },
+  statCard: {
+    flexDirection: 'row', marginTop: 0, paddingVertical: 13,
+    borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, backgroundColor: RivalGhost.fill,
+  },
+  // Equal columns split by hairlines, so the figures fill the card evenly.
+  statCardPop: {
+    backgroundColor: RivalColors.surfaceBright, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden',
+    ...(Platform.OS === 'web'
+      ? { backgroundImage: 'radial-gradient(ellipse 80% 120% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.08) 45%, rgba(217,119,87,0) 100%)' } as any
+      : {}),
+  },
+  stat: { flex: 1, gap: 3, alignItems: 'center' },
+  statDivided: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.08)' },
+  statLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
+  statValue: { fontSize: 19, fontWeight: '700', color: '#fff' },
+  detailsCard: { marginTop: 10, gap: 8, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
+  detailRow: { marginTop: 0, gap: 8 },
+  detailText: { fontSize: 14 },
+  // While empty, the prompt is set bold like the title so it reads as clearly;
+  // what you type is the regular weight.
+  journalPromptBold: { fontWeight: '700' },
+  journalInputPhone: { fontSize: 18, lineHeight: 26, color: '#fff' },
+  diary: { marginTop: 16, gap: 10, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.055)' },
+  diaryHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 },
+  diaryLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' },
+  diaryDate: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  // Ruled lines one text line apart: the prompt's own line, then two more.
+  diaryRuled: { height: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  diaryLine: { height: 33, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  diaryNote: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  // Phones: the Add an activity pop-up's neutral grey instead of brown.
+  footerPhone: { backgroundColor: RivalColors.surfaceHigh, borderTopWidth: 0, paddingTop: 6, paddingBottom: 130 },
+  photoMelt: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: '38%' as any, zIndex: 2,
+    ...(Platform.OS === 'web'
+      ? { backgroundImage: `linear-gradient(0deg, ${RivalColors.surfaceHigh} 0%, rgba(40,40,40,0.85) 30%, rgba(40,40,40,0) 100%)` } as any
+      : { backgroundColor: 'rgba(40,40,40,0.5)' }),
+  },
+  photoTitle: { position: 'absolute', left: 20, right: 20, bottom: 2, zIndex: 4 },
+  photoFallbackPhone: { backgroundColor: RivalColors.surfaceContainer },
   photoFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2d241f', gap: 4 },
   addPhotoCircle: { width: 56, height: 56, borderRadius: 28, borderWidth: 1.5, borderColor: RivalColors.accentText, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  fallbackArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  fallbackFade: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 90% 60% at 50% 40%, rgba(255,209,190,0.10) 0%, rgba(19,19,19,0) 65%), linear-gradient(0deg, rgba(32,32,31,0.55), rgba(32,32,31,0) 65%)' } as any : {}),
+  },
+  fallbackTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  fallbackSub: { fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginTop: 4, maxWidth: 240 },
   addPhotoLabel: { fontSize: 15, fontWeight: '700', color: RivalColors.accentText },
   addPhotoSub: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.5)', marginTop: 2, maxWidth: 220, textAlign: 'center' },
 
@@ -595,6 +803,9 @@ const styles = StyleSheet.create({
   // the terracotta/brown palette the card grid and recap card already use.
   footer: { backgroundColor: '#1a1512', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', padding: 20, paddingBottom: 100, minHeight: '30%' as any },
   kickerDate: { color: 'rgba(255,255,255,0.5)', letterSpacing: 0.6 },
+  storyBars: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', gap: 4, zIndex: 6 },
+  storyBar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)' },
+  storyBarOn: { backgroundColor: '#fff' },
   dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: -8, marginBottom: 14 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)' },
   dotActive: { backgroundColor: RivalColors.accentText },

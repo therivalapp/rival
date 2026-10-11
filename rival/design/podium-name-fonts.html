@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Podium Name Fonts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Cinzel:wght@600;700&family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@1,600;1,700&family=Cormorant+SC:wght@600;700&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#16120f;--muted:rgba(255,255,255,.55);--accent:#ffb59e}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% 0,#2b211b,#120e0c 70%);color:#fff;font:14px/1.4 Manrope,-apple-system,sans-serif;padding:28px 16px 60px;min-height:100vh}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{text-align:center;color:var(--muted);margin:0 0 28px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:28px;max-width:1100px;margin:0 auto}
+.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:16px 14px 18px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700}
+.d{color:var(--muted);font-size:12.5px;margin:2px 0 14px;min-height:36px}
+.pod{display:flex;align-items:flex-end;justify-content:center;gap:6px}
+.p{width:92px;position:relative;display:flex;flex-direction:column;align-items:center;padding:30px 4px 12px;border:1.25px solid;clip-path:polygon(0 var(--cut),100% 0,100% 100%,0 100%)}
+.p.s{--cut:20%;height:150px;background:linear-gradient(rgba(150,130,110,.32),rgba(60,50,45,.08));border-color:rgba(255,181,158,.85)}
+.p.g{--cut:0%;height:190px;clip-path:polygon(0 12%,100% 0,100% 100%,0 100%);background:linear-gradient(rgba(255,215,0,.4),rgba(180,140,10,.1));border-color:rgba(255,215,0,.85);padding-top:40px}
+.p.b{--cut:22%;height:135px;background:linear-gradient(rgba(94,218,199,.25),rgba(0,80,71,.05));border-color:rgba(94,218,199,.8)}
+.n{color:#fff;white-space:nowrap}
+.num{font:italic 700 24px Georgia,serif;line-height:1.1;margin-top:3px}
+.g .num{font-size:36px}
+.e{font-size:10px}
+.s .e{color:#ffb59e}.g .e{color:#fff4d6}.b .e{color:#5edac7}
+/* options */
+.A .n{font:700 10px Manrope;letter-spacing:1.5px;text-transform:uppercase}.A .g .n{font-size:11px}
+.B .n{font:italic 700 15px Georgia,serif}.B .g .n{font-size:17px}
+.C .n{font:700 13px "Cormorant SC",Georgia,serif;letter-spacing:1.6px}.C .g .n{font-size:15px}
+.D .n{font:700 10.5px Cinzel,Georgia,serif;letter-spacing:1.4px}.D .g .n{font-size:12px}
+.E .n{font:600 13px Oswald,sans-serif;letter-spacing:1.4px;text-transform:uppercase}.E .g .n{font-size:15px}
+.F .n{font:italic 700 15px "Playfair Display",Georgia,serif}.F .g .n{font-size:17px}
+.G .n{font:800 9px Manrope;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.85)}.G .g .n{font-size:10px}
+.H .n{font:italic 700 15px Georgia,serif;background:linear-gradient(#fff,#ffd9c9);-webkit-background-clip:text;background-clip:text;color:transparent}
+.H .g .n{font-size:17px;background-image:linear-gradient(#fff,#ffe8a3)}.H .b .n{background-image:linear-gradient(#fff,#c4f3ea)}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Names on the pillars</h1>
+<p class="lead">The same podium with eight name styles. Numbers and "Effort" are unchanged.</p>
+<div class="grid" id="g"></div>
+<script>
+const O=[
+ ['A','Current','Manrope caps, spaced. Clean but plain next to the serif numbers.'],
+ ['B','Serif italic','The same serif as the numbers and team title. Reads like a signature.'],
+ ['C','Serif small caps','Classic engraved-trophy lettering (Cormorant SC). Formal, quiet.'],
+ ['D','Inscription caps','Roman carved capitals (Cinzel). Feels like a plaque on a podium.'],
+ ['E','Condensed caps','Scoreboard lettering (Oswald). Sporty, strong.'],
+ ['F','Display italic','High-contrast italic (Playfair Display). Elegant, editorial.'],
+ ['G','Wide engraved caps','The current font, smaller and spaced wider, slightly dimmed.'],
+ ['H','Serif italic with sheen','Option B with a soft gradient in the pillar colour.'],
+];
+const P=(c,n,v)=>`<div class="p ${c}"><div class="n">${n}</div><div class="num">${v}</div><div class="e">Effort</div></div>`;
+document.getElementById('g').innerHTML=O.map(([k,t,d])=>`<div class="card ${k}"><div class="t">${k} · ${t}</div><div class="d">${d}</div>
+<div class="pod">${k==='B'||k==='F'||k==='H'?P('s','Ricky J.',50)+P('g','Sandy',84)+P('b','Preview P.',35):P('s','Ricky J.',50)+P('g','Sandy',84)+P('b','Preview P.',35)}</div></div>`).join('');
+</script>
+</body></html>

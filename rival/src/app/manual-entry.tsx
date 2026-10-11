@@ -133,6 +133,15 @@ export default function ManualEntryScreen() {
   // changing only the date field doesn't quietly reset an activity logged at
   // 6am to whatever time you happen to be editing it.
   const [originalStartedAt, setOriginalStartedAt] = useState<Date | null>(null);
+  // Start time of day, shown as 12-hour clock fields. A new entry starts at
+  // the current time; editing shows the activity's own (Ricky, 2026-10-09: a
+  // watch with a wrong clock needs its run's time put right here).
+  const [startHour, setStartHour] = useState(() => String(((new Date().getHours() + 11) % 12) + 1));
+  const [startMin, setStartMin] = useState(() => String(new Date().getMinutes()).padStart(2, '0'));
+  const [startPm, setStartPm] = useState(() => new Date().getHours() >= 12);
+  // What the activity said when it was opened for editing, so a save can tell
+  // which of the imported details were changed by hand.
+  const [loadedFrom, setLoadedFrom] = useState<{ provider: string | null; name: string } | null>(null);
   // What a blank name will be saved as.
   const namePlaceholder = defaultActivityName(workoutType, isEditMode && originalStartedAt ? originalStartedAt : new Date());
   // Held in state so the "≈ N Effort" hint can be computed synchronously on
@@ -151,6 +160,10 @@ export default function ManualEntryScreen() {
       setWorkoutName(data.name || '');
       const started = new Date(data.started_at);
       setOriginalStartedAt(started);
+      setStartHour(String(((started.getHours() + 11) % 12) + 1));
+      setStartMin(String(started.getMinutes()).padStart(2, '0'));
+      setStartPm(started.getHours() >= 12);
+      setLoadedFrom({ provider: data.provider ?? null, name: data.name || '' });
       setDateStr(isoToDisplayDate(`${started.getFullYear()}-${String(started.getMonth() + 1).padStart(2, '0')}-${String(started.getDate()).padStart(2, '0')}`) || todayDisplay());
       setDurationMin(data.duration_seconds > 0 ? String(Math.floor(data.duration_seconds / 60)) : '');
       setDurationSec(data.duration_seconds > 0 ? String(data.duration_seconds % 60) : '');
@@ -325,7 +338,20 @@ export default function ManualEntryScreen() {
       // even if you only meant to fix its distance.
       const timeSource = isEditMode && originalStartedAt ? originalStartedAt : new Date();
       const name = workoutName.trim() || defaultActivityName(workoutType, timeSource);
-      const startedAt = new Date(y, m - 1, d, timeSource.getHours(), timeSource.getMinutes(), timeSource.getSeconds());
+      const hour12 = Math.min(12, Math.max(1, Number(startHour) || 12));
+      const minute = Math.min(59, Math.max(0, Number(startMin) || 0));
+      const hour24 = (hour12 % 12) + (startPm ? 12 : 0);
+      // Seconds are kept from the original when the clock time wasn't touched,
+      // so opening and saving an activity doesn't nudge its start at all.
+      const sameClock = hour24 === timeSource.getHours() && minute === timeSource.getMinutes();
+      const startedAt = new Date(y, m - 1, d, hour24, minute, sameClock ? timeSource.getSeconds() : 0);
+      // An imported activity (Strava) is refreshed by every sync. What was
+      // changed by hand here is locked so the next sync keeps it: the name, and
+      // the start time (a watch with a wrong clock uploads the wrong day).
+      const imported = isEditMode && !!loadedFrom?.provider && loadedFrom.provider !== 'manual';
+      const locks: Record<string, boolean> = {};
+      if (imported && workoutName.trim() && workoutName.trim() !== loadedFrom!.name) locks.name_locked = true;
+      if (imported && originalStartedAt && Math.abs(startedAt.getTime() - originalStartedAt.getTime()) >= 60 * 1000) locks.started_at_locked = true;
 
       // Only keep exercises the user actually named; tag canonical lifts so
       // they group with existing PR history in the feed/activity record.
@@ -356,6 +382,7 @@ export default function ManualEntryScreen() {
             notes: notes.trim() || null,
             exercises: exercisesPayload,
             race_id: raceId,
+            ...locks,
           })
           .eq('id', editId);
         if (error) {
@@ -1018,6 +1045,33 @@ export default function ManualEntryScreen() {
             </GreyRow>
           )}
           <GreyRow icon="calendar" label="Date" value={friendlyDate(dateStr)} onPress={() => setCalOpen(true)} />
+          <GreyRow icon="schedule" label="Start time">
+            <View style={m.timeRow}>
+              <TextInput
+                style={m.rowInput}
+                value={startHour}
+                onChangeText={(v) => setStartHour(v.replace(/\D/g, '').slice(0, 2))}
+                placeholder="9"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                keyboardType="numeric"
+                accessibilityLabel="Start hour"
+              />
+              <Text style={m.rowUnit}>:</Text>
+              <TextInput
+                style={m.rowInput}
+                value={startMin}
+                onChangeText={(v) => setStartMin(v.replace(/\D/g, '').slice(0, 2))}
+                onBlur={() => setStartMin((v) => (v ? String(Math.min(59, Number(v))).padStart(2, '0') : '00'))}
+                placeholder="00"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                keyboardType="numeric"
+                accessibilityLabel="Start minute"
+              />
+              <TouchableOpacity onPress={() => setStartPm((v) => !v)} style={m.ampm} accessibilityRole="button" accessibilityLabel={startPm ? 'PM, tap for AM' : 'AM, tap for PM'}>
+                <Text style={m.ampmText}>{startPm ? 'pm' : 'am'}</Text>
+              </TouchableOpacity>
+            </View>
+          </GreyRow>
           {/* Lifts as one more row here rather than a card of its own; the
               list opens below when tapped (Ricky, 2026-10-02). */}
           <GreyRow
@@ -1425,6 +1479,8 @@ const m = StyleSheet.create({
   },
   secInput: { width: 28, marginLeft: 6 },
   wideInput: { width: 110 },
+  ampm: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,181,158,0.4)', marginLeft: 4 },
+  ampmText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   rowUnit: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
   nameInput: {
     padding: 0, fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', color: '#fff', lineHeight: 30,

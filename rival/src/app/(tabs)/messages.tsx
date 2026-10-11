@@ -117,7 +117,7 @@ export default function MessagesScreen() {
       {mob && <Image source={SMOKE} style={ms.smoke} resizeMode="cover" />}
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <RivalTopNav active="chat" />
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, mob && styles.contentNavClear]}>
           <View style={mob && ms.head}>
             <Text style={[styles.title, mob && ms.title]}>Messages</Text>
             {mob && !loading && threads.length > 0 && (
@@ -200,6 +200,8 @@ const styles = StyleSheet.create({
   },
   container: { flex: 1 },
   content: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 48, gap: 16, width: '100%', maxWidth: 640, marginHorizontal: 'auto' },
+  // Phones: room for the floating bottom nav, so the last item isn't hidden behind it.
+  contentNavClear: { paddingBottom: 120 },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700', color: '#fff' },
   stateText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', marginTop: 40 },
 

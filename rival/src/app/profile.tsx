@@ -16,7 +16,7 @@ import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/p
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
-import { sidePageWide } from '../constants/breakpoints';
+import { sidePageWide, BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
 import { RivalSerifFamily } from '../constants/rivalTheme';
@@ -1029,7 +1029,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={[styles.container, !wide && { backgroundColor: RivalGhost.ground }]} edges={['top', 'left', 'right']}>
       <RivalTopNav />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, windowWidth < BREAKPOINT_WIDE_LAYOUT && styles.contentNavClear]}
         {...pullProps}
       >
         {pullIndicator}
@@ -1088,6 +1088,8 @@ const styles = StyleSheet.create({
   },
   container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40, maxWidth: 1200, width: '100%', alignSelf: 'center' },
+  // Phones: room for the floating bottom nav, so the last item isn't hidden behind it.
+  contentNavClear: { paddingBottom: 120 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { color: RivalColors.textSecondary, fontSize: 16 },
 

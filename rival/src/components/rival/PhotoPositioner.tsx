@@ -19,8 +19,14 @@ export function PhotoPositioner({
   initialY = 0.5,
   onConfirm,
   onCancel,
+  choices,
+  onChooseCover,
 }: {
   photoUrl: string;
+  // The other photos being added, shown as a strip so a different one can be
+  // made the cover without backing out (Ricky, 2026-10-11).
+  choices?: string[];
+  onChooseCover?: (uri: string) => void;
   initialX?: number;
   initialY?: number;
   onConfirm: (x: number, y: number) => void;
@@ -109,6 +115,30 @@ export function PhotoPositioner({
         )}
       </View>
 
+      {choices && choices.length > 1 && onChooseCover ? (
+        <View style={styles.choices}>
+          <Text style={styles.choicesLabel}>Cover photo</Text>
+          <View style={styles.choiceRow}>
+            {choices.map((uri) => {
+              const on = uri === photoUrl;
+              return (
+                <TouchableOpacity
+                  key={uri}
+                  onPress={() => { if (!on) onChooseCover(uri); }}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={on ? 'Current cover' : 'Make this the cover'}
+                  style={[styles.choice, on && styles.choiceOn]}
+                >
+                  <Image source={{ uri }} style={styles.choiceImg} />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.actions}>
         <TouchableOpacity style={styles.skipBtn} onPress={onCancel}>
           <Text style={styles.skipLabel}>Cancel</Text>
@@ -138,6 +168,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#211c19', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  choices: { alignItems: 'center', gap: 8 },
+  choicesLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  choice: { width: 52, height: 52, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent', opacity: 0.6 },
+  choiceOn: { borderColor: RivalColors.accentText, opacity: 1 },
+  choiceImg: { width: '100%', height: '100%' },
   skipBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: RivalRadius.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   skipLabel: { fontSize: 14, fontWeight: '600', color: RivalColors.textSecondary },
   confirmBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: RivalRadius.full, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },

@@ -1,8 +1,9 @@
 import { JournalYearView } from '../../components/rival/JournalYearView';
+import { onTabReselect } from '../../lib/tabNav';
 import { useSnapState } from '../../lib/snapState';
 import { distanceUnit, formatActivityDistance, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -325,13 +326,20 @@ export default function MyActivitiesScreen() {
   const [hasFocus, setHasFocus] = useSnapState('journal.hasFocus', false);
   const [nextEvent, setNextEvent] = useSnapState<{ name: string; race_date: string; location: string | null } | null>('journal.nextEvent', null);
   const [uploading, setUploading] = useState<string | null>(null);
+  // Files done / total while new photos and videos upload, for the overlay
+  // that holds the screen until they are in (Ricky, 2026-10-11).
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  // A new cover is positioned BEFORE anything uploads, so Cancel on the crop
+  // step really cancels (Ricky, 2026-10-11: it used to upload first and only
+  // then ask, and Cancel left the photo on).
+  const [pendingCrop, setPendingCrop] = useState<{ activityId: string; items: MediaItem[]; url: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadErrorActivityId, setUploadErrorActivityId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [mediaMap, setMediaMap] = useSnapState<Record<string, MediaRow[]>>('journal.mediaMap', {});
   // The ordering sheet, open between the phone's picker and the upload.
-  const [mediaPicker, setMediaPicker] = useState<{ activityId: string; items: MediaItem[]; notice?: string } | null>(null);
+  const [mediaPicker, setMediaPicker] = useState<{ activityId: string; items: MediaItem[]; notice?: string; arrangeOnly?: boolean } | null>(null);
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
   // Effort badge height should track the stat column's height (not the photo's,
   // which can stand taller) — measured directly since flex stretch can't single
@@ -356,6 +364,9 @@ export default function MyActivitiesScreen() {
   // ordered list of activities (most-recent-first, matching the horizontal
   // rows' own order) plus which index within it is currently open.
   const [diaryList, setDiaryList] = useState<DiaryActivity[] | null>(null);
+  // Tapping the Activity tab again closes the open activity and photo (Ricky, 2026-10-11).
+  const [tabReselects, setTabReselects] = useState(0);
+  useEffect(() => onTabReselect('/my-activities', () => { setTabReselects((n) => n + 1); setEnlargedPhoto(null); }), []);
   // A just-uploaded cover photo — shown behind the crop-positioner overlay
   // until the user confirms a focal point or skips (keeping the center
   // default). Separate from the upload flow itself so it works whether the
@@ -545,12 +556,12 @@ export default function MyActivitiesScreen() {
   // Reorder (or remove) what is already posted, without picking anything new.
   function arrangeMedia(activityId: string) {
     const cover = allActivities.find(a => a.id === activityId)?.photo_url ?? null;
-    setMediaPicker({ activityId, items: existingAsItems(mediaMap[activityId] || [], cover) });
+    setMediaPicker({ activityId, items: existingAsItems(mediaMap[activityId] || [], cover), arrangeOnly: true });
   }
 
   // Saves the whole arranged set — removals, new uploads and the new order —
   // and makes #1 the cover. See saveArrangement in lib/activityMedia.ts.
-  async function uploadMedia(activityId: string, items: MediaItem[]) {
+  async function uploadMedia(activityId: string, items: MediaItem[], focal?: { x: number; y: number }) {
     if (!userId) return;
     setUploading(activityId);
     try {
@@ -562,12 +573,20 @@ export default function MyActivitiesScreen() {
         items,
         existing: mediaMap[activityId] || [],
         currentCover: previousUrl,
+        onProgress: (done, total) => setUploadProgress(total > 0 ? { done, total } : null),
       });
       if (result.errors.length) reportUploadError(activityId, result.errors[0]);
 
       setMediaMap(prev => ({ ...prev, [activityId]: result.rows }));
 
-      if (result.coverChanged) {
+      if (result.coverChanged && focal && result.cover) {
+        // Positioned before upload: save that crop with the new cover.
+        const patch = { photo_url: result.cover, photo_focal_x: focal.x, photo_focal_y: focal.y };
+        const { error: focalErr } = await supabase.from('activities').update({ photo_focal_x: focal.x, photo_focal_y: focal.y }).eq('id', activityId);
+        if (focalErr) notify("Couldn't save the photo position", focalErr.message);
+        setAllActivities(prev => prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)));
+        setDiaryList(prev => prev ? prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)) : prev);
+      } else if (result.coverChanged) {
         const patch = { photo_url: result.cover, photo_focal_x: null, photo_focal_y: null };
         setAllActivities(prev => prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)));
         // diaryList is a separate snapshot the open viewer renders from — it
@@ -582,6 +601,7 @@ export default function MyActivitiesScreen() {
       }
     } finally {
       setUploading(null);
+      setUploadProgress(null);
     }
   }
 
@@ -1212,7 +1232,7 @@ export default function MyActivitiesScreen() {
                 <ScrollView
                   key={group.weekStart}
                   style={pagerHeight ? { height: pagerHeight } : undefined}
-                  contentContainerStyle={styles.jWeekPage}
+                  contentContainerStyle={[styles.jWeekPage, styles.jYearPage]}
                   showsVerticalScrollIndicator={false}
                 >
                   {isCurrentWeek ? (
@@ -1543,7 +1563,11 @@ export default function MyActivitiesScreen() {
                               />
                             ) : (
                               <View style={styles.jCardArt}>
-                                <RivalIcon name={activityIconName(activity.activity_type)} size={48} color={RivalColors.accentText} />
+                                {/* Phones: the icon large and faint, filling the card like the
+                                    feed's no-photo panel (Ricky, 2026-10-11). */}
+                                {wide
+                                  ? <RivalIcon name={activityIconName(activity.activity_type)} size={48} color={RivalColors.accentText} />
+                                  : <RivalIcon name={activityIconName(activity.activity_type)} size={128} color="rgba(255,181,158,0.2)" />}
                               </View>
                             )}
                             <View style={styles.jCardScrim} pointerEvents="none" />
@@ -1557,12 +1581,16 @@ export default function MyActivitiesScreen() {
                             )}
                             <View style={styles.jCardBody}>
                               <View style={{ flex: 1 }}>
-                                <Text style={styles.jCardName} numberOfLines={1}>{cardDisplayName(activity.name, activity.activity_type)}</Text>
-                                {!!cardStat && <Text style={styles.jCardStat}>{cardStat}</Text>}
+                                {/* Phones: the distance leads and the title steps back, the
+                                    two styles swapped (Ricky, 2026-10-11). */}
+                                <Text style={wide ? styles.jCardName : [styles.jCardStat, { marginTop: 0, color: RivalColors.accentText }]} numberOfLines={1}>{cardDisplayName(activity.name, activity.activity_type)}</Text>
+                                {!!cardStat && <Text style={wide ? styles.jCardStat : [styles.jCardName, { marginTop: 2 }]}>{cardStat}</Text>}
                               </View>
                               <View style={styles.jCardEffort}>
+                                {/* Phones: the label above the number (Ricky, 2026-10-11). */}
+                                {!wide ? <Text style={styles.jCardEffortLabel}>Effort</Text> : null}
                                 <Text style={styles.jCardEffortNum}>{activity.effort_score}</Text>
-                                <Text style={styles.jCardEffortLabel}>Effort</Text>
+                                {wide ? <Text style={styles.jCardEffortLabel}>Effort</Text> : null}
                               </View>
                             </View>
                             {badgeKind && <View pointerEvents="none" style={[styles.jCardRing, { borderColor: ringColor }]} />}
@@ -1768,15 +1796,22 @@ export default function MyActivitiesScreen() {
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onLayout={(e) => setMonthPagerWidth(Math.round(e.nativeEvent.layout.width))}
-              onMomentumScrollEnd={(e) => {
+              // The page is tracked as it scrolls, not when the swipe settles:
+              // react-native-web never fires onMomentumScrollEnd (there is no
+              // such browser event), so a swipe never told the app which month
+              // was showing. Months two away from the stale one were never drawn
+              // (a black page) and Month Total stayed on the old month.
+              scrollEventThrottle={50}
+              onScroll={(e) => {
                 if (monthStride <= 0) return;
-                const idx = Math.round(e.nativeEvent.contentOffset.x / monthStride);
-                setVisibleMonthIndex(Math.max(0, Math.min(monthGroups.length - 1, idx)));
+                const idx = Math.max(0, Math.min(monthGroups.length - 1, Math.round(e.nativeEvent.contentOffset.x / monthStride)));
+                setVisibleMonthIndex((cur) => (cur === idx ? cur : idx));
               }}
             >
               {monthGroups.map((mg, mi) => {
-                // Only the months beside the one showing are drawn in full.
-                if (Math.abs(mi - visibleMonthIndex) > 1) {
+                // Only the months near the one showing are drawn in full; two
+                // either side, so a quick double swipe lands on a drawn month.
+                if (Math.abs(mi - visibleMonthIndex) > 2) {
                   return <View key={`${mg.year}-${mg.month}`} style={monthPageWidth ? { width: monthPageWidth } : styles.jMonthPageFallback} />;
                 }
                 const leadingBlanks = mg.startWeekday;
@@ -1910,7 +1945,9 @@ export default function MyActivitiesScreen() {
 
           {journalLayout === 'year' && (
           // The year at a glance, from the activities already loaded here.
-          <ScrollView contentContainerStyle={styles.jWeekPage} {...pullProps}>
+          // Extra room at the end, like the other journal views, so the last
+          // button clears the floating bottom nav.
+          <ScrollView contentContainerStyle={[styles.jWeekPage, styles.jYearPage]} {...pullProps}>
             {pullIndicator}
             {journalTitle}
             {renderJournalToggle(false)}
@@ -2404,6 +2441,7 @@ export default function MyActivitiesScreen() {
             activities={diaryList}
             startIndex={diaryIndex}
             onClose={() => setDiaryList(null)}
+            closeSignal={tabReselects}
             onUpdate={(id, patch) => {
               updateActivityLocal(id, patch as Partial<Activity>);
               setDiaryList((prev) => prev ? prev.map((a) => a.id === id ? { ...a, ...patch } : a) : prev);
@@ -2422,17 +2460,72 @@ export default function MyActivitiesScreen() {
             initial={mediaPicker.items}
             initialNotice={mediaPicker.notice}
             title="Photos and videos"
-            doneLabel="Save"
+            // Adding new photos says what happens; reordering what's already
+            // posted is just a save (Ricky, 2026-10-11).
+            doneLabel={mediaPicker.arrangeOnly ? 'Save' : 'Add to activity'}
             onCancel={() => setMediaPicker(null)}
             onDone={(items) => {
               const { activityId } = mediaPicker;
               setMediaPicker(null);
+              // A new photo becoming the cover is cropped first, from the
+              // file still on the phone; nothing uploads until it's confirmed.
+              const firstPhoto = items.find((i) => i.type === 'photo');
+              if (firstPhoto && !firstPhoto.existingId) {
+                setPendingCrop({ activityId, items, url: firstPhoto.uri });
+                return;
+              }
               uploadMedia(activityId, items);
             }}
           />
         )}
 
-        {/* Crop positioner — shown right after a cover photo upload finishes. */}
+        {/* While new photos upload: hold the screen with what's happening, so
+            nothing seems stuck and nothing else gets started meanwhile. */}
+        {uploadProgress && (
+          <Modal visible transparent animationType="fade">
+            <View style={styles.uploadHold}>
+              <View style={styles.uploadCard}>
+                <ActivityIndicator color={RivalColors.accentText} />
+                <Text style={styles.uploadTitle}>Adding to activity</Text>
+                <Text style={styles.uploadSub}>
+                  {uploadProgress.done < uploadProgress.total
+                    ? `${uploadProgress.done} of ${uploadProgress.total} uploaded`
+                    : 'Finishing up'}
+                </Text>
+                <View style={styles.uploadTrack}>
+                  <View style={[styles.uploadFill, { width: `${Math.max(6, Math.round((uploadProgress.done / uploadProgress.total) * 100))}%` }]} />
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* Crop step for a new cover, before upload. Cancel drops the whole
+            add: nothing has been uploaded yet. */}
+        {pendingCrop && (
+          <PhotoPositioner
+            key={pendingCrop.url}
+            photoUrl={pendingCrop.url}
+            choices={pendingCrop.items.filter((i) => i.type === 'photo').map((i) => i.uri)}
+            // Choosing another cover moves it to #1, the cover's place, and
+            // starts its crop fresh.
+            onChooseCover={(uri) => setPendingCrop((cur) => {
+              if (!cur) return cur;
+              const chosen = cur.items.find((i) => i.uri === uri);
+              if (!chosen) return cur;
+              return { ...cur, url: uri, items: [chosen, ...cur.items.filter((i) => i !== chosen)] };
+            })}
+            onCancel={() => setPendingCrop(null)}
+            onConfirm={(x, y) => {
+              const { activityId, items } = pendingCrop;
+              setPendingCrop(null);
+              uploadMedia(activityId, items, { x, y });
+            }}
+          />
+        )}
+
+        {/* Crop positioner — shown after a cover changes to a photo that was
+            already uploaded (e.g. reordering). */}
         {positioningPhoto && (
           <PhotoPositioner
             photoUrl={positioningPhoto.url}
@@ -2741,6 +2834,14 @@ const styles = StyleSheet.create({
   // lets each week page's explicit pixel height actually take effect.
   jPager: { flex: 1 },
   jWeekPage: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, gap: 14 },
+  uploadHold: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 24 },
+  uploadCard: { width: '100%', maxWidth: 320, alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 22, borderRadius: 20, backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  uploadTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', marginTop: 4 },
+  uploadSub: { fontSize: 13, color: RivalColors.textSecondary },
+  uploadTrack: { alignSelf: 'stretch', height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 6 },
+  uploadFill: { height: 4, borderRadius: 2, backgroundColor: RivalColors.accentText },
+  // Room at the end of a scrolling page for the floating bottom nav.
+  jYearPage: { paddingBottom: 120 },
   jGridContent: { marginTop: 4, paddingBottom: 32, gap: 10 },
   // justifyContent centers items on a wrap-line that doesn't fill the row —
   // the flexGrow:1 photo cards still stretch to consume any leftover space

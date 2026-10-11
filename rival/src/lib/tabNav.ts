@@ -17,7 +17,19 @@ export function setCurrentPath(path: string) {
   currentPath = path;
 }
 
+// Tapping the tab you're already on: the tab closes whatever it has open on
+// top (an activity, a photo) and shows its main page, the usual phone-app
+// second tap (Ricky, 2026-10-11).
+const reselectListeners = new Map<string, Set<() => void>>();
+export function onTabReselect(href: TabRoute, fn: () => void): () => void {
+  const set = reselectListeners.get(href) ?? new Set();
+  set.add(fn);
+  reselectListeners.set(href, set);
+  return () => { set.delete(fn); };
+}
+
 export function goToTab(href: TabRoute) {
+  if (currentPath === href) { reselectListeners.get(href)?.forEach((fn) => fn()); return; }
   if (TAB_ROUTES.has(currentPath)) router.navigate(href);
   else if (router.canDismiss()) router.dismissTo(href);
   else router.replace(href);

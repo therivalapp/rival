@@ -72,6 +72,7 @@ export async function saveArrangement({
   existing,
   currentCover,
   keepCover = false,
+  onProgress,
 }: {
   activityId: string;
   userId: string;
@@ -85,6 +86,8 @@ export async function saveArrangement({
   // Leave the cover alone and only add — for callers that append without
   // showing the whole set.
   keepCover?: boolean;
+  // Called as each new file finishes uploading: (done, total).
+  onProgress?: (done: number, total: number) => void;
 }): Promise<SaveResult> {
   const errors: string[] = [];
   const keptIds = new Set(items.map((i) => i.existingId).filter(Boolean));
@@ -108,9 +111,32 @@ export async function saveArrangement({
     }
   }
 
-  // 2. Every item, in order: upload what is new, move what already exists.
-  // One at a time, so a failure lands on a specific item rather than
-  // scrambling the order of the rest.
+  // 2a. Upload every new file at once (Ricky, 2026-10-11: four photos one
+  // after another took ~40 seconds). Only the files go in parallel; the rows
+  // below are still written one at a time, in order, so a failure still lands
+  // on a specific item and the posting order holds.
+  const fresh = items.filter((i) => !i.existingId && i.blob);
+  let uploaded = 0;
+  onProgress?.(0, fresh.length);
+  const uploads = new Map<MediaItem, Promise<{ url: string } | { error: string }>>();
+  for (const item of fresh) {
+    uploads.set(item, (async () => {
+      const up = item.type === 'photo'
+        ? await fitPhoto({ blob: item.blob!, mimeType: item.mimeType, ext: item.ext || 'jpg' })
+        : { blob: item.blob!, mimeType: item.mimeType, ext: item.ext || 'mp4' };
+      const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const path = `${userId}/${activityId}-${uniqueId}.${up.ext}`;
+      const { error: storageErr } = await supabase.storage
+        .from('activity-photos')
+        .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
+      uploaded += 1;
+      onProgress?.(uploaded, fresh.length);
+      if (storageErr) return { error: `Upload failed: ${storageErr.message}` };
+      return { url: supabase.storage.from('activity-photos').getPublicUrl(path).data.publicUrl };
+    })());
+  }
+
+  // 2b. Every item, in order: record what is new, move what already exists.
   const rows: MediaRow[] = [];
   for (let position = 0; position < items.length; position++) {
     const item = items[position];
@@ -130,17 +156,11 @@ export async function saveArrangement({
 
     let url = item.uri;
     if (!item.existingId) {
-      if (!item.blob) continue;
-      const up = item.type === 'photo'
-        ? await fitPhoto({ blob: item.blob, mimeType: item.mimeType, ext: item.ext || 'jpg' })
-        : { blob: item.blob, mimeType: item.mimeType, ext: item.ext || 'mp4' };
-      const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const path = `${userId}/${activityId}-${uniqueId}.${up.ext}`;
-      const { error: storageErr } = await supabase.storage
-        .from('activity-photos')
-        .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
-      if (storageErr) { errors.push(`Upload failed: ${storageErr.message}`); continue; }
-      url = supabase.storage.from('activity-photos').getPublicUrl(path).data.publicUrl;
+      const pending = uploads.get(item);
+      if (!pending) continue;
+      const res = await pending;
+      if ('error' in res) { errors.push(res.error); continue; }
+      url = res.url;
     }
 
     const { data, error } = await supabase

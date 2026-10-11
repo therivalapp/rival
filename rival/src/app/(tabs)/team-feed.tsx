@@ -911,9 +911,9 @@ function PostCard({
           </TouchableOpacity>
           <Text style={styles.postMeta}>
             {post.kind === 'race'
-              ? 'Signed up for an event'
+              ? 'Signed up for an event · '
               : post.kind === 'dayRoll'
-                ? `${post.count} ${post.typeLabel}`
+                ? `${post.count} ${post.typeLabel} · `
                 : reactPhone && post.kind === 'activity'
                   ? null
                   : <>{post.activityName || post.activityType} · </>}{timeAgo(post.ts)}

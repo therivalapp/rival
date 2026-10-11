@@ -1,5 +1,5 @@
 import { createElement, useMemo, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RivalColors, RivalRadius, RivalGhost } from '../../constants/rivalTheme';
@@ -39,17 +39,18 @@ export type MediaItem = {
 export const MAX_MEDIA = 10;
 export const MAX_VIDEOS = 1;
 export const MAX_PHOTO_MB = 15;
-// Must not exceed the activity-photos bucket's own file_size_limit (25MB).
-// This was 50 while the bucket said 25, so a 30MB video passed the app's
-// check and then failed at upload with a raw storage error.
-export const MAX_VIDEO_MB = 25;
+// Must not exceed the activity-photos bucket's own file_size_limit, now 50MB
+// (raise_media_limit_50mb.sql, run 2026-10-11; the free plan's per-file most).
+// Raise the two together: when the app allowed 50 while the bucket said 25,
+// a 30MB video passed this check and then failed at upload.
+export const MAX_VIDEO_MB = 50;
 // A workout clip, not a documentary. Length is the real limit people meet;
 // the size cap above is the storage backstop behind it.
 export const MAX_VIDEO_SECONDS = 60;
 
 export type PickResult = { items: MediaItem[]; rejected: string[] };
 
-const TOO_LONG = `A video was over ${MAX_VIDEO_SECONDS / 60} minute and was left out`;
+const TOO_LONG = `A video was over ${MAX_VIDEO_SECONDS / 60} minute and couldn't be uploaded`;
 
 // Reads a video's length from its metadata without playing it. Null when the
 // browser cannot tell — an unreadable length lets the video through rather
@@ -69,8 +70,8 @@ function webVideoSeconds(uri: string): Promise<number | null> {
 
 function tooLarge(type: 'photo' | 'video', bytes: number): string | null {
   const mb = bytes / (1024 * 1024);
-  if (type === 'video' && mb > MAX_VIDEO_MB) return `A video was over ${MAX_VIDEO_MB}MB and was left out`;
-  if (type === 'photo' && mb > MAX_PHOTO_MB) return `A photo was over ${MAX_PHOTO_MB}MB and was left out`;
+  if (type === 'video' && mb > MAX_VIDEO_MB) return `A video was over ${MAX_VIDEO_MB}MB and couldn't be uploaded`;
+  if (type === 'photo' && mb > MAX_PHOTO_MB) return `A photo was over ${MAX_PHOTO_MB}MB and couldn't be uploaded`;
   return null;
 }
 
@@ -286,7 +287,11 @@ export function MediaPicker({
     const pcols = 3;
     const pgap = 7;
     const pcell = Math.floor((width - 36 - pgap * (pcols - 1)) / pcols);
+    // In a Modal so it sits above the floating bottom nav, which is drawn
+    // straight onto the page over everything else in the app (Ricky,
+    // 2026-10-11: the Save button was hidden behind it).
     return (
+      <Modal visible transparent animationType="none" onRequestClose={onCancel}>
       <View style={[styles.overlay, pm.overlay]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onCancel} accessibilityLabel="Cancel" />
         <GreySheet
@@ -326,6 +331,7 @@ export function MediaPicker({
           </View>
         </GreySheet>
       </View>
+      </Modal>
     );
   }
 

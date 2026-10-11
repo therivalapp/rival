@@ -195,10 +195,13 @@ serve(async (req) => {
         // a later Strava sync clobber a name/details set by whichever source created it.
         const { data: existingRow } = await supabase
           .from('activities')
-          .select('name_locked, provider, effort_confirmed')
+          .select('name_locked, started_at_locked, provider, effort_confirmed')
           .eq('id', canonicalId)
           .maybeSingle()
         if (existingRow?.provider === 'strava' && !existingRow?.name_locked) fields.name = activity.name
+        // A start time set in RIVAL (started_at_locked) stays: a watch with a
+        // wrong clock uploads the wrong time and Strava can't correct it.
+        if (existingRow?.started_at_locked) delete fields.started_at
         // The athlete confirmed this activity is correct (effort_confirmed), so a
         // re-sync scores all of it rather than the capped amount.
         if (existingRow?.effort_confirmed) {

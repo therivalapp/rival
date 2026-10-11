@@ -158,7 +158,10 @@ serve(async (req) => {
       // Overlaps an activity already recorded and saw less of the session —
       // writing it would double-count one workout. The source is already
       // linked, so this won't be reconsidered on the next sync.
-      if (resolved.discard) continue
+      // `return null`, not `continue`: this runs inside processActivity, not a
+      // loop, and the stray `continue` was a syntax error that stopped the
+      // whole function from starting (every sync failed from 2026-10-01).
+      if (resolved.discard) return null
       const canonicalId = resolved.canonicalId
 
       const fields: Record<string, unknown> = {
@@ -187,11 +190,14 @@ serve(async (req) => {
         // name set by whichever source created the row.
         const { data: existingRow } = await supabase
           .from('activities')
-          .select('name_locked, provider, photo_url, effort_confirmed')
+          .select('name_locked, started_at_locked, provider, photo_url, effort_confirmed')
           .eq('id', canonicalId)
           .maybeSingle()
         const updateFields: Record<string, unknown> = { ...fields }
         if (existingRow?.provider === 'strava' && !existingRow?.name_locked) updateFields.name = activity.name
+        // A start time set in RIVAL (started_at_locked) stays: a watch with a
+        // wrong clock uploads the wrong time and Strava can't correct it.
+        if (existingRow?.started_at_locked) delete updateFields.started_at
         // The athlete confirmed this activity is correct (effort_confirmed), so a
         // re-sync scores all of it rather than the capped amount.
         if (existingRow?.effort_confirmed) {

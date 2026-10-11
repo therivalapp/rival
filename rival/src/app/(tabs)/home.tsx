@@ -46,6 +46,10 @@ const NEXT_EVENT_TICKET = true;
 
 type League = { id: string; name: string; invite_code: string; logo_url: string | null; recentCount?: number };
 type NextRace = { name: string; race_date: string; location?: string | null } | null;
+// TEMP (2026-10-11): laurel sizing preview, see TEMP_PODIUM_THIRD below.
+const TEMP_PODIUM_THIRD = true;
+const TEMP_THIRD_ID = 'temp-podium-third';
+
 type WeeklyLeaderEntry = { userId: string; name: string; avatarUrl: string | null; points: number; isSelf: boolean };
 type WeeklyLeader = {
   leagueId: string;
@@ -146,17 +150,17 @@ const PODIUM_RANK_STYLE = [
   {
     gradFrom: 'rgba(255,215,0,0.4)', gradTo: 'rgba(180,140,10,0.1)', glow: 'rgba(255,215,0,0.28)', glowRadius: 10,
     avatarGlow: 'rgba(255,215,0,0.25)', avatarGlowRadius: 7,
-    tint: '#FFD700', ptsColor: '#FFFFFF', ptsTint: 'rgba(255,215,0,0.7)', minH: 119, maxH: 161, avatarSize: 55, nameSize: 11, nameLetterSpacing: 1.5, ptsSize: 31, padTop: 38, padBottom: 20,
+    tint: '#FFD700', ptsColor: '#FFFFFF', ptsTint: 'rgba(255,215,0,0.7)', minH: 103, maxH: 137, avatarSize: 55, nameSize: 16, nameLetterSpacing: 0, ptsSize: 31, padTop: 38, padBottom: 20,
   },
   {
     gradFrom: 'rgba(150,130,110,0.32)', gradTo: 'rgba(60,50,45,0.08)', glow: 'rgba(180,150,120,0.18)', glowRadius: 7,
     avatarGlow: 'rgba(255,181,158,0.3)', avatarGlowRadius: 5,
-    tint: RivalColors.accentText, ptsColor: '#FFFFFF', ptsTint: 'rgba(255,181,158,0.7)', minH: 81, maxH: 111, avatarSize: 51, nameSize: 10, nameLetterSpacing: 1.5, ptsSize: 20, padTop: 26, padBottom: 14,
+    tint: RivalColors.accentText, ptsColor: '#FFFFFF', ptsTint: 'rgba(255,181,158,0.7)', minH: 74, maxH: 100, avatarSize: 51, nameSize: 14, nameLetterSpacing: 0, ptsSize: 20, padTop: 26, padBottom: 14,
   },
   {
     gradFrom: 'rgba(94,218,199,0.25)', gradTo: 'rgba(0,80,71,0.05)', glow: 'rgba(217,119,87,0.15)', glowRadius: 7,
     avatarGlow: 'rgba(94,218,199,0.15)', avatarGlowRadius: 5,
-    tint: RivalColors.tertiary, ptsColor: '#FFFFFF', ptsTint: 'rgba(94,218,199,0.6)', minH: 66, maxH: 91, avatarSize: 51, nameSize: 10, nameLetterSpacing: 1.5, ptsSize: 20, padTop: 26, padBottom: 14,
+    tint: RivalColors.tertiary, ptsColor: '#FFFFFF', ptsTint: 'rgba(94,218,199,0.6)', minH: 66, maxH: 91, avatarSize: 51, nameSize: 14, nameLetterSpacing: 0, ptsSize: 20, padTop: 26, padBottom: 14,
   },
 ] as const;
 // Sloped-top-edge fraction pairs [topLeft, topRight] per column position
@@ -798,6 +802,22 @@ function avatarRing(tint: string): any {
 const PILLAR_DEPTH = 8;
 // How far across the slanted top the name's outer edge reaches (0 = centre, 1 = far corner).
 const SLANT_TEXT_FRACTION = 0.75;
+// The weekly-wins laurel under "Effort" (mLeaderRun: 30 tall, nudged up 2.67).
+const LAUREL_ROW_H = 28;
+// The leader's laurel is 1.5x (mLeaderRunBig: 45 tall).
+const LAUREL_ROW_H_LEADER = 43;
+// Second place's is 1.25x (mLeaderRunMid: 38 tall).
+const LAUREL_ROW_H_SECOND = 36;
+// The pillar's width, for working out how far a long name reaches across its slanted top.
+const PODIUM_COLUMN_W = 82;
+// Names on the pillars are in the serif italic of the numbers (Ricky,
+// 2026-10-11, option B). A long name is set smaller so it fits on one line
+// without "…"; react-native-web has no shrink-to-fit, so this goes by length.
+const PODIUM_NAME_ROOM = 62;
+function podiumNameSize(name: string, base: number): number {
+  const fit = Math.floor((PODIUM_NAME_ROOM / (Math.max(1, name.length) * 0.6)) * 2) / 2;
+  return Math.max(10, Math.min(base, fit));
+}
 const PILLAR_SIDE = 14;
 function pillarFaces(slope: [number, number], h: number) {
   const [tl, tr] = slope;
@@ -1231,10 +1251,10 @@ const countUp = StyleSheet.create({
 // Weekly Leader's "You're leading" line: a serif italic title, then a small
 // spaced-caps line set between two fading hairlines. One component so the
 // sections can't drift apart in size again.
-function MHeading({ title, subtitle, icon }: { title?: string; subtitle?: string | null; icon?: RivalIconName }) {
+function MHeading({ title, subtitle, icon, onTitlePress }: { title?: string; subtitle?: string | null; icon?: RivalIconName; onTitlePress?: () => void }) {
   return (
     <View style={styles.mHeading}>
-      {title ? <Text style={styles.mStatusHeadline}>{title}</Text> : null}
+      {title ? <Text style={styles.mStatusHeadline} onPress={onTitlePress} accessibilityRole={onTitlePress ? 'link' : undefined}>{title}</Text> : null}
       {subtitle ? (
         <View style={styles.mStatusCountdown}>
           <View style={[styles.mStatusRule, styles.mStatusRuleLeft]} />
@@ -1334,7 +1354,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
     <>
                 <View style={styles.mLeaderHead}>
                   {leader
-                    ? <MHeading title={leader.teamName} subtitle={lastWeekBoard ? "Last week's leaders" : 'Weekly leader'} />
+                    ? <MHeading title={leader.teamName} onTitlePress={() => router.push({ pathname: '/team-hub', params: { id: leader.leagueId } })} subtitle={lastWeekBoard ? "Last week's leaders" : 'Weekly leader'} />
                     : <MHeading subtitle="Weekly leader" />}
                 </View>
 
@@ -1402,6 +1422,39 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                   // though it still renders in the visually-3rd (right) column.
                   const tiedForFirstCount = standings.filter((s) => s.points === maxPoints).length;
                   const rankShift = Math.max(0, tiedForFirstCount - 1);
+                  // Each pillar's natural height and the least it needs to hold its
+                  // text and, when the person has weekly wins, the laurel. Every
+                  // pillar is raised by the SAME amount until the tightest one fits,
+                  // so the steps between the pillars stay exactly as the Effort gap
+                  // drew them (Ricky, 2026-10-11).
+                  const pillarGeom = (slot: NonNullable<PodiumSlot>, colIdx: number) => {
+                    const { entry, rank } = slot;
+                    const isTiedForFirst = rank !== 0 && entry.points === maxPoints;
+                    const effRank = (isTiedForFirst ? 0 : Math.max(0, rank - rankShift)) as 0 | 1 | 2;
+                    const rankStyle = PODIUM_RANK_STYLE[effRank];
+                    const heightPct = Math.max(0.35, entry.points / maxPoints);
+                    const scaledHeight = Math.round(rankStyle.minH + (rankStyle.maxH - rankStyle.minH) * heightPct);
+                    const shardSlope: [number, number] = isTiedForFirst
+                      ? (colIdx === 0 ? [0, 0.15] : colIdx === 2 ? [0.15, 0] : SHARD_SLOPE[colIdx])
+                      : SHARD_SLOPE[colIdx];
+                    const slope = Math.max(shardSlope[0], shardSlope[1]);
+                    const hasLaurel = (leader.wins?.[entry.userId] ?? 0) >= 1;
+                    const contentH = Math.round(podiumNameSize(entry.name, rankStyle.nameSize) * 1.15) + Math.round(rankStyle.ptsSize * 1.15) + 12 + (hasLaurel ? (effRank === 0 ? LAUREL_ROW_H_LEADER : effRank === 1 ? LAUREL_ROW_H_SECOND : LAUREL_ROW_H) : 0);
+                    // Same name-aware slant allowance the text uses below, so a long
+                    // name moved down off the corner still leaves the laurel clear of
+                    // the bottom edge.
+                    const nameReach = Math.min(1, (entry.name.length * podiumNameSize(entry.name, rankStyle.nameSize) * 0.6) / PODIUM_COLUMN_W);
+                    const slantFraction = Math.max(SLANT_TEXT_FRACTION, 0.5 + nameReach / 2);
+                    // Only a small margin under the laurel, so no pillar stands taller than its
+                    // content needs (Ricky, 2026-10-11).
+                    const fitHeight = Math.ceil((PILLAR_DEPTH + 4 + contentH + 6) / (1 - slantFraction * slope));
+                    return { isTiedForFirst, effRank, rankStyle, scaledHeight, shardSlope, slope, contentH, fitHeight };
+                  };
+                  const podiumLift = Math.max(0, ...slots.map((slot, colIdx) => {
+                    if (!slot) return 0;
+                    const g = pillarGeom(slot, colIdx);
+                    return g.fitHeight - g.scaledHeight;
+                  }));
                   // Always use the fixed-width column treatment (never the
                   // flex:1-across-3-columns one) — Ricky wants pillars at
                   // the same generous width regardless of headcount, matching
@@ -1444,14 +1497,10 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                           // the same gold styling/height/crown as rank 0. Column position (left/
                           // center/right) and its shard slant are unaffected, only the rank-based
                           // visual treatment.
-                          const isTiedForFirst = rank !== 0 && entry.points === maxPoints;
                           // Shift a non-tied entry's style down by however many extra
                           // places the tie ate (e.g. two tied for 1st → the 3rd-column
                           // entry shows as 2nd-place styling, not 3rd).
-                          const effRank = (isTiedForFirst ? 0 : Math.max(0, rank - rankShift)) as 0 | 1 | 2;
-                          const rankStyle = PODIUM_RANK_STYLE[effRank];
-                          const heightPct = Math.max(0.35, entry.points / maxPoints);
-                          const scaledHeight = Math.round(rankStyle.minH + (rankStyle.maxH - rankStyle.minH) * heightPct);
+                          const { isTiedForFirst, effRank, rankStyle, scaledHeight } = pillarGeom(slot, colIdx);
                           // Mockup floats the crown a fixed distance above the
                           // avatar (not in normal flow, doesn't push it down)
                           // — same ~0.44x-of-avatar-size ratio as the mockup's
@@ -1460,7 +1509,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                           // real-data pillar can end up much shorter (e.g. a 3rd-place entry
                           // far behind 1st) — clamp it so the name+points+"pts" stack always
                           // has room, instead of squeezing the name text to ~0px tall.
-                          const MIN_CONTENT_H = effRank === 0 ? 64 : 50;
+                          const MIN_CONTENT_H = (effRank === 0 ? 64 : 50) + ((leader.wins?.[entry.userId] ?? 0) >= 1 ? (effRank === 0 ? LAUREL_ROW_H_LEADER : effRank === 1 ? LAUREL_ROW_H_SECOND : LAUREL_ROW_H) : 0);
                           // The shard's top edge is slanted (SHARD_SLOPE), not flat — on the
                           // lower corner the colored fill doesn't start until partway down.
                           // padTop must clear that corner or the centered text renders partly
@@ -1475,16 +1524,18 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                             : SHARD_SLOPE[colIdx];
                           const [shardTl, shardTr] = shardSlope;
                           const slope = Math.max(shardTl, shardTr);
-                          // Name + points + "Effort", stacked.
-                          const contentH = Math.round(rankStyle.nameSize * 1.15) + Math.round(rankStyle.ptsSize * 1.15) + 12;
-                          // A pillar far behind the leader scales down past the point where
-                          // its text fits, and "Effort" fell out of the bottom. Never shorter
-                          // than the slanted top, the text and a small bottom margin need.
-                          const fitHeight = Math.ceil((PILLAR_DEPTH + 4 + contentH + 8) / (1 - SLANT_TEXT_FRACTION * slope));
-                          const pillarHeight = Math.max(scaledHeight, fitHeight);
+                          // A pillar far behind the leader used to scale down past the point
+                          // where its text fit; podiumLift (above) now raises every pillar
+                          // together until the tightest one fits.
+                          // Every pillar a touch taller, steps unchanged (Ricky, 2026-10-11).
+                          const pillarHeight = scaledHeight + podiumLift + 6;
                           // The text is centred, so it only needs to clear the slant where
                           // the name actually sits, not the full drop at the far corner.
-                          const slantClearance = Math.ceil(SLANT_TEXT_FRACTION * slope * pillarHeight) + PILLAR_DEPTH + 4;
+                          // A long name (e.g. "PREVIEW P.") reaches further toward the low
+                          // corner than the usual allowance, so it is cleared by how far its
+                          // own width actually reaches; short names keep their place.
+                          const nameReach = Math.min(1, (entry.name.length * podiumNameSize(entry.name, rankStyle.nameSize) * 0.6) / PODIUM_COLUMN_W);
+                          const slantClearance = Math.ceil(Math.max(SLANT_TEXT_FRACTION, 0.5 + nameReach / 2) * slope * pillarHeight) + PILLAR_DEPTH + 4;
                           const faces = pillarFaces(shardSlope, pillarHeight);
                           const effPadTop = Math.max(slantClearance, Math.min(rankStyle.padTop, pillarHeight - MIN_CONTENT_H - rankStyle.padBottom));
                           // Raising padTop to clear the slant can eat back into the room the
@@ -1524,7 +1575,13 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                               >
                                 {effRank === 0 && Platform.OS === 'web' && <AvatarStarBurst avatarSize={rankStyle.avatarSize} run={run} quick={immediate} />}
                                 {effRank === 0 && <LaurelWreath avatarSize={rankStyle.avatarSize} />}
-                                <View
+                                {/* Tapping a picture opens that person's page (Ricky, 2026-10-11). */}
+                                <TouchableOpacity
+                                  activeOpacity={0.8}
+                                  disabled={entry.userId === TEMP_THIRD_ID}
+                                  onPress={() => router.push(`/stats?userId=${entry.userId}` as any)}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Open ${entry.name}'s page`}
                                   style={[
                                     {
                                       width: rankStyle.avatarSize, height: rankStyle.avatarSize, borderRadius: rankStyle.avatarSize / 2,
@@ -1557,7 +1614,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                       </Text>
                                     )}
                                   </View>
-                                </View>
+                                </TouchableOpacity>
                               </View>
                               <View
                                 style={[
@@ -1566,22 +1623,25 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                   podiumRise(effRank, run, immediate),
                                 ]}
                               >
-                                <Svg width="100%" height="100%" viewBox={`0 0 100 ${pillarHeight}`} preserveAspectRatio="none" style={{ position: 'absolute' }}>
+                                {/* Ids carry the height and the SVG remounts when it changes: iOS Safari kept
+                                    a stale gradient after a resize and drew the second pillar solid black.
+                                    Each gradient fill also names a flat colour to fall back on (Ricky, 2026-10-11). */}
+                                <Svg key={`pillar-${pillarHeight}`} width="100%" height="100%" viewBox={`0 0 100 ${pillarHeight}`} preserveAspectRatio="none" style={{ position: 'absolute' }}>
                                   <Defs>
-                                    <LinearGradient id={`podiumGrad${gid}${colIdx}`} x1="0" y1="0" x2="0" y2="1">
+                                    <LinearGradient id={`podiumGrad-${gid}-${colIdx}-${pillarHeight}`} x1="0" y1="0" x2="0" y2="1">
                                       <Stop offset="0" stopColor={rankStyle.gradFrom} />
                                       <Stop offset="1" stopColor={rankStyle.gradTo} />
                                     </LinearGradient>
                                     {/* Side light: brighter on the left face, shaded on the
                                         right, so the pillar reads as a solid block, not a flat card. */}
-                                    <LinearGradient id={`podiumFacet${gid}${colIdx}`} x1="0" y1="0" x2="1" y2="0">
+                                    <LinearGradient id={`podiumFacet-${gid}-${colIdx}-${pillarHeight}`} x1="0" y1="0" x2="1" y2="0">
                                       <Stop offset="0" stopColor="#ffffff" stopOpacity={0.14} />
                                       <Stop offset="0.45" stopColor="#ffffff" stopOpacity={0} />
                                       <Stop offset="1" stopColor="#000000" stopOpacity={0.28} />
                                     </LinearGradient>
                                   </Defs>
                                   {/* Side face: the pillar's colour, shaded. */}
-                                  <Polygon points={faces.side} fill={`url(#podiumGrad${gid}${colIdx})`} />
+                                  <Polygon points={faces.side} fill={`url(#podiumGrad-${gid}-${colIdx}-${pillarHeight}) ${rankStyle.gradTo}`} />
                                   <Polygon
                                     points={faces.side}
                                     fill="#000000" fillOpacity={0.42}
@@ -1599,7 +1659,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                   {/* Front face. */}
                                   <Polygon
                                     points={faces.front}
-                                    fill={`url(#podiumGrad${gid}${colIdx})`}
+                                    fill={`url(#podiumGrad-${gid}-${colIdx}-${pillarHeight}) ${rankStyle.gradTo}`}
                                     stroke={rankStyle.tint}
                                     strokeWidth={1.25}
                                     strokeOpacity={0.85}
@@ -1609,7 +1669,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                     // corners instead of a clean miter point.
                                     vectorEffect="non-scaling-stroke"
                                   />
-                                  <Polygon points={faces.front} fill={`url(#podiumFacet${gid}${colIdx})`} />
+                                  <Polygon points={faces.front} fill={`url(#podiumFacet-${gid}-${colIdx}-${pillarHeight}) transparent`} />
                                   {/* The lit front edge, where the top face meets the front. */}
                                   <Line
                                     {...faces.frontEdge}
@@ -1630,29 +1690,46 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                   </View>
                                 )}
                                 <View style={{ flex: 1, alignItems: 'center', paddingTop: effPadTop, paddingBottom: effPadBottom, marginRight: `${PILLAR_SIDE}%` }}>
-                                  <Text style={[styles.mPodiumName, { color: '#ffffff', fontSize: rankStyle.nameSize, lineHeight: Math.round(rankStyle.nameSize * 1.15), letterSpacing: rankStyle.nameLetterSpacing }]} numberOfLines={1}>
+                                  <Text style={[styles.mPodiumName, { color: '#ffffff', fontSize: podiumNameSize(entry.name, rankStyle.nameSize), lineHeight: Math.round(podiumNameSize(entry.name, rankStyle.nameSize) * 1.15), letterSpacing: rankStyle.nameLetterSpacing }]}
+                                    numberOfLines={1}
+                                    onPress={entry.userId === TEMP_THIRD_ID ? undefined : () => router.push(`/stats?userId=${entry.userId}` as any)}
+                                  >
                                     {entry.name}
                                   </Text>
                                   <Text style={[styles.mPodiumPoints, { fontSize: rankStyle.ptsSize, lineHeight: Math.round(rankStyle.ptsSize * 1.15), color: rankStyle.ptsColor }]}><PodiumCount value={entry.points} effRank={effRank} run={run} quick={immediate} /></Text>
-                                  <Text style={{ fontSize: 10, lineHeight: 12, marginTop: 1, color: rankStyle.ptsTint, fontWeight: '500', flexShrink: 0 }}>Effort</Text>
+                                  {/* Same colour as the number in the laurel (Ricky, 2026-10-11). */}
+                                  <Text style={{ fontSize: 10, lineHeight: 12, marginTop: 1, color: effRank === 0 ? '#FFF4D6' : rankStyle.tint, fontWeight: '500', flexShrink: 0 }}>Effort</Text>
                                   {/* Weeks this person has finished first in the team: a small
                                       laurel, the number inside. A total that only grows.
                                       Tapping it says what it means. */}
                                   {(() => {
-                                    const wins = effRank === 0 ? (leader.wins?.[entry.userId] ?? 0) : 0;
+                                    // On every pillar, whoever stands on it and wherever they
+                                    // place: the total stays with a person even in a week they
+                                    // aren't first (Ricky, 2026-10-11).
+                                    const wins = leader.wins?.[entry.userId] ?? 0;
                                     // Drawn once this card's podium starts, so the cards still
                                     // off screen never paint it while Today is loading.
                                     if (wins < 1 || !run) return null;
                                     return (
                                       <TouchableOpacity
-                                        style={styles.mLeaderRun}
+                                        style={[styles.mLeaderRun, effRank === 0 ? styles.mLeaderRunBig : effRank === 1 && styles.mLeaderRunMid]}
                                         activeOpacity={0.7}
                                         accessibilityRole="button"
                                         accessibilityLabel={`Finished first ${wins} ${wins === 1 ? 'week' : 'weeks'}`}
                                         onPress={() => notify(`Finished first ${wins} ${wins === 1 ? 'week' : 'weeks'}`, `${entry.name} has finished the week first in ${leader.teamName} ${wins === 1 ? 'once' : `${wins} times`}.`)}
                                       >
-                                        <View style={styles.mLeaderRunWreath}><LaurelWreath avatarSize={55} shadow={false} /></View>
-                                        <Text style={[styles.mLeaderRunNumber, wins >= 100 ? styles.mLeaderRunNumber3 : wins >= 10 && styles.mLeaderRunNumber2, { color: rankStyle.ptsTint }]}>{wins}</Text>
+                                        <View style={[styles.mLeaderRunWreath, effRank === 0 ? styles.mLeaderRunWreathBig : effRank === 1 && styles.mLeaderRunWreathMid]}><LaurelWreath avatarSize={55} shadow={false} /></View>
+                                        {/* Sized by place: first largest, second a step down, third
+                                            smallest. Warm ivory on first, to read against the gold leaves;
+                                            second and third in their pillar's own colour (Ricky, 2026-10-11). */}
+                                        <Text style={[
+                                          styles.mLeaderRunNumber, wins >= 100 ? styles.mLeaderRunNumber3 : wins >= 10 && styles.mLeaderRunNumber2,
+                                          effRank === 0 && (wins >= 100 ? styles.mLeaderRunNumberBig3 : wins >= 10 ? styles.mLeaderRunNumberBig2 : styles.mLeaderRunNumberBig),
+                                          effRank === 1 && (wins >= 100 ? styles.mLeaderRunNumberMid3 : wins >= 10 ? styles.mLeaderRunNumberMid2 : styles.mLeaderRunNumberMid),
+                                          // The pillar's full colour, not the faded "Effort" tint, so it
+                                          // holds up against the gold leaves.
+                                          { color: effRank === 0 ? '#FFF4D6' : rankStyle.tint },
+                                        ]}>{wins}</Text>
                                       </TouchableOpacity>
                                     );
                                   })()}
@@ -2295,6 +2372,11 @@ export default function HomeScreen() {
             points: Math.round(pointsByUser[id]),
             isSelf: id === uId,
           }));
+          // TEMP (2026-10-11): a stand-in third place so Ricky can size the
+          // laurel on the 3rd pillar. Remove with the other TEMP_PODIUM_THIRD lines.
+          if (TEMP_PODIUM_THIRD && standings.length === 2) {
+            standings.push({ userId: TEMP_THIRD_ID, name: 'Preview P.', avatarUrl: null, points: Math.max(1, Math.round(standings[1].points * 0.7)), isSelf: false });
+          }
           const leagueMemberIds = memberIdsByLeague[league.id] || [];
           const sample = [...leagueMemberIds.filter((id) => id === uId), ...leagueMemberIds.filter((id) => id !== uId).slice(0, WAITING_FACES)];
           const members = sample.map((id) => ({
@@ -2343,7 +2425,7 @@ export default function HomeScreen() {
         const ids = topByLeague[l.leagueId];
         return {
           ...l,
-          wins: winsByLeague[l.leagueId] ?? {},
+          wins: TEMP_PODIUM_THIRD ? { ...(winsByLeague[l.leagueId] ?? {}), [TEMP_THIRD_ID]: 12 } : (winsByLeague[l.leagueId] ?? {}),
           ...(ids && ids.length > 0 ? {
             lastWeek: ids.map((id) => ({
               userId: id,
@@ -4346,13 +4428,26 @@ const styles = StyleSheet.create({
   // The leader's laurel under "Effort": evenly spaced between the word and
   // the back of the platform (Ricky, 2026-10-01). The wreath is drawn at
   // its usual size and scaled down so its leaves keep their shape.
-  mLeaderRun: { marginTop: -2.67, width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  // Pulled up by the empty band above the leaves, so the laurel sits right under "Effort".
+  mLeaderRun: { marginTop: -5, width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   mLeaderRunWreath: { position: 'absolute', left: -12.5, top: -12.5, width: 55, height: 55, transform: [{ scale: 0.4 }] },
+  // The leader's laurel, 1.5x, filling the taller first-place pillar (Ricky, 2026-10-11).
+  mLeaderRunBig: { width: 45, height: 45, marginTop: -7 },
+  mLeaderRunWreathBig: { left: -5, top: -5, transform: [{ scale: 0.6 }] },
+  mLeaderRunNumberBig: { fontSize: 22, lineHeight: 25 },
+  mLeaderRunNumberBig2: { fontSize: 19, lineHeight: 22, letterSpacing: -0.3 },
+  mLeaderRunNumberBig3: { fontSize: 15, lineHeight: 18, letterSpacing: -0.5 },
+  // Second place, 1.25x: between the leader's and third's.
+  mLeaderRunMid: { width: 38, height: 38, marginTop: -6 },
+  mLeaderRunWreathMid: { left: -8.5, top: -8.5, transform: [{ scale: 0.5 }] },
+  mLeaderRunNumberMid: { fontSize: 18, lineHeight: 21 },
+  mLeaderRunNumberMid2: { fontSize: 16, lineHeight: 19, letterSpacing: -0.3 },
+  mLeaderRunNumberMid3: { fontSize: 12, lineHeight: 15, letterSpacing: -0.45 },
   mLeaderRunNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 15, lineHeight: 17 },
   // Smaller as the digits grow, so the number stays inside the leaves.
   mLeaderRunNumber2: { fontSize: 13, lineHeight: 15, letterSpacing: -0.3 },
   mLeaderRunNumber3: { fontSize: 10, lineHeight: 12, letterSpacing: -0.4 },
-  mPodiumName: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, flexShrink: 0 },
+  mPodiumName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, fontWeight: '700', flexShrink: 0 },
   mPodiumPoints: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: RivalColors.textPrimary, marginTop: 2, flexShrink: 0 },
   // Pill wrapping the "X pts behind Y" + "Ends tomorrow" lines — a subtle
   // dark capsule matching the card's own palette, so this reads as a piece
