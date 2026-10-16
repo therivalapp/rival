@@ -182,6 +182,9 @@ serve(async (req) => {
         duration_seconds: activity.moving_time,
         elevation_meters: activity.total_elevation_gain,
         started_at: activity.start_date,
+        // The activity's own offset from UTC, so its time of day shows where it
+        // happened rather than where it is viewed (add_utc_offset.sql).
+        utc_offset_seconds: typeof activity.utc_offset === 'number' ? Math.round(activity.utc_offset) : null,
         effort_score: effortScore,
         raw_effort_score: effortScore,
         // start_date_local (not start_date) — races.race_date is a bare calendar

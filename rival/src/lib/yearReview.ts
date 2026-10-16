@@ -9,6 +9,7 @@ import { getMondayOfWeek } from './streak';
 // that are zero are left for the screen to hide rather than shown as "0 km".
 
 export type YearActivity = {
+  id?: string;
   started_at: string;
   activity_type: string | null;
   effort_score: number | null;

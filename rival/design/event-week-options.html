@@ -1,0 +1,130 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Event Week Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--ember:#e8835f;--muted:rgba(255,255,255,.5);--ground:#232120;--ivory:#f4ead8;--steel:#9fc3dc}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+h2{font:italic 700 21px Georgia,serif;text-align:center;margin:44px 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:680px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:350px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.page{border-radius:24px;padding:12px;background:radial-gradient(ellipse at 50% 0,#2a201b,#141110 75%)}
+.g{border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:15px;display:flex;flex-direction:column;gap:13px;position:relative;overflow:hidden}
+.g:before{content:"";position:absolute;inset:0 0 auto 0;height:110px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(232,131,95,.16),transparent 70%)}
+.g.ev:before{background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(244,234,216,.13),transparent 70%)}
+.g>*{position:relative}
+.hdr{display:flex;align-items:flex-start;gap:10px}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 22px Georgia,serif;line-height:1.15}
+.eff{text-align:center}.eff b{display:block;font:italic 700 24px Georgia,serif;line-height:1}.eff span{font-size:9.5px;letter-spacing:2px;color:var(--accent);font-weight:800}
+.ic{width:15px;height:15px;flex:none}
+.cols{display:flex;gap:5px;align-items:flex-end;height:58px}
+.cols div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.cols i{width:100%;border-radius:6px 6px 3px 3px;background:rgba(255,255,255,.06)}
+.cols i.on{background:linear-gradient(180deg,#f0b29b,#c96a4a)}
+.cols i.evb{background:linear-gradient(180deg,#fbf4e6,#cdbd9f)}
+.cols em{font-style:normal;font-size:9.5px;font-weight:800;color:var(--muted)}
+.cols em.evd{color:var(--ivory)}
+.chev{text-align:center;color:rgba(255,255,255,.35);font-size:13px;margin:-6px 0 -4px}
+/* event band */
+.band{display:flex;align-items:center;gap:10px;border-radius:14px;padding:10px 12px;background:rgba(244,234,216,.07)}
+.band .x{flex:1}.band .x b{display:block;font-size:14px;color:var(--ivory)}.band .x span{font-size:11.5px;color:var(--muted)}
+.band .fig{font:italic 700 19px Georgia,serif;color:var(--ivory)}
+.flag{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(244,234,216,.12);color:var(--ivory)}
+.legs{display:flex;gap:6px;flex-wrap:wrap}
+.leg{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;background:rgba(255,255,255,.05);font-size:11px;color:rgba(255,255,255,.75);font-weight:600}
+/* cards */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.c{position:relative;aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#46617a,#5d7487 45%,#2a2522)}
+.c.sw{background:linear-gradient(180deg,#232a44,#3a2c3a 55%,#3e2a26)}
+.c .day{position:absolute;top:9px;left:0;right:0;text-align:center;font:italic 13px Georgia,serif;color:rgba(255,255,255,.8)}
+.c .art{position:absolute;left:18%;top:24%;width:64%;height:44%;color:rgba(255,255,255,.14)}
+.c .b{position:absolute;left:11px;right:11px;bottom:10px;display:flex;align-items:flex-end;justify-content:space-between}
+.c .b span{display:block;font-size:12px;color:var(--accent)}
+.c .b b{font:italic 700 16px Georgia,serif}
+.c .e{text-align:right}.c .e small{display:block;font-size:7.5px;letter-spacing:1.4px;color:var(--accent);font-weight:800}
+.ring{position:absolute;inset:0;border-radius:18px;pointer-events:none}
+.r-red{border:2.5px solid #ff5c5c}
+.r-ivory{border:2px solid var(--ivory);box-shadow:inset 0 0 18px rgba(244,234,216,.15)}
+.r-steel{border:2px solid var(--steel)}
+.r-ember{border:2px solid transparent;background:linear-gradient(#0000,#0000) padding-box,linear-gradient(160deg,#fbf4e6,#c9a77a) border-box;-webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.tag{position:absolute;top:8px;left:8px;display:flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:999px;font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
+.tag.iv{background:var(--ivory);color:#2a2116}
+.tag.st{background:var(--steel);color:#10202c}
+.c.tagged .day{left:auto;right:10px;text-align:right}
+.group{border-radius:22px;padding:10px;background:rgba(244,234,216,.05);box-shadow:inset 0 0 0 1px rgba(244,234,216,.18);display:flex;flex-direction:column;gap:9px}
+.ghead{display:flex;align-items:center;gap:8px;padding:2px 4px 0;font-size:12.5px;font-weight:700;color:var(--ivory)}
+.ghead span{margin-left:auto;font:italic 700 15px Georgia,serif}
+.swatches{display:flex;gap:14px;justify-content:center;margin-top:4px}
+.sw2{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.sw2 i{width:44px;height:56px;border-radius:12px;background:linear-gradient(180deg,#46617a,#2a2522)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="run" viewBox="0 0 24 24"><circle cx="14" cy="4.5" r="2" fill="currentColor"/><path d="M7 21l3-6 3 2 1 4M9 11l3-3 3 3 3 1M12 8l-2 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="bike" viewBox="0 0 24 24"><circle cx="6" cy="16" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 16l4-7h5l3 7M10 9l2 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="swim" viewBox="0 0 24 24"><circle cx="17" cy="7" r="2.2" fill="currentColor"/><path d="M3 15c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 19c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M7 12l4-5 4 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<h1>Event weeks</h1>
+<p class="lead">Example: Coastal Triathlon on Saturday 11 Oct, a swim, ride and run worth 346.2 Effort together, plus a swim on Tuesday. Events get their own colour, a warm ivory, so red stays for delete and gold for personal bests.</p>
+
+<h2>1 · The week card</h2>
+<div class="row">
+
+<div class="opt"><div class="t">W1 · Event band</div><div class="d">The week card as it is, with the event in an ivory band under the columns: its name, date, legs and combined Effort. The event's day turns ivory in the columns.</div>
+<div class="page"><div class="g ev">
+ <div class="hdr"><div style="flex:1"><div class="kick">Oct 5 – 11</div><div class="ser">Last week</div></div><div class="eff"><b>416.0</b><span>EFFORT</span></div></div>
+ <div class="cols"><div><i style="height:7%"></i><em>M</em></div><div><i class="on" style="height:22%"></i><em>T</em></div><div><i style="height:7%"></i><em>W</em></div><div><i style="height:7%"></i><em>T</em></div><div><i style="height:7%"></i><em>F</em></div><div><i class="evb" style="height:80%"></i><em class="evd">S</em></div><div><i style="height:7%"></i><em>S</em></div></div>
+ <div class="band"><span class="flag"><svg class="ic"><use href="#flag"/></svg></span><div class="x"><b>Coastal Triathlon</b><span>Sat 11 Oct · swim, ride, run</span></div><span class="fig">346.2</span></div>
+ <div class="chev">⌄</div>
+</div></div></div>
+
+<div class="opt"><div class="t">W2 · Event as the title</div><div class="d">In an event week the event becomes the headline: kicker "Event week · Oct 5 – 11", the event's name as the serif title, and its legs as small chips. The week's total Effort stays in the corner.</div>
+<div class="page"><div class="g ev">
+ <div class="hdr"><div style="flex:1"><div class="kick" style="color:var(--ivory)">Event week · Oct 5 – 11</div><div class="ser">Coastal Triathlon</div></div><div class="eff"><b>416.0</b><span>EFFORT</span></div></div>
+ <div class="legs"><span class="leg"><svg class="ic" style="width:13px;height:13px"><use href="#swim"/></svg>1,754 m</span><span class="leg"><svg class="ic" style="width:13px;height:13px"><use href="#bike"/></svg>40.7 km</span><span class="leg"><svg class="ic" style="width:13px;height:13px"><use href="#run"/></svg>10.0 km</span></div>
+ <div class="cols"><div><i style="height:7%"></i><em>M</em></div><div><i class="on" style="height:22%"></i><em>T</em></div><div><i style="height:7%"></i><em>W</em></div><div><i style="height:7%"></i><em>T</em></div><div><i style="height:7%"></i><em>F</em></div><div><i class="evb" style="height:80%"></i><em class="evd">S</em></div><div><i style="height:7%"></i><em>S</em></div></div>
+ <div class="chev">⌄</div>
+</div></div></div>
+
+</div>
+
+<h2>2 · The event's cards</h2>
+<div class="row">
+
+<div class="opt"><div class="t">C1 · Ivory outline and tag</div><div class="d">Each card in the event gets a thin ivory outline and a small "Triathlon" tag in the corner, replacing the red. Simple, and works wherever the cards land in the grid.</div>
+<div class="page"><div class="grid">
+ <div class="c tagged"><span class="tag iv"><svg class="ic" style="width:10px;height:10px"><use href="#flag"/></svg>Triathlon</span><div class="day">Sat</div><svg class="art"><use href="#run"/></svg><div class="b"><div><span>Run</span><b>10.0 km</b></div><div class="e"><small>EFFORT</small><b>96.3</b></div></div><div class="ring r-ivory"></div></div>
+ <div class="c tagged"><span class="tag iv"><svg class="ic" style="width:10px;height:10px"><use href="#flag"/></svg>Triathlon</span><div class="day">Sat</div><svg class="art"><use href="#bike"/></svg><div class="b"><div><span>Ride</span><b>40.7 km</b></div><div class="e"><small>EFFORT</small><b>155.5</b></div></div><div class="ring r-ivory"></div></div>
+ <div class="c sw tagged"><span class="tag iv"><svg class="ic" style="width:10px;height:10px"><use href="#flag"/></svg>Triathlon</span><div class="day">Sat</div><svg class="art"><use href="#swim"/></svg><div class="b"><div><span>Swim</span><b>1754 m</b></div><div class="e"><small>EFFORT</small><b>94.4</b></div></div><div class="ring r-ivory"></div></div>
+ <div class="c"><div class="day">Tuesday</div><svg class="art"><use href="#swim"/></svg><div class="b"><div><span>Swim</span><b>1243 m</b></div><div class="e"><small>EFFORT</small><b>69.8</b></div></div></div>
+</div></div></div>
+
+<div class="opt"><div class="t">C2 · Grouped together</div><div class="d">The event's cards sit together in one soft ivory frame with the event name and combined Effort on top, so the swim, ride and run read as one effort. Other activities follow below.</div>
+<div class="page" style="display:flex;flex-direction:column;gap:10px">
+ <div class="group"><div class="ghead"><svg class="ic"><use href="#flag"/></svg>Coastal Triathlon<span>346.2</span></div>
+  <div class="grid">
+   <div class="c sw"><div class="day">Swim</div><svg class="art"><use href="#swim"/></svg><div class="b"><div><span>Swim</span><b>1754 m</b></div><div class="e"><small>EFFORT</small><b>94.4</b></div></div></div>
+   <div class="c"><div class="day">Ride</div><svg class="art"><use href="#bike"/></svg><div class="b"><div><span>Ride</span><b>40.7 km</b></div><div class="e"><small>EFFORT</small><b>155.5</b></div></div></div>
+   <div class="c"><div class="day">Run</div><svg class="art"><use href="#run"/></svg><div class="b"><div><span>Run</span><b>10.0 km</b></div><div class="e"><small>EFFORT</small><b>96.3</b></div></div></div>
+  </div>
+ </div>
+ <div class="grid"><div class="c"><div class="day">Tuesday</div><svg class="art"><use href="#swim"/></svg><div class="b"><div><span>Swim</span><b>1243 m</b></div><div class="e"><small>EFFORT</small><b>69.8</b></div></div></div></div>
+</div></div>
+
+</div>
+
+<h2>3 · Outline colour</h2>
+<p class="lead">Today's red beside three alternatives. Ivory reads as special without competing with gold bests or salmon buttons; steel blue is the most distinct but new to the palette.</p>
+<div class="swatches">
+ <div class="sw2"><i style="box-shadow:inset 0 0 0 2.5px #ff5c5c"></i>Red (now)</div>
+ <div class="sw2"><i style="box-shadow:inset 0 0 0 2px #f4ead8"></i>Ivory</div>
+ <div class="sw2"><i style="box-shadow:inset 0 0 0 2px #9fc3dc"></i>Steel blue</div>
+ <div class="sw2"><i style="box-shadow:inset 0 0 0 2px #fff"></i>White</div>
+</div>
+</body></html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Respect Colours</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--card:#2a221e;--muted:rgba(255,255,255,.55);--accent:#ffb59e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:560px}
+.row{display:flex;flex-wrap:wrap;gap:24px;justify-content:center}
+.opt{width:340px;display:flex;flex-direction:column;gap:8px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:36px}
+.card{background:linear-gradient(180deg,#30261f,#221b17);border:1px solid rgba(255,181,158,.18);border-left:3px solid #c97a5c;border-radius:22px;padding:14px 16px}
+.hd{display:flex;gap:10px;align-items:center}
+.av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#d7c9b8,#6c5a4a)}
+.nm{font:italic 700 17px Georgia,serif}.sub{font-size:12px;color:var(--muted)}
+.ttl{display:flex;justify-content:space-between;align-items:flex-end;margin:10px 0}
+.ttl h3{margin:0;font:italic 700 19px Georgia,serif}.ttl p{margin:2px 0 0;font-size:13px;color:rgba(255,255,255,.85)}
+.eff{font:italic 700 26px Georgia,serif;background:linear-gradient(180deg,#ffe6b0,#f5b759);-webkit-background-clip:text;background-clip:text;color:transparent;text-align:right;line-height:1}
+.eff small{display:block;font-size:9px;letter-spacing:1.4px}
+.ph{height:120px;border-radius:14px;background:linear-gradient(160deg,#3d5a6c,#c98b5b)}
+.mile{margin:10px 0 8px;font-size:11px;letter-spacing:1.4px;font-weight:700;color:var(--accent)}
+.re{display:flex;align-items:center;gap:22px;font-weight:700;font-size:14px}
+.re .c{margin-left:auto;color:var(--muted);font-weight:600}
+.re span{display:flex;align-items:center;gap:6px}
+.re em{font-style:normal;font-weight:500;opacity:.7}
+.off{color:rgba(255,255,255,.85)}
+svg{width:16px;height:16px}
+.state{font-size:10.5px;letter-spacing:1.2px;color:var(--muted);text-transform:uppercase;margin:12px 0 6px}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Respect and Inspired</h1>
+<p class="lead">The same feed card, with Respect given and Inspired given, in each colour pairing. Inspired stays gold in every option.</p>
+<div class="row" id="r"></div>
+<script>
+const star=(fill,stroke)=>`<svg viewBox="0 0 24 24"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z" fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+const bolt=(fill)=>`<svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="${fill}"/></svg>`;
+const grad=(a,b)=>`background:linear-gradient(180deg,${a},${b});-webkit-background-clip:text;background-clip:text;color:transparent`;
+const gold=grad('#ffe6b0','#f5b759');
+const O=[
+ ['Current · salmon','The salmon Respect competes with the card edge, the milestone line and the buttons.','#f4a98a',grad('#e8835f','#ffd0bd')],
+ ['Ivory Respect · recommended','Quiet and clearly given. Gold stays special for Inspired, Effort, personal bests and stars.','#fff1d6',grad('#ffffff','#f3dfbf')],
+ ['Both gold','Calmer still, but Respect and Inspired read as the same thing at a glance.','#f5b759',gold],
+];
+const card=(sc,st,r,i)=>`<div class="card"><div class="hd"><div class="av"></div><div><div class="nm">Sandy</div><div class="sub">8h ago · The Hidden Leaf</div></div></div>
+<div class="ttl"><div><h3>Morning Run</h3><p>4.0 km · 21 min</p></div><div class="eff">44.6<small>EFFORT</small></div></div>
+<div class="ph"></div><div class="mile">4TH RUN THIS MONTH</div>
+<div class="re"><span>${r?star(sc,sc):star('none','rgba(255,255,255,.85)')}<b style="${r?st:''}" class="${r?'':'off'}">Respect</b><em style="${r?st:''}">${r?3:2}</em></span>
+<span>${i?bolt('#f5b759'):bolt('rgba(255,255,255,.85)')}<b style="${i?gold:''}" class="${i?'':'off'}">Inspired</b><em style="${i?gold:''}">${i?1:0}</em></span><span class="c"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.8" stroke-linejoin="round"/></svg>0</span></div></div>`;
+document.getElementById('r').innerHTML=O.map(([t,d,sc,st],k)=>`<div class="opt"><div class="t ${k==1?'rec':''}">${t}</div><div class="d">${d}</div>
+<div class="state">Respect given</div>${card(sc,st,1,0)}<div class="state">Both given</div>${card(sc,st,1,1)}</div>`).join('');
+</script>
+</body></html>

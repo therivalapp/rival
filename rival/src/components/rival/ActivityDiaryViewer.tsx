@@ -1,4 +1,6 @@
 import { formatActivityDistance, formatElevation } from '../../lib/units';
+import { bandFit } from '../../lib/titleFit';
+import { SkyBackdrop } from './SkyBackdrop';
 import { defaultActivityName } from '../../lib/activityName';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
@@ -8,6 +10,8 @@ import { supabase } from '../../lib/supabase';
 import { confirmAction, notify } from '../../lib/notify';
 import { formatDurationClock } from '../../lib/format';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalButtonColors, RivalGhost } from '../../constants/rivalTheme';
+import { RespectStar } from './RespectStar';
+import { activityDisplayName } from '../../lib/yearReview';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { CoverImage } from './CoverImage';
 import { RivalBackButton } from './RivalBackButton';
@@ -15,6 +19,8 @@ import { WebVideo } from './MediaPicker';
 import { TrainingPartners } from './TrainingPartners';
 import { BusyText } from './BusyText';
 import { EffortBreakdownSheet } from './EffortBreakdownSheet';
+import { DetailsBody, detailsSummary, hasDetails, useActivityDetails } from './ActivityDetails';
+import { STACKED_BESTS, fastestRest, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
 
 // Full-screen, tap-through "diary" viewer for a single activity — the photo
 // dominates (70% of the screen), stats overlay its bottom edge, and a
@@ -28,6 +34,7 @@ export type DiaryActivity = {
   name: string | null;
   activity_type: string;
   started_at: string;
+  utc_offset_seconds?: number | null;
   duration_seconds: number;
   distance_meters: number;
   elevation_meters: number | null;
@@ -44,6 +51,11 @@ export type DiaryActivity = {
   pinned: boolean;
   race_id: string | null;
   isPb: boolean;
+  /** The best this personal best beat (metres or seconds), and which it was. */
+  pbPrev?: number | null;
+  pbKind?: 'distance' | 'time';
+  /** New fastest times this run set (5 km, 10 km...), longest first. */
+  fastest?: FastestBest[] | null;
   /** The owner confirmed it is correct, so it scores in full (no cap). */
   effort_confirmed?: boolean;
 };
@@ -120,6 +132,7 @@ export function ActivityDiaryViewer({
   const [photoIdx, setPhotoIdx] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [breakdownFor, setBreakdownFor] = useState<DiaryActivity | null>(null);
+  const [raceName, setRaceName] = useState<string | null>(null);
   const activity = activities[index];
   const insets = useSafeAreaInsets();
   // Mobile-only redesign of the header (back arrow instead of X, date moved to
@@ -127,6 +140,11 @@ export function ActivityDiaryViewer({
   // untouched — same 760 breakpoint as my-activities.tsx.
   const { width: windowWidth } = useWindowDimensions();
   const wide = windowWidth >= 760;
+  // Details folded under the numbers (Ricky, 2026-10-14); closed again for
+  // each activity.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const details = useActivityDetails(wide ? null : activity?.id);
+  useEffect(() => { setDetailsOpen(false); }, [activity?.id]);
 
   // Drag-down-to-dismiss, like a native modal sheet — only claimed from the
   // handle bar (not the whole photo/scroll area), so it doesn't fight the
@@ -293,6 +311,16 @@ export function ActivityDiaryViewer({
   // so each swipe moves exactly one (Ricky, 2026-10-11).
   const lastSwipeAt = useRef(0);
   const tapAdvance = (dir: 1 | -1) => { if (Date.now() - lastSwipeAt.current > 400) advance(dir); };
+  const raceId = activities[index]?.race_id ?? null;
+  useEffect(() => {
+    setRaceName(null);
+    if (!raceId) return;
+    let live = true;
+    supabase.from('races').select('name').eq('id', raceId).maybeSingle()
+      .then(({ data }) => { if (live && data?.name) setRaceName(data.name); });
+    return () => { live = false; };
+  }, [raceId]);
+
   const advanceRef = useRef(advance);
   advanceRef.current = advance;
   const swipe = useRef(
@@ -324,6 +352,23 @@ export function ActivityDiaryViewer({
   const isCover = shown !== null && shown.url === activity.photo_url;
 
   const badgeKind: 'pb' | 'race' | null = activity.isPb ? 'pb' : activity.race_id ? 'race' : null;
+  const fastestTop = !activity.isPb && activity.fastest?.length ? activity.fastest[0] : null;
+  const phonePb = !wide && (activity.isPb || !!fastestTop);
+  // Races get the same treatment in red: a band naming the race and a fine
+  // red line inside the screen (Ricky, 2026-10-14).
+  const phoneRace = !wide && !!activity.race_id;
+  const pbOnDistance = phonePb && activity.isPb && activity.pbKind === 'distance';
+  const pbOnTime = phonePb && activity.isPb && activity.pbKind !== 'distance';
+  const pbNoun = activityDisplayName(activity.activity_type).toLowerCase();
+  const pbTitle = fastestTop ? fastestTitle(fastestTop) : activity.pbKind === 'distance' ? `Farthest ${pbNoun}` : `Longest ${pbNoun}`;
+  const pbJoin = fastestTop ? ' · ' : ' · up from ';
+  const pbFromText = fastestTop
+    ? `${formatDurationClock(fastestTop.seconds)}, was ${formatDurationClock(fastestTop.prevSeconds)}`
+    : activity.pbPrev
+    ? (activity.pbKind === 'distance'
+      ? formatDistance(activity.pbPrev, activity.activity_type) ?? null
+      : formatDurationClock(activity.pbPrev))
+    : null;
   const ringColor = badgeKind === 'pb' ? RivalColors.rankAnchors.unrivaled : badgeKind === 'race' ? '#ff5c5c' : 'transparent';
   const distance = formatDistance(activity.distance_meters, activity.activity_type);
   const duration = activity.duration_seconds > 0 ? formatDurationClock(activity.duration_seconds) : null;
@@ -374,7 +419,7 @@ export function ActivityDiaryViewer({
         <View style={[styles.photoArea, !wide && styles.photoAreaPhone]} {...swipe.panHandlers}>
           {/* Phones: one bar per photo across the top, like stories. They
               start again when the next activity begins (Ricky, 2026-10-11). */}
-          {!wide && photos.length > 0 ? (
+          {!wide && photos.length > 1 ? (
             <View style={[styles.storyBars, { top: insets.top + 4 }]} pointerEvents="none">
               {photos.map((m, i) => (
                 <View key={m.url} style={[styles.storyBar, i <= shownPhotoIdx && styles.storyBarOn]} />
@@ -412,10 +457,11 @@ export function ActivityDiaryViewer({
                 // large and faint behind serif words: the camera on your own
                 // activity, the activity's icon on someone else's.
                 <>
+                  {/* The sky for the hour it started (Ricky, 2026-10-14). */}
+                  <SkyBackdrop startedAt={activity.started_at} utcOffsetSeconds={activity.utc_offset_seconds} />
                   <View style={styles.fallbackArt} pointerEvents="none">
-                    <RivalIcon name={onUploadPhoto ? 'addPhoto' : activityIconName(activity.activity_type)} size={240} color="rgba(255,181,158,0.2)" />
+                    <RivalIcon name={onUploadPhoto ? 'addPhoto' : activityIconName(activity.activity_type)} size={240} color="rgba(255,255,255,0.16)" />
                   </View>
-                  <View style={styles.fallbackFade} pointerEvents="none" />
                   <Text style={styles.fallbackTitle}>{onUploadPhoto ? 'Add a photo' : 'No photo this time, still counts.'}</Text>
                   {onUploadPhoto ? <Text style={styles.fallbackSub}>Activities with photos get seen and remembered.</Text> : null}
                 </>
@@ -451,15 +497,12 @@ export function ActivityDiaryViewer({
           ) : (
             // Back where every other screen puts it, top left. The X it
             // replaces meant the same thing in an unfamiliar place.
-            <View style={[styles.header, { top: insets.top + 12 }]}>
+            <View style={[styles.header, { top: insets.top + (photos.length > 1 ? 20 : 12) }]}>
               <View style={styles.headerLeft}>
                 <RivalBackButton onPress={handleClose} color="#fff" style={styles.backBtn} />
                 {dirty && <Text style={styles.saveStatusText}>Unsaved changes</Text>}
               </View>
               <View style={styles.headerRight}>
-                <TouchableOpacity style={styles.headerBtn} onPress={togglePin}>
-                  <RivalIcon name={activity.pinned ? 'star' : 'starOutline'} size={17} color={RivalColors.accentText} />
-                </TouchableOpacity>
                 {/* The usual overflow menu rather than a pencil: it holds more
                     than editing, and three dots is what people look for. */}
                 <View style={styles.menuWrap}>
@@ -470,6 +513,9 @@ export function ActivityDiaryViewer({
                     <>
                       <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)} />
                       <View style={styles.menu}>
+                        {/* A small point up to the button, so the menu reads as
+                            coming from it (Ricky, 2026-10-14). */}
+                        <View style={styles.menuCaret} pointerEvents="none" />
                         <TouchableOpacity
                           style={styles.menuItem}
                           onPress={() => { setMenuOpen(false); router.push(`/manual-entry?editId=${activity.id}`); }}
@@ -540,14 +586,22 @@ export function ActivityDiaryViewer({
               <View style={styles.photoTitle} pointerEvents="box-none">
                 {/* The date lives on the journal's diary line, not on the photo. */}
                 <Text style={styles.typeKicker}>{activity.activity_type}</Text>
-                <TextInput
-                  style={[styles.nameInput, styles.nameInputPhone]}
-                  value={name}
-                  onChangeText={(v) => edit('name', v)}
-                  placeholder={defaultActivityName(activity.activity_type, new Date(activity.started_at))}
-                  placeholderTextColor="rgba(255,255,255,0.5)"
-                  maxLength={30}
-                />
+                {/* Option B (Ricky, 2026-10-14): the pin star sits beside the
+                    title it belongs to, leaving only back and more on the photo. */}
+                <View style={styles.titleRow}>
+                  <TextInput
+                    style={[styles.nameInput, styles.nameInputPhone, styles.titleRowInput]}
+                    value={name}
+                    onChangeText={(v) => edit('name', v)}
+                    placeholder={defaultActivityName(activity.activity_type, new Date(activity.started_at))}
+                    placeholderTextColor="rgba(255,255,255,0.5)"
+                    maxLength={30}
+                  />
+                  <TouchableOpacity onPress={togglePin} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={activity.pinned ? 'Unpin activity' : 'Pin activity'}>
+                    {/* Spins and shines when pinned, like Respect on the feed (Ricky, 2026-10-14). */}
+                    <RespectStar on={!!activity.pinned} size={30} onColour="#ffc94d" onGradient={['#fff4d6', '#ffc94d']} offColour="rgba(255,255,255,0.85)" animate />
+                  </TouchableOpacity>
+                </View>
               </View>
             </>
           ) : null}
@@ -607,9 +661,45 @@ export function ActivityDiaryViewer({
             <>
               {/* The pop-up sheets' look (GreySheet): their lifted grey with the
                   warm glow from the top edge (Ricky, 2026-10-11). */}
-              <View style={[styles.statCard, styles.statCardPop]}>
-                {duration ? <View style={styles.stat}><Text style={styles.statLabel}>Time</Text><Text style={styles.statValue}>{duration}</Text></View> : null}
-                {distance ? <View style={[styles.stat, !!duration && styles.statDivided]}><Text style={styles.statLabel}>Distance</Text><Text style={styles.statValue}>{distance}</Text></View> : null}
+              <View style={[styles.statCard, styles.statCardPop, styles.statCardStack, phonePb && styles.statCardPb, phoneRace && styles.statCardRace]}>
+                {phoneRace ? (
+                  <View style={[styles.pbBand, styles.raceBand]}>
+                    <RivalIcon name="flag" size={13} color={RivalColors.event} />
+                    <Text style={[styles.pbBandText, bandFit(`Event · ${raceName ?? ''}`)]} numberOfLines={1}>
+                      <Text style={styles.raceBandTitle}>Event</Text>
+                      {raceName ? <Text style={styles.pbBandFrom}>{` · ${raceName}`}</Text> : null}
+                    </Text>
+                  </View>
+                ) : null}
+                {/* A personal best heads the numbers in a thin gold band, and
+                    the figure that set it turns gold, in place of the frame
+                    around the screen (Ricky, 2026-10-14, option B). */}
+                {phonePb ? (
+                  <View style={styles.pbBand}>
+                    <RivalIcon name="trophy" size={13} color="#ffd27a" />
+                    <Text style={[styles.pbBandText, bandFit(`${pbTitle}${pbJoin}${pbFromText ?? ''}`)]} numberOfLines={1}>
+                      <Text style={styles.pbBandTitle}>{pbTitle}</Text>
+                      {pbFromText ? <Text style={styles.pbBandFrom}>{`${pbJoin}${pbFromText}`}</Text> : null}
+                    </Text>
+                  </View>
+                ) : null}
+                {/* Several bests in one run stack under the first, as on the
+                    feed (Ricky, 2026-10-14, option A). */}
+                {phonePb && fastestTop && activity.fastest!.length > 1 ? (
+                  <>
+                    {activity.fastest!.slice(1, STACKED_BESTS).map((b) => (
+                      <View key={b.meters} style={[styles.pbBand, styles.pbBandSub]}>
+                        <Text style={[styles.pbBandText, { fontSize: bandFit(fastestTitle(b) + fastestRest(b)).fontSize - 1 }]} numberOfLines={1}>
+                          <Text style={styles.pbBandTitle}>{fastestTitle(b)}</Text>
+                          <Text style={styles.pbBandFrom}>{fastestRest(b)}</Text>
+                        </Text>
+                      </View>
+                    ))}
+                  </>
+                ) : null}
+                <View style={styles.statRow}>
+                {duration ? <View style={styles.stat}><Text style={[styles.statLabel, pbOnTime && styles.statLabelBest]}>{pbOnTime ? 'Best' : 'Time'}</Text><Text style={[styles.statValue, pbOnTime && styles.statValueBest]}>{duration}</Text></View> : null}
+                {distance ? <View style={[styles.stat, !!duration && styles.statDivided]}><Text style={[styles.statLabel, pbOnDistance && styles.statLabelBest]}>{pbOnDistance ? 'Best' : 'Distance'}</Text><Text style={[styles.statValue, pbOnDistance && styles.statValueBest]}>{distance}</Text></View> : null}
                 {elevation ? <View style={[styles.stat, !!(duration || distance) && styles.statDivided]}><Text style={styles.statLabel}>Climb</Text><Text style={styles.statValue}>{elevation.replace('↑ ', '')}</Text></View> : null}
                 <TouchableOpacity
                   style={[styles.stat, !!(duration || distance || elevation) && styles.statDivided]}
@@ -621,7 +711,27 @@ export function ActivityDiaryViewer({
                   <Text style={styles.statLabel}>Effort ›</Text>
                   <Text style={[styles.statValue, styles.statEffort, styles.statEffortBright]}>{activity.effort_score}</Text>
                 </TouchableOpacity>
+                </View>
               </View>
+
+              {/* The finer details, folded: one quiet line until opened
+                  (Ricky, 2026-10-14). */}
+              {hasDetails(details) ? (
+                <View style={styles.finerCard}>
+                  <TouchableOpacity style={styles.detailsHead} onPress={() => setDetailsOpen((v) => !v)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }}>
+                    <Text style={styles.detailsLabel}>Details</Text>
+                    <RivalIcon name="chevronDown" size={18} color="rgba(255,255,255,0.5)" style={detailsOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
+                  </TouchableOpacity>
+                  {detailsOpen ? (
+                    <View style={styles.detailsOpenBody}>
+                      <DetailsBody details={details!} bests={activity.fastest} />
+                      {details!.provider === 'strava' ? <Text style={styles.detailsAttribution}>Powered by Strava</Text> : null}
+                    </View>
+                  ) : detailsSummary(details) ? (
+                    <Text style={styles.detailsSummary} numberOfLines={1}>{detailsSummary(details)}</Text>
+                  ) : null}
+                </View>
+              ) : null}
 
               {/* The journal as a diary page: dated like an entry, with faint
                   writing lines while it is empty (Ricky, 2026-10-11). */}
@@ -680,7 +790,10 @@ export function ActivityDiaryViewer({
           border works fine here (unlike the mockup's CSS, which needed an
           ::after overlay to dodge borders shrinking a shared padding box) —
           this ring has no children of its own, so there's no box to shrink. */}
-      {badgeKind && <View pointerEvents="none" style={[styles.ring, { borderColor: ringColor }]} />}
+      {/* Phones mark a personal best in the numbers instead (pbBand); a race keeps its ring. */}
+      {badgeKind && wide && <View pointerEvents="none" style={[styles.ring, { borderColor: ringColor }]} />}
+      {/* Plus a fine gold line, rounded inside the phone's own corners (Ricky, 2026-10-14). */}
+      {(phonePb || phoneRace) && <View pointerEvents="none" style={[styles.pbEdge, phoneRace && styles.raceEdge]} />}
     </Animated.View>
   );
 }
@@ -716,6 +829,46 @@ const styles = StyleSheet.create({
   },
   stat: { flex: 1, gap: 3, alignItems: 'center' },
   statDivided: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.08)' },
+  // Set 4px in from the edge with a slightly rounder curve than the screen's
+  // own (~55), so the whole line sits inside the corners instead of being
+  // clipped by them. No glow (Ricky, 2026-10-14).
+  pbEdge: {
+    position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, zIndex: 50,
+    borderRadius: 56, borderWidth: 1.5, borderColor: 'rgba(255,215,0,0.6)',
+  },
+  statCardStack: { flexDirection: 'column', paddingVertical: 0 },
+  statCardPb: { borderColor: 'rgba(255,201,77,0.4)' },
+  // Events in ivory, so red stays for delete (Ricky, 2026-10-16).
+  statCardRace: { borderColor: 'rgba(244,234,216,0.35)' },
+  raceEdge: { borderColor: 'rgba(244,234,216,0.6)' },
+  raceBand: {
+    borderBottomColor: 'rgba(244,234,216,0.16)',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(244,234,216,0.12), rgba(244,234,216,0))' } as any : { backgroundColor: 'rgba(244,234,216,0.07)' }),
+  },
+  raceBandTitle: { fontWeight: '700', color: RivalColors.event },
+  statRow: { flexDirection: 'row', paddingVertical: 13 },
+  pbBand: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 9,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,201,77,0.18)',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.13), rgba(255,201,77,0))' } as any : { backgroundColor: 'rgba(255,201,77,0.08)' }),
+  },
+  pbBandText: { flex: 1, fontSize: 12.5 },
+  pbBandSub: {
+    paddingVertical: 6, paddingLeft: 35,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.07), rgba(255,201,77,0))' } as any : { backgroundColor: 'rgba(255,201,77,0.04)' }),
+  },
+  finerCard: { marginTop: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
+  detailsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  detailsLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
+  detailsSummary: { marginTop: 7, fontSize: 13, color: 'rgba(255,255,255,0.85)' },
+  detailsOpenBody: { marginTop: 12 },
+  detailsAttribution: { marginTop: 14, textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.35)' },
+  pbBandTitle: { fontWeight: '700', color: '#ffe6a8' },
+  pbBandFrom: { fontWeight: '500', color: 'rgba(255,255,255,0.5)' },
+  statLabelBest: { color: '#ffd27a' },
+  statValueBest: Platform.OS === 'web'
+    ? ({ color: '#ffc94d', backgroundImage: 'linear-gradient(180deg, #fff4d6 0%, #ffc94d 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' } as any)
+    : { color: '#ffc94d' },
   statLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
   statValue: { fontSize: 19, fontWeight: '700', color: '#fff' },
   detailsCard: { marginTop: 10, gap: 8, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
@@ -770,17 +923,25 @@ const styles = StyleSheet.create({
     top: -2000, left: -2000, right: -2000, bottom: -2000,
   },
   menu: {
-    position: 'absolute', top: 42, right: 0, minWidth: 200,
+    position: 'absolute', top: 40, right: 0, minWidth: 200,
     borderRadius: 12, paddingVertical: 6, backgroundColor: '#2a221e',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     ...(Platform.OS === 'web' ? { boxShadow: '0px 8px 20px rgba(0,0,0,0.45)' } as any : {}),
+  },
+  menuCaret: {
+    position: 'absolute', top: -6, right: 10, width: 12, height: 12,
+    backgroundColor: '#2a221e', borderTopWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    transform: [{ rotate: '45deg' }],
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14 },
   menuText: { fontSize: 14, fontWeight: '600', color: RivalColors.onSurface },
   // Mobile header controls: one size and one fill, so the back arrow and the
   // edit/star pair read as a single set rather than two different components.
-  backBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.32)', borderWidth: 0 },
-  headerBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.32)', alignItems: 'center', justifyContent: 'center' },
+  // Smaller dark glass, so the buttons sit on the photo instead of greying it (Ricky, 2026-10-14).
+  backBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.38)', borderWidth: 0, ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}) },
+  headerBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.38)', alignItems: 'center', justifyContent: 'center', ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}) },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  titleRowInput: { flex: 1, minWidth: 0 },
   pinCorner: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.32)', alignItems: 'center', justifyContent: 'center' },
   counter: { backgroundColor: 'rgba(0,0,0,0.32)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
   counterText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
@@ -863,8 +1024,8 @@ const styles = StyleSheet.create({
   // skip/confirm pair — the equal-split full-width version read as bulky
   // for what's ultimately a secondary confirmation, not a primary CTA.
   saveRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 24 },
-  discardBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: RivalRadius.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center' },
-  discardBtnLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.2, color: RivalColors.textSecondary },
+  discardBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: RivalRadius.full, borderWidth: 1, borderColor: 'rgba(255,92,92,0.4)', alignItems: 'center' },
+  discardBtnLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.2, color: RivalColors.danger },
   saveBtn: { paddingVertical: 8, paddingHorizontal: 17, borderRadius: RivalRadius.full, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, alignItems: 'center' },
   saveBtnLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2, color: RivalButtonColors.label(RivalColors.onAccentFill) },
 

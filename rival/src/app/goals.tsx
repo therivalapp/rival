@@ -853,7 +853,7 @@ export default function GoalsScreen() {
             <GreyPrimary label={saving ? 'Saving…' : 'Save'} busy={saving} disabled={!targetValue || saving} onPress={saveGoal} />
             {editingGoal && (
               <TouchableOpacity style={ms.deleteLink} onPress={() => deleteGoal(editingGoal.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <RivalIcon name="delete" size={15} color={RivalColors.error} />
+                <RivalIcon name="delete" size={15} color={RivalColors.danger} />
                 <Text style={ms.deleteLinkText}>Delete goal</Text>
               </TouchableOpacity>
             )}
@@ -878,7 +878,7 @@ export default function GoalsScreen() {
             <>
               {editingGoal && (
                 <TouchableOpacity style={styles.deleteGoalButton} onPress={() => deleteGoal(editingGoal.id)}>
-                  <RivalIcon name="delete" size={16} color={RivalColors.error} />
+                  <RivalIcon name="delete" size={16} color={RivalColors.danger} />
                   <Text style={styles.deleteGoalButtonText}>Delete Goal</Text>
                 </TouchableOpacity>
               )}
@@ -1171,9 +1171,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: RivalRadius.full,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,180,171,0.4)',
+    borderColor: 'rgba(255,92,92,0.45)',
   },
-  deleteGoalButtonText: { color: RivalColors.error, fontSize: 14, fontWeight: '700' },
+  deleteGoalButtonText: { color: RivalColors.danger, fontSize: 14, fontWeight: '700' },
   celebrationBanner: {
     backgroundColor: 'rgba(245,183,89,0.12)',
     borderRadius: 10,
@@ -1435,5 +1435,5 @@ const ms = StyleSheet.create({
   chip: { borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 16 },
   sheetActions: { gap: 10, marginTop: 10 },
   deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
-  deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.error },
+  deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.danger },
 });

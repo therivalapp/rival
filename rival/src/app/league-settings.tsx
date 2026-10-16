@@ -661,7 +661,7 @@ export default function LeagueSettingsScreen() {
                 <View style={ms.dangerDivider} />
                 {!deleteOpen ? (
                   <TouchableOpacity style={ms.dangerRow} onPress={() => setDeleteOpen(true)}>
-                    <RivalIcon name="delete" size={17} color="#ff8f8f" />
+                    <RivalIcon name="delete" size={17} color={RivalColors.danger} />
                     <View style={{ flex: 1 }}>
                       <Text style={ms.dangerText}>Delete team</Text>
                       <Text style={ms.cardHint}>Removes the team for everyone, with its chat, posts and challenges. Activities and Effort are kept.</Text>
@@ -1116,9 +1116,9 @@ const ms = StyleSheet.create({
   dangerCard: { borderColor: 'rgba(255,143,143,0.18)' },
   dangerLabel: { color: '#ff8f8f' },
   dangerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  dangerText: { fontSize: 15, fontWeight: '700', color: '#ff8f8f', marginBottom: 2 },
+  dangerText: { fontSize: 15, fontWeight: '700', color: RivalColors.danger, marginBottom: 2 },
   dangerDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)' },
-  deleteBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#b54848', alignItems: 'center' },
+  deleteBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: RivalColors.danger, alignItems: 'center' },
   deleteBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
   content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },

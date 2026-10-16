@@ -1,0 +1,67 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week Numbers Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:660px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:340px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.g{border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:16px}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);background:var(--rec);border:1px solid var(--recb);border-radius:16px}
+.nums>div{text-align:center;padding:13px 4px 11px;display:flex;flex-direction:column;align-items:center}
+.nums>div+div{border-left:1px solid rgba(255,255,255,.08)}
+.nums b{display:block;font:italic 700 29px Georgia,serif;line-height:34px;height:34px}
+.nums b small{font:600 13px -apple-system,sans-serif;color:var(--muted);font-style:normal;margin:0 1px}
+.lab{margin-top:5px;font-size:9.5px;letter-spacing:1.4px;color:var(--muted);font-weight:800}
+.ic{width:20px;height:20px;margin-bottom:6px}
+.badge{width:32px;height:32px;border-radius:50%;background:rgba(232,131,95,.16);display:flex;align-items:center;justify-content:center;margin-bottom:7px}
+.badge .ic{margin:0;width:17px;height:17px}
+.delta{margin-top:5px;font-size:11px;font-weight:700;color:#5fd38a}
+.delta.same{color:var(--muted);font-weight:600}
+.ember b{background:linear-gradient(180deg,#fff 10%,#ffb59e 75%,#e8835f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ember b small{-webkit-text-fill-color:rgba(255,255,255,.5)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6" fill="none" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7" fill="none" stroke="#e8835f" stroke-width="2.2"/><path d="M12 13V9M10 3h4" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="route" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2" fill="#e8835f"/><circle cx="18" cy="19" r="2" fill="#e8835f"/><path d="M6 7v6a3 3 0 006 0V11a3 3 0 016 0v6" fill="none" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round"/></symbol>
+</defs></svg>
+<h1>Giving the numbers life</h1>
+<p class="lead">Today's card is three white figures of the same weight in a plain box: nothing tells the eye where to go and nothing says whether it's good. Four ways to fix that.</p>
+<div class="row">
+
+<div class="opt"><div class="t">1 · Small icons back</div><div class="d">The ember icons return, small and solid above each figure, as before the redesign. Adds colour and makes each figure readable at a glance.</div>
+<div class="g"><div class="nums">
+ <div><svg class="ic"><use href="#pulse"/></svg><b>4</b><span class="lab">ACTIVITIES</span></div>
+ <div><svg class="ic"><use href="#timer"/></svg><b>1<small>h</small> 42<small>m</small></b><span class="lab">TIME</span></div>
+ <div><svg class="ic"><use href="#route"/></svg><b>11.9<small>km</small></b><span class="lab">DISTANCE</span></div>
+</div></div></div>
+
+<div class="opt"><div class="t">2 · Icons in round badges</div><div class="d">The same icons in soft ember circles, like the tiles on the Add an activity pop-up. A little richer than 1.</div>
+<div class="g"><div class="nums">
+ <div><span class="badge"><svg class="ic"><use href="#pulse"/></svg></span><b>4</b><span class="lab">ACTIVITIES</span></div>
+ <div><span class="badge"><svg class="ic"><use href="#timer"/></svg></span><b>1<small>h</small> 42<small>m</small></b><span class="lab">TIME</span></div>
+ <div><span class="badge"><svg class="ic"><use href="#route"/></svg></span><b>11.9<small>km</small></b><span class="lab">DISTANCE</span></div>
+</div></div></div>
+
+<div class="opt"><div class="t">3 · Change on last week</div><div class="d">No icons. Each figure gets a small green line saying how it compares with last week, so the numbers mean something, not just sit there.</div>
+<div class="g"><div class="nums">
+ <div><b>4</b><span class="lab">ACTIVITIES</span><span class="delta">+2</span></div>
+ <div><b>1<small>h</small> 42<small>m</small></b><span class="lab">TIME</span><span class="delta">+49m</span></div>
+ <div><b>11.9<small>km</small></b><span class="lab">DISTANCE</span><span class="delta">+2.1 km</span></div>
+</div></div></div>
+
+<div class="opt"><div class="t">4 · Icons and change</div><div class="d">Small icons on top, the change on last week underneath. The most informative; the "% vs last week" line below the card could then go.</div>
+<div class="g"><div class="nums">
+ <div><svg class="ic"><use href="#pulse"/></svg><b>4</b><span class="lab">ACTIVITIES</span><span class="delta">+2</span></div>
+ <div><svg class="ic"><use href="#timer"/></svg><b>1<small>h</small> 42<small>m</small></b><span class="lab">TIME</span><span class="delta">+49m</span></div>
+ <div><svg class="ic"><use href="#route"/></svg><b>11.9<small>km</small></b><span class="lab">DISTANCE</span><span class="delta">+2.1 km</span></div>
+</div></div></div>
+
+</div>
+</body></html>

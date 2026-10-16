@@ -1,0 +1,70 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Starred Filter Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--card:#1f1a17;--chip:#2a231f;--accent:#ffb59e;--muted:rgba(255,255,255,.55)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 Manrope,-apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:560px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.opt{width:330px;display:flex;flex-direction:column;gap:8px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.scr{background:radial-gradient(ellipse at 50% 0,#33261f,#120e0c 70%);border-radius:24px;padding:16px 12px 14px}
+.kick{text-align:center;font-size:10px;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:10px}
+.hero{position:relative;background:rgba(20,16,14,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:16px 16px 12px}
+.top{display:flex;justify-content:space-between;align-items:flex-start}
+.top h2{margin:0;font:italic 700 22px Georgia,serif}.top p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+.eff{text-align:right;font:italic 700 26px Georgia,serif;line-height:1}.eff small{display:block;font:700 9px Manrope,sans-serif;letter-spacing:2px;color:var(--accent);margin-top:4px}
+.dots{display:flex;justify-content:space-between;margin-top:14px;padding:0 4px}
+.dots div{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9px;font-weight:700;color:rgba(255,255,255,.4)}
+.dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.12)}
+.dots i.on{background:linear-gradient(135deg,#d97757,#ffb59e)}.dots i.pb{background:linear-gradient(#ffe6b0,#f5b759)}
+.btns{position:absolute;right:12px;bottom:-15px;display:flex;gap:6px}
+.btn{width:30px;height:30px;border-radius:50%;background:#2a231f;border:1px solid rgba(255,255,255,.1);display:grid;place-items:center}
+.btn.on{background:rgba(255,181,158,.16);border-color:rgba(255,181,158,.45)}
+.btn svg{width:14px;height:14px}
+.tog{display:flex;justify-content:center;gap:4px;margin:26px auto 10px;background:#1b1714;border-radius:999px;padding:3px;width:max-content}
+.tog span{padding:5px 12px;border-radius:999px;font-size:11.5px;color:var(--muted);font-weight:600}.tog span.on{background:#2e2622;color:#fff}
+.panel{background:#1b1714;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.lab{font-size:9.5px;letter-spacing:1.4px;color:var(--muted);font-weight:700;margin:2px 2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;background:var(--chip);border:1px solid rgba(255,255,255,.08);font-size:12px;font-weight:600;color:rgba(255,255,255,.8)}
+.chip.on{background:rgba(255,181,158,.14);border-color:rgba(255,181,158,.45);color:#fff}
+.chip.gold{background:rgba(255,201,77,.12);border-color:rgba(255,201,77,.45);color:#fff}
+.chip svg{width:12px;height:12px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.card{height:96px;border-radius:14px;background:var(--c);position:relative}
+.card .s{position:absolute;top:7px;right:8px}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Starred only</h1>
+<p class="lead">Three ways to add a Starred filter to the Activity tab without crowding the buttons on the week card.</p>
+<div class="row" id="r"></div>
+<script>
+const I={
+ trophy:'<svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+ search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2"/></svg>',
+ tune:'<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+ star:'<svg viewBox="0 0 24 24"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4d6"/><stop offset="1" stop-color="#ffc94d"/></linearGradient></defs><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="url(#g)"/></svg>',
+ starO:'<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+};
+const hero=(btns)=>`<div class="kick">EVERY EFFORT TELLS A STORY</div><div class="hero"><div class="top"><div><h2>This week</h2><p>Oct 12 – 18 · 3 activities</p></div><div class="eff">116.9<small>EFFORT</small></div></div>
+<div class="dots">${'MTWTFSS'.split('').map((d,i)=>`<div><i class="${i==1?'pb':i==2||i==3?'on':''}"></i>${d}</div>`).join('')}</div><div class="btns">${btns}</div></div>`;
+const tog=`<div class="tog"><span>Week</span><span class="on">Month</span><span>Year</span></div>`;
+const cards=`<div class="cards">${['linear-gradient(160deg,#3d5a6c,#c98b5b)','linear-gradient(170deg,#2f4a63,#8fb3c9)'].map(c=>`<div class="card" style="--c:${c}"><span class="s">${I.star}</span></div>`).join('')}</div>`;
+const b=(ic,on)=>`<div class="btn ${on?'on':''}" style="color:${on?'#ffb59e':'rgba(255,255,255,.6)'}">${I[ic]}</div>`;
+const O=[
+ ['A · A third button','Simplest. A star button joins the trophy and search. Three small buttons on the card.',
+  hero(`<div class="btn" style="background:rgba(255,201,77,.14);border-color:rgba(255,201,77,.5)">${I.star}</div>`+b('trophy')+b('search'))+tog+
+  `<div class="panel"><div class="chips"><span class="chip gold">${I.star} Starred <span style="opacity:.6">✕</span></span></div></div>`+cards,0],
+ ['B · One filter button','The trophy and search fold into a single filter button. Its panel holds Starred, Personal bests and the activity types.',
+  hero(b('tune',1))+tog+`<div class="panel"><div class="lab">SHOW</div><div class="chips"><span class="chip gold">${I.star} Starred</span><span class="chip">${I.trophy} Personal bests</span></div>
+  <div class="lab">TYPE</div><div class="chips"><span class="chip on">All</span><span class="chip">Run</span><span class="chip">Ride</span><span class="chip">Walk</span><span class="chip">Swim</span></div></div>`+cards,1],
+ ['C · Chips under the toggle','No buttons on the card. A quiet row of chips sits under Week · Month · Year: Starred, Personal bests, Type.',
+  hero('')+tog+`<div class="chips" style="justify-content:center"><span class="chip gold">${I.star} Starred</span><span class="chip">${I.trophy} Personal bests</span><span class="chip">${I.search} Type</span></div>`+cards,0],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h,rec])=>`<div class="opt"><div class="t ${rec?'rec':''}">${t}${rec?' · recommended':''}</div><div class="d">${d}</div><div class="scr">${h}</div></div>`).join('');
+</script>
+</body></html>

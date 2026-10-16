@@ -17,6 +17,8 @@ export type Teammate = {
   id: string;
   name: string;
   avatarUrl: string | null;
+  /** Activities shared with this person, either way round (declined ones aside). */
+  together: number;
 };
 
 export type ParticipantStatus = 'pending' | 'accepted' | 'declined';
@@ -29,10 +31,10 @@ export type Participant = {
   status: ParticipantStatus;
 };
 
-// Everyone you share an active team with. Ordered by who you have tagged most
-// recently, then alphabetically — training partners repeat, so the person you
-// walked with yesterday should not be somewhere down an alphabetical list of
-// forty teammates.
+// Everyone you share an active team with. Ordered by who you train with most
+// (activities you tagged them on, or they tagged you on), then most recently,
+// then alphabetically — training partners repeat, so the picker can open on
+// the few people you usually train with (Ricky, 2026-10-14).
 export async function fetchTeammates(): Promise<Teammate[]> {
   const { data: { user } } = await getAuthUser();
   if (!user) return [];
@@ -55,17 +57,22 @@ export async function fetchTeammates(): Promise<Teammate[]> {
       .neq('user_id', user.id),
     supabase
       .from('activity_participants')
-      .select('user_id, created_at')
-      .eq('added_by', user.id)
+      .select('user_id, added_by, status, created_at')
+      .or(`added_by.eq.${user.id},user_id.eq.${user.id}`)
       .order('created_at', { ascending: false })
-      .limit(100),
+      .limit(500),
   ]);
 
-  // First appearance wins — the list is already newest-first, so this keeps
-  // each person's most recent tag and nothing else.
+  // The other person on each tag, whichever side tagged. First appearance
+  // wins for recency, as the list is newest-first.
   const lastTagged = new Map<string, string>();
+  const together = new Map<string, number>();
   (recent ?? []).forEach((r: any) => {
-    if (!lastTagged.has(r.user_id)) lastTagged.set(r.user_id, r.created_at);
+    if (r.status === 'declined') return;
+    const other = r.added_by === user.id ? r.user_id : r.added_by;
+    if (!other || other === user.id) return;
+    if (!lastTagged.has(other)) lastTagged.set(other, r.created_at);
+    together.set(other, (together.get(other) ?? 0) + 1);
   });
 
   // The same person appears once per shared team.
@@ -76,10 +83,12 @@ export async function fetchTeammates(): Promise<Teammate[]> {
       id: m.user_id,
       name: m.users?.display_name || 'A teammate',
       avatarUrl: m.users?.avatar_url ?? null,
+      together: together.get(m.user_id) ?? 0,
     });
   });
 
   return [...byId.values()].sort((a, b) => {
+    if (a.together !== b.together) return b.together - a.together;
     const aWhen = lastTagged.get(a.id);
     const bWhen = lastTagged.get(b.id);
     if (aWhen && bWhen) return bWhen.localeCompare(aWhen);

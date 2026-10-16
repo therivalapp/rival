@@ -1,0 +1,66 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week Stats Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--fill:#e8835f;--muted:rgba(255,255,255,.5)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:620px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start}
+.opt{width:330px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.card{border-radius:22px;padding:16px 16px 14px;background:linear-gradient(180deg,#2a211c,#1a1512);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:14px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start}
+.wk{font:italic 700 25px Georgia,serif}.sub{color:var(--muted);font-size:13px}
+.ef{text-align:right}.ef b{font:italic 700 28px Georgia,serif;display:block;line-height:1}.ef span{font-size:10.5px;letter-spacing:2.2px;color:var(--accent);font-weight:800}
+.dots{display:flex;justify-content:space-between;padding:0 6px}
+.dots div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:700}
+.dots i{width:10px;height:10px;border-radius:50%;background:#3a3532}.dots i.on{background:#f2a68a}
+.foot{border-top:1px solid rgba(255,255,255,.07);padding-top:12px;display:flex;flex-direction:column;gap:4px}
+.foot b{font-style:italic;color:var(--accent);font-size:13.5px}.foot span{color:var(--muted);font-style:italic;font-size:13px}.foot em{color:#5fd38a;font-style:normal}
+.u{font:600 12px -apple-system,sans-serif;color:var(--muted);margin-left:2px}
+.ic{width:16px;height:16px;flex:none}
+
+/* A: open row, no inner box */
+.a{display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+.a div+div{border-left:1px solid rgba(255,255,255,.08)}
+.a b{display:block;font:italic 700 24px Georgia,serif;line-height:1.1}
+.a span{display:flex;justify-content:center;align-items:center;gap:5px;margin-top:5px;font-size:9.5px;letter-spacing:1.4px;font-weight:800;color:var(--muted)}
+
+/* B: the activity page's numbers card */
+.b{background:#36302b;border:1px solid rgba(255,255,255,.08);border-radius:14px;display:grid;grid-template-columns:repeat(3,1fr);padding:11px 2px;text-align:center}
+.b div+div{border-left:1px solid rgba(255,255,255,.08)}
+.b span{display:block;font-size:9px;letter-spacing:1.3px;color:var(--muted);font-weight:800}
+.b b{display:block;font-size:17px;margin-top:3px;font-weight:700}
+
+/* C: three tiles with round icon badges */
+.c{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.c div{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:12px 6px 11px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.c i{width:30px;height:30px;border-radius:50%;background:rgba(232,131,95,.16);display:flex;align-items:center;justify-content:center}
+.c b{font:italic 700 21px Georgia,serif;line-height:1}
+.c span{font-size:9px;letter-spacing:1.3px;color:var(--muted);font-weight:800}
+</style></head><body>
+<h1>This week, three ways</h1>
+<p class="lead">Only the numbers under the week dots change. The header, Effort and the line underneath stay as they are.</p>
+<div class="row" id="r"></div>
+<script>
+const pulse='<svg class="ic" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6" fill="none" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const timer='<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7" fill="none" stroke="#e8835f" stroke-width="2.2"/><path d="M12 13V9M10 3h4" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const route='<svg class="ic" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2" fill="#e8835f"/><circle cx="18" cy="19" r="2" fill="#e8835f"/><path d="M6 7v6a3 3 0 006 0V11a3 3 0 016 0v6" fill="none" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const shell=(stats)=>`<div class="card"><div class="hd"><div><div class="wk">This week</div><div class="sub">Oct 12 – 18 · 2 activities</div></div><div class="ef"><b>116.9</b><span>EFFORT</span></div></div>
+<div class="dots">${'MTWTFSS'.split('').map((d,i)=>`<div><i class="${i==1||i==2?'on':''}"></i>${d}</div>`).join('')}</div>
+${stats}
+<div class="foot"><b>21.2 Effort ahead of the monthly average.</b><span><em>↗</em> 22% vs last week</span></div></div>`;
+const A=`<div class="a"><div><b>2</b><span>${pulse}ACTIVITIES</span></div><div><b>1h 7m</b><span>${timer}TIME</span></div><div><b>11.9<span class="u" style="display:inline;margin:0">km</span></b><span>${route}DISTANCE</span></div></div>`;
+const B=`<div class="b"><div><span>ACTIVITIES</span><b>2</b></div><div><span>TIME</span><b>1:07:12</b></div><div><span>DISTANCE</span><b>11.9 km</b></div></div>`;
+const C=`<div class="c"><div><i>${pulse}</i><b>2</b><span>ACTIVITIES</span></div><div><i>${timer}</i><b>1h 7m</b><span>TIME</span></div><div><i>${route}</i><b>11.9<span class="u">km</span></b><span>DISTANCE</span></div></div>`;
+const O=[
+ ['A · Open row','No box inside the card. Bigger serif numbers sit straight on the card, with a small icon beside each label. The calmest of the three.',shell(A)],
+ ['B · Numbers card','The same numbers card as the activity page and the feed: caps labels on top, plain bold figures. Matches the rest of the app.',shell(B)],
+ ['C · Three tiles','Each figure gets its own soft tile with a round icon badge, like the pop-up tiles. The most visual, a little busier.',shell(C)],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h])=>`<div class="opt"><div class="t">${t}</div><div class="d">${d}</div>${h}</div>`).join('');
+</script>
+</body></html>

@@ -25,7 +25,6 @@ export const QUOTES: Quote[] = [
   { text: "The next rank isn't given. It's taken.", category: 'levelup', tone: 'blunt' },
   { text: "You don't rise. You climb.", category: 'levelup', tone: 'blunt' },
   { text: "No effort, no level.", category: 'levelup', tone: 'blunt' },
-  { text: "The leaderboard doesn't care how you feel about it.", category: 'levelup', tone: 'blunt' },
   { text: "Earn it, or stay where you are.", category: 'levelup', tone: 'blunt' },
   { text: "You're closer to your next level than you think.", category: 'levelup', tone: 'encouraging' },
   { text: "Small efforts still move the needle.", category: 'levelup', tone: 'encouraging' },

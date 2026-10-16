@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personal Best Label</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--sh:#24201d;--bright:#2f2a26;--accent:#ffb59e;--muted:rgba(255,255,255,.5)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:560px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.opt{width:290px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.phone{height:600px;border-radius:44px;background:#000;padding:8px}
+.scr{height:100%;border-radius:37px;overflow:hidden;background:var(--sh);display:flex;flex-direction:column}
+.photo{height:270px;flex:none;position:relative;background:linear-gradient(170deg,#1d5e75,#5fc1d0 50%,#3a6f6f 75%,var(--sh))}
+.photo:after{content:"";position:absolute;left:0;right:0;bottom:0;height:45%;background:linear-gradient(transparent,var(--sh))}
+.btn{position:absolute;top:44px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.38);z-index:2;display:grid;place-items:center;font-size:13px}
+.body{padding:0 14px;margin-top:-58px;position:relative;z-index:3;display:flex;flex-direction:column;gap:10px}
+.k{font-size:10px;letter-spacing:1.6px;color:var(--accent);font-weight:700}
+.k .g{color:#ffd27a}
+.n{display:flex;justify-content:space-between;align-items:center;font:italic 700 22px Georgia,serif;margin-top:2px}
+.n i{font:normal 20px sans-serif;color:rgba(255,255,255,.8);font-style:normal}
+.stats{background:var(--bright);border-radius:14px;border:1px solid rgba(255,255,255,.06);overflow:hidden}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);padding:11px 2px;text-align:center}
+.grid div+div{border-left:1px solid rgba(255,255,255,.07)}
+.grid span{display:block;font-size:8px;letter-spacing:1.1px;color:var(--muted);font-weight:700}
+.grid b{display:block;font-size:15px;margin-top:3px}
+.grid .e b{font:italic 700 18px Georgia,serif}
+.gold{background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.grid .best span{color:#ffd27a}
+.band{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid rgba(255,201,77,.18);background:linear-gradient(90deg,rgba(255,201,77,.12),rgba(255,201,77,0));font-size:12px}
+.band b{color:#ffe6a8;font-weight:700}.band span{color:var(--muted)}
+.band svg,.line svg{width:13px;height:13px;flex:none}
+.line{display:flex;align-items:center;gap:7px;font:italic 600 14px Georgia,serif;color:#ffe6a8;margin-top:4px}
+.line span{font:500 12px -apple-system,sans-serif;color:var(--muted);font-style:normal}
+.jr{background:#2b2724;border-radius:14px;padding:12px 14px;height:118px}
+.jr small{font-size:9px;letter-spacing:1.4px;color:var(--muted);font-weight:700}
+.jr div{font:italic 700 16px Georgia,serif;margin-top:8px}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Personal best, without the frame</h1>
+<p class="lead">No pill and nothing floating between cards. Each option puts the personal best inside something already on the page.</p>
+<div class="row" id="r"></div>
+<script>
+const tro='<svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+const photoTop='<div class="photo"><div class="btn" style="left:14px">‹</div><div class="btn" style="right:14px">•••</div></div>';
+const stats=(best,band)=>`<div class="stats">${band?`<div class="band">${tro}<b>Farthest swim</b><span>· up from 2,000 m</span></div>`:''}<div class="grid">
+<div><span>TIME</span><b>1:02:55</b></div><div class="${best?'best':''}"><span>${best?'BEST':'DISTANCE'}</span><b class="${best?'gold':''}">2070 m</b></div><div><span>CLIMB</span><b>3 m</b></div><div class="e"><span>EFFORT</span><b class="gold">116.2</b></div></div></div>`;
+const jr='<div class="jr"><small>JOURNAL</small><div>How did it go?</div></div>';
+const page=(kick,line,best,band)=>photoTop+`<div class="body"><div><div class="k">${kick}</div><div class="n">Morning Swim<i>☆</i></div>${line||''}</div>${stats(best,band)}${jr}</div>`;
+const O=[
+ ['A · In the label','The type line reads "Swim · Personal best" in gold, and the number that set it turns gold. The quietest option.',
+  page('SWIM <span class="g">· PERSONAL BEST</span>','',1,0),0],
+ ['B · Across the top of the numbers','A thin gold band heads the stats card: what the best was and what it beat. Clear, and part of the card.',
+  page('SWIM','',1,1),1],
+ ['C · Under the title','One gold line under the title, like a caption: "Farthest swim yet".',
+  page('SWIM',`<div class="line">${tro}Farthest swim yet <span>· up from 2,000 m</span></div>`,1,0),0],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h,rec])=>`<div class="opt"><div class="t ${rec?'rec':''}">${t}${rec?' · recommended':''}</div><div class="d">${d}</div><div class="phone"><div class="scr">${h}</div></div></div>`).join('');
+</script>
+</body></html>

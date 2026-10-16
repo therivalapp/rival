@@ -1,0 +1,104 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Month Bests List</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:680px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:350px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.page{border-radius:24px;padding:12px;background:radial-gradient(ellipse at 50% 0,#2a201b,#141110 75%)}
+.card{border-radius:22px;background:var(--ground);padding:15px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.glow:before{content:"";position:absolute;inset:0 0 auto 0;height:100px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(255,201,77,.12),transparent 70%)}
+.card>*{position:relative}
+.gold{background:linear-gradient(180deg,#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ser{font:italic 700 22px Georgia,serif;line-height:1.1}
+.kick{font-size:9.5px;letter-spacing:1.7px;font-weight:800;text-transform:uppercase;color:#ffd27a}
+.hd{display:flex;align-items:flex-end;justify-content:space-between}
+.see{font-size:12px;font-weight:700;color:var(--accent)}
+.fig{font:italic 700 19px Georgia,serif;white-space:nowrap}
+.sub{font-size:11.5px;color:var(--muted)}
+.ic{width:17px;height:17px;flex:none;color:#ffd27a}
+.rows{border-radius:16px;background:var(--rec)}
+.rows>div{display:flex;align-items:center;gap:11px;padding:11px 13px}
+.rows>div+div{border-top:1px solid rgba(255,255,255,.06)}
+.x{flex:1;min-width:0}.x div{font-size:14px;font-weight:700}
+.badge{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(255,201,77,.12)}
+.chev{color:rgba(255,255,255,.3);font-size:16px}
+.old{font-size:12px;color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.3)}
+.arrow{color:var(--muted);font-size:12px;margin:0 4px}
+.coin{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#ffe7a8,#d9a23a);box-shadow:0 4px 14px rgba(217,162,58,.3),inset 0 1px 0 rgba(255,255,255,.5)}
+.cnt{min-width:22px;height:22px;border-radius:11px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(#fff4d6,#ffc94d);color:#3a2604;font-size:11px;font-weight:800;margin-left:8px;vertical-align:middle}
+.seeall{text-align:center;font-size:12.5px;font-weight:700;color:var(--accent);padding:10px 0 2px;border-top:1px solid rgba(255,255,255,.06)}
+.date{width:40px;flex:none;text-align:center;border-radius:10px;background:rgba(255,255,255,.05);padding:4px 0}
+.date b{display:block;font:italic 700 17px Georgia,serif;line-height:1}
+.date span{font-size:8.5px;letter-spacing:1px;font-weight:800;color:var(--muted)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="lift" viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="run" viewBox="0 0 24 24"><circle cx="14" cy="4.5" r="2" fill="currentColor"/><path d="M7 21l3-6 3 2 1 4M9 11l3-3 3 3 3 1M12 8l-2 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+</defs></svg>
+<h1>The short list, five ways</h1>
+<p class="lead">Built from "B · A short list": the bests as rows, the figure on the right. None of them use the thin gold outline. Example: Fastest 5 km 24:10 (was 25:02), Pull-up 3 × 10 (was 3 × 8), Lunge 2 × 50.</p>
+<div class="row">
+
+<div class="opt"><div class="t">B1 · As before, no outlines</div><div class="d">The original short list with the gold borders taken off: rows in a soft recessed card, gold only in the icons and figures, a faint gold glow at the top of the card.</div>
+<div class="page"><div class="card glow">
+ <div class="hd"><div><div class="kick">Personal bests · 3</div><div class="ser">October</div></div><span class="see">See all</span></div>
+ <div class="rows">
+  <div><svg class="ic"><use href="#run"/></svg><div class="x"><div>Fastest 5 km</div><span class="sub">Oct 15 · was 25:02</span></div><span class="fig gold">24:10</span></div>
+  <div><svg class="ic"><use href="#lift"/></svg><div class="x"><div>Pull-up</div><span class="sub">Oct 16 · was 3 × 8</span></div><span class="fig gold">3 × 10</span></div>
+  <div><svg class="ic"><use href="#lift"/></svg><div class="x"><div>Lunge</div><span class="sub">Oct 16</span></div><span class="fig gold">2 × 50</span></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">B2 · Round badges</div><div class="d">Each icon sits in a soft gold circle, and a faint chevron says the row opens its activity. A touch richer than B1.</div>
+<div class="page"><div class="card glow">
+ <div class="hd"><div><div class="kick">Personal bests · 3</div><div class="ser">October</div></div><span class="see">See all</span></div>
+ <div class="rows">
+  <div><span class="badge"><svg class="ic"><use href="#run"/></svg></span><div class="x"><div>Fastest 5 km</div><span class="sub">Oct 15 · was 25:02</span></div><span class="fig gold">24:10</span><span class="chev">›</span></div>
+  <div><span class="badge"><svg class="ic"><use href="#lift"/></svg></span><div class="x"><div>Pull-up</div><span class="sub">Oct 16 · was 3 × 8</span></div><span class="fig gold">3 × 10</span><span class="chev">›</span></div>
+  <div><span class="badge"><svg class="ic"><use href="#lift"/></svg></span><div class="x"><div>Lunge</div><span class="sub">Oct 16</span></div><span class="fig gold">2 × 50</span><span class="chev">›</span></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">B3 · Old to new</div><div class="d">The figure shows what changed: the old best struck through, an arrow, the new one in gold. Says exactly why it's a best at a glance.</div>
+<div class="page"><div class="card glow">
+ <div class="hd"><div><div class="kick">Personal bests · 3</div><div class="ser">October</div></div><span class="see">See all</span></div>
+ <div class="rows">
+  <div><svg class="ic"><use href="#run"/></svg><div class="x"><div>Fastest 5 km</div><span class="sub">Oct 15</span></div><span><span class="old">25:02</span><span class="arrow">→</span><span class="fig gold">24:10</span></span></div>
+  <div><svg class="ic"><use href="#lift"/></svg><div class="x"><div>Pull-up</div><span class="sub">Oct 16</span></div><span><span class="old">3 × 8</span><span class="arrow">→</span><span class="fig gold">3 × 10</span></span></div>
+  <div><svg class="ic"><use href="#lift"/></svg><div class="x"><div>Lunge</div><span class="sub">Oct 16</span></div><span class="fig gold">2 × 50</span></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">B4 · Gold medal and count</div><div class="d">A solid gold medal leads the header with the count in a gold pill. Rows are plain, separated by hairlines, with "See all" as a last row.</div>
+<div class="page"><div class="card">
+ <div style="display:flex;align-items:center;gap:11px"><div class="coin"><svg class="ic" style="color:#5a3b06;width:20px;height:20px"><use href="#trophy"/></svg></div><div><div class="kick" style="color:var(--muted)">Personal bests</div><div class="ser">October<span class="cnt">3</span></div></div></div>
+ <div>
+  <div class="rows" style="background:none">
+   <div style="padding-left:0;padding-right:0"><svg class="ic"><use href="#run"/></svg><div class="x"><div>Fastest 5 km</div><span class="sub">Oct 15 · was 25:02</span></div><span class="fig gold">24:10</span></div>
+   <div style="padding-left:0;padding-right:0"><svg class="ic"><use href="#lift"/></svg><div class="x"><div>Pull-up</div><span class="sub">Oct 16 · was 3 × 8</span></div><span class="fig gold">3 × 10</span></div>
+   <div style="padding-left:0;padding-right:0"><svg class="ic"><use href="#lift"/></svg><div class="x"><div>Lunge</div><span class="sub">Oct 16</span></div><span class="fig gold">2 × 50</span></div>
+  </div>
+  <div class="seeall">See all</div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">B5 · Diary dates</div><div class="d">Each row leads with the day as a small calendar block, like a journal entry, instead of an icon. Fits the Activity page's diary feel.</div>
+<div class="page"><div class="card glow">
+ <div class="hd"><div><div class="kick">Personal bests · 3</div><div class="ser">October</div></div><span class="see">See all</span></div>
+ <div class="rows">
+  <div><span class="date"><b>15</b><span>THU</span></span><div class="x"><div>Fastest 5 km</div><span class="sub">was 25:02</span></div><span class="fig gold">24:10</span></div>
+  <div><span class="date"><b>16</b><span>FRI</span></span><div class="x"><div>Pull-up</div><span class="sub">was 3 × 8</span></div><span class="fig gold">3 × 10</span></div>
+  <div><span class="date"><b>16</b><span>FRI</span></span><div class="x"><div>Lunge</div><span class="sub">first on record</span></div><span class="fig gold">2 × 50</span></div>
+ </div>
+</div></div></div>
+
+</div>
+</body></html>

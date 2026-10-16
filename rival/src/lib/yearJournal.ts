@@ -59,7 +59,7 @@ export function yearWeeks(all: YearActivity[], year: number, now = new Date()): 
   return weeks;
 }
 
-export type PbMoment = { date: Date; type: string; kind: 'distance' | 'time'; value: number; previous: number };
+export type PbMoment = { date: Date; type: string; kind: 'distance' | 'time'; value: number; previous: number; activityId?: string };
 
 /** Each time an activity beat everything of its kind before it — farther for
  *  distance sports, longer for everything else — within the year, newest
@@ -76,7 +76,7 @@ export function pbMoments(all: YearActivity[], year: number, limit = 8): PbMomen
     if (value <= 0) continue;
     const prev = best.get(type);
     if (prev !== undefined && value > prev && inLocalYear(a.started_at, year)) {
-      out.push({ date: new Date(a.started_at), type, kind, value, previous: prev });
+      out.push({ date: new Date(a.started_at), type, kind, value, previous: prev, activityId: a.id });
     }
     if (prev === undefined || value > prev) best.set(type, value);
   }

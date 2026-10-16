@@ -376,6 +376,8 @@ export default function ManualEntryScreen() {
             duration_seconds: durationSeconds,
             elevation_meters: elevation,
             started_at: startedAt.toISOString(),
+            // The phone's own time zone, so the time of day shows where it happened.
+            utc_offset_seconds: -startedAt.getTimezoneOffset() * 60,
             effort_score: effortScore,
             raw_effort_score: effortScore,
             effort_confirmed: stillConfirmed,
@@ -413,6 +415,8 @@ export default function ManualEntryScreen() {
             duration_seconds: durationSeconds,
             elevation_meters: elevation,
             started_at: startedAt.toISOString(),
+            // The phone's own time zone, so the time of day shows where it happened.
+            utc_offset_seconds: -startedAt.getTimezoneOffset() * 60,
             effort_score: effortScore,
             raw_effort_score: effortScore,
             notes: notes.trim() || null,
@@ -880,14 +884,16 @@ export default function ManualEntryScreen() {
             <View key={i} style={m.lift}>
               <View style={m.liftNameRow}>
                 <Text style={m.liftIndex}>{i + 1}</Text>
+                {/* Empty, the name is a dashed salmon field asking to be
+                    filled, so a new exercise is not missed (Ricky, 2026-10-16). */}
                 <TextInput
-                  style={m.liftName}
+                  style={[m.liftName, !ex.name.trim() && m.liftNameEmpty]}
                   value={ex.name}
                   onChangeText={(v) => updateExerciseName(i, v)}
                   onFocus={() => setNameSuggestIndex(i)}
                   onBlur={() => setTimeout(() => setNameSuggestIndex((cur) => (cur === i ? null : cur)), 150)}
-                  placeholder="Exercise name"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholder="Add exercise name"
+                  placeholderTextColor="rgba(255,181,158,0.85)"
                 />
                 <TouchableOpacity style={m.liftRemove} onPress={() => removeExercise(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <RivalIcon name="close" size={15} color="rgba(255,255,255,0.45)" />
@@ -1079,7 +1085,12 @@ export default function ManualEntryScreen() {
             label="Lifts"
             value={exercises.length > 0 ? `${exercises.length} ${exercises.length === 1 ? 'lift' : 'lifts'}` : undefined}
             placeholder="Optional"
-            onPress={() => setShowExercises((v) => !v)}
+            onPress={() => {
+              // Opening with none yet starts the first one, so there is
+              // something to fill in straight away.
+              if (!showExercises && exercises.length === 0) addExercise();
+              setShowExercises((v) => !v);
+            }}
           />
         </GreyRows>
         {isTreadmill && Number(inclinePct) > 0 ? (
@@ -1104,6 +1115,10 @@ export default function ManualEntryScreen() {
           <Text style={styles.classHint}>CrossFit, Hyrox, Bootcamp and HIIT activities count as a full 45-minute class, including warm-up and skill work.</Text>
         )}
       </View>
+
+      {/* The lifts open straight under their row, not at the foot of the
+          page where a tap seemed to do nothing (Ricky, 2026-10-16). */}
+      {showExercises ? mobileLiftsCard : null}
 
       <Modal visible={calOpen} transparent animationType="fade" onRequestClose={() => setCalOpen(false)}>
         <View style={{ flex: 1 }}>
@@ -1188,8 +1203,6 @@ export default function ManualEntryScreen() {
       {/* Who else was there. Partners can only be added within the tagging
           window, so an older date shows who is already on it and nothing more. */}
       {partnersCard}
-
-      {showExercises ? mobileLiftsCard : null}
 
       {/* Destructive, so it sits apart at the very end rather than next to
           the button you tap every time. */}
@@ -1391,7 +1404,7 @@ const styles = StyleSheet.create({
   effortPreview: { fontSize: 13, color: RivalColors.accentText, fontWeight: '700' },
   classHint: { fontSize: 12, color: RivalColors.textSecondary, lineHeight: 17 },
   completeBtn: { marginTop: 4 },
-  discard: { color: RivalColors.textSecondary, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
+  discard: { color: RivalColors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
 
   notesInput: { backgroundColor: RivalColors.surfaceContainer, borderRadius: RivalRadius.DEFAULT, paddingHorizontal: 14, paddingVertical: 12, color: RivalColors.onSurface, fontSize: 15, minHeight: 110, textAlignVertical: 'top' },
 
@@ -1589,9 +1602,11 @@ const m = StyleSheet.create({
   liftNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   liftIndex: { width: 22, height: 22, borderRadius: 11, textAlign: 'center', lineHeight: 22, fontSize: 11, fontWeight: '800', color: RivalColors.accentText, backgroundColor: 'rgba(255,209,190,0.10)', overflow: 'hidden' },
   liftName: {
-    flex: 1, minWidth: 0, padding: 0, fontSize: 15.5, fontWeight: '700', color: '#fff',
+    flex: 1, minWidth: 0, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, borderWidth: 1, borderColor: 'transparent',
+    fontSize: 15.5, fontWeight: '700', color: '#fff',
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
   },
+  liftNameEmpty: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.55)', backgroundColor: 'rgba(255,209,190,0.06)' },
   liftRemove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
   suggestBox: { backgroundColor: '#2a221e', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   suggestItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 },
@@ -1612,8 +1627,8 @@ const m = StyleSheet.create({
   addLiftText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
 
   dangerZone: { alignItems: 'center', paddingVertical: 18 },
-  dangerText: { fontSize: 13.5, fontWeight: '700', color: '#ff8f8f' },
-  discardText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.textSecondary },
+  dangerText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.danger },
+  discardText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.danger },
 
   saveBar: {
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 8,

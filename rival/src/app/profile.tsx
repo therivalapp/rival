@@ -606,7 +606,7 @@ export default function ProfileScreen() {
             </View>
             {bioDirty && (
               <View style={styles.bioSaveRow}>
-                <TouchableOpacity onPress={() => setNewBio(bio)}><Text style={styles.cancelText}>Discard</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => setNewBio(bio)}><Text style={[styles.cancelText, { color: RivalColors.danger }]}>Discard</Text></TouchableOpacity>
                 <TouchableOpacity style={styles.saveChip} onPress={saveBio} disabled={savingBio}>
                   <BusyText busy={!!(savingBio)} style={styles.saveChipText}>{savingBio ? 'Saving…' : 'Save mindset'}</BusyText>
                 </TouchableOpacity>
@@ -1218,5 +1218,5 @@ const styles = StyleSheet.create({
   dangerZone: { marginTop: 24, borderTopWidth: 1, borderTopColor: RivalColors.outlineVariant, paddingTop: 16, gap: 8 },
   dangerTitle: { ...RivalType.labelCaps, color: RivalColors.error },
   deleteAccountButton: { alignItems: 'center', paddingVertical: 12 },
-  deleteAccountText: { color: RivalColors.error, fontSize: 13, fontWeight: '600' },
+  deleteAccountText: { color: RivalColors.danger, fontSize: 13, fontWeight: '600' },
 });

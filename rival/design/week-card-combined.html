@@ -1,0 +1,168 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week Card Combined</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:660px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:340px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.page{position:relative;overflow:hidden;border-radius:26px;padding:14px;background:radial-gradient(ellipse at 50% 0,#3a2a22,#16120f 75%);display:flex;flex-direction:column;gap:12px;min-height:640px}
+
+.g{position:relative;overflow:hidden;border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:16px;display:flex;flex-direction:column;gap:14px}
+.g:before{content:"";position:absolute;inset:0 0 auto 0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(232,131,95,.22),rgba(232,131,95,0) 70%);pointer-events:none}
+.g>*{position:relative}
+.hdr{display:flex;align-items:flex-start;gap:10px}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 26px Georgia,serif;line-height:1.1}
+.sub{color:var(--muted);font-size:12.5px}
+.eff{font:italic 700 30px Georgia,serif;line-height:1}
+.effl{font-size:10px;letter-spacing:2.2px;color:var(--accent);font-weight:800}
+.chev{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;flex:none}
+
+.days{display:flex;gap:5px}
+.days b{flex:1;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);background:rgba(255,255,255,.05)}
+.days b.on{background:rgba(232,131,95,.22);color:#ffd3c2;border:1px solid rgba(255,181,158,.35)}
+.days b.pb{background:rgba(255,201,77,.16);color:#ffe6a8;border:1px solid rgba(255,201,77,.45)}
+.days b.today{border:1px dashed rgba(255,255,255,.25)}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);background:var(--rec);border:1px solid var(--recb);border-radius:16px;overflow:hidden}
+.stats>div{position:relative;text-align:center;padding:14px 4px 12px;overflow:hidden}
+.stats>div+div{border-left:1px solid rgba(255,255,255,.08)}
+.stats .wm{position:absolute;left:50%;top:50%;width:62px;height:62px;transform:translate(-50%,-58%);opacity:.09}
+.stats b{position:relative;display:block;font:italic 700 24px Georgia,serif;line-height:1.1}
+.stats b small{font:600 12px -apple-system,sans-serif;color:var(--muted);font-style:normal;margin:0 1px}
+.stats span{position:relative;display:block;margin-top:5px;font-size:9.5px;letter-spacing:1.4px;color:var(--muted);font-weight:800;text-transform:uppercase}
+
+.note{border-top:1px solid rgba(255,255,255,.07);padding-top:12px}
+.note p{margin:0;font-size:13.5px;color:rgba(255,255,255,.85)}
+.note p b{color:var(--accent);font-weight:700}
+.note p em{display:block;font-style:normal;color:var(--muted);font-size:12.5px;margin-top:3px}
+.note p em i{font-style:normal;color:#5fd38a}
+
+.add{height:46px;border-radius:999px;background:linear-gradient(90deg,#d98466,#f0b29b);display:flex;align-items:center;justify-content:center;color:#3a1408;font-weight:800;font-size:15px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.seg{display:flex;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px}
+.seg span{padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.seg span.on{background:rgba(232,131,95,.2);color:#ffd3c2}
+.fbtn{height:34px;padding:0 12px;border-radius:999px;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:rgba(255,255,255,.75);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.fbtn.on{border-color:rgba(255,201,77,.5);color:#ffe6a8}
+.cnt{min-width:17px;height:17px;border-radius:999px;background:linear-gradient(#fff4d6,#ffc94d);color:#3a2604;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.showing{font-size:12px;color:var(--muted);text-align:center}.showing b{color:#ffe6a8;font-weight:700}.showing u{text-decoration:none;color:var(--accent);font-weight:700;margin-left:6px}
+.ic{width:15px;height:15px;flex:none}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{height:92px;border-radius:14px;position:relative}
+.card .ic{position:absolute;top:7px;right:7px;width:18px;height:18px}
+.c1{background:linear-gradient(160deg,#3d5a6c,#c98b5b)}.c2{background:linear-gradient(170deg,#2f4a63,#8fb3c9)}.c3{background:linear-gradient(150deg,#5b6f4d,#d9b26a)}.c4{background:linear-gradient(200deg,#6c3d4f,#e0956b)}
+
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--ground);border-radius:24px 24px 0 0;padding:10px 16px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.sheet:before{content:"";position:absolute;inset:0 0 auto 0;height:110px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.sheet>*{position:relative}
+.grab{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);margin:0 auto}
+.sht{text-align:center}.sht .kick{display:block}.sht b{font:italic 700 24px Georgia,serif}
+.rows{background:var(--rec);border:1px solid var(--recb);border-radius:16px}
+.rows>div{display:flex;align-items:center;gap:10px;padding:11px 13px}
+.rows>div+div{border-top:1px solid rgba(255,181,158,.12)}
+.rows span{flex:1;font-size:13.5px}
+.sw{width:38px;height:22px;border-radius:999px;background:rgba(255,255,255,.12);position:relative}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.on{background:linear-gradient(90deg,#d98466,#f0b29b)}.sw.on:after{left:19px}
+.lab{font-size:10px;letter-spacing:1px;color:var(--muted);font-weight:800}
+.tchips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{height:30px;padding:0 11px;border-radius:999px;display:flex;align-items:center;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);background:var(--rec);border:1px solid var(--recb)}
+.chip.on{background:rgba(232,131,95,.2);border-color:rgba(255,181,158,.5);color:#ffd3c2}
+.done{height:44px;border-radius:999px;background:linear-gradient(90deg,#d98466,#f0b29b);display:flex;align-items:center;justify-content:center;color:#3a1408;font-weight:800}
+.past .ser{font-size:20px}.past .eff{font-size:22px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+ <defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4d6"/><stop offset="1" stop-color="#ffc94d"/></linearGradient>
+  <symbol id="pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6" fill="none" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7" fill="none" stroke="#e8835f" stroke-width="2.2"/><path d="M12 13V9M10 3h4" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="route" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2" fill="#e8835f"/><circle cx="18" cy="19" r="2" fill="#e8835f"/><path d="M6 7v6a3 3 0 006 0V11a3 3 0 016 0v6" fill="none" stroke="#e8835f" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="tune" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="15" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="star" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="url(#gold)"/></symbol>
+  <symbol id="trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+ </defs>
+</svg>
+
+<h1>This week, combined</h1>
+<p class="lead">Option 1's header, option 3's day tiles and numbers card, with each figure's icon large and faint behind it and the units dimmed. Filter A sits beside Week, Month and Year.</p>
+
+<div class="row">
+
+<div class="opt"><div class="t">1 · Folded</div><div class="d">Title, date and Effort, with the week as day tiles. Tap anywhere on it to open.</div>
+<div class="page">
+ <div class="g">
+  <div class="hdr"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub">2 activities</div></div><div style="text-align:right"><div class="eff">116.9</div><div class="effl">EFFORT</div></div><div class="chev">⌄</div></div>
+  <div class="days"><b>M</b><b class="on">T</b><b class="pb">W</b><b class="today">T</b><b>F</b><b>S</b><b>S</b></div>
+ </div>
+ <div class="add">+ Add activity</div>
+ <div class="bar"><div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div><div class="fbtn"><svg class="ic"><use href="#tune"/></svg>Filter</div></div>
+ <div class="cards"><div class="card c1"></div><div class="card c2"></div><div class="card c3"></div><div class="card c4"></div></div>
+</div></div>
+
+<div class="opt"><div class="t">2 · Open</div><div class="d">The numbers card with the icon behind each figure and h, m and km dimmed, then the monthly line. The trophy and search buttons are gone; Filter replaces them.</div>
+<div class="page">
+ <div class="g">
+  <div class="hdr"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub">2 activities</div></div><div style="text-align:right"><div class="eff">116.9</div><div class="effl">EFFORT</div></div><div class="chev">⌃</div></div>
+  <div class="days"><b>M</b><b class="on">T</b><b class="pb">W</b><b class="today">T</b><b>F</b><b>S</b><b>S</b></div>
+  <div class="stats">
+   <div><svg class="wm"><use href="#pulse"/></svg><b>2</b><span>Activities</span></div>
+   <div><svg class="wm"><use href="#timer"/></svg><b>1<small>h</small> 7<small>m</small></b><span>Time</span></div>
+   <div><svg class="wm"><use href="#route"/></svg><b>11.9<small>km</small></b><span>Distance</span></div>
+  </div>
+  <div class="note"><p><b>21.2 Effort</b> ahead of the monthly average.<em><i>↗</i> 22% vs last week</em></p></div>
+ </div>
+ <div class="add">+ Add activity</div>
+ <div class="bar"><div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div><div class="fbtn"><svg class="ic"><use href="#tune"/></svg>Filter</div></div>
+</div></div>
+
+<div class="opt"><div class="t">3 · Filter open</div><div class="d">The grey pop-up: Starred and Personal bests as switches, then activity types. The button at the bottom says how many will show.</div>
+<div class="page">
+ <div class="g">
+  <div class="hdr"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub">2 activities</div></div><div style="text-align:right"><div class="eff">116.9</div><div class="effl">EFFORT</div></div><div class="chev">⌄</div></div>
+  <div class="days"><b>M</b><b class="on">T</b><b class="pb">W</b><b class="today">T</b><b>F</b><b>S</b><b>S</b></div>
+ </div>
+ <div class="add">+ Add activity</div>
+ <div class="dim"></div>
+ <div class="sheet"><div class="grab"></div><div class="sht"><span class="kick">Activity</span><b>Filter</b></div>
+  <div class="rows"><div><svg class="ic"><use href="#star"/></svg><span>Starred</span><i class="sw on"></i></div><div><svg class="ic"><use href="#trophy"/></svg><span>Personal bests</span><i class="sw"></i></div></div>
+  <div class="lab">ACTIVITY TYPE</div><div class="tchips"><span class="chip on">All</span><span class="chip">Run</span><span class="chip">Ride</span><span class="chip">Walk</span><span class="chip">Swim</span><span class="chip">Hike</span></div>
+  <div class="done">Show 2 activities</div></div>
+</div></div>
+
+<div class="opt"><div class="t">4 · Starred on</div><div class="d">The button edges in gold with a count, and one quiet line says what is showing, with Clear.</div>
+<div class="page">
+ <div class="g">
+  <div class="hdr"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub">2 activities</div></div><div style="text-align:right"><div class="eff">116.9</div><div class="effl">EFFORT</div></div><div class="chev">⌄</div></div>
+  <div class="days"><b>M</b><b class="on">T</b><b class="pb">W</b><b class="today">T</b><b>F</b><b>S</b><b>S</b></div>
+ </div>
+ <div class="add">+ Add activity</div>
+ <div class="bar"><div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div><div class="fbtn on"><svg class="ic"><use href="#tune"/></svg>Filter<span class="cnt">1</span></div></div>
+ <div class="showing">Showing <b>starred</b><u>Clear</u></div>
+ <div class="cards"><div class="card c1"><svg class="ic"><use href="#star"/></svg></div><div class="card c3"><svg class="ic"><use href="#star"/></svg></div></div>
+</div></div>
+
+<div class="opt"><div class="t">5 · Past week</div><div class="d">Earlier weeks use the same card, smaller and folded. Opened, they show the same numbers card.</div>
+<div class="page" style="min-height:0">
+ <div class="g past" style="padding:13px 16px">
+  <div class="hdr" style="align-items:center"><div style="flex:1"><div class="ser">Last week</div><div class="sub">Oct 5 – 11 · 4 activities</div></div><div style="text-align:right"><div class="eff">203.4</div><div class="effl">EFFORT</div></div><div class="chev">⌄</div></div>
+ </div>
+ <div class="g past" style="padding:13px 16px">
+  <div class="hdr" style="align-items:center"><div style="flex:1"><div class="ser">Sep 28 – Oct 4</div><div class="sub">3 activities</div></div><div style="text-align:right"><div class="eff">151.0</div><div class="effl">EFFORT</div></div><div class="chev">⌃</div></div>
+  <div class="stats">
+   <div><svg class="wm"><use href="#pulse"/></svg><b>3</b><span>Activities</span></div>
+   <div><svg class="wm"><use href="#timer"/></svg><b>2<small>h</small> 14<small>m</small></b><span>Time</span></div>
+   <div><svg class="wm"><use href="#route"/></svg><b>24.6<small>km</small></b><span>Distance</span></div>
+  </div>
+ </div>
+</div></div>
+
+</div>
+</body></html>

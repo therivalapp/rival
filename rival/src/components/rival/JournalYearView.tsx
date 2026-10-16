@@ -62,7 +62,7 @@ const GRADIENT: any = Platform.OS === 'web'
   ? { backgroundImage: `linear-gradient(180deg, #f2b39c 0%, ${RivalColors.accentFill} 100%)` }
   : { backgroundColor: RivalColors.accentFill };
 
-export function JournalYearView({ activities, header }: { activities: YearActivity[]; header?: React.ReactNode }) {
+export function JournalYearView({ activities, header, onOpenActivity }: { activities: YearActivity[]; header?: React.ReactNode; onOpenActivity?: (activityId: string) => void }) {
   const now = new Date();
   const years = useMemo(() => yearsWithActivity(activities, now), [activities]);
   const [year, setYear] = useState(now.getFullYear());
@@ -308,12 +308,15 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
               : `Longest ${activityDisplayName(latest.type).toLowerCase()}`;
             return (
               <View key={latest.type} style={gi > 0 && s.pbBorder}>
+                {/* A single best opens its activity. A type with several opens
+                    the list first, and each entry there opens its activity
+                    (Ricky, 2026-10-14). */}
                 <TouchableOpacity
                   style={s.pbRow}
-                  activeOpacity={earlier.length ? 0.7 : 1}
-                  disabled={!earlier.length}
-                  onPress={() => togglePbType(latest.type)}
-                  accessibilityRole={earlier.length ? 'button' : undefined}
+                  activeOpacity={0.7}
+                  disabled={!earlier.length && (!latest.activityId || !onOpenActivity)}
+                  onPress={() => (earlier.length ? togglePbType(latest.type) : latest.activityId && onOpenActivity?.(latest.activityId))}
+                  accessibilityRole="button"
                   accessibilityState={earlier.length ? { expanded: open } : undefined}
                 >
                   <View style={s.pbIcon}><RivalIcon name="trophy" size={15} color={RivalColors.rankAnchors.unrivaled} /></View>
@@ -331,11 +334,17 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
                     {earlier.length ? <RivalIcon name={open ? 'chevronDown' : 'chevronRight'} size={14} color={RivalWarm.muted} /> : null}
                   </View>
                 </TouchableOpacity>
-                {open ? earlier.map((p) => (
-                  <View key={p.date.getTime()} style={s.pbEarlier}>
+                {open ? group.map((p) => (
+                  <TouchableOpacity
+                    key={p.date.getTime()}
+                    style={s.pbEarlier}
+                    activeOpacity={0.7}
+                    disabled={!p.activityId || !onOpenActivity}
+                    onPress={() => p.activityId && onOpenActivity?.(p.activityId)}
+                  >
                     <Text style={[rm.hint, { flex: 1 }]}>{pbFrom(p)}</Text>
                     <Text style={s.pbValueSmall}>{pbValue(p)}</Text>
-                  </View>
+                  </TouchableOpacity>
                 )) : null}
               </View>
             );

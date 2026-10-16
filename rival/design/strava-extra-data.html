@@ -1,0 +1,84 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Strava Extra Data</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--sh:#24201d;--card:#2b2724;--bright:#36302b;--accent:#ffb59e;--muted:rgba(255,255,255,.5)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:620px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start}
+.opt{width:310px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.phone{border-radius:40px;background:#000;padding:8px}
+.scr{border-radius:33px;overflow:hidden;background:var(--sh);padding:14px 12px 18px;display:flex;flex-direction:column;gap:10px}
+.feed{background:radial-gradient(ellipse at 50% 0,#3a2a22,#16120f 70%)}
+.card{background:linear-gradient(180deg,#30261f,#211a16);border:1px solid rgba(255,181,158,.16);border-left:3px solid #c97a5c;border-radius:20px;padding:12px;display:flex;flex-direction:column;gap:9px}
+.hd{display:flex;gap:9px;align-items:center}.av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7a9bb5,#3d5a6c)}
+.nm{font:italic 700 15px Georgia,serif}.sub{font-size:11px;color:var(--muted)}.sub b{color:var(--accent);font-weight:600}
+.ttl{font:italic 700 19px Georgia,serif}
+.ph{height:120px;border-radius:12px;background:linear-gradient(160deg,#3d5a6c,#c98b5b)}
+.stats{background:var(--bright);border:1px solid rgba(255,255,255,.08);border-radius:13px;overflow:hidden}
+.stats.pb{border-color:rgba(255,201,77,.42)}
+.band{display:flex;align-items:center;gap:7px;padding:8px 11px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.07)}
+.band.gold{background:linear-gradient(90deg,rgba(255,201,77,.13),rgba(255,201,77,0));border-bottom-color:rgba(255,201,77,.18)}
+.band b{color:#ffe6a8;white-space:nowrap}.band span{white-space:nowrap}.band span{color:var(--muted)}
+.band svg{width:13px;height:13px;flex:none}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);padding:9px 2px;text-align:center}
+.grid div+div{border-left:1px solid rgba(255,255,255,.08)}
+.grid span{display:block;font-size:8px;letter-spacing:1.1px;color:var(--muted);font-weight:800}
+.grid b{display:block;font-size:14.5px;margin-top:2px}
+.gold{background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.grid .e b{font:italic 700 17px Georgia,serif}
+.re{display:flex;gap:18px;font-weight:700;font-size:12.5px;color:rgba(255,255,255,.85)}.re em{font-style:normal;opacity:.55;font-weight:500}
+.kick{font-size:10px;letter-spacing:1.6px;color:var(--accent);font-weight:700}
+.big{font:italic 700 21px Georgia,serif}
+.sec{background:var(--card);border-radius:14px;padding:11px 12px}
+.sh{display:flex;justify-content:space-between;align-items:center}
+.sh b{font-size:10px;letter-spacing:1.4px;color:var(--muted);font-weight:800}
+.sh i{font-style:normal;color:var(--muted);font-size:13px}
+.quick{display:flex;gap:14px;margin-top:7px;font-size:12.5px;color:rgba(255,255,255,.85)}
+.quick span{color:var(--muted)}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:10px}
+.dg div span{display:block;font-size:9px;letter-spacing:1.1px;color:var(--muted);font-weight:800}
+.dg div b{font-size:15px}
+.be{margin-top:4px}
+.be div{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid rgba(255,255,255,.06);font-size:13px}
+.be div:first-child{border-top:0}
+.be div b{font-weight:700}
+.be .pb b{background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.be .pb span:after{content:"  Best";font-size:9px;letter-spacing:1px;color:#ffd27a;font-weight:800}
+.splits{display:flex;align-items:flex-end;gap:5px;height:56px;margin-top:10px}
+.splits i{flex:1;border-radius:4px 4px 2px 2px;background:linear-gradient(180deg,#e8835f,rgba(232,131,95,.35))}
+.splits i.f{background:linear-gradient(180deg,#ffd27a,rgba(255,201,77,.35))}
+.sl{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:4px}
+.jr{background:var(--card);border-radius:14px;padding:12px}
+.jr .h{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:1.3px;color:var(--muted);font-weight:800}
+.jr .h em{font-style:normal;letter-spacing:.3px;font-weight:600;color:#fc6d36;text-transform:none}
+.jr p{margin:8px 0 0;font:italic 15px/1.45 Georgia,serif;color:rgba(255,255,255,.9)}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>More from Strava, kept tidy</h1>
+<p class="lead">The feed card stays at four numbers. New data only reaches the feed when it is a new best. Everything else lives on the activity page, folded away under Details until you open it.</p>
+<div class="row" id="r"></div>
+<script>
+const tro='<svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+const statsCard=(band)=>`<div class="stats ${band?'pb':''}">${band?`<div class="band gold">${tro}${band}</div>`:''}<div class="grid"><div><span>TIME</span><b>27:13</b></div><div><span>DISTANCE</span><b>5.0 km</b></div><div><span>CLIMB</span><b>23 m</b></div><div class="e"><span>EFFORT</span><b class="gold">49.3</b></div></div></div>`;
+const feed=`<div class="scr feed"><div class="card"><div class="hd"><div class="av"></div><div><div class="nm">Ricky Jackson-Lewis</div><div class="sub">2h ago · <b>The Hidden Leaf</b></div></div></div><div class="ttl">Morocco</div><div class="ph"></div>
+${statsCard('<b>Fastest 5 km</b><span> · 24:10, was 25:02</span>')}<div class="re"><span>☆ Respect <em>3</em></span><span>ϟ Inspired <em>1</em></span></div></div></div>`;
+const pageTop=`<div class="ph" style="height:150px;margin:-14px -12px 0;border-radius:0"></div><div><div class="kick">RUN</div><div class="big">Morocco</div></div>${statsCard('<b>Fastest 5 km</b><span> · 24:10, was 25:02</span>')}`;
+const closed=`<div class="scr">${pageTop}<div class="sec"><div class="sh"><b>DETAILS</b><i>⌄</i></div><div class="quick">5:27 <span>/km</span> · 152 <span>bpm</span> · Pegasus 40</div></div>
+<div class="jr"><div class="h">JOURNAL <em>From Strava</em></div><p>Sunrise loop along the corniche with Sandy. Legs felt fresh.</p></div></div>`;
+const open=`<div class="scr">${pageTop}<div class="sec"><div class="sh"><b>DETAILS</b><i>⌃</i></div>
+<div class="dg"><div><span>AVG PACE</span><b>5:27 /km</b></div><div><span>HEART RATE</span><b>152 bpm</b></div><div><span>CADENCE</span><b>172 spm</b></div><div><span>CALORIES</span><b>412</b></div><div style="grid-column:span 2"><span>SHOES</span><b>Pegasus 40</b> <span style="display:inline;letter-spacing:0;font-weight:500">· 640 km in total</span></div></div>
+<div class="sh" style="margin-top:14px"><b>BEST EFFORTS</b></div><div class="be"><div><span>1 km</span><b>4:41</b></div><div><span>1 mile</span><b>7:39</b></div><div class="pb"><span>5 km</span><b>24:10</b></div></div>
+<div class="sh" style="margin-top:12px"><b>SPLITS</b></div><div class="splits"><i style="height:70%"></i><i style="height:78%"></i><i class="f" style="height:96%"></i><i style="height:82%"></i><i style="height:74%"></i></div><div class="sl"><span>1</span><span>2</span><span>3</span><span>4</span><span>5 km</span></div></div></div>`;
+const O=[
+ ['1 · Feed card','Unchanged: four numbers. A new best from Strava\'s best efforts shows in the band, "Fastest 5 km".',feed],
+ ['2 · Activity page, Details closed','One quiet line under the numbers: pace, heart rate and shoes. The journal is filled from the Strava description.',closed],
+ ['3 · Details open','Tap to open: pace, heart rate, cadence, calories and shoes, then best efforts with the new best in gold, then splits per km.',open],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h])=>`<div class="opt"><div class="t">${t}</div><div class="d">${d}</div><div class="phone">${h}</div></div>`).join('');
+</script>
+</body></html>

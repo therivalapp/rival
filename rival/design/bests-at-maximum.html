@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bests At Maximum</title><style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--fill:#e8835f;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+h2{font:italic 700 21px Georgia,serif;text-align:center;margin:44px 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:660px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:330px;display:flex;flex-direction:column;gap:12px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.st{font-size:9.5px;letter-spacing:1.4px;color:var(--muted);font-weight:800;text-transform:uppercase;margin:4px 0 -4px 4px}
+.page{border-radius:26px;padding:14px;background:radial-gradient(ellipse at 50% 0,#3a2a22,#16120f 75%);display:flex;flex-direction:column;gap:12px}
+
+/* the grey sheet look from Add an activity */
+.g{position:relative;overflow:hidden;border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:16px}
+.g:before{content:"";position:absolute;inset:0 0 auto 0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(232,131,95,.22),rgba(232,131,95,0) 70%);pointer-events:none}
+.g>*{position:relative}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.sub{color:var(--muted);font-size:12.5px}
+.ser{font:italic 700 26px Georgia,serif;line-height:1.1}
+.eff{font:italic 700 30px Georgia,serif;line-height:1}
+.effl{font-size:10px;letter-spacing:2.2px;color:var(--accent);font-weight:800}
+.chev{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;flex:none}
+.dots{display:flex;justify-content:space-between;margin-top:14px}
+.dots div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10.5px;color:var(--muted);font-weight:700;width:28px}
+.dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.12)}
+.dots i.on{background:#f2a68a}.dots i.pb{background:linear-gradient(#fff4d6,#ffc94d)}
+.days{display:flex;gap:5px;margin-top:14px}
+.days b{flex:1;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);background:rgba(255,255,255,.05)}
+.days b.on{background:rgba(232,131,95,.22);color:#ffd3c2;border:1px solid rgba(255,181,158,.35)}
+.days b.pb{background:rgba(255,201,77,.16);color:#ffe6a8;border:1px solid rgba(255,201,77,.45)}
+.days b.today{border:1px dashed rgba(255,255,255,.25)}
+.rec{background:var(--rec);border:1px solid var(--recb);border-radius:16px}
+.rows>div{display:flex;align-items:center;gap:10px;padding:11px 13px}
+.rows>div+div{border-top:1px solid rgba(255,181,158,.12)}
+.rows span{flex:1;font-size:13.5px;color:rgba(255,255,255,.85)}
+.rows b{font-size:15px;font-weight:700}
+.ic{width:16px;height:16px;flex:none}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tiles>div{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px 11px}
+.badge{width:32px;height:32px;border-radius:50%;background:rgba(232,131,95,.16);display:flex;align-items:center;justify-content:center}
+.tiles b{font:italic 700 21px Georgia,serif;line-height:1}
+.tiles span,.lab{font-size:9px;letter-spacing:1.3px;color:var(--muted);font-weight:800;text-transform:uppercase}
+.u{font:600 11.5px -apple-system,sans-serif;color:var(--muted);margin-left:2px;font-style:normal}
+.open3{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:4px 0}
+.open3>div+div{border-left:1px solid rgba(255,255,255,.08)}
+.open3 b{display:block;font:italic 700 23px Georgia,serif;line-height:1.1}
+.note{border-top:1px solid rgba(255,255,255,.07);padding-top:11px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.note p{margin:0;font-size:13px;color:rgba(255,255,255,.8)}
+.note p b{color:var(--accent);font-weight:700}
+.note p em{display:block;font-style:normal;color:var(--muted);font-size:12px;margin-top:2px}
+.note p em i{font-style:normal;color:#5fd38a}
+.btns{display:flex;gap:6px}.btns i{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center}
+.stack{display:flex;flex-direction:column;gap:12px}
+.add{height:46px;border-radius:999px;background:linear-gradient(90deg,#d98466,#f0b29b);display:flex;align-items:center;justify-content:center;color:#3a1408;font-weight:800;font-size:15px}
+.hdr{display:flex;align-items:flex-start;gap:10px}
+.past .ser{font-size:20px}.past .eff{font-size:22px}
+
+/* bests line */
+.fc{background:linear-gradient(180deg,#30261f,#211a16);border:1px solid rgba(255,201,77,.28);border-radius:20px;padding:12px;display:flex;flex-direction:column;gap:9px}
+.ttl{font:italic 700 19px Georgia,serif}
+.stats{background:#36302b;border:1px solid rgba(255,201,77,.42);border-radius:13px;overflow:hidden}
+.band{display:flex;align-items:center;gap:7px;padding:8px 11px;font-size:12px;border-bottom:1px solid rgba(255,201,77,.18);background:linear-gradient(90deg,rgba(255,201,77,.13),rgba(255,201,77,0));white-space:nowrap}
+.band b{color:#ffe6a8}.band span{color:var(--muted)}
+.band svg{width:13px;height:13px;flex:none}
+.band.sm{padding:6px 11px 6px 31px;font-size:11.5px;background:linear-gradient(90deg,rgba(255,201,77,.07),rgba(255,201,77,0))}
+.band .chip{margin-left:auto;font-size:10px;font-weight:800;color:#ffe6a8;background:rgba(255,201,77,.14);border:1px solid rgba(255,201,77,.3);border-radius:999px;padding:1px 7px}
+.band.q{padding:6px 11px 6px 31px;font-size:11px;background:none;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);padding:9px 2px;text-align:center}
+.grid div+div{border-left:1px solid rgba(255,255,255,.08)}
+.grid span{display:block;font-size:8px;letter-spacing:1.1px;color:var(--muted);font-weight:800}
+.grid b{display:block;font-size:14.5px;margin-top:2px}
+.gold{background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.grid .e b{font:italic 700 17px Georgia,serif}
+</style></head><body>
+<h1>Every best at once</h1><p class="lead">A marathon that beats the marathon, half marathon, 10 km, 5 km and 1 km times together: the most a single run can set. Shown on a photo card at phone size.</p>
+<div class="row"><div class="opt"><div class="t">A · Three, no extra line</div><div class="d">The marathon, half and 10 km on the card. 5 km and 1 km are in Details, marked gold there.</div><div class="fc"><div class="hd" style="display:flex;gap:9px;align-items:center"><div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7a9bb5,#3d5a6c)"></div><div><div style="font:italic 700 15px Georgia,serif">Ricky Jackson-Lewis</div><div style="font-size:11px;color:rgba(255,255,255,.5)">3h ago · <b style="color:#ffb59e;font-weight:600">The Hidden Leaf</b></div></div></div><div class="ttl">Marrakech Marathon</div><div style="aspect-ratio:4/5;border-radius:12px;background:linear-gradient(160deg,#3d5a6c,#c98b5b)"></div><div class="stats"><div class="band"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><b>Fastest marathon</b><span> · 3:58:12, was 4:12:40</span></div><div class="band sm"><b>Fastest half marathon</b><span> · 1:49:20, was 1:55:02</span></div><div class="band sm"><b>Fastest 10 km</b><span> · 49:40, was 52:15</span></div><div class="grid"><div><span>TIME</span><b>3:58:12</b></div><div><span>DISTANCE</span><b>42.2 km</b></div><div><span>CLIMB</span><b>164 m</b></div><div class="e"><span>EFFORT</span><b class="gold">441.8</b></div></div></div><div style="display:flex;gap:18px;font-weight:700;font-size:12.5px;color:rgba(255,255,255,.85)"><span>☆ Respect 3</span><span>ϟ Inspired 1</span></div></div></div><div class="opt"><div class="t">B · Three with a count</div><div class="d">A small gold "+2" at the end of the third line.</div><div class="fc"><div class="hd" style="display:flex;gap:9px;align-items:center"><div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7a9bb5,#3d5a6c)"></div><div><div style="font:italic 700 15px Georgia,serif">Ricky Jackson-Lewis</div><div style="font-size:11px;color:rgba(255,255,255,.5)">3h ago · <b style="color:#ffb59e;font-weight:600">The Hidden Leaf</b></div></div></div><div class="ttl">Marrakech Marathon</div><div style="aspect-ratio:4/5;border-radius:12px;background:linear-gradient(160deg,#3d5a6c,#c98b5b)"></div><div class="stats"><div class="band"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><b>Fastest marathon</b><span> · 3:58:12, was 4:12:40</span></div><div class="band sm"><b>Fastest half marathon</b><span> · 1:49:20, was 1:55:02</span></div><div class="band sm"><b>Fastest 10 km</b><span> · 49:40, was 52:15</span><em class="chip" style="font-style:normal">+2</em></div><div class="grid"><div><span>TIME</span><b>3:58:12</b></div><div><span>DISTANCE</span><b>42.2 km</b></div><div><span>CLIMB</span><b>164 m</b></div><div class="e"><span>EFFORT</span><b class="gold">441.8</b></div></div></div><div style="display:flex;gap:18px;font-weight:700;font-size:12.5px;color:rgba(255,255,255,.85)"><span>☆ Respect 3</span><span>ϟ Inspired 1</span></div></div></div><div class="opt"><div class="t">C · Three and a quiet line</div><div class="d">A plain grey line names the rest: "Also faster at 5 km and 1 km".</div><div class="fc"><div class="hd" style="display:flex;gap:9px;align-items:center"><div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7a9bb5,#3d5a6c)"></div><div><div style="font:italic 700 15px Georgia,serif">Ricky Jackson-Lewis</div><div style="font-size:11px;color:rgba(255,255,255,.5)">3h ago · <b style="color:#ffb59e;font-weight:600">The Hidden Leaf</b></div></div></div><div class="ttl">Marrakech Marathon</div><div style="aspect-ratio:4/5;border-radius:12px;background:linear-gradient(160deg,#3d5a6c,#c98b5b)"></div><div class="stats"><div class="band"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><b>Fastest marathon</b><span> · 3:58:12, was 4:12:40</span></div><div class="band sm"><b>Fastest half marathon</b><span> · 1:49:20, was 1:55:02</span></div><div class="band sm"><b>Fastest 10 km</b><span> · 49:40, was 52:15</span></div><div class="band q">Also faster at 5 km and 1 km</div><div class="grid"><div><span>TIME</span><b>3:58:12</b></div><div><span>DISTANCE</span><b>42.2 km</b></div><div><span>CLIMB</span><b>164 m</b></div><div class="e"><span>EFFORT</span><b class="gold">441.8</b></div></div></div><div style="display:flex;gap:18px;font-weight:700;font-size:12.5px;color:rgba(255,255,255,.85)"><span>☆ Respect 3</span><span>ϟ Inspired 1</span></div></div></div><div class="opt"><div class="t">D · All five stacked</div><div class="d">Every best on its own line, for comparison. Two lines taller than A.</div><div class="fc"><div class="hd" style="display:flex;gap:9px;align-items:center"><div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7a9bb5,#3d5a6c)"></div><div><div style="font:italic 700 15px Georgia,serif">Ricky Jackson-Lewis</div><div style="font-size:11px;color:rgba(255,255,255,.5)">3h ago · <b style="color:#ffb59e;font-weight:600">The Hidden Leaf</b></div></div></div><div class="ttl">Marrakech Marathon</div><div style="aspect-ratio:4/5;border-radius:12px;background:linear-gradient(160deg,#3d5a6c,#c98b5b)"></div><div class="stats"><div class="band"><svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><b>Fastest marathon</b><span> · 3:58:12, was 4:12:40</span></div><div class="band sm"><b>Fastest half marathon</b><span> · 1:49:20, was 1:55:02</span></div><div class="band sm"><b>Fastest 10 km</b><span> · 49:40, was 52:15</span></div><div class="band sm"><b>Fastest 5 km</b><span> · 24:10, was 25:02</span></div><div class="band sm"><b>Fastest 1 km</b><span> · 4:41, was 4:50</span></div><div class="grid"><div><span>TIME</span><b>3:58:12</b></div><div><span>DISTANCE</span><b>42.2 km</b></div><div><span>CLIMB</span><b>164 m</b></div><div class="e"><span>EFFORT</span><b class="gold">441.8</b></div></div></div><div style="display:flex;gap:18px;font-weight:700;font-size:12.5px;color:rgba(255,255,255,.85)"><span>☆ Respect 3</span><span>ϟ Inspired 1</span></div></div></div></div></body></html>

@@ -2945,6 +2945,6 @@ const styles = StyleSheet.create({
   leaveConfirmTitle: { fontSize: 18, fontWeight: '800', color: RivalColors.textPrimary, marginBottom: 10 },
   leaveConfirmBody: { fontSize: 14, color: RivalColors.textSecondary, lineHeight: 20 },
   leaveConfirmActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  leaveConfirmDangerBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: RivalColors.error },
+  leaveConfirmDangerBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', backgroundColor: RivalColors.danger },
   leaveConfirmDangerBtnText: { color: RivalColors.surfaceLowest, fontWeight: '800', fontSize: 14 },
 });

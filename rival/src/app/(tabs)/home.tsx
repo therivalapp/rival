@@ -46,9 +46,6 @@ const NEXT_EVENT_TICKET = true;
 
 type League = { id: string; name: string; invite_code: string; logo_url: string | null; recentCount?: number };
 type NextRace = { name: string; race_date: string; location?: string | null } | null;
-// TEMP (2026-10-11): laurel sizing preview, see TEMP_PODIUM_THIRD below.
-const TEMP_PODIUM_THIRD = true;
-const TEMP_THIRD_ID = 'temp-podium-third';
 
 type WeeklyLeaderEntry = { userId: string; name: string; avatarUrl: string | null; points: number; isSelf: boolean };
 type WeeklyLeader = {
@@ -1578,7 +1575,6 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                 {/* Tapping a picture opens that person's page (Ricky, 2026-10-11). */}
                                 <TouchableOpacity
                                   activeOpacity={0.8}
-                                  disabled={entry.userId === TEMP_THIRD_ID}
                                   onPress={() => router.push(`/stats?userId=${entry.userId}` as any)}
                                   accessibilityRole="button"
                                   accessibilityLabel={`Open ${entry.name}'s page`}
@@ -1692,7 +1688,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false }: { l
                                 <View style={{ flex: 1, alignItems: 'center', paddingTop: effPadTop, paddingBottom: effPadBottom, marginRight: `${PILLAR_SIDE}%` }}>
                                   <Text style={[styles.mPodiumName, { color: '#ffffff', fontSize: podiumNameSize(entry.name, rankStyle.nameSize), lineHeight: Math.round(podiumNameSize(entry.name, rankStyle.nameSize) * 1.15), letterSpacing: rankStyle.nameLetterSpacing }]}
                                     numberOfLines={1}
-                                    onPress={entry.userId === TEMP_THIRD_ID ? undefined : () => router.push(`/stats?userId=${entry.userId}` as any)}
+                                    onPress={() => router.push(`/stats?userId=${entry.userId}` as any)}
                                   >
                                     {entry.name}
                                   </Text>
@@ -2372,11 +2368,6 @@ export default function HomeScreen() {
             points: Math.round(pointsByUser[id]),
             isSelf: id === uId,
           }));
-          // TEMP (2026-10-11): a stand-in third place so Ricky can size the
-          // laurel on the 3rd pillar. Remove with the other TEMP_PODIUM_THIRD lines.
-          if (TEMP_PODIUM_THIRD && standings.length === 2) {
-            standings.push({ userId: TEMP_THIRD_ID, name: 'Preview P.', avatarUrl: null, points: Math.max(1, Math.round(standings[1].points * 0.7)), isSelf: false });
-          }
           const leagueMemberIds = memberIdsByLeague[league.id] || [];
           const sample = [...leagueMemberIds.filter((id) => id === uId), ...leagueMemberIds.filter((id) => id !== uId).slice(0, WAITING_FACES)];
           const members = sample.map((id) => ({
@@ -2425,7 +2416,7 @@ export default function HomeScreen() {
         const ids = topByLeague[l.leagueId];
         return {
           ...l,
-          wins: TEMP_PODIUM_THIRD ? { ...(winsByLeague[l.leagueId] ?? {}), [TEMP_THIRD_ID]: 12 } : (winsByLeague[l.leagueId] ?? {}),
+          wins: winsByLeague[l.leagueId] ?? {},
           ...(ids && ids.length > 0 ? {
             lastWeek: ids.map((id) => ({
               userId: id,

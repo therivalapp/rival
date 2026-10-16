@@ -1,4 +1,5 @@
 import { useSnapState } from '../lib/snapState';
+import { SkyBackdrop } from '../components/rival/SkyBackdrop';
 import { formatActivityDistance } from '../lib/units';
 // Real Team Hub — exact visual port of the "Team Hub v3" mockup Ricky
 // reviewed and signed off on, wired to live Supabase data.
@@ -21,6 +22,7 @@ import { formatActivityDistance } from '../lib/units';
 import { useEffect, useState, useId } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
+import { setOpenTeam } from '../lib/tabNav';
 import { ActivityIndicator, Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { RivalMiniTile, RivalStartTiles, GreySheet, GreyPrimary, GreyNote, GreyField, GreyLabel, GreyRows } from '../components/rival/RivalGreySheet';
 import { BREAKPOINT_WIDE_LAYOUT, sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
@@ -58,9 +60,11 @@ import { selectAll, inChunks } from '../lib/selectAll';
 const SESSION_GRACE_MS = 12 * 60 * 60 * 1000;
 
 const INSIGHT_ICON: Record<InsightTone, RivalIconName> = { record: 'trophy', streak: 'fire', comeback: 'trendUp' };
+const STREAK_TEXT = 'rgba(255,255,255,0.9)';
 const INSIGHT_COLOR: Record<InsightTone, string> = {
   record: RivalColors.rankAnchors.unrivaled,
-  streak: RivalColors.accentText,
+  // The flame colour of Start streak on Today; the words stay white (Ricky, 2026-10-14).
+  streak: RivalColors.accentFill,
   comeback: RivalColors.tertiary,
 };
 const TINTS = [
@@ -268,6 +272,7 @@ export default function TeamHub() {
   const wideWindow = winWidth >= BREAKPOINT_WIDE_LAYOUT;
   const styles = phone ? phoneHubStyles : desktopHubStyles;
   const { id } = useLocalSearchParams<{ id: string }>();
+  useEffect(() => { setOpenTeam(id ?? null); }, [id]);
   // The data below is remembered per team (lib/snapState.ts), so returning to
   // a team draws its last state at once and refreshes behind it.
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
@@ -502,7 +507,7 @@ export default function TeamHub() {
       ] = await Promise.all([
         supabase
           .from('activities')
-          .select('id, user_id, name, activity_type, started_at, distance_meters, effort_score, duration_seconds, exercises, notes, photo_url')
+          .select('id, user_id, name, activity_type, started_at, utc_offset_seconds, distance_meters, effort_score, duration_seconds, exercises, notes, photo_url')
           .in('user_id', memberIds)
           .order('started_at', { ascending: false })
           .limit(30),
@@ -1492,8 +1497,8 @@ export default function TeamHub() {
                       </TouchableOpacity>
                       {mine && (
                         <TouchableOpacity style={nm.action} onPress={() => deleteBoardPost(note.id)}>
-                          <RivalIcon name="delete" size={15} color="#ff9b8f" />
-                          <Text style={[nm.actionText, { color: '#ff9b8f' }]}>Delete</Text>
+                          <RivalIcon name="delete" size={15} color={RivalColors.danger} />
+                          <Text style={[nm.actionText, { color: RivalColors.danger }]}>Delete</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1683,8 +1688,8 @@ export default function TeamHub() {
                       </TouchableOpacity>
                       {mine && (
                         <TouchableOpacity style={styles.noteActionBtn} onPress={() => deleteBoardPost(note.id)}>
-                          <RivalIcon name="delete" size={16} color="#ff9b8f" />
-                          <Text style={[styles.noteActionText, { color: '#ff9b8f' }]}>Delete</Text>
+                          <RivalIcon name="delete" size={16} color={RivalColors.danger} />
+                          <Text style={[styles.noteActionText, { color: RivalColors.danger }]}>Delete</Text>
                         </TouchableOpacity>
                       )}
                     </>
@@ -1785,9 +1790,9 @@ function ActivityPostCard({
   const displayedName = name;
   const initials = name.slice(0, 2).toUpperCase();
 
-  let badge: { icon: RivalIconName; label: string; color: string } | null = null;
+  let badge: { icon: RivalIconName; label: string; color: string; textColor?: string } | null = null;
   if (a.pbLift) badge = { icon: 'trophy', label: `New PB — ${a.pbLift}`, color: RivalColors.rankAnchors.unrivaled };
-  else if (a.insight) badge = { icon: INSIGHT_ICON[a.insight.tone], label: a.insight.text, color: INSIGHT_COLOR[a.insight.tone] };
+  else if (a.insight) badge = { textColor: a.insight.tone === 'streak' ? STREAK_TEXT : undefined, icon: INSIGHT_ICON[a.insight.tone], label: a.insight.text, color: INSIGHT_COLOR[a.insight.tone] };
 
   const dist = formatDistance(a.distance_meters, a.activity_type);
   const statsLine = [dist, formatDuration(a.duration_seconds)].filter(Boolean).join(' · ');
@@ -1839,8 +1844,8 @@ function ActivityPostCard({
                     <Text style={styles.postMoreMenuText}>Save as image</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.postMoreMenuItem} onPress={deleteThisActivity}>
-                    <RivalIcon name="delete" size={16} color="#ff5c5c" />
-                    <Text style={[styles.postMoreMenuText, { color: '#ff5c5c' }]}>Delete</Text>
+                    <RivalIcon name="delete" size={16} color={RivalColors.danger} />
+                    <Text style={[styles.postMoreMenuText, { color: RivalColors.danger }]}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -1873,17 +1878,28 @@ function ActivityPostCard({
           <Image source={{ uri: a.photo_url }} style={styles.postPhoto} />
         </View>
       ) : (
-        <View style={styles.noPhotoPanel}>
-          <RivalIcon name={activityIconName(a.activity_type)} size={28} color={RivalColors.accentText} />
-          <Text style={styles.noPhotoBody}>No photo added</Text>
-        </View>
+        reactPhone ? (
+          // Phones: the sky for the hour it started, as on the team feed (Ricky, 2026-10-14).
+          <View style={[styles.noPhotoPanel, { minHeight: 150, justifyContent: 'center' }]}>
+            <SkyBackdrop startedAt={a.started_at} utcOffsetSeconds={(a as any).utc_offset_seconds} />
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
+              <RivalIcon name={activityIconName(a.activity_type)} size={132} color="rgba(255,255,255,0.16)" />
+            </View>
+            <Text style={styles.noPhotoBody}>No photo this time, still counts.</Text>
+          </View>
+        ) : (
+          <View style={styles.noPhotoPanel}>
+            <RivalIcon name={activityIconName(a.activity_type)} size={28} color={RivalColors.accentText} />
+            <Text style={styles.noPhotoBody}>No photo added</Text>
+          </View>
+        )
       )}
 
       {reactPhone ? (
         badge ? (
           <View style={styles.badgeLine}>
             <RivalIcon name={badge.icon} size={13} color={badge.color} />
-            <Text style={[styles.badgeLineText, { color: badge.color }]} numberOfLines={1}>{badge.label}</Text>
+            <Text style={[styles.badgeLineText, { color: badge.textColor ?? badge.color }]} numberOfLines={1}>{badge.label}</Text>
           </View>
         ) : null
       ) : (<>
@@ -1891,7 +1907,7 @@ function ActivityPostCard({
         {badge ? (
           <View style={styles.badgeLine}>
             <RivalIcon name={badge.icon} size={13} color={badge.color} />
-            <Text style={[styles.badgeLineText, { color: badge.color }]} numberOfLines={1}>{badge.label}</Text>
+            <Text style={[styles.badgeLineText, { color: badge.textColor ?? badge.color }]} numberOfLines={1}>{badge.label}</Text>
           </View>
         ) : (
           <Text style={[styles.statsLine, reactPhone && styles.statsLinePhone]}>{statsLine || '—'}</Text>
@@ -2027,8 +2043,8 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   },
   boardComposeBodyInput: { fontFamily: SERIF, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 20, minHeight: 50, textAlignVertical: 'top', paddingVertical: 0 },
   boardComposeBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
-  boardDiscardBtn: { borderRadius: 8, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  boardDiscardBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '600' },
+  boardDiscardBtn: { borderRadius: 8, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255,92,92,0.4)' },
+  boardDiscardBtnText: { color: RivalColors.danger, fontSize: 11, fontWeight: '600' },
   boardPostBtn: { backgroundColor: 'rgba(217,119,87,0.18)', borderRadius: 8, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(217,119,87,0.35)' },
   boardPostBtnText: { color: RivalColors.accentText, fontSize: 11, fontWeight: '700' },
   boardErrorText: { fontSize: 12, color: '#ff8a8a', textAlign: 'center' },

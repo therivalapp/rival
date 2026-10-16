@@ -1,0 +1,124 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week Card Life</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--ember:#e8835f;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:680px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:340px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.page{border-radius:26px;padding:14px;background:radial-gradient(ellipse at 50% 0,#3a2a22,#16120f 75%)}
+
+.g{position:relative;overflow:hidden;border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:16px;display:flex;flex-direction:column;gap:14px}
+.g:before{content:"";position:absolute;inset:0 0 auto 0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.g>*{position:relative}
+.hdr{display:flex;align-items:flex-start;gap:10px}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 26px Georgia,serif;line-height:1.1}
+.sub{color:var(--muted);font-size:12.5px}
+.eff{text-align:center}
+.eff b{display:block;font:italic 700 32px Georgia,serif;line-height:1}
+.eff span{font-size:10px;letter-spacing:2.2px;color:var(--accent);font-weight:800}
+.ember{background:linear-gradient(180deg,#fff 10%,#ffb59e 70%,#e8835f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.days{display:flex;gap:5px}
+.days b{flex:1;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid transparent}
+.days b.on{background:rgba(232,131,95,.22);color:#ffd3c2;border-color:rgba(255,181,158,.35)}
+.days b.today{border:1px dashed rgba(255,255,255,.25)}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);background:var(--rec);border:1px solid var(--recb);border-radius:16px}
+.nums>div{text-align:center;padding:12px 4px 10px}.nums>div+div{border-left:1px solid rgba(255,255,255,.08)}
+.nums b{display:block;font:italic 700 23px Georgia,serif;line-height:1.1}
+.nums b small{font:600 11.5px -apple-system,sans-serif;color:var(--muted);font-style:normal;margin:0 1px}
+.nums span{display:block;margin-top:4px;font-size:9px;letter-spacing:1.3px;color:var(--muted);font-weight:800}
+.note{border-top:1px solid rgba(255,255,255,.07);padding-top:11px;font-size:13px;color:rgba(255,255,255,.85)}
+.note b{color:var(--accent)}.note em{display:block;font-style:normal;color:var(--muted);font-size:12px;margin-top:2px}.note i{font-style:normal;color:#5fd38a}
+.chev{text-align:center;color:rgba(255,255,255,.35);margin:-8px 0 -6px;font-size:13px}
+
+/* A: day columns */
+.cols{display:flex;gap:6px;align-items:flex-end;height:96px}
+.cols div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.cols i{width:100%;border-radius:8px 8px 4px 4px;background:rgba(255,255,255,.06)}
+.cols i.on{background:linear-gradient(180deg,#f0b29b,#c96a4a)}
+.cols i.top{background:linear-gradient(180deg,#fff4d6,#ffc94d)}
+.cols i.today{background:none;border:1px dashed rgba(255,255,255,.25)}
+.cols em{font-style:normal;font-size:10.5px;font-weight:800;color:var(--muted)}
+.cols small{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.75)}
+
+/* B: progress to strongest week */
+.prog{display:flex;flex-direction:column;gap:7px}
+.track{height:10px;border-radius:999px;background:rgba(255,255,255,.07);position:relative;overflow:visible}
+.fill{position:absolute;inset:0 auto 0 0;width:17%;border-radius:999px;background:linear-gradient(90deg,#c96a4a,#f0b29b);box-shadow:0 0 14px rgba(232,131,95,.6)}
+.mark{position:absolute;top:-4px;width:2px;height:18px;background:rgba(255,255,255,.35);border-radius:1px}
+.pl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.pl b{color:#fff;font-weight:700}
+
+/* C: photo of the week */
+.photo{margin:-16px -16px 0;height:150px;position:relative;background:linear-gradient(160deg,#3d5a6c,#c98b5b)}
+.photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(35,33,32,.1) 0%,rgba(35,33,32,.55) 55%,var(--ground) 100%)}
+.photo .on{position:absolute;left:16px;right:16px;bottom:8px;z-index:1;display:flex;align-items:flex-end;gap:10px}
+.cap{position:absolute;top:12px;right:14px;z-index:1;font-size:10px;letter-spacing:1.2px;font-weight:800;color:rgba(255,255,255,.75);background:rgba(0,0,0,.3);border-radius:999px;padding:3px 8px}
+
+/* D: weeks sparkline */
+.spark{display:flex;align-items:flex-end;gap:5px;height:52px}
+.spark i{flex:1;border-radius:4px 4px 2px 2px;background:rgba(255,181,158,.18)}
+.spark i.now{background:linear-gradient(180deg,#f0b29b,#c96a4a);box-shadow:0 0 12px rgba(232,131,95,.45)}
+.spark i.best{background:rgba(255,201,77,.45)}
+.sl{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px}
+</style></head><body>
+<h1>Bringing the week card to life</h1>
+<p class="lead">Same week, four directions. Each keeps the header and numbers as they are and adds one thing that moves with the week, so the card changes as you train.</p>
+<div class="row">
+
+<div class="opt"><div class="t">A · Days as columns</div><div class="d">The day tiles grow into columns sized by each day's Effort, the biggest day in gold, today dashed. You see the shape of the week at a glance, folded or open.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub">3 activities</div></div><div class="eff"><b>133.8</b><span>EFFORT</span></div></div>
+ <div class="cols">
+  <div><i style="height:8%"></i><em>M</em></div>
+  <div><i class="on" style="height:46%"></i><em>T</em></div>
+  <div><small>66.8</small><i class="top" style="height:72%"></i><em>W</em></div>
+  <div><i class="today" style="height:8%"></i><em>T</em></div>
+  <div><i class="on" style="height:22%"></i><em>F</em></div>
+  <div><i style="height:8%"></i><em>S</em></div>
+  <div><i style="height:8%"></i><em>S</em></div>
+ </div>
+ <div class="nums"><div><b>3</b><span>ACTIVITIES</span></div><div><b>1<small>h</small> 22<small>m</small></b><span>TIME</span></div><div><b>11.9<small>km</small></b><span>DISTANCE</span></div></div>
+ <div class="note"><i>↗</i> 40% vs last week</div>
+ <div class="chev">⌃</div>
+</div></div></div>
+
+<div class="opt"><div class="t">B · Ember Effort and a goal line</div><div class="d">Effort glows white to ember. A glowing bar fills toward the strongest week, with last week marked, so "640.7 until the strongest week" becomes something you can watch fill.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub">3 activities</div></div><div class="eff"><b class="ember">133.8</b><span>EFFORT</span></div></div>
+ <div class="days"><b>M</b><b class="on">T</b><b class="on">W</b><b class="today">T</b><b class="on">F</b><b>S</b><b>S</b></div>
+ <div class="prog">
+  <div class="track"><div class="fill"></div><div class="mark" style="left:12.5%"></div></div>
+  <div class="pl"><span>Last week <b>95.6</b></span><span>Strongest <b>774.5</b></span></div>
+ </div>
+ <div class="nums"><div><b>3</b><span>ACTIVITIES</span></div><div><b>1<small>h</small> 22<small>m</small></b><span>TIME</span></div><div><b>11.9<small>km</small></b><span>DISTANCE</span></div></div>
+ <div class="note"><i>↗</i> 40% vs last week</div>
+ <div class="chev">⌃</div>
+</div></div></div>
+
+<div class="opt"><div class="t">C · Photo of the week</div><div class="d">The week's latest photo fades in behind the top of the card, with the title and Effort over it. A week without photos keeps the time-of-day sky instead.</div>
+<div class="page"><div class="g">
+ <div class="photo"><span class="cap">MOROCCO · WED</span><div class="on"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub" style="color:rgba(255,255,255,.7)">3 activities</div></div><div class="eff"><b>133.8</b><span>EFFORT</span></div></div></div>
+ <div class="days"><b>M</b><b class="on">T</b><b class="on">W</b><b class="today">T</b><b class="on">F</b><b>S</b><b>S</b></div>
+ <div class="nums"><div><b>3</b><span>ACTIVITIES</span></div><div><b>1<small>h</small> 22<small>m</small></b><span>TIME</span></div><div><b>11.9<small>km</small></b><span>DISTANCE</span></div></div>
+ <div class="note"><b>640.7 Effort</b> until the strongest week.<em><i>↗</i> 40% vs last week</em></div>
+ <div class="chev">⌃</div>
+</div></div></div>
+
+<div class="opt"><div class="t">D · The last eight weeks</div><div class="d">Opened, a small bar chart of the last eight weeks sits under the numbers: this week glowing, the strongest week in gold. Shows momentum rather than one number.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Oct 12 – 18</div><div class="ser">This week</div><div class="sub">3 activities</div></div><div class="eff"><b>133.8</b><span>EFFORT</span></div></div>
+ <div class="days"><b>M</b><b class="on">T</b><b class="on">W</b><b class="today">T</b><b class="on">F</b><b>S</b><b>S</b></div>
+ <div class="nums"><div><b>3</b><span>ACTIVITIES</span></div><div><b>1<small>h</small> 22<small>m</small></b><span>TIME</span></div><div><b>11.9<small>km</small></b><span>DISTANCE</span></div></div>
+ <div><div class="spark"><i style="height:38%"></i><i class="best" style="height:100%"></i><i style="height:52%"></i><i style="height:30%"></i><i style="height:44%"></i><i style="height:26%"></i><i style="height:12%"></i><i class="now" style="height:17%"></i></div><div class="sl"><span>8 weeks ago</span><span>This week</span></div></div>
+ <div class="note"><i>↗</i> 40% vs last week</div>
+ <div class="chev">⌃</div>
+</div></div></div>
+
+</div>
+</body></html>

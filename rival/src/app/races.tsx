@@ -600,7 +600,7 @@ export default function RacesScreen() {
         />
         {editingRace && (
           <TouchableOpacity style={ms.deleteLink} onPress={() => { const id = editingRace.id; closeModal(); deleteRace(id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <RivalIcon name="delete" size={15} color={RivalColors.error} />
+            <RivalIcon name="delete" size={15} color={RivalColors.danger} />
             <Text style={ms.deleteLinkText}>Delete event</Text>
           </TouchableOpacity>
         )}
@@ -1502,7 +1502,7 @@ const ms = StyleSheet.create({
   chip: { borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 14 },
   sheetActions: { gap: 10 },
   deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
-  deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.error },
+  deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.danger },
   discRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46 },
   discName: { flex: 1, minWidth: 0, color: RivalColors.textPrimary, fontSize: 15, fontWeight: '500', paddingVertical: 8, backgroundColor: 'transparent', borderWidth: 0 },
   discKm: { width: 64, color: RivalColors.textPrimary, fontSize: 15, fontWeight: '500', textAlign: 'right', paddingVertical: 8, backgroundColor: 'transparent', borderWidth: 0 },

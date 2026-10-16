@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveCanonicalActivityId, linkNewActivitySource } from '../_shared/activityDedup.ts'
 import { calculateEffortScore, loadScoringConfig } from '../_shared/effortScore.ts'
 import { normaliseActivityType } from '../_shared/activityType.ts'
+import { fillMissingDetails, fillMissingOffsets } from '../_shared/stravaDetails.ts'
 import { getFreshStravaToken } from '../_shared/stravaAuth.ts'
 
 const corsHeaders = {
@@ -170,6 +171,9 @@ serve(async (req) => {
         duration_seconds: activity.moving_time,
         elevation_meters: activity.total_elevation_gain,
         started_at: activity.start_date,
+        // The activity's own offset from UTC, so its time of day shows where it
+        // happened rather than where it is viewed (add_utc_offset.sql).
+        utc_offset_seconds: typeof activity.utc_offset === 'number' ? Math.round(activity.utc_offset) : null,
         effort_score: effortScore,
         raw_effort_score: effortScore,
         // start_date_local (not start_date) — races.race_date is a bare calendar
@@ -296,7 +300,19 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, saved, inserted, total: activities.length }), {
+    // Older activities catch up a few at a time: their time zone from the
+    // activity list, then the full details (heart rate, best efforts, splits)
+    // of up to 15, within Strava's read allowance.
+    let offsetsFilled = 0
+    let detailsFilled = 0
+    try {
+      offsetsFilled = await fillMissingOffsets(supabase, user.id, accessToken)
+      detailsFilled = await fillMissingDetails(supabase, user.id, accessToken)
+    } catch (fillErr) {
+      console.log('Detail fill failed:', fillErr.message)
+    }
+
+    return new Response(JSON.stringify({ success: true, saved, inserted, total: activities.length, offsetsFilled, detailsFilled }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

@@ -1262,7 +1262,7 @@ export default function AiShareScreen() {
               <Text style={mob ? rm.primaryText : styles.downloadBtnText}>{em('⬇ Save this version')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={mob ? rm.ghost : styles.regenerateBtn} onPress={() => setStampedPreviewUrl(null)}>
-              <Text style={mob ? rm.ghostText : styles.regenerateBtnText}>{em('✕ Discard and restore original')}</Text>
+              <Text style={[mob ? rm.ghostText : styles.regenerateBtnText, { color: RivalColors.danger }]}>{em('✕ Discard and restore original')}</Text>
             </TouchableOpacity>
           </View>
         )}
