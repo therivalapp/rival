@@ -14,7 +14,8 @@ import { getMondayOfWeek, calculateStreak, STREAK_MIN_ACTIVITIES } from '../../l
 import { getCurrentSeasonYear, daysUntilSeasonEnd, getSeasonStartISO, deviceTimeZone } from '../../lib/season';
 import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { lifetimePace } from '../../lib/rankPace';
-import { rankSheen, rankTextSheen } from '../../constants/rankSheen';
+import { rankSheen, rankTextSheen, rankTileFill, RANK_TILE_INK } from '../../constants/rankSheen';
+import { RankLadder } from '../../components/rival/RankLadder';
 import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
 import { computeGoalProgress, goalActivityLabel, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
@@ -2782,16 +2783,19 @@ export default function HomeScreen() {
                     </>
                   )}
                 </TouchableOpacity>
+                {/* The rank in its own material, its icon behind (Ricky,
+                    2026-10-18, W2). */}
                 <TouchableOpacity
-                  style={[styles.mLegacyStatCell, styles.mLegacyStatCellBorder]}
+                  style={[styles.mLegacyStatCell, styles.mRankTile, rankTileFill(getLevel(seasonEffortTotal).level)]}
                   activeOpacity={0.7}
                   onPress={() => router.push('/ranks')}
                   accessibilityRole="button"
                 >
-                  <RivalIcon name="doubleChevronUp" size={16} color={rankSheen(getLevel(seasonEffortTotal).level).light} />
-                  <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueGold, rankTextSheen(getLevel(seasonEffortTotal).level)]} numberOfLines={1}>{rankName || '—'}</Text>
-                  <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg]}>{seasonYear} rank</Text>
-                  <Text style={styles.mRankDaysLeft}>{seasonDaysLeft === 1 ? '1 day left' : `${seasonDaysLeft} days left`}</Text>
+                  <RivalIcon name={`rank${getLevel(seasonEffortTotal).name}` as RivalIconName} size={64} color="rgba(16,14,12,0.12)" style={styles.mRankTileMark} />
+                  <RivalIcon name={`rank${getLevel(seasonEffortTotal).name}` as RivalIconName} size={16} color={RANK_TILE_INK} />
+                  <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueGold, { color: RANK_TILE_INK }]} numberOfLines={1} adjustsFontSizeToFit>{rankName || '—'}</Text>
+                  <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg, { color: 'rgba(16,14,12,0.7)' }]}>{seasonYear} rank</Text>
+                  <Text style={[styles.mRankDaysLeft, { color: 'rgba(16,14,12,0.6)' }]}>{seasonDaysLeft === 1 ? '1 day left' : `${seasonDaysLeft} days left`}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.mLegacyStatCell}
@@ -3146,6 +3150,11 @@ export default function HomeScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={`Next milestone: ${m.title}, ${m.toGo}`}
                       >
+                        {/* A rank milestone shows the ladder of ranks (Ricky,
+                            2026-10-18, W3); the other kinds keep their line. */}
+                        {m.rankLevel ? (
+                          <RankLadder effort={seasonEffortTotal} next />
+                        ) : (<>
                         <View>
                           <View style={styles.mMilestoneHead}>
                             <Text style={[styles.mMilestoneLabel, ms ? { color: ms.light } : styles.mMilestoneLabelNeutral]}>Next milestone</Text>
@@ -3159,6 +3168,7 @@ export default function HomeScreen() {
                         <View style={styles.mMilestoneTrack}>
                           <View style={[styles.mMilestoneFill, ms ? milestoneFillIn(ms.dark, ms.light) : milestoneFillIn('rgba(255,255,255,0.45)', '#ffffff'), { width: `${Math.max(3, Math.min(100, Math.round(m.pct * 100)))}%` }]} />
                         </View>
+                        </>)}
                       </TouchableOpacity>
                     );
                   })()}
@@ -3169,7 +3179,7 @@ export default function HomeScreen() {
                       <TouchableOpacity
                         key={i}
                         hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-                        accessibilityLabel={i === 0 ? 'Show training totals' : 'Show recognition'}
+                        accessibilityLabel={i === 0 ? 'Show activity totals' : 'Show recognition'}
                         onPress={() => { setLegacyPage(i); legacyScrollRef.current?.scrollTo({ x: i * legacyBoxWidth, animated: true }); }}
                       >
                         <View style={[styles.mLeaderDot, i === legacyPage && styles.mLeaderDotActive]} />
@@ -3671,7 +3681,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={{ flex: 1 }} />
                   <View style={styles.goalsEmptyCentered}>
-                    <Text style={styles.goalsEmptyTitle}>Training is better together.</Text>
+                    <Text style={styles.goalsEmptyTitle}>Better together.</Text>
                   </View>
                   <View style={{ flex: 1 }} />
                   <View style={[styles.focusEmptyLinkRow, styles.focusEmptyLinkBottom]}>
@@ -4584,6 +4594,8 @@ const styles = StyleSheet.create({
   mSkelPodium: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 70 },
   // Warm card fill, like the app's other cards — off the smoke backdrop the
   // grey see-through box read as flat.
+  mRankTile: { overflow: 'hidden', borderWidth: 0, borderRadius: 16, paddingTop: 14, paddingBottom: 12, marginVertical: -8, marginHorizontal: 4, justifyContent: 'center' },
+  mRankTileMark: { position: 'absolute', right: -14, bottom: -16 },
   mRankDaysLeft: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '600', color: RivalColors.accentText, marginTop: 3 },
   mYearCard: {
     marginTop: 14, marginHorizontal: -8, paddingVertical: 22, paddingHorizontal: 18, gap: 14,

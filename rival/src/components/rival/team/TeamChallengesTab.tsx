@@ -288,7 +288,7 @@ export function TeamChallengesTab({
           ) : (
             <TouchableOpacity style={s.emptyCard} onPress={onEditTeamGoal} activeOpacity={0.8}>
               <RivalIcon name="target" size={22} color={RivalColors.accentText} />
-              <Text style={s.emptyText}>Start a team challenge: one shared goal everyone's training counts towards.</Text>
+              <Text style={s.emptyText}>Start a team challenge: one shared goal everyone's activity counts toward.</Text>
             </TouchableOpacity>
           )}
         </View>

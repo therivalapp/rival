@@ -19,3 +19,12 @@ describe('projectRoute', () => {
     expect(projectRoute([[1, 1]], 400, 300)).toEqual([]);
   });
 });
+
+import { encodePolyline } from '../polyline';
+describe('encodePolyline', () => {
+  it('round-trips with decodePolyline', () => {
+    const pts: [number, number][] = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
+    expect(encodePolyline(pts)).toBe('_p~iF~ps|U_ulLnnqC_mqNvxq`@');
+    expect(decodePolyline(encodePolyline(pts))).toEqual(pts);
+  });
+});

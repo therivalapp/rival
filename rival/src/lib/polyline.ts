@@ -31,3 +31,21 @@ export function projectRoute(points: [number, number][], width: number, height: 
   const offY = (height - spanY * scale) / 2;
   return xs.map((x, i) => [offX + (x - minX) * scale, offY + (ys[i] - minY) * scale]);
 }
+
+/** [[lat, lng], ...] → Google encoded polyline, the form routes are stored in. */
+export function encodePolyline(points: [number, number][]): string {
+  let out = '';
+  let prevLat = 0, prevLng = 0;
+  const enc = (v: number) => {
+    let n = v < 0 ? ~(v << 1) : v << 1;
+    let s = '';
+    while (n >= 0x20) { s += String.fromCharCode((0x20 | (n & 0x1f)) + 63); n >>= 5; }
+    return s + String.fromCharCode(n + 63);
+  };
+  for (const [la, ln] of points) {
+    const lat = Math.round(la * 1e5), lng = Math.round(ln * 1e5);
+    out += enc(lat - prevLat) + enc(lng - prevLng);
+    prevLat = lat; prevLng = lng;
+  }
+  return out;
+}

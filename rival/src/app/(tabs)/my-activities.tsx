@@ -736,7 +736,7 @@ export default function MyActivitiesScreen() {
       <View style={styles.fvWrap}>
         <View style={styles.fvHero}>
           {Platform.OS === 'web' && <View pointerEvents="none" style={styles.fvHeroGlow} />}
-          <Text style={styles.fvTitle}>Past training counts.</Text>
+          <Text style={styles.fvTitle}>Past activities count.</Text>
           <Text style={styles.fvSub}>Connect a device to import it, with Effort.</Text>
           <View style={styles.fvStats}>
             {['Effort', 'Activities', 'Hours'].map((l) => (
@@ -1199,7 +1199,10 @@ export default function MyActivitiesScreen() {
       });
     });
   });
-  monthBests.sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime());
+  // A first entry has nothing to beat, so it isn't a best; only the ones
+  // with a figure they improved on count (Ricky, 2026-10-16).
+  const monthBestsShown = monthBests.filter((b) => !!b.was);
+  monthBestsShown.sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime());
 
   function ordinalDay(day: number): string {
     if (day % 10 === 1 && day !== 11) return `${day}st`;
@@ -1260,7 +1263,7 @@ export default function MyActivitiesScreen() {
   // numbers instead of the usual dot (Ricky, 2026-10-14).
   const weekPbDays = new Set(
     allActivities
-      .filter((a) => (pbs[a.id] || fastest[a.id]) && getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
+      .filter((a) => ((pbs[a.id] && pbPrev[a.id]) || fastest[a.id]) && getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
       .map((a) => (new Date(a.started_at).getDay() + 6) % 7),
   );
 
@@ -1374,9 +1377,10 @@ export default function MyActivitiesScreen() {
     const titles: string[] = [];
     acts.forEach((a) => {
       const noun = activityTypeLabel(a.activity_type).toLowerCase();
-      if (pbs[a.id]) titles.push(DISTANCE_SPORTS.has(a.activity_type) ? `Farthest ${noun}` : `Longest ${noun}`);
+      const pb = !!pbs[a.id] && !!pbPrev[a.id];
+      if (pb) titles.push(DISTANCE_SPORTS.has(a.activity_type) ? `Farthest ${noun}` : `Longest ${noun}`);
       (fastest[a.id] ?? []).forEach((b) => titles.push(fastestTitle(b)));
-      if (pbs[a.id] || fastest[a.id]?.length) days.add((new Date(a.started_at).getDay() + 6) % 7);
+      if (pb || fastest[a.id]?.length) days.add((new Date(a.started_at).getDay() + 6) % 7);
     });
     return { days, titles };
   };
@@ -1604,7 +1608,7 @@ export default function MyActivitiesScreen() {
                       {/* Training toward: the next event (or Add event), then
                           Personal bests. Your own goals-to-come, kept off Today. */}
                       {SHOW_TRAINING_TOWARD && <>
-                      <Text style={styles.towardLabel}>{nextEvent ? 'Training toward' : 'Records'}</Text>
+                      <Text style={styles.towardLabel}>{nextEvent ? 'Working toward' : 'Records'}</Text>
                       <View style={styles.towardCard}>
                         {nextEvent && (
                         <>
@@ -1653,7 +1657,7 @@ export default function MyActivitiesScreen() {
                       </>}
                       {renderJournalToggle(false)}
 
-                      <MonthBests month={monthName} bests={monthBests} onOpen={(id) => openDiary(allActivities, id)} />
+                      <MonthBests month={monthName} bests={monthBestsShown} onOpen={(id) => openDiary(allActivities, id)} />
                     </>
                   ) : (
                     <>

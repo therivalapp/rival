@@ -48,7 +48,7 @@ export default function ConnectStravaScreen() {
         <GreyPageHead
           kicker="CONNECTED DEVICES"
           title={isReview ? 'Sharing with teams' : 'Connect a device'}
-          sub={isReview ? 'Review what teammates can see.' : 'Past training imports with Effort. New activities sync automatically.'}
+          sub={isReview ? 'Review what teammates can see.' : 'Past activities import with Effort. New activities sync automatically.'}
           onBack={leave}
         />
 

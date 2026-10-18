@@ -55,6 +55,22 @@ serve(async (req) => {
     )
     const userId = user.id
 
+    // From the emailed link: only while the request it answers is still
+    // pending (deletion_requests.sql). A cancelled or expired request means
+    // the link no longer deletes anything.
+    if (body?.via === 'email') {
+      const { data: request } = await supabase
+        .from('deletion_requests')
+        .select('expires_at')
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (!request || new Date(request.expires_at).getTime() < Date.now()) {
+        return new Response(JSON.stringify({ error: 'request_expired' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
+        })
+      }
+    }
+
     // 1. Owned teams: delete if otherwise empty, else hand over ownership.
     const { data: ownedLeagues } = await supabase.from('leagues').select('id').eq('created_by', userId)
     for (const lg of ownedLeagues ?? []) {

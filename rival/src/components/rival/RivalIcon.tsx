@@ -87,6 +87,8 @@ const ICONS = {
   notificationsOff: 'notifications-off',
   logout: 'logout',
   delete: 'delete-outline',
+  archive: 'inventory-2',
+  priority: 'priority-high',
   link: 'link',
   openInNew: 'open-in-new',
   apps: 'apps',

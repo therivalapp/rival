@@ -20,7 +20,7 @@ import { RivalAlertHost } from '../components/rival';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 
 // Screens that make sense without an account.
-const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/strava-callback']);
+const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/strava-callback', '/confirm-delete']);
 
 export default function RootLayout() {
   // Native registers Manrope from bundled .ttf files; web is a no-op because

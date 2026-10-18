@@ -22,7 +22,7 @@ export default function DesignPreviewConnectData() {
         <View style={styles.content}>
 
           <View style={styles.hero}>
-            <Text style={styles.title}>Bring your training with you.</Text>
+            <Text style={styles.title}>Bring your activity with you.</Text>
             <Text style={styles.sub}>
               Connect your devices to automatically sync your workouts. Your history becomes your foundation here.
             </Text>

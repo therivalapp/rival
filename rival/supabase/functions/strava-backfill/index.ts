@@ -312,7 +312,11 @@ serve(async (req) => {
       console.log('Detail fill failed:', fillErr.message)
     }
 
-    return new Response(JSON.stringify({ success: true, saved, inserted, total: activities.length, offsetsFilled, detailsFilled }), {
+    // The newest few activities Strava handed over, so a missing activity can be
+    // told apart from one Strava never sent (2026-10-17).
+    // deno-lint-ignore no-explicit-any
+    const newest = activities.slice(0, 3).map((a: any) => ({ id: a.id, start: a.start_date, type: a.sport_type ?? a.type, km: Math.round((a.distance ?? 0) / 10) / 100 }))
+    return new Response(JSON.stringify({ success: true, saved, inserted, total: activities.length, offsetsFilled, detailsFilled, newest }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

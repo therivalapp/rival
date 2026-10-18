@@ -796,7 +796,7 @@ export default function CreateLeagueScreen() {
 
               <View>
                 <Text style={styles.label}>Shared Goal (Optional)</Text>
-                <Text style={styles.toggleSubtitle}>An event the team is training toward. Members keep individual goals while sharing the same finish line.</Text>
+                <Text style={styles.toggleSubtitle}>An event the team is working toward. Members keep individual goals while sharing the same finish line.</Text>
                 <TouchableOpacity
                   style={[styles.pathCardWide, !teamGoalMode && selectedRaceId === null && styles.pathCardActive]}
                   onPress={() => { setSelectedRaceId(null); setTeamGoalMode(false); }}

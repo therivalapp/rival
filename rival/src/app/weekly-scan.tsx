@@ -403,7 +403,7 @@ function WeeklyScanScreen() {
         )}
 
         {wide ? <Text style={st.title}>Scan Your Week</Text> : null}
-        <Text style={st.subtitle}>Add photos to each training day. All days are scanned together.</Text>
+        <Text style={st.subtitle}>Add photos to each day of activity. All days are scanned together.</Text>
 
         {/* Not tied to one specific day/field — a permission or upload
             failure from any day's photo action lands here, right above the

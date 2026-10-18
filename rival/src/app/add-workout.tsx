@@ -8,7 +8,7 @@ import { RivalButtonColors, RivalColors, RivalRadius, RivalType } from '../const
 import { sidePageWide } from '../constants/breakpoints';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
-  { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a training app screen, gym whiteboard or workout card.' },
+  { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a fitness app screen, gym whiteboard or workout card.' },
   { icon: 'brain', title: '2. Automatic extraction', body: 'Exercises, sets, weights and distance are extracted from the image.' },
   { icon: 'verified', title: '3. Review and save', body: 'Confirm the details. Effort updates as soon as the activity is saved.' },
 ];

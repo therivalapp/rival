@@ -99,20 +99,23 @@ export default function RanksScreen() {
           <GreyPageHead kicker={String(getCurrentSeasonYear())} title="Ranks" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
           {/* The rank, and the Effort behind it, up front. */}
-          <View style={[rb.card, rb.hero, ms.rankCard]}>
-            <Text style={rb.label}>{getCurrentSeasonYear()} rank</Text>
-            <Text style={rb.big}>{currentLevel.name}</Text>
+          {/* Made of the rank's own material, its icon large behind, dark
+              lettering (Ricky, 2026-10-18, "W2"). */}
+          <View style={[ms.matCard, rankTileFill(currentLevel.level)]}>
+            <RivalIcon name={`rank${currentLevel.name}` as RivalIconName} size={190} color="rgba(16,14,12,0.13)" style={ms.matMark} />
+            <Text style={ms.matLabel}>{getCurrentSeasonYear()} rank</Text>
+            <Text style={ms.matName}>{currentLevel.name}</Text>
             <View style={ms.effortRow}>
-              <Text style={ms.effortNum}>{Math.round(totalXp).toLocaleString()}</Text>
-              <Text style={ms.effortUnit}>Effort this year</Text>
+              <Text style={ms.matEffort}>{Math.round(totalXp).toLocaleString()}</Text>
+              <Text style={ms.matUnit}>Effort this year</Text>
             </View>
             {next ? (
               <>
-                <View style={rb.bar}><View style={[rb.barFill, { width: `${Math.max(2, Math.round(pct * 100))}%` as any }]} /></View>
-                <Text style={ms.sub}>{Math.max(0, Math.ceil(next.minXp - totalXp)).toLocaleString()} Effort to {next.name} · Level {currentLevel.level}</Text>
+                <View style={ms.matBar}><View style={[ms.matFill, { width: `${Math.max(2, Math.round(pct * 100))}%` as any }]} /></View>
+                <Text style={ms.matSub}>{Math.max(0, Math.ceil(next.minXp - totalXp)).toLocaleString()} Effort to {next.name} · Level {currentLevel.level}</Text>
               </>
             ) : (
-              <Text style={ms.sub}>The top rank.</Text>
+              <Text style={ms.matSub}>The top rank.</Text>
             )}
           </View>
 
@@ -120,12 +123,15 @@ export default function RanksScreen() {
               what has been earned. A latecomer also sees what a full year at
               their pace would reach: something to aim at next year. */}
           {pace ? (
-            <View style={[rb.card, ms.paceCard]}>
+            <View style={[rb.card, ms.paceCard, { overflow: 'hidden' }]}>
+              {/* The rank it heads for, in that rank's colour and icon; only
+                  the rank held gets the full material card. */}
+              <RivalIcon name={`rank${pace.yearEnd.level.name}` as RivalIconName} size={120} color={rankSheen(pace.yearEnd.level.level).light + '14'} style={ms.paceMark} />
               <View style={ms.paceRow}>
-                <View style={rb.badge}><RivalIcon name="trendUp" size={16} color={RivalColors.accentText} /></View>
+                <View style={[ms.paceCoin, rankTileFill(pace.yearEnd.level.level)]}><RivalIcon name={`rank${pace.yearEnd.level.name}` as RivalIconName} size={18} color={RANK_TILE_INK} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={rb.label}>On pace for</Text>
-                  <Text style={ms.paceRank}>{pace.yearEnd.level.name}</Text>
+                  <Text style={[ms.paceRank, rankTextSheen(pace.yearEnd.level.level)]}>{pace.yearEnd.level.name}</Text>
                   <Text style={ms.sub2}>About {pace.yearEnd.effort.toLocaleString()} Effort by 31 December at the current pace.</Text>
                 </View>
               </View>
@@ -136,7 +142,7 @@ export default function RanksScreen() {
                     <Text style={rb.label}>A full year at this pace</Text>
                     <Text style={ms.paceRank}>{pace.fullYear.level.name}</Text>
                     <Text style={ms.sub2}>
-                      Based on training since {pace.start.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}. The first full year begins on 1 January.
+                      Based on activity since {pace.start.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}. The first full year begins on 1 January.
                     </Text>
                   </View>
                 </View>
@@ -391,6 +397,17 @@ const styles = StyleSheet.create({
 
 // Mobile only — the blend (see RivalGreySheet's rb).
 const ms = StyleSheet.create({
+  matCard: { position: 'relative', overflow: 'hidden', borderRadius: 22, borderWidth: 1, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 18, gap: 8 },
+  matMark: { position: 'absolute', right: -34, top: -24 },
+  matLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: 'rgba(16,14,12,0.62)' },
+  matName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 52, lineHeight: 58, color: RANK_TILE_INK },
+  matEffort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 26, color: RANK_TILE_INK, fontVariant: ['tabular-nums'] },
+  matUnit: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(16,14,12,0.65)' },
+  matBar: { alignSelf: 'stretch', height: 8, borderRadius: 4, backgroundColor: 'rgba(16,14,12,0.2)', overflow: 'hidden' },
+  matFill: { height: 8, borderRadius: 4, backgroundColor: RANK_TILE_INK },
+  matSub: { fontSize: 12.5, color: 'rgba(16,14,12,0.78)', textAlign: 'center' },
+  paceMark: { position: 'absolute', right: -20, bottom: -26 },
+  paceCoin: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 120 },
   rankCard: { alignItems: 'center', paddingVertical: 16, gap: 8 },
   effortRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: -2 },

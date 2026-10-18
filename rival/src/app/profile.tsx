@@ -698,7 +698,7 @@ export default function ProfileScreen() {
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
-      <Text style={styles.panelSub}>Sync training automatically from connected services.</Text>
+      <Text style={styles.panelSub}>Sync activities automatically from connected services.</Text>
 
       <View style={styles.appRow}>
         <View style={styles.appRowLeft}>
@@ -721,6 +721,18 @@ export default function ProfileScreen() {
           ? <View style={styles.connectedCheck}><RivalIcon name="check" size={14} color={RivalColors.tertiary} /></View>
           : <RivalButton label="Connect" onPress={() => startStravaConnect(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
       </View>
+
+      {/* A RIVAL or Strava archive file (Ricky, 2026-10-17). */}
+      <TouchableOpacity style={styles.appRow} onPress={() => router.push('/import-archive')} activeOpacity={0.8}>
+        <View style={styles.appRowLeft}>
+          <RivalIcon name="upload" size={18} color={RivalColors.accentText} />
+          <View>
+            <Text style={styles.appName}>Import an archive</Text>
+            <Text style={styles.appStatus}>A RIVAL or Strava archive file</Text>
+          </View>
+        </View>
+        <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.35)" />
+      </TouchableOpacity>
 
       {stravaConnected && (
         <>
@@ -915,7 +927,9 @@ export default function ProfileScreen() {
 
       <View style={styles.dangerZone}>
         <Text style={styles.dangerTitle}>DANGER ZONE</Text>
-        <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} disabled={deletingAccount}>
+        {/* Opens the delete-and-archive page (Ricky, 2026-10-17); the old
+            prompt-based handleDeleteAccount stays below, unused. */}
+        <TouchableOpacity style={styles.deleteAccountButton} onPress={() => router.push('/delete-account')} disabled={deletingAccount}>
           <BusyText busy={!!(deletingAccount)} style={styles.deleteAccountText}>{deletingAccount ? 'Deleting account…' : 'Delete account'}</BusyText>
         </TouchableOpacity>
       </View>

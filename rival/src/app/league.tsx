@@ -1562,7 +1562,7 @@ export default function LeagueScreen() {
               <Text style={styles.journeyBannerTitle}>
                 {(() => { const d = daysUntilRace(journeyRace.race_date); return d === 0 ? 'Event day' : d > 0 ? `${d} days to ${journeyRace.name}` : `${journeyRace.name} — done!`; })()}
               </Text>
-              <Text style={styles.journeyBannerSub}>Everyone here is training toward this together — different goals, same destination.</Text>
+              <Text style={styles.journeyBannerSub}>Everyone here is working toward this together — different goals, same destination.</Text>
             </View>
           </View>
         )}

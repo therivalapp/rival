@@ -119,7 +119,7 @@ function getFinishMessage(actualTime: string, goalTime: string | null): string {
   const goal = parseTimeToSeconds(goalTime);
   const diff = goal - actual;
   if (diff >= 600) return "You absolutely smashed your goal. That's what all those early mornings were for.";
-  if (diff >= 60) return "Goal crushed. Every second of training showed up today.";
+  if (diff >= 60) return "Well ahead of the goal. Every second of effort showed up today.";
   if (diff >= -60) return "Right on target — that's not luck, that's discipline.";
   if (diff >= -300) return "Just shy of the goal, but you crossed that line. That takes everything.";
   if (diff >= -900) return "The time doesn't define the effort. You were out there when it counted.";
