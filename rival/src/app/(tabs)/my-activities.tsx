@@ -28,7 +28,7 @@ import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../../lib/
 import { rm } from '../../components/rival/RivalMobile';
 import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage, RivalStartTiles } from '../../components/rival';
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
-import { RUN_TYPES, fastestBests, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
+import { RUN_TYPES, fastestBests, fastestTitle, pbStoodText, type FastestBest } from '../../lib/bestEfforts';
 import { activityDisplayName } from '../../lib/yearReview';
 import { MonthBests, type MonthBest } from '../../components/rival/MonthBests';
 import { activityTypeLabel } from '../../components/rival/EffortBreakdownSheet';
@@ -599,7 +599,7 @@ export default function MyActivitiesScreen() {
         for (const a of inOrder) {
           const v = metricOf(a);
           if (best >= 0 && v > best && v > 0) {
-            pbMap[a.id] = useDistance ? `Furthest ${type}` : `Longest ${type}`;
+            pbMap[a.id] = useDistance ? `Farthest ${type}` : `Longest ${type}`;
             prevMap[a.id] = best;
           }
           if (v > best) best = v;
@@ -805,6 +805,7 @@ export default function MyActivitiesScreen() {
       pbPrev: liftPbs[a.id] ? liftPbs[a.id].prevKg : pbPrev[a.id] ?? null,
       pbLift: liftPbs[a.id]?.lift ?? null,
       fastest: fastest[a.id] ?? null,
+      pbStood: (() => { const title = headlinePbTitle(a); return title ? pbStood.get(`${title}|${a.id}`) ?? null : null; })(),
       utc_offset_seconds: a.utc_offset_seconds ?? null,
       pbKind: liftPbs[a.id] ? 'lift' : DISTANCE_SPORTS.has(a.activity_type) ? 'distance' : 'time',
       effort_confirmed: a.effort_confirmed,
@@ -945,7 +946,7 @@ export default function MyActivitiesScreen() {
   // Week layout: with a filter on, matches show as one grid (see below).
   const filtering = filterType !== 'All' || prOnly || starredOnly || !!dateFilter;
 
-  // Personal bests by record ("Furthest run", "Fastest 5 km", "Heaviest
+  // Personal bests by record ("Farthest run", "Fastest 5 km", "Heaviest
   // bench press"), newest first in each. The newest is the current record;
   // the rest are earlier PBs it has since beaten.
   function groupPbs(list: Activity[]): { title: string; acts: Activity[] }[] {
@@ -962,7 +963,27 @@ export default function MyActivitiesScreen() {
   }
   const pbGroups = useMemo(() => (prOnly ? groupPbs(filteredActivities) : []), [prOnly, filteredActivities, pbs, fastest]);
   // Current against the whole history, not only what a filter leaves.
-  const currentPbIds = useMemo(() => new Set(groupPbs(allActivities).map((g) => g.acts[0].id)), [allActivities, pbs, fastest]);
+  const allPbGroups = useMemo(() => groupPbs(allActivities), [allActivities, pbs, fastest]);
+  const currentPbIds = useMemo(() => new Set(allPbGroups.map((g) => g.acts[0].id)), [allPbGroups]);
+  // "title|activity id" → how long that PB stood before the next one beat
+  // it. The current record has none.
+  const pbStood = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const g of allPbGroups) {
+      for (let i = 1; i < g.acts.length; i++) {
+        out.set(`${g.title}|${g.acts[i].id}`, pbStoodText(new Date(g.acts[i - 1].started_at).getTime() - new Date(g.acts[i].started_at).getTime()));
+      }
+    }
+    return out;
+  }, [allPbGroups]);
+  // The record a card or the viewer names first: the PB label, else the
+  // longest fastest time (the viewer's own order).
+  function headlinePbTitle(a: Activity): string | null {
+    const label = pbs[a.id];
+    if (label) return label.startsWith('Heaviest') ? label : `${label.split(' ')[0]} ${activityDisplayName(a.activity_type).toLowerCase()}`;
+    const top = fastest[a.id]?.[0];
+    return top ? fastestTitle(top) : null;
+  }
   const [openPbGroups, setOpenPbGroups] = useState<Set<string>>(new Set());
 
   // The Personal bests filter: a section per record, the current PB and the

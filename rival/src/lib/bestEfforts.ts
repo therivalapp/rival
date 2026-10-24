@@ -117,3 +117,15 @@ export function fastestRest(b: FastestBest): string {
  *  2026-10-14/16, option A): the longest leads and two more stack under it.
  *  Any others are only in Details, marked gold there. */
 export const STACKED_BESTS = 3;
+
+/** How long a personal best stood before it was beaten: "9 days",
+ *  "5 weeks", "7 months", "3 years" (Ricky, 2026-10-24: an old PB says
+ *  "Farthest run for 7 months"). */
+export function pbStoodText(ms: number): string {
+  const days = Math.max(1, Math.round(ms / 86400000));
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
+  if (days < 14) return plural(days, 'day');
+  if (days < 60) return plural(Math.round(days / 7), 'week');
+  if (days < 730) return plural(Math.round(days / 30.44), 'month');
+  return plural(Math.round(days / 365.25), 'year');
+}

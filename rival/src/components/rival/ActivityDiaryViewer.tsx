@@ -69,6 +69,8 @@ export type DiaryActivity = {
   /** The best this personal best beat (metres or seconds), and which it was. */
   pbPrev?: number | null;
   pbKind?: 'distance' | 'time' | 'lift';
+  /** An earlier PB, since beaten: how long it stood ("7 months"). */
+  pbStood?: string | null;
   /** A lift personal best: which lift (pbPrev is then the earlier best, kg). */
   pbLift?: string | null;
   /** New fastest times this run set (5 km, 10 km...), longest first. */
@@ -448,9 +450,11 @@ export function ActivityDiaryViewer({
     ? Math.max(0, ...(activity.exercises ?? []).filter((e) => (matchCanonicalLift(e.name) || (e as any).prLift) === activity.pbLift).map((e) => Number(e.weight) || 0))
     : 0;
   const pbNoun = activityDisplayName(activity.activity_type).toLowerCase();
-  const pbTitle = fastestTop ? fastestTitle(fastestTop)
+  const pbTitle = (fastestTop ? fastestTitle(fastestTop)
     : activity.pbKind === 'lift' && activity.pbLift ? `Heaviest ${activity.pbLift.toLowerCase()}`
-    : activity.pbKind === 'distance' ? `Farthest ${pbNoun}` : `Longest ${pbNoun}`;
+    : activity.pbKind === 'distance' ? `Farthest ${pbNoun}` : `Longest ${pbNoun}`)
+    // An earlier PB says how long it stood (Ricky, 2026-10-24).
+    + (activity.pbStood ? ` for ${activity.pbStood}` : '');
   const pbJoin = fastestTop ? ' · ' : ' · up from ';
   const pbFromText = fastestTop
     ? `${formatDurationClock(fastestTop.seconds)}, was ${formatDurationClock(fastestTop.prevSeconds)}`
