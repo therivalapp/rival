@@ -12,6 +12,7 @@ import { copyText } from '../lib/clipboard';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 import { useSnapState } from '../lib/snapState';
+import { avatarImage } from '../lib/imageUrl';
 
 // A crest (and the name baked into it) can change once every 6 months —
 // often enough to fix a bad first attempt or reflect a real team change,
@@ -471,7 +472,7 @@ export default function LeagueSettingsScreen() {
                 <View style={ms.pickRow}>
                   {crestCandidates.map((url, i) => (
                     <TouchableOpacity key={i} style={ms.pickFrame} onPress={() => chooseCrest(url)} disabled={confirmingCrest} activeOpacity={0.85}>
-                      <Image source={{ uri: url }} style={ms.pickImg} resizeMode="contain" />
+                      <Image source={{ uri: avatarImage(url, 120) }} style={ms.pickImg} resizeMode="contain" />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -482,7 +483,7 @@ export default function LeagueSettingsScreen() {
                 {logoUrl ? (
                   // Contain, not cover: the team name is painted into the
                   // artwork, and cover was cropping it off both edges.
-                  <Image source={{ uri: logoUrl }} style={ms.crestImg} resizeMode="contain" />
+                  <Image source={{ uri: avatarImage(logoUrl, 120) }} style={ms.crestImg} resizeMode="contain" />
                 ) : (
                   <View style={ms.crestEmpty}>
                     <RivalIcon name="groups" size={34} color={RivalColors.accentText} />
@@ -661,7 +662,7 @@ export default function LeagueSettingsScreen() {
                 <View style={ms.dangerDivider} />
                 {!deleteOpen ? (
                   <TouchableOpacity style={ms.dangerRow} onPress={() => setDeleteOpen(true)}>
-                    <RivalIcon name="delete" size={17} color="#ff8f8f" />
+                    <RivalIcon name="delete" size={17} color={RivalColors.danger} />
                     <View style={{ flex: 1 }}>
                       <Text style={ms.dangerText}>Delete team</Text>
                       <Text style={ms.cardHint}>Removes the team for everyone, with its chat, posts and challenges. Activities and Effort are kept.</Text>
@@ -730,7 +731,7 @@ export default function LeagueSettingsScreen() {
                   onPress={() => chooseCrest(url)}
                   disabled={confirmingCrest}
                 >
-                  <Image source={{ uri: url }} style={styles.crestPickImg} />
+                  <Image source={{ uri: avatarImage(url, 120) }} style={styles.crestPickImg} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -740,7 +741,7 @@ export default function LeagueSettingsScreen() {
           <>
             <View style={styles.logoCard}>
               {logoUrl ? (
-                <Image source={{ uri: logoUrl }} style={styles.logoImage} />
+                <Image source={{ uri: avatarImage(logoUrl, 120) }} style={styles.logoImage} />
               ) : (
                 <View style={styles.logoPlaceholder}>
                   <RivalIcon name="groups" size={36} color={RivalColors.textSecondary} />
@@ -1116,9 +1117,9 @@ const ms = StyleSheet.create({
   dangerCard: { borderColor: 'rgba(255,143,143,0.18)' },
   dangerLabel: { color: '#ff8f8f' },
   dangerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  dangerText: { fontSize: 15, fontWeight: '700', color: '#ff8f8f', marginBottom: 2 },
+  dangerText: { fontSize: 15, fontWeight: '700', color: RivalColors.danger, marginBottom: 2 },
   dangerDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)' },
-  deleteBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#b54848', alignItems: 'center' },
+  deleteBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: RivalColors.danger, alignItems: 'center' },
   deleteBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
   content: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 48, gap: 12, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },

@@ -1,0 +1,161 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Import Archive</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120}
+*{box-sizing:border-box}
+body{margin:0;background:#070606;color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 28px;max-width:720px}
+.row{display:flex;flex-wrap:wrap;gap:34px;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:10px;width:340px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.phone{width:340px;border-radius:44px;border:8px solid #1b1918;background:radial-gradient(ellipse 120% 40% at 50% 0,#3a2c24,#141110 60%) #141110;overflow:hidden;display:flex;flex-direction:column}
+.status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:700}
+.top{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.logo{font-size:17px;letter-spacing:4px;font-weight:800;color:#e8835f}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7b8c6a,#3b4a5a);border:2px solid rgba(255,255,255,.25)}
+.body{padding:14px 14px 0;display:flex;flex-direction:column;gap:12px}
+.nav{margin:16px 14px 14px;height:52px;border-radius:20px;background:#1c1a19;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-around}
+.nav i{width:22px;height:16px;border-radius:4px;background:rgba(255,255,255,.25)}
+.nav i.on{background:#e8835f;box-shadow:0 0 0 10px rgba(232,131,95,.12)}
+.kick{font-size:9.5px;letter-spacing:1.7px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 20px Georgia,serif;line-height:1.15}
+.u{font:600 .45em -apple-system,sans-serif;font-style:normal;color:rgba(255,255,255,.55);margin:0 3px 0 1px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.effc{text-align:right}.effc b{display:block;font:italic 700 21px/1 Georgia,serif}.effc span{font-size:8.5px;letter-spacing:1.7px;color:var(--accent);font-weight:800}
+.huge{font:italic 700 40px/1 Georgia,serif}
+.mini{display:flex;gap:15px}.mini div{display:flex;flex-direction:column}.mini b{font:italic 700 16px/1.1 Georgia,serif}
+.lab{font-size:8.5px;letter-spacing:1.2px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.chip{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;height:24px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(20,40,28,.6);color:#7fe0a4}
+.chip svg{width:13px;height:13px}
+.cover{position:relative;border-radius:22px;overflow:hidden;padding:14px;display:flex;flex-direction:column;justify-content:space-between;background-size:cover}
+.cover:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,12,11,.5) 0%,rgba(14,12,11,0) 26%,rgba(14,12,11,.25) 52%,rgba(20,17,16,.96) 100%)}
+.cover>*{position:relative;z-index:1}
+.cover .bigic{position:absolute;left:24%;top:14%;width:52%;height:46%;z-index:1;color:rgba(255,255,255,.15)}
+.stack{display:flex;flex-direction:column;gap:8px}
+.chev{text-align:center;color:rgba(255,255,255,.35);font-size:12px;margin-top:-4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.c{position:relative;aspect-ratio:3/4;border-radius:18px;overflow:hidden;background-size:cover;background-position:center}
+.c:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,0) 30%,rgba(20,17,16,.85) 100%)}
+.c>*{position:relative;z-index:1}
+.c .day{position:absolute;top:8px;left:0;right:0;text-align:center;font:italic 12px Georgia,serif;color:rgba(255,255,255,.8)}
+.c .art{position:absolute;left:20%;top:22%;width:60%;height:44%;color:rgba(255,255,255,.15)}
+.c .b{position:absolute;left:10px;right:10px;bottom:9px;display:flex;align-items:flex-end;justify-content:space-between}
+.c .b span{display:block;font-size:11px;color:var(--accent)}
+.c .b b{font:italic 700 15px Georgia,serif}
+.c .e{text-align:right}.c .e small{display:block;font-size:7px;letter-spacing:1.3px;color:var(--accent);font-weight:800}
+.sky1{background:linear-gradient(180deg,#5f7d96,#9bb0bf 40%,#3a3330)}
+.sky2{background:linear-gradient(180deg,#46617a,#5d7487 45%,#2a2522)}
+.sky3{background:linear-gradient(180deg,#1d2440,#3b2d48 50%,#3e2a26)}
+.slim{display:flex;align-items:center;gap:10px;padding:13px 15px;border-radius:18px;background:var(--ground);border:1px solid rgba(255,255,255,.06)}
+.slim .x{flex:1}.slim .x .s{font-size:12px;color:var(--muted)}
+.rest{display:flex;align-items:center;gap:10px;padding:13px 15px;border-radius:16px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.12)}
+.rest .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22)}
+.note{text-align:center;color:var(--muted);font-size:13px;padding:20px 10px 30px}
+.note b{display:block;font:italic 700 18px Georgia,serif;color:rgba(255,255,255,.85);margin-bottom:4px}
+</style><style>
+.frame{width:340px;border-radius:28px;padding:16px 14px;background:radial-gradient(ellipse 120% 50% at 50% 0,#3a2c24,#141110 65%) #141110;display:flex;flex-direction:column;gap:12px}
+.back{display:flex;align-items:center;gap:10px;padding:2px 2px 4px}
+.back i{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-style:normal;color:rgba(255,255,255,.7)}
+.back b{font:italic 700 21px Georgia,serif}
+.card{position:relative;overflow:hidden;border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:16px;display:flex;flex-direction:column;gap:12px}
+.glow:before{content:"";position:absolute;inset:0 0 auto 0;height:120px;background:radial-gradient(ellipse 80% 100% at 30% 0,rgba(232,131,95,.22),transparent 70%)}
+.card>*{position:relative}
+.lbl{font-size:9.5px;letter-spacing:1.7px;font-weight:800;text-transform:uppercase;color:var(--accent)}
+.ser{font:italic 700 21px/1.15 Georgia,serif}
+.p{font-size:13px;line-height:1.5;color:rgba(255,255,255,.72);margin:0}
+.coin{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#ffc2ad,#c96a4a);box-shadow:0 6px 18px rgba(232,131,95,.35),inset 0 1px 0 rgba(255,255,255,.4);color:#2a1408}
+.coin svg{width:20px;height:20px}
+.hrow{display:flex;align-items:center;gap:12px}
+.steps{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--muted)}
+.steps i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.1)}
+.steps i.on{background:linear-gradient(90deg,#c96a4a,#f0b29b);box-shadow:0 0 8px rgba(232,131,95,.5)}
+.steps b{color:#ffd3c2}
+.facts{border-radius:14px;background:rgba(255,209,190,.05)}
+.facts div{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:12.5px;color:rgba(255,255,255,.62)}
+.facts div+div{border-top:1px solid rgba(255,255,255,.06)}
+.facts b{color:#fff;font-weight:600}
+.facts .f{font:italic 700 15px Georgia,serif;color:#fff}
+.dash{border-top:1px dashed rgba(255,255,255,.14)}
+.redtext{display:flex;align-items:center;justify-content:center;gap:8px;height:44px;color:#ff5c5c;font-weight:700;font-size:14px}
+.redtext svg{width:16px;height:16px}
+.note{text-align:center;font-size:12px;color:var(--muted)}
+.zone{border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);overflow:hidden}
+.zone .in{padding:15px 16px;display:flex;flex-direction:column;gap:6px}
+.zone .act{display:flex;align-items:center;gap:10px;padding:13px 16px;border-top:1px solid rgba(255,255,255,.07);color:#ff5c5c;font-weight:700;font-size:14px}
+.zone .act span{margin-left:auto;color:rgba(255,92,92,.6);font-size:18px}
+.ring{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(255,92,92,.12);color:#ff5c5c}
+.ring svg{width:16px;height:16px}
+.hold{position:relative;height:50px;border-radius:999px;background:#1c1918;border:1px solid rgba(255,92,92,.35);overflow:hidden;display:flex;align-items:center;justify-content:center;gap:8px;color:#ff8f8f;font-weight:800;font-size:14px}
+.hold:before{content:"";position:absolute;inset:0 62% 0 0;background:linear-gradient(90deg,rgba(255,92,92,.28),rgba(255,92,92,.12))}
+.hold>*{position:relative}
+.hold svg{width:16px;height:16px}
+</style>
+<style>
+.src{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{position:relative;overflow:hidden;border-radius:16px;padding:12px;min-height:92px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;background:rgba(255,209,190,.05);border:1px solid rgba(255,255,255,.06)}
+.tile.on{background:linear-gradient(160deg,#ffc2ad,#e8835f);color:#2a1408;border-color:transparent}
+.tile b{font-size:14px}.tile span{font-size:11px;opacity:.7}
+.tile svg.wm{position:absolute;right:-8px;top:-8px;width:56px;height:56px;opacity:.16}
+.drop{border-radius:18px;border:1.5px dashed rgba(255,181,158,.4);background:rgba(232,131,95,.06);padding:22px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.drop b{font:italic 700 18px Georgia,serif}
+.drop span{font-size:12px;color:var(--muted)}
+.how{font-size:12.5px;color:rgba(255,255,255,.7);display:flex;flex-direction:column;gap:6px}
+.how li{margin-left:16px}
+.btn{display:flex;align-items:center;justify-content:center;height:46px;border-radius:999px;font-weight:800;font-size:14px}
+.salmon{background:linear-gradient(180deg,#ffc2ad,#e8835f);color:#2a1408}
+.ghost{border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.88)}
+.file{display:flex;align-items:center;gap:10px;border-radius:14px;padding:10px 12px;background:rgba(255,255,255,.04);font-size:12.5px}
+.file .x{margin-left:auto;color:var(--muted)}
+.big{font:italic 700 40px/1 Georgia,serif}
+.hl{color:#ffd3c2}
+.list{display:flex;flex-direction:column;gap:7px}
+.li{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.8)}
+.li .d2{width:7px;height:7px;border-radius:50%;background:#e8835f;margin-left:0!important;flex:none}
+.li span{margin-left:auto;color:var(--muted);font-size:12px}
+.menu{border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);overflow:hidden}
+.menu .r{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.menu .r+.r{border-top:1px solid rgba(255,255,255,.07)}
+.menu .r b{display:block;font-size:14px}.menu .r small{font-size:12px;color:var(--muted)}
+.menu .r em{margin-left:auto;font-style:normal;color:rgba(255,255,255,.35);font-size:18px}
+.strava{width:34px;height:34px;border-radius:10px;background:#fc4c02;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
+.mini-coin{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(232,131,95,.18);color:#ffb59e}
+.mini-coin svg{width:17px;height:17px}
+</style>
+</head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="run" viewBox="0 0 24 24"><circle cx="14" cy="4.5" r="2" fill="currentColor"/><path d="M7 21l3-6 3 2 1 4M9 11l3-3 3 3 3 1M12 8l-2 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="swim" viewBox="0 0 24 24"><circle cx="17" cy="7" r="2.2" fill="currentColor"/><path d="M3 15c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 19c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M7 12l4-5 4 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="lift" viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+</defs></svg>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="box" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="logo" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9h4a2 2 0 010 4H9v4M13 13l3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</defs></svg><h1>Importing an archive</h1><p class="lead">The other half of the archive: bring a RIVAL or Strava archive into RIVAL. Same look as the polished delete screens (A2 receipt). Example: a Strava archive with 312 activities, 172 already in RIVAL.</p><div class="row"><div class="col"><div class="t">1 · Where it lives</div><div class="d">Settings, Connected devices: Import sits under the live connections as its own row, so it is found where people already manage their data.</div><div class="frame"><div class="back"><i>‹</i><b>Connected devices</b></div>
+<div class="menu"><div class="r"><span class="strava">S</span><div><b>Strava</b><small>Connected · Ricky Jackson-lewis</small></div><em>›</em></div>
+<div class="r"><span class="mini-coin"><svg><use href="#up"/></svg></span><div><b>Import an archive</b><small>A RIVAL or Strava archive file</small></div><em>›</em></div></div>
+<p class="p" style="font-size:12px;color:var(--muted);padding:0 4px">Garmin and Apple Health are coming soon.</p></div></div><div class="col"><div class="t">2 · Choose the archive</div><div class="d">Two tiles for where the file came from, then one place to choose it. For Strava, the steps to get the file sit right there.</div><div class="frame"><div class="back"><i>‹</i><b>Import an archive</b></div>
+<div class="src"><div class="tile"><svg class="wm"><use href="#logo"/></svg><b>RIVAL</b><span>An archive from RIVAL</span></div>
+<div class="tile on"><svg class="wm"><use href="#box"/></svg><b>Strava</b><span>Request your archive</span></div></div>
+<div class="drop"><span class="mini-coin" style="width:44px;height:44px"><svg><use href="#up"/></svg></span><b>Choose the .zip file</b><span>From Files or Downloads. Nothing is added until the next step.</span></div>
+<div class="card" style="padding:14px"><span class="lbl">Getting the Strava archive</span><ol class="how" style="margin:0;padding:0"><li>strava.com, Settings, My Account</li><li>Download or Delete Your Account, then Request your archive</li><li>Strava emails the .zip, usually within a few hours</li></ol></div></div></div><div class="col"><div class="t">3 · What is in it</div><div class="d">RIVAL reads the file first and shows a receipt, as on the delete screen: what is new, what is already here and will be linked, not copied.</div><div class="frame"><div class="back"><i>‹</i><b>Import an archive</b></div>
+<div class="file"><svg style="width:16px;height:16px;color:#ffb59e"><use href="#box"/></svg>export_176619337.zip<span class="x">48 MB</span></div>
+<div class="card glow"><span class="lbl">Ready to import</span>
+ <div class="hrow"><span class="coin"><svg><use href="#box"/></svg></span><div><div class="big">140</div><p class="p">new activities, Oct 2023 – Oct 2026</p></div></div>
+ <div class="facts"><div>Already in RIVAL, linked<span class="f">172</span></div><div>Photos<span class="f">48</span></div><div>Routes<span class="f">131</span></div><div>Effort added<span class="f hl">+6,210</span></div></div></div>
+<div class="btn salmon">Import 140 activities</div></div></div><div class="col"><div class="t">4 · Importing</div><div class="d">Runs in the background. The track fills as it goes; leaving the screen is fine and a notice in the inbox says when it is done.</div><div class="frame"><div class="back"><i>‹</i><b>Import an archive</b></div>
+<div class="card glow"><span class="lbl">Importing</span>
+ <div class="hrow"><span class="coin"><svg><use href="#up"/></svg></span><div><div class="ser">86 of 140</div><p class="p">Adding activities, routes and photos</p></div></div>
+ <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+ <p class="p" style="font-size:12px;color:var(--muted)">This can carry on while RIVAL is closed.</p></div>
+<div class="btn ghost">Done</div><div style="height:120px"></div></div></div><div class="col"><div class="t">5 · Imported</div><div class="d">A short summary in the RIVAL voice and one way forward: straight to the history it filled in.</div><div class="frame"><div class="back"><i>‹</i><b>Import an archive</b></div>
+<div class="card glow"><span class="lbl">Imported</span>
+ <div class="hrow"><span class="coin"><svg><use href="#box"/></svg></span><div><div class="big">140</div><p class="p">activities added to the journal</p></div></div>
+ <div class="list"><div class="li"><span class="d2"></span>Earliest<span>4 Oct 2023</span></div><div class="li"><span class="d2"></span>Effort added<span class="hl">+6,210</span></div><div class="li"><span class="d2"></span>Personal bests found<span>12</span></div></div></div>
+<div class="btn salmon">View in Activity</div><div style="height:100px"></div></div></div></div></body></html>

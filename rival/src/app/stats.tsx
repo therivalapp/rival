@@ -1,4 +1,5 @@
 import { useSnapState } from '../lib/snapState';
+import { GoldStar } from '../components/rival/RespectStar';
 import { distanceNumber, distanceUnit, elevationNumber, elevationUnit } from '../lib/units';
 import { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
@@ -11,11 +12,15 @@ import { fetchReactionsOn } from '../lib/reactions';
 import { getLevel, xpProgressInLevel, LEVELS } from '../lib/xp';
 import { calculateStreak, StreakResult } from '../lib/streak';
 import { getSeasonStartISO, getCurrentSeasonYear, daysUntilSeasonEnd } from '../lib/season';
-import { RivalCard, RivalProgressBar, RivalIcon, RivalTopNav, RivalBackButton, GreyPageHead, GreyLabel, GreyRows, GreyRow, GREY_PAGE_BG, rb } from '../components/rival';
+import { CoverImage, activityIconName } from '../components/rival';
+import { formatDistance } from '../lib/units';
+import { effortGoldText } from '../constants/reactionColours';
+import { RivalCard, RivalProgressBar, RivalIcon, RivalTopNav, RivalBackButton, GreyPageHead, GreyLabel, GreyRows, GreyRow, GREY_PAGE_BG, rb, type RivalIconName } from '../components/rival';
 import { goToTab } from '../lib/tabNav';
 import { RivalColors, RivalRadius, RivalType, RANK_LEVEL_COLORS, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
-import { rankSheen, rankTextSheen } from '../constants/rankSheen';
+import { rankSheen, rankTextSheen, rankTileFill, RANK_TILE_INK } from '../constants/rankSheen';
 import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
+import { avatarImage } from '../lib/imageUrl';
 
 // Refined Ember rank ramp only has 4 confirmed anchor colors from the Stitch
 // export (see rivalTheme.ts) — the interpolated 10-level ramp is provisional.
@@ -52,6 +57,8 @@ export default function StatsScreen() {
   const [peopleCount, setPeopleCount] = useSnapState(`stats.${viewedUserId ?? 'me'}.peopleCount`, 0);
   const [memberSince, setMemberSince] = useSnapState(`stats.${viewedUserId ?? 'me'}.memberSince`, '');
   const [loading, setLoading] = useSnapState(`stats.${viewedUserId ?? 'me'}.loading`, true);
+  // Starred activities, shown as Highlights under the Mindset (Ricky, 2026-10-14).
+  const [highlights, setHighlights] = useSnapState<Highlight[]>(`stats.${viewedUserId ?? 'me'}.highlights`, []);
 
   useEffect(() => {
     loadStats();
@@ -74,6 +81,15 @@ export default function StatsScreen() {
 
     // Milestones, race ids and past seasons don't depend on the activities,
     // so they load alongside them instead of one after another afterwards.
+    supabase
+      .from('activities')
+      .select('id, name, activity_type, started_at, distance_meters, effort_score, photo_url, photo_focal_x, photo_focal_y')
+      .eq('user_id', targetUserId)
+      .eq('pinned', true)
+      .order('started_at', { ascending: false })
+      .limit(HIGHLIGHTS_MAX)
+      .then(({ data, error }) => { if (!error) setHighlights((data ?? []) as Highlight[]); });
+
     const [userRes, activitiesRes, { data: milestonesData }, { data: myRaceIdsData }, { data: seasonResultsData }] = await Promise.all([
       supabase.from('users').select('display_name, avatar_url, bio').eq('id', targetUserId).single(),
       fetchAllActivities(targetUserId, 'id, effort_score, started_at, distance_meters, elevation_meters, duration_seconds, activity_type'),
@@ -221,28 +237,30 @@ export default function StatsScreen() {
             <View style={pb.person}>
               <View style={[pb.avatar, { borderColor: rankSheen(lvl.level).light }]}>
                 {avatarUrl
-                  ? <Image source={{ uri: avatarUrl }} style={pb.avatarImg} />
+                  ? <Image source={{ uri: avatarImage(avatarUrl, 120) }} style={pb.avatarImg} />
                   : <Text style={pb.avatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>}
               </View>
               {mindset ? <Text style={pb.mindset} numberOfLines={3}>“{mindset}”</Text> : null}
             </View>
           ) : null}
 
-          <View style={[pb.card, rb.hero, pb.rank]}>
-            <Text style={pb.cap}>{seasonYear} rank</Text>
-            <Text style={[pb.rankName, rankTextSheen(lvl.level)]}>{lvl.name}</Text>
+          {/* The rank in its own material, icon behind (Ricky, 2026-10-18, W2). */}
+          <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/ranks')} style={[pb.matCard, rankTileFill(lvl.level)]}>
+            <RivalIcon name={`rank${lvl.name}` as RivalIconName} size={150} color="rgba(16,14,12,0.13)" style={pb.matMark} />
+            <Text style={pb.matCap}>{seasonYear} rank</Text>
+            <Text style={pb.matName}>{lvl.name}</Text>
             {!isMax ? (
               <>
-                <View style={pb.bar}><View style={[pb.barFill, { width: `${Math.max(2, Math.min(100, Math.round(pct * 100)))}%` as any }]} /></View>
-                <Text style={pb.rankSub}>
+                <View style={pb.matBar}><View style={[pb.matFill, { width: `${Math.max(2, Math.min(100, Math.round(pct * 100)))}%` as any }]} /></View>
+                <Text style={pb.matSub}>
                   {Math.max(0, Math.ceil(needed - current)).toLocaleString()} Effort to {LEVELS[lvl.level]?.name ?? 'the next rank'}
                   {seasonDaysLeft > 0 ? ` · ${seasonDaysLeft} days left` : ''}
                 </Text>
               </>
             ) : (
-              <Text style={pb.rankSub}>The top rank for {seasonYear}.</Text>
+              <Text style={pb.matSub}>The top rank for {seasonYear}.</Text>
             )}
-          </View>
+          </TouchableOpacity>
 
           <View style={pb.grid}>
             {numbers.map(([value, label, small]) => (
@@ -268,7 +286,7 @@ export default function StatsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={pb.cap}>Time earned</Text>
                   <Text style={pb.lineText}>
-                    {hardTimeMinutes > 0 ? `${Math.floor(hardTimeMinutes / 60).toLocaleString()}h ${hardTimeMinutes % 60}m of it hard training.` : 'Every minute of training logged.'}
+                    {hardTimeMinutes > 0 ? `${Math.floor(hardTimeMinutes / 60).toLocaleString()}h ${hardTimeMinutes % 60}m of it in hard activities.` : 'Every minute of activity logged.'}
                   </Text>
                 </View>
                 <Text style={pb.lineValue}>{hours > 0 ? `${hours.toLocaleString()}h ` : ''}{totalTimeMinutes % 60}m</Text>
@@ -367,7 +385,7 @@ export default function StatsScreen() {
         <RivalCard style={[styles.rankCard, { borderColor: rankColor + '55', borderWidth: 1 }]}>
           <View style={[styles.rankAvatar, { borderColor: rankColor }]}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.rankAvatarImage} />
+              <Image source={{ uri: avatarImage(avatarUrl, 120) }} style={styles.rankAvatarImage} />
             ) : (
               <Text style={styles.rankAvatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>
             )}
@@ -417,6 +435,51 @@ export default function StatsScreen() {
           {isMax && <Text style={[styles.xpToNext, { color: rankColor, marginTop: 8 }]}>You are Unrivaled.</Text>}
         </RivalCard>
 
+        {/* Highlights: the activities this person starred, newest first, as
+            photo cards to swipe across (Ricky, 2026-10-14, option A). Phones only. */}
+        {!wide && (highlights.length > 0 || isOwnProfile) ? (
+          <View style={styles.hlSection}>
+            <View style={styles.hlHead}>
+              <Text style={styles.hlTitle}>Highlights</Text>
+              {highlights.length > 0 ? <Text style={styles.hlCount}>{highlights.length} starred</Text> : null}
+            </View>
+            {highlights.length === 0 ? (
+              <View style={styles.hlEmpty}>
+                <RivalIcon name="starOutline" size={18} color={RivalColors.accentText} />
+                <Text style={styles.hlEmptyText}>Star an activity to show it here.</Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hlRow} style={styles.hlScroll}>
+                {highlights.map((h) => (
+                  <View key={h.id} style={styles.hlCard}>
+                    {h.photo_url ? (
+                      <CoverImage uri={h.photo_url} focalX={h.photo_focal_x} focalY={h.photo_focal_y} style={StyleSheet.absoluteFill} />
+                    ) : (
+                      <View style={styles.hlNoPhoto}>
+                        <RivalIcon name={activityIconName(h.activity_type)} size={120} color="rgba(255,181,158,0.18)" />
+                      </View>
+                    )}
+                    <View style={[styles.hlShade, { pointerEvents: 'none' }]} />
+                    <View style={[styles.hlStar, { pointerEvents: 'none' }]}>
+                      <GoldStar size={16} />
+                    </View>
+                    <View style={styles.hlBody}>
+                      <Text style={styles.hlKicker}>{h.activity_type.toUpperCase()}</Text>
+                      <Text style={styles.hlName} numberOfLines={2}>{h.name || h.activity_type}</Text>
+                      <View style={styles.hlMeta}>
+                        <Text style={styles.hlMetaText} numberOfLines={1}>
+                          {[(h.distance_meters ?? 0) > 0 ? formatDistance((h.distance_meters ?? 0) / 1000) : null, new Date(h.started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })].filter(Boolean).join(' · ')}
+                        </Text>
+                        <Text style={[styles.hlEffort, effortGoldText]}>{Math.round(Number(h.effort_score) || 0)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        ) : null}
+
         {/* Stats row 1 */}
         <View style={styles.statsGrid}>
           <View style={[styles.statCard]}>
@@ -446,7 +509,7 @@ export default function StatsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                 <RivalIcon name="bolt" size={14} color={RivalColors.accentText} />
                 <Text style={[styles.heroHardTime, { marginTop: 0 }]}>
-                  {Math.floor(hardTimeMinutes / 60).toLocaleString()}h {hardTimeMinutes % 60}m hard training
+                  {Math.floor(hardTimeMinutes / 60).toLocaleString()}h {hardTimeMinutes % 60}m in hard activities
                 </Text>
               </View>
             )}
@@ -461,7 +524,7 @@ export default function StatsScreen() {
           </View>
           <View style={[styles.statCard]}>
             <Text style={[styles.statValue, { color: RivalColors.accentText }]}>{elevationNumber(totalElevationM)}</Text>
-            <Text style={styles.statLabel}>{elevationUnit()} climbed</Text>
+            <Text style={styles.statLabel}>{elevationUnit()} elevation</Text>
           </View>
           <View style={[styles.statCard]}>
             <Text style={[styles.statValue, { fontSize: 16 }]}>{memberSince || '—'}</Text>
@@ -482,7 +545,7 @@ export default function StatsScreen() {
             <RivalCard style={[styles.streakCard]}>
               <View style={styles.streakCardHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <RivalIcon name="fire" size={16} color={RivalColors.textPrimary} />
+                  <RivalIcon name="fire" size={16} color={RivalColors.accentFill} />
                   <Text style={styles.streakCardTitle}>Streak</Text>
                 </View>
                 <View style={styles.streakCurrentPill}>
@@ -651,7 +714,39 @@ export default function StatsScreen() {
   );
 }
 
+const HIGHLIGHTS_MAX = 6;
+type Highlight = {
+  id: string; name: string | null; activity_type: string; started_at: string;
+  distance_meters: number | null; effort_score: number | null;
+  photo_url: string | null; photo_focal_x: number | null; photo_focal_y: number | null;
+};
+
 const styles = StyleSheet.create({
+  hlSection: { marginTop: 16, gap: 10 },
+  hlHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2 },
+  hlTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff' },
+  hlCount: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
+  hlScroll: { marginRight: -16 },
+  hlRow: { gap: 10, paddingRight: 16 },
+  hlCard: { width: 180, height: 230, borderRadius: 16, overflow: 'hidden', backgroundColor: '#2a221e' },
+  hlNoPhoto: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  hlShade: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.78) 100%)' } as any : { backgroundColor: 'rgba(0,0,0,0.3)' }),
+  },
+  hlStar: { position: 'absolute', top: 10, right: 10 },
+  hlBody: { position: 'absolute', left: 12, right: 12, bottom: 11 },
+  hlKicker: { fontSize: 10, fontWeight: '700', letterSpacing: 1.4, color: RivalColors.accentText },
+  hlName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, lineHeight: 20, color: '#fff', marginTop: 1 },
+  hlMeta: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 3 },
+  hlMetaText: { flex: 1, fontSize: 11.5, color: 'rgba(255,255,255,0.75)' },
+  hlEffort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 16 },
+  hlEmpty: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 18,
+  },
+  hlEmptyText: { fontSize: 13, color: 'rgba(255,255,255,0.55)' },
+
   container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -755,6 +850,13 @@ const styles = StyleSheet.create({
 
 // Phone only: the blend (grey page, recessed cards, serif numbers).
 const pb = StyleSheet.create({
+  matCard: { position: 'relative', overflow: 'hidden', borderRadius: 20, borderWidth: 1, padding: 16, gap: 7, marginBottom: 4 },
+  matMark: { position: 'absolute', right: -22, top: -16 },
+  matCap: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(16,14,12,0.62)' },
+  matName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 40, lineHeight: 46, color: RANK_TILE_INK },
+  matBar: { height: 8, borderRadius: 4, backgroundColor: 'rgba(16,14,12,0.2)', overflow: 'hidden' },
+  matFill: { height: 8, borderRadius: 4, backgroundColor: RANK_TILE_INK },
+  matSub: { fontSize: 12.5, color: 'rgba(16,14,12,0.75)' },
   content: { paddingHorizontal: 16, paddingBottom: 120, gap: 10, width: '100%', maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' },
   card: { backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 16, paddingHorizontal: 14 },
   cap: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },

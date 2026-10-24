@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#121010;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;box-sizing:border-box;display:flex;gap:22px;justify-content:center;flex-wrap:wrap}
+.col{width:361px}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.card{position:relative;overflow:hidden;border-radius:22px;padding:16px 18px;background:#1f1b19;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:12px}
+.card:before{content:'';position:absolute;left:0;right:0;top:0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.card>*{position:relative}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffd3c2}
+.q{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:21.3px;line-height:28px;margin-top:-4px}
+.panel{border-radius:14px;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.lbl{font-size:9.5px;letter-spacing:1.6px;font-weight:800;color:#fff;text-transform:uppercase}
+.cols{display:flex;margin-top:10px}.c{flex:1;text-align:center}.c+.c{border-left:1px solid rgba(255,209,190,.1)}
+.c b{font-family:Georgia,serif;font-style:italic;font-size:20px;line-height:24px;display:block}.c b em{font-family:Manrope;font-style:normal;font-size:12px;color:rgba(255,255,255,.55);font-weight:600}
+.c i{font-style:normal;font-size:9px;letter-spacing:1.3px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:14px;overflow:hidden}.bar i{display:block;height:6px;width:61%;background:linear-gradient(90deg,#c4694a,#f2b39c);border-radius:3px}
+.note{font-size:11.5px;color:rgba(255,255,255,.5);margin-top:6px}
+.btn{height:50px;border-radius:25px;background:linear-gradient(90deg,#d9805f,#f2b39c);color:#4a1a0c;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;margin-top:12px}
+.tog{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.seg{display:flex;gap:4px;padding:4px;border-radius:22px;border:1px solid rgba(255,255,255,.1);background:#1b1817;font-size:12px;font-weight:700;color:rgba(255,255,255,.55)}
+.seg span{padding:7px 12px;border-radius:18px}.seg .on{border:1px solid rgba(255,255,255,.5);color:#fff}
+.flt{padding:8px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:700}
+.lw{margin-top:18px;display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-radius:16px;background:#1b1817;border:1px solid rgba(255,255,255,.06)}
+.lw .t{font-size:10px;letter-spacing:1.8px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.lw .s{font-size:13.5px;font-weight:700;margin-top:3px}.lw .s em{font-style:normal;color:rgba(255,255,255,.55);font-weight:600}
+.lw .ch{color:rgba(255,255,255,.5);font-size:16px}
+.rows{margin-top:16px}.rowlbl{font-size:10px;letter-spacing:1.8px;font-weight:800;color:rgba(255,255,255,.6);text-transform:uppercase;margin:0 4px 8px}
+.row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.06);background:#161413;margin-bottom:8px}
+.row .ic{width:40px;height:40px;border-radius:10px;background:linear-gradient(160deg,#b9715a,#8a4f3d)}
+.row .n{font-size:15px;font-weight:600}.row .m{font-size:12px;color:rgba(255,255,255,.5)}
+.row .e{margin-left:auto;font-family:Georgia,serif;font-style:italic;font-size:20px;color:#b9715a}
+.pages{display:flex;justify-content:center;margin-top:14px;color:rgba(255,255,255,.4);font-size:12px;font-weight:600;gap:6px;align-items:center}
+</style></head><body>
+<script>
+const head=`<div class="card"><div class="k">This week</div><div class="q">“ Strong habits, strong life. ”</div><div class="panel"><div class="lbl">October so far</div><div class="cols"><div class="c"><b>3<em>h</em> 28<em>m</em></b><i>Time</i></div><div class="c"><b>33.4 <em>km</em></b><i>Distance</i></div><div class="c"><b>8</b><i>Activities</i></div></div><div class="bar"><i></i></div><div class="note">19 of 31 days</div></div></div><div class="btn">+ Add activity</div><div class="tog"><div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div><div class="flt">Filter</div></div>`;
+document.write(`
+<div class="col"><h2>Now</h2>${head}<div class="rows"><div class="rowlbl">Last week · 186 Effort</div>
+<div class="row"><div class="ic"></div><div><div class="n">Afternoon Workout</div><div class="m">Sun</div></div><div class="e">23</div></div>
+<div class="row"><div class="ic"></div><div><div class="n">Sahara Sprints</div><div class="m">Sat · 4.3 km</div></div><div class="e">43</div></div>
+<div class="row"><div class="ic"></div><div><div class="n">Morning Run</div><div class="m">Fri · 0.1 km</div></div><div class="e">1</div></div></div></div>
+
+<div class="col"><h2>One line to last week <span>recommended</span></h2>${head}
+<div class="lw"><div><div class="t">Last week</div><div class="s">186 <em>Effort</em> · 5 <em>activities</em> · 16.5 <em>km</em></div></div><div class="ch">⌄</div></div></div>
+`);
+</script></body></html>

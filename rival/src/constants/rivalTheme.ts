@@ -59,6 +59,10 @@ export const RivalColors = {
 
   // Semantic
   error: '#ffb4ab',
+  // Every delete and discard control (Ricky, 2026-10-16).
+  danger: '#ff5c5c',
+  // Events (races): a warm ivory, apart from gold bests and red delete.
+  event: '#f4ead8',
   errorContainer: '#93000a',
   success: '#4ade80', // NOT in DESIGN.md — kept from the existing app for trend-up arrows until a real success token is designed; flag for Ricky if you're touching this
 
@@ -191,3 +195,12 @@ export const RivalGhost = {
 
 // Phone cards that sit on a page: the ghost fill.
 export const PHONE_CARD_BG = RivalGhost.fill;
+
+// A text shadow on any platform. The web wants one `textShadow` string (the
+// three separate props are deprecated there); iOS and Android only understand
+// the three separate props.
+export function rivalTextShadow(color: string, x: number, y: number, radius: number): any {
+  return Platform.OS === 'web'
+    ? { textShadow: `${x}px ${y}px ${radius}px ${color}` }
+    : { textShadowColor: color, textShadowOffset: { width: x, height: y }, textShadowRadius: radius };
+}

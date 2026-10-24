@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:20px;display:flex;gap:24px}
+.col{width:340px}h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+.note{font-size:12px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:17px}
+.ph{width:340px;height:605px;border-radius:22px;overflow:hidden;position:relative;background:url(file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/candidates/ridge-runners-hazy-backlit.png) center/cover}
+.chk{width:340px;height:280px;border-radius:14px;margin-top:12px;background-color:#ddd;background-image:linear-gradient(45deg,#bbb 25%,transparent 25%),linear-gradient(-45deg,#bbb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#bbb 75%),linear-gradient(-45deg,transparent 75%,#bbb 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;display:flex;align-items:center;justify-content:center}
+.ph img{position:absolute}
+</style></head><body>
+<div class="col"><h2>Now · on a photo</h2><div class="ph"><img id="n1" style="left:14px;bottom:14px;width:190px"></div><div class="chk"><img id="n2" style="width:170px"></div><div class="note">The stamp as it is: a transparent picture to lay over a photo in Instagram. Hot pink (an old colour, not RIVAL's), heavy system font, shadows behind every line.</div></div>
+<div class="col"><h2>Change · on a photo</h2><div class="ph"><img id="c1" style="left:6px;bottom:20px;width:300px"></div><div class="chk"><img id="c2" style="width:230px"></div><div class="note">In the share card's style: RIVAL spaced in peach, the activity in small caps, serif figures with small units, Effort in gold, fine dividers. A soft shadow under each line so it reads on bright and dark photos, and nothing boxy around it.</div></div>
+<script>
+// NOW: copied from ai-share.tsx generateStamp(), run sample.
+function now(){const stats=[{label:'Distance',value:'7.10 km'},{label:'Pace',value:'6:05/km'},{label:'Time',value:'43:13'},{label:'Elevation',value:'127 m'}];
+const W=480,PAD=36,LABEL_H=14,VALUE_H=34,ROW_GAP=20,ACTIVITY_H=18,RIVAL_H=40;const H=PAD+ACTIVITY_H+20+stats.length*(LABEL_H+6+VALUE_H+ROW_GAP)+16+RIVAL_H+PAD;
+const c=document.createElement('canvas');c.width=W;c.height=H;const ctx=c.getContext('2d');let y=PAD;ctx.textAlign='left';
+ctx.font=`700 ${ACTIVITY_H}px -apple-system, BlinkMacSystemFont, sans-serif`;ctx.fillStyle='#E91E8C';ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=8;ctx.fillText('RUN',PAD,y+ACTIVITY_H);y+=ACTIVITY_H+20;
+stats.forEach(s=>{ctx.font=`600 ${LABEL_H}px -apple-system, BlinkMacSystemFont, sans-serif`;ctx.fillStyle='rgba(255,255,255,0.72)';ctx.shadowColor='rgba(0,0,0,0.85)';ctx.shadowBlur=6;ctx.fillText(s.label.toUpperCase(),PAD,y+LABEL_H);y+=LABEL_H+6;
+ctx.font=`900 ${VALUE_H}px -apple-system, BlinkMacSystemFont, sans-serif`;ctx.fillStyle='#FFFFFF';ctx.shadowColor='rgba(0,0,0,0.85)';ctx.shadowBlur=10;ctx.fillText(s.value,PAD,y+VALUE_H);y+=VALUE_H+ROW_GAP;});
+y+=8;ctx.font=`900 ${RIVAL_H}px -apple-system, BlinkMacSystemFont, sans-serif`;ctx.fillStyle='#E91E8C';ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=12;ctx.fillText('RIVAL',PAD,y+RIVAL_H*0.8);return c.toDataURL();}
+// CHANGE
+async function chg(){await document.fonts.load('800 40px Manrope');const S=2.4,W=Math.round(300*S),H=Math.round(250*S);const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+const SERIF='Georgia, serif',SANS='Manrope, sans-serif';
+// soft shade
+const g=x.createRadialGradient(W*0.4,H*0.6,10,W*0.4,H*0.6,W*0.75);g.addColorStop(0,'rgba(10,8,7,0.45)');g.addColorStop(1,'rgba(10,8,7,0)');
+x.shadowColor='rgba(0,0,0,0.45)';x.shadowBlur=14*S/2;
+const sp=(t,px,py,s)=>{let cx=px;for(const ch of t){x.fillText(ch,cx,py);cx+=x.measureText(ch).width+s;}};
+let y=26*S,L=18*S;
+x.font=`800 ${13*S}px ${SANS}`;x.fillStyle='#ffb59e';sp('RIVAL',L,y,5*S);
+y+=26*S;x.font=`800 ${9.5*S}px ${SANS}`;x.fillStyle='rgba(255,255,255,0.85)';sp('RUN · TUE 20 OCT',L,y,1.6*S);
+y+=34*S;x.font=`italic 700 ${30*S}px ${SERIF}`;x.fillStyle='#fff';x.fillText('Sunset ridge run',L,y);
+const figs=[['7.1','km','DISTANCE'],['43:13','','TIME'],['6:05','/km','PACE']];
+y+=50*S;let cx=L;const colW=88*S;
+figs.forEach((f,i)=>{const fx=L+i*colW;if(i){x.shadowBlur=0;x.fillStyle='rgba(255,209,190,0.35)';x.fillRect(fx-10*S,y-24*S,1*S/2+1,38*S);x.shadowBlur=14*S/2;}
+x.font=`italic 700 ${24*S}px ${SERIF}`;x.fillStyle='#fff';x.fillText(f[0],fx,y);if(f[1]){const w=x.measureText(f[0]).width;x.font=`600 ${11*S}px ${SANS}`;x.fillStyle='rgba(255,255,255,0.75)';x.fillText(' '+f[1],fx+w,y);}
+x.font=`800 ${8.5*S}px ${SANS}`;x.fillStyle='rgba(255,255,255,0.7)';sp(f[2],fx,y+14*S,1.3*S);});
+y+=48*S;x.font=`italic 700 ${24*S}px ${SERIF}`;const gg=x.createLinearGradient(0,y-22*S,0,y);gg.addColorStop(0,'#fff4d6');gg.addColorStop(1,'#ffc94d');x.fillStyle=gg;x.fillText('68',L,y);
+const ew=x.measureText('68').width;x.font=`800 ${8.5*S}px ${SANS}`;x.fillStyle='#ffd27a';sp('EFFORT',L+ew+8*S,y-3*S,1.3*S);
+return c.toDataURL();}
+const a=now();n1.src=a;n2.src=a;chg().then(u=>{c1.src=u;c2.src=u;});
+</script></body></html>

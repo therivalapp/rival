@@ -13,3 +13,14 @@ export function titleFit(title: string): { fontSize: number; lineHeight: number 
   const size = Math.max(MIN_SIZE, Math.floor((FULL_SIZE * FITS_AT_FULL) / len * 2) / 2);
   return { fontSize: size, lineHeight: Math.round(size * 1.25) };
 }
+
+// The one-line band across the top of a numbers card ("Farthest ride · up from
+// 40.0 km", "4th run this month"): always one line, never "…" (Ricky,
+// 2026-10-14). A longer line is set a little smaller, by length.
+export function bandFit(text: string): { fontSize: number } {
+  const len = (text || '').length;
+  if (len <= 34) return { fontSize: 12.5 };
+  if (len <= 40) return { fontSize: 11.5 };
+  if (len <= 46) return { fontSize: 10.5 };
+  return { fontSize: 9.5 };
+}

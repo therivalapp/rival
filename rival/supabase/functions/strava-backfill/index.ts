@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveCanonicalActivityId, linkNewActivitySource } from '../_shared/activityDedup.ts'
 import { calculateEffortScore, loadScoringConfig } from '../_shared/effortScore.ts'
 import { normaliseActivityType } from '../_shared/activityType.ts'
+import { fillMissingDetails, fillMissingOffsets } from '../_shared/stravaDetails.ts'
 import { getFreshStravaToken } from '../_shared/stravaAuth.ts'
 
 const corsHeaders = {
@@ -158,7 +159,10 @@ serve(async (req) => {
       // Overlaps an activity already recorded and saw less of the session —
       // writing it would double-count one workout. The source is already
       // linked, so this won't be reconsidered on the next sync.
-      if (resolved.discard) continue
+      // `return null`, not `continue`: this runs inside processActivity, not a
+      // loop, and the stray `continue` was a syntax error that stopped the
+      // whole function from starting (every sync failed from 2026-10-01).
+      if (resolved.discard) return null
       const canonicalId = resolved.canonicalId
 
       const fields: Record<string, unknown> = {
@@ -167,6 +171,9 @@ serve(async (req) => {
         duration_seconds: activity.moving_time,
         elevation_meters: activity.total_elevation_gain,
         started_at: activity.start_date,
+        // The activity's own offset from UTC, so its time of day shows where it
+        // happened rather than where it is viewed (add_utc_offset.sql).
+        utc_offset_seconds: typeof activity.utc_offset === 'number' ? Math.round(activity.utc_offset) : null,
         effort_score: effortScore,
         raw_effort_score: effortScore,
         // start_date_local (not start_date) — races.race_date is a bare calendar
@@ -187,11 +194,14 @@ serve(async (req) => {
         // name set by whichever source created the row.
         const { data: existingRow } = await supabase
           .from('activities')
-          .select('name_locked, provider, photo_url, effort_confirmed')
+          .select('name_locked, started_at_locked, provider, photo_url, effort_confirmed')
           .eq('id', canonicalId)
           .maybeSingle()
         const updateFields: Record<string, unknown> = { ...fields }
         if (existingRow?.provider === 'strava' && !existingRow?.name_locked) updateFields.name = activity.name
+        // A start time set in RIVAL (started_at_locked) stays: a watch with a
+        // wrong clock uploads the wrong time and Strava can't correct it.
+        if (existingRow?.started_at_locked) delete updateFields.started_at
         // The athlete confirmed this activity is correct (effort_confirmed), so a
         // re-sync scores all of it rather than the capped amount.
         if (existingRow?.effort_confirmed) {
@@ -290,7 +300,23 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, saved, inserted, total: activities.length }), {
+    // Older activities catch up a few at a time: their time zone from the
+    // activity list, then the full details (heart rate, best efforts, splits)
+    // of up to 15, within Strava's read allowance.
+    let offsetsFilled = 0
+    let detailsFilled = 0
+    try {
+      offsetsFilled = await fillMissingOffsets(supabase, user.id, accessToken)
+      detailsFilled = await fillMissingDetails(supabase, user.id, accessToken)
+    } catch (fillErr) {
+      console.log('Detail fill failed:', fillErr.message)
+    }
+
+    // The newest few activities Strava handed over, so a missing activity can be
+    // told apart from one Strava never sent (2026-10-17).
+    // deno-lint-ignore no-explicit-any
+    const newest = activities.slice(0, 3).map((a: any) => ({ id: a.id, start: a.start_date, type: a.sport_type ?? a.type, km: Math.round((a.distance ?? 0) / 10) / 100 }))
+    return new Response(JSON.stringify({ success: true, saved, inserted, total: activities.length, offsetsFilled, detailsFilled, newest }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

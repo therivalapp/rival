@@ -106,7 +106,7 @@ export function EffortBreakdownSheet({ activity, onClose, onConfirmed }: {
                   </GreyRow>
                 ) : null}
                 {b.climbRate > 0 && b.climb > 0 ? (
-                  <GreyRow icon="elevation" label="Climbing">
+                  <GreyRow icon="elevation" label="Elevation">
                     <Part detail={formatElevation(b.climb)} value={b.climbScore} />
                   </GreyRow>
                 ) : null}

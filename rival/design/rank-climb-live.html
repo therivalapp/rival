@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rank Climb Live</title>
+<style>
+:root{color-scheme:dark}
+body{margin:0;background:#0e0c0b;color:#fff;font:14px -apple-system,BlinkMacSystemFont,sans-serif;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:18px}
+h1{font:italic 700 24px Georgia,serif;margin:0;text-align:center}
+p{color:rgba(255,255,255,.55);max-width:420px;text-align:center;margin:0;line-height:1.5}
+.card{width:340px;border-radius:18px;padding:14px 16px;background:#211d1b;display:flex;flex-direction:column;gap:9px}
+.hd{display:flex;justify-content:space-between;align-items:center;height:34px}
+.names{position:relative;height:34px;flex:1;overflow:hidden}
+.n{position:absolute;left:0;top:0;font:italic 700 26px/34px Georgia,serif;-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;transform-origin:left center}
+.rl{font-size:10px;letter-spacing:1.6px;font-weight:800;color:#ffb59e;text-transform:uppercase}
+.bar{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;width:0}
+.ends{display:flex;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,.55);height:16px;position:relative}
+.ends span{position:absolute;opacity:0}.ends .r{right:0}
+.ends b{color:#fff}
+/* One run is 3.2 s, repeating every 5 s so it can be watched again. */
+.n1{background-image:linear-gradient(180deg,#fff 10%,#d8d3cc 120%);animation:n1 5s infinite}
+.n2{background-image:linear-gradient(180deg,#fff 10%,#e6a882 120%);animation:n2 5s infinite}
+.n3{background-image:linear-gradient(180deg,#fff 10%,#d9c08e 120%);animation:n3 5s infinite}
+/* Old name lifts away; the new one rises in from below and pops slightly, then settles. */
+@keyframes n1{0%{opacity:1;transform:none}15%{opacity:1;transform:none}19%{opacity:0;transform:translateY(-16px)}100%{opacity:0}}
+@keyframes n2{0%,15%{opacity:0;transform:translateY(16px)}19%{opacity:1;transform:translateY(0) scale(1.1)}23%{transform:scale(1)}38%{opacity:1;transform:none}42%{opacity:0;transform:translateY(-16px)}100%{opacity:0}}
+@keyframes n3{0%,38%{opacity:0;transform:translateY(16px)}42%{opacity:1;transform:translateY(0) scale(1.14)}48%{transform:scale(1)}100%{opacity:1;transform:none}}
+.b1{background:linear-gradient(90deg,#8a837b,#d8d3cc);animation:b1 5s infinite}
+.b2{background:linear-gradient(90deg,#91573a,#e6a882);animation:b2 5s infinite}
+.b3{background:linear-gradient(90deg,#8f7342,#d9c08e);animation:b3 5s infinite}
+@keyframes b1{0%{width:0;opacity:1}16%{width:100%;opacity:1}19%{width:100%;opacity:0}100%{opacity:0}}
+@keyframes b2{0%,17%{width:0;opacity:0}19%{width:0;opacity:1}39%{width:100%;opacity:1}42%{opacity:0}100%{opacity:0}}
+@keyframes b3{0%,40%{width:0;opacity:0}42%{width:0;opacity:1}64%{width:26%}100%{width:26%;opacity:1}}
+.e1{animation:e1 5s infinite}.e2{animation:e2 5s infinite}.e3{animation:e3 5s infinite}
+@keyframes e1{0%,17%{opacity:1}19%,100%{opacity:0}}
+@keyframes e2{0%,17%{opacity:0}19%,40%{opacity:1}42%,100%{opacity:0}}
+@keyframes e3{0%,40%{opacity:0}42%,100%{opacity:1}}
+.legend{display:flex;flex-direction:column;gap:6px;width:340px;font-size:12.5px;color:rgba(255,255,255,.7)}
+.legend b{color:#ffb59e}
+</style></head><body>
+<h1>Each rank, stepped up</h1>
+<p>Plays on a loop. As the bar fills to a rank's end, the old name lifts away and the next rises in with a small pop, in its own material, and the bar starts again. The final rank pops a touch more, then settles. No glow.</p>
+<div class="card">
+ <div class="hd"><div class="names"><span class="n n1">Rookie</span><span class="n n2">Hustler</span><span class="n n3">Warrior</span></div><span class="rl">Rank this year</span></div>
+ <div class="bar"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>
+ <div class="ends">
+  <span class="e1"><b>Rookie</b></span><span class="e1 r">Hustler at <b>2,000</b></span>
+  <span class="e2"><b>Hustler</b></span><span class="e2 r">Warrior at <b>5,250</b></span>
+  <span class="e3"><b>6,210</b> Effort</span><span class="e3 r">Elite at <b>9,000</b></span>
+ </div>
+</div>
+<div class="legend">
+ <div><b>Each step up:</b> old name lifts and fades, new name rises in and pops to 110%, then settles.</div>
+ <div><b>The final rank:</b> pops to 114%, a little more than the steps before it.</div>
+ <div><b>The bar:</b> fills in each rank's colour, then starts again empty in the next.</div>
+</div>
+</body></html>

@@ -9,7 +9,7 @@ import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalIcon, RivalTopNav, RivalFixedBackground, RivalBackButton, RivalWarm, rm, rb, GreyPageHead, GreySheet, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, PHONE_CARD_BG, RivalGhost, rivalTextShadow } from '../constants/rivalTheme';
 import { sidePageWide } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
@@ -215,7 +215,7 @@ export default function LiftsScreen() {
 
           {!loading && active && (
             <View style={[rb.card, rb.hero, pb.hero]}>
-              <View style={pb.glow} pointerEvents="none" />
+              <View style={[pb.glow, { pointerEvents: 'none' }]} />
               <Text style={pb.focus}>{active.name}</Text>
               {hasEntries ? (
                 <>
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
 
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 28 },
   back: { color: RivalColors.accentText, fontSize: 16, width: 48 },
-  headerTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, lineHeight: 32, letterSpacing: 0.5, fontWeight: '700', color: RivalColors.accentText, textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 12 },
+  headerTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, lineHeight: 32, letterSpacing: 0.5, fontWeight: '700', color: RivalColors.accentText, textAlign: 'center', ...rivalTextShadow('rgba(0,0,0,0.5)', 0, 2, 12) },
   emptyText: { color: RivalColors.textSecondary, textAlign: 'center', marginTop: 40 },
 
   // Hero glass card

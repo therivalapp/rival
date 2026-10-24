@@ -1,0 +1,49 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Newsreader:ital,wght@1,700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#121010;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:26px}
+.col{width:100%;max-width:361px}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.card{position:relative;overflow:hidden;border-radius:22px;padding:16px 18px;background:#1f1b19;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:14px}
+.card:before{content:'';position:absolute;left:0;right:0;top:0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.card>*{position:relative}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffd3c2}
+.t{font-family:Newsreader,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px;margin-top:3px}
+.sub{font-size:13px;color:rgba(255,255,255,.7);line-height:19px}
+.days{display:flex;justify-content:space-between}.d{text-align:center;width:36px}.d i{display:block;font-style:normal;font-size:10px;font-weight:800;color:rgba(255,255,255,.45)}
+.d u{display:block;width:8px;height:8px;border-radius:4px;margin:6px auto 0;background:rgba(255,255,255,.14)}.d.today i{color:#fff}.d.today u{background:transparent;border:1.5px solid #e8835f;width:7px;height:7px}
+.streak{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.streak .f{color:#e8835f;font-size:16px}.streak .tx{flex:1;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.85)}
+.ring{width:12px;height:12px;border-radius:6px;border:1.5px solid rgba(255,255,255,.3);display:inline-block;margin-left:4px}
+.last{display:flex;gap:8px}.tile{flex:1;text-align:center;border-radius:14px;padding:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.tile b{font-family:Newsreader,serif;font-style:italic;font-size:20px;line-height:24px;display:block}.tile em{font-style:normal;font-size:11px;color:rgba(255,255,255,.55);font-weight:600}
+.tile i{font-style:normal;font-size:8.5px;letter-spacing:1.3px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.lbl{font-size:9.5px;letter-spacing:1.6px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase}
+.q{font-family:Newsreader,serif;font-style:italic;font-weight:700;font-size:19px;line-height:25px}
+.btn{height:52px;border-radius:26px;background:linear-gradient(90deg,#d9805f,#f2b39c);color:#4a1a0c;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;margin-top:12px}
+</style></head><body>
+<script>
+const days=(t)=>`<div class="days">${'MTWTFSS'.split('').map((l,i)=>`<div class="d ${i===t?'today':''}"><i>${l}</i><u></u></div>`).join('')}</div>`;
+document.write(`
+<div class="col"><h2>A · A fresh week <span>recommended</span></h2>
+<div class="card"><div><div class="k">Oct 19 – 25</div><div class="t">This week</div></div>
+<div class="sub">A fresh week. Every activity this week starts here.</div>
+${days(0)}
+<div class="streak"><span class="f">🔥</span><span class="tx">3 activities make it a streak week</span><span><span class="ring"></span><span class="ring"></span><span class="ring"></span></span></div>
+</div><div class="btn">+ Add activity</div></div>
+
+<div class="col"><h2>B · Last week as the starting line</h2>
+<div class="card"><div><div class="k">Oct 19 – 25</div><div class="t">This week</div></div>
+${days(0)}
+<div class="lbl">Last week</div>
+<div class="last"><div class="tile"><b>5<em>h</em> 27<em>m</em></b><i>Time</i></div><div class="tile"><b>16.5 <em>km</em></b><i>Distance</i></div><div class="tile"><b>5</b><i>Activities</i></div></div>
+</div><div class="btn">+ Add activity</div></div>
+
+<div class="col"><h2>C · A line to start on</h2>
+<div class="card"><div><div class="k">Oct 19 – 25 · A new week</div></div>
+<div class="q">“Consistency is a quiet kind of strength.”</div>
+${days(0)}
+</div><div class="btn">+ Add activity</div></div>
+`);
+</script></body></html>

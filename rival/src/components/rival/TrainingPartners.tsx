@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import {
   fetchParticipants,
   fetchTeammates,
@@ -29,6 +29,9 @@ import { RivalIcon } from './RivalIcon';
 // Only the owner of an activity sees the picker. A shared copy shows the names
 // and nothing else: it is a record of who you were with, not a place to
 // re-share a session that was never yours.
+
+// How many of the people you train with most the picker opens on.
+const SUGGESTED = 3;
 
 function nameList(names: string[]): string {
   if (names.length === 0) return '';
@@ -82,6 +85,7 @@ export function TrainingPartners({
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
 
   const draft = !activityId;
 
@@ -110,6 +114,7 @@ export function TrainingPartners({
   async function openPicker() {
     if (!canEdit) return;
     if (open) { setOpen(false); return; }
+    setQuery('');
     setOpen(true);
     if (teammates.length === 0) {
       setLoading(true);
@@ -155,6 +160,15 @@ export function TrainingPartners({
   // What the row says when it is not open. Accepted names read plainly;
   // anything still waiting is named as waiting, so the owner can tell the
   // difference between "Sandy was there" and "Sandy has not answered yet".
+  // The picker opens on the few people you train with most, plus anyone
+  // already on this activity; everyone else is a search away, so a big team
+  // never becomes a long list to scroll (Ricky, 2026-10-14).
+  const q = query.trim().toLowerCase();
+  const isPicked = (id: string) => participants.some((p) => p.userId === id) || !!draftIds?.includes(id);
+  const shown = q
+    ? teammates.filter((t) => t.name.toLowerCase().includes(q))
+    : teammates.filter((t, i) => isPicked(t.id) || (i < SUGGESTED && (t.together > 0 || teammates.length <= SUGGESTED)));
+
   let summary = '';
   if (accepted.length) summary = `with ${(avatars ? shortList : nameList)(accepted.map((p) => p.name))}`;
   if (pending.length && !acceptedOnly) {
@@ -195,9 +209,6 @@ export function TrainingPartners({
 
       {open ? (
         <View style={styles.panel}>
-          <Text style={styles.panelNote}>
-            Each person confirms before the activity is added to their account.
-          </Text>
 
           {loading ? (
             <ActivityIndicator color={RivalColors.accentText} style={styles.loader} />
@@ -206,7 +217,22 @@ export function TrainingPartners({
               Only teammates can be added.
             </Text>
           ) : (
-            teammates.map((mate) => {
+            <>
+            <View style={styles.search}>
+              <RivalIcon name="search" size={14} color="rgba(255,255,255,0.45)" />
+              <TextInput
+                style={styles.searchInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search teammates"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+            </View>
+            {!q && shown.length === 0 ? <Text style={styles.panelEmpty}>Search for a teammate to add.</Text> : null}
+            {q && shown.length === 0 ? <Text style={styles.panelEmpty}>No teammates match "{query.trim()}".</Text> : null}
+            {shown.map((mate) => {
               const existing = participants.find((p) => p.userId === mate.id)
                 ?? (draftIds?.includes(mate.id) ? { status: 'draft' as const } : undefined);
               const busy = busyId === mate.id;
@@ -239,7 +265,8 @@ export function TrainingPartners({
                   )}
                 </TouchableOpacity>
               );
-            })
+            })}
+            </>
           )}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -277,6 +304,15 @@ const styles = StyleSheet.create({
   mateText: { flex: 1, minWidth: 0 },
   mateName: { fontSize: 13.5, fontWeight: '600', color: '#fff' },
   mateState: { fontSize: 11, color: RivalColors.accentText, marginTop: 1 },
+
+  search: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 10, marginBottom: 6,
+  },
+  searchInput: { flex: 1, paddingVertical: 8, fontSize: 13.5, color: '#fff' },
+  sectionLabel: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', marginTop: 4, marginBottom: 2 },
 
   error: { fontSize: 11.5, color: '#ff8f8f', marginTop: 6 },
 });

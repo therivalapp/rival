@@ -1,12 +1,21 @@
 import { JournalYearView } from '../../components/rival/JournalYearView';
+import { SkyBackdrop } from '../../components/rival/SkyBackdrop';
+import { WeekSummaryCard } from '../../components/rival/WeekSummaryCard';
+import { GoldStar } from '../../components/rival/RespectStar';
+import { goToTab, onTabReselect } from '../../lib/tabNav';
+import { clearShareRequest, onShareRequest, pendingShare } from '../../lib/shareRequest';
+import { onActivityDeleted } from '../../lib/activityEvents';
+import { liftPbChecker, loggedLifts, type LiftPb } from '../../lib/liftPb';
+import { fetchReactionsOn } from '../../lib/reactions';
 import { useSnapState } from '../../lib/snapState';
-import { distanceUnit, formatActivityDistance, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
+import { distanceUnit, formatActivityDistance, formatElevation, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../../lib/supabase';
+import { formatDisplayName, formatRaceName } from '../../lib/identity';
 import { notify } from '../../lib/notify';
 import { formatDuration, formatDurationClock } from '../../lib/format';
 import { calculateStreak } from '../../lib/streak';
@@ -19,9 +28,17 @@ import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../../lib/
 import { rm } from '../../components/rival/RivalMobile';
 import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage, RivalStartTiles } from '../../components/rival';
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
+import { RUN_TYPES, fastestBests, fastestTitle, pbStoodText, type FastestBest } from '../../lib/bestEfforts';
+import { activityDisplayName } from '../../lib/yearReview';
+import { MonthBests, type MonthBest } from '../../components/rival/MonthBests';
+import { activityTypeLabel } from '../../components/rival/EffortBreakdownSheet';
+import { selectAll } from '../../lib/selectAll';
+import { DayColumns, EmptyWeek, MonthWeekColumns, WeekLadder, type Checkpoint, FilterButton, FilterSheet, ShowingLine, WeekCard, EventLegs, WeekEarned, WeekNote, WeekNumbers, filterCount, weekEffortCompactStyle, weekEffortStyle, type ActivityFilters } from '../../components/rival/WeekCard';
+import { getPrefs } from '../../lib/prefs';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaRow } from '../../lib/activityMedia';
-import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
-import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV, BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, RivalGhost, RivalFontFamily, rivalTextShadow } from '../../constants/rivalTheme';
+import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV, BREAKPOINT_WIDE_LAYOUT, sidePageWide } from '../../constants/breakpoints';
+import { cardPhoto, fullPhoto } from '../../lib/imageUrl';
 
 type ExerciseEntry = {
   name: string;
@@ -39,6 +56,7 @@ type Activity = {
   name: string | null;
   activity_type: string;
   started_at: string;
+  utc_offset_seconds?: number | null;
   duration_seconds: number;
   distance_meters: number;
   elevation_meters: number | null;
@@ -181,7 +199,10 @@ function CountUpNumber({ value, style }: { value: number; style: any }) {
 }
 
 // Activity cards rise in one after another (web; keyframes in global.css).
+// The mask keeps Safari clipping the rounded corners while a card animates
+// or the page re-lays out; without it they could flash square.
 const cardIn = (i: number): any => (Platform.OS === 'web' ? {
+  WebkitMaskImage: '-webkit-radial-gradient(white, black)', isolation: 'isolate',
   animationName: 'rivalRowIn', animationDuration: '450ms', animationTimingFunction: 'ease-out',
   animationDelay: `${150 + Math.min(i, 8) * 60}ms`, animationFillMode: 'both',
 } : null);
@@ -250,50 +271,50 @@ function getMondayStart(date: Date) {
 // .map()) so each rendered week gets its own independent expand state,
 // unlike the hero cards' one shared flag (only one hero is ever on screen
 // at a time; Rows can show a dozen of these pills at once).
-function WeekStatPill({ title, dateRange, activities }: { title: string; dateRange: string; activities: Activity[] }) {
+function WeekStatPill({ title, dateRange, activities, prevEffort, bestDays, bestTitles, event }: {
+  title: string; dateRange: string; activities: Activity[];
+  prevEffort: number; bestDays: Set<number>; bestTitles: string[];
+  event: { name: string; legs: { key: string; type: string; text: string }[]; days: Set<number> } | null;
+}) {
   const [expanded, setExpanded] = useState(false);
   const total = Math.round(activities.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10;
   const count = activities.length;
   const seconds = activities.reduce((s, a) => s + (a.duration_seconds || 0), 0);
   const km = activities.reduce((s, a) => s + (a.distance_meters || 0), 0) / 1000;
+  // Same columns as this week, so a past week reads as the same card, finished.
+  const dayEffort = [0, 0, 0, 0, 0, 0, 0];
+  activities.forEach((a) => { dayEffort[(new Date(a.started_at).getDay() + 6) % 7] += a.effort_score || 0; });
+  const upPct = prevEffort > 0 && total > prevEffort ? Math.round((total - prevEffort) / prevEffort * 100) : null;
+  // The week's main activity, e.g. "3 runs". Types without a simple plural
+  // fall back to "Weights × 2".
+  const byType: Record<string, number> = {};
+  activities.forEach((a) => { byType[a.activity_type] = (byType[a.activity_type] || 0) + 1; });
+  const [mainType, mainCount] = Object.entries(byType).sort((x, y) => y[1] - x[1])[0] ?? [null, 0];
+  const PLURALS: Record<string, [string, string]> = {
+    Run: ['run', 'runs'], Ride: ['ride', 'rides'], Walk: ['walk', 'walks'], Swim: ['swim', 'swims'],
+    Hike: ['hike', 'hikes'], Rowing: ['row', 'rows'], Yoga: ['yoga class', 'yoga classes'],
+  };
+  const done = mainType
+    ? PLURALS[mainType] ? `${mainCount} ${PLURALS[mainType][mainCount === 1 ? 0 : 1]}` : `${activityTypeLabel(mainType)} × ${mainCount}`
+    : null;
+  const best = bestTitles.length === 1 ? bestTitles[0] : bestTitles.length > 1 ? `${bestTitles.length} personal bests` : null;
   return (
-    <View style={[styles.recapCard, !expanded && styles.recapCardCollapsed]}>
-      <TouchableOpacity style={styles.recapTitleRow} activeOpacity={0.7} onPress={() => setExpanded((v) => !v)}>
-        <View>
-          <Text style={styles.recapTitle}>{title}</Text>
-          <Text style={styles.jWeekDateRange}>{dateRange}</Text>
-        </View>
-        <View style={styles.recapEffortInline}>
-          <View style={styles.recapEffortNumCol}>
-            <Text style={styles.recapEffortNum}>{total}</Text>
-            <Text style={styles.recapEffortLabel}>Effort</Text>
-          </View>
-          <RivalIcon name="chevronDown" size={16} color={RivalColors.textSecondary} style={expanded ? styles.recapChevronOpen : undefined} />
-        </View>
-      </TouchableOpacity>
-      {expanded && (
-        <View style={styles.recapStatgrid}>
-          <View style={styles.recapStatcell}>
-            <RivalIcon name="pulse" size={27} color={RivalColors.accentFill} />
-            <Text style={[styles.recapStatValue, { marginTop: -6 }]}>{count}</Text>
-            <Text style={styles.recapStatTitle}>{count === 1 ? 'Activity' : 'Activities'}</Text>
-          </View>
-          <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
-            <RivalIcon name="timerOutline" size={20} color={RivalColors.accentFill} />
-            <Text style={styles.recapStatValue}>{formatDuration(seconds) || '0m'}</Text>
-            <Text style={styles.recapStatTitle}>Time</Text>
-          </View>
-          <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
-            <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
-            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <Text style={styles.recapStatValue}>{km >= 0.1 ? toDisplayDistance(km).toFixed(1) : '0'}</Text>
-              <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
-            </View>
-            <Text style={styles.recapStatTitle}>Distance</Text>
-          </View>
-        </View>
-      )}
-    </View>
+    <WeekCard
+      compact
+      kicker={event ? `Event week · ${dateRange}` : dateRange}
+      title={event ? event.name : title}
+      event={!!event}
+      effort={<Text style={weekEffortCompactStyle}>{total}</Text>}
+      expanded={expanded}
+      onToggle={() => setExpanded((v) => !v)}
+    >
+      {event ? <EventLegs legs={event.legs} /> : null}
+      <DayColumns effort={dayEffort} bests={bestDays} today={null} events={event?.days} />
+      <WeekEarned upPct={upPct} done={done} best={best} />
+      {expanded ? (
+        <WeekNumbers count={count} seconds={seconds} km={km} />
+      ) : null}
+    </WeekCard>
   );
 }
 
@@ -317,21 +338,61 @@ export default function MyActivitiesScreen() {
   const [allActivities, setAllActivities] = useSnapState<Activity[]>('journal.allActivities', []);
   const [thisWeekTotal, setThisWeekTotal] = useSnapState('journal.thisWeekTotal', 0);
   const [pbs, setPbs] = useSnapState<Record<string, string>>('journal.pbs', {});
+  // For each personal best, the best it beat (metres or seconds), for the
+  // activity page's personal-best band (Ricky, 2026-10-14).
+  const [pbPrev, setPbPrev] = useSnapState<Record<string, number>>('journal.pbPrev', {});
+  // Lift personal bests by activity (lib/liftPb.ts): heaviest yet, or a
+  // first-time lift marked as one.
+  const [liftPbs, setLiftPbs] = useSnapState<Record<string, LiftPb>>('journal.liftPbs', {});
+  // Runs that set a new fastest 400 m to marathon (lib/bestEfforts.ts).
+  const [fastest, setFastest] = useSnapState<Record<string, FastestBest[]>>('journal.fastest', {});
   const [loading, setLoading] = useSnapState('journal.loading', true);
   const [userId, setUserId] = useSnapState('journal.userId', '');
+  // Respect from other people on each activity, for the past-week cards.
+  const [respectOn, setRespectOn] = useState<Record<string, string[]>>({});
+  const [givers, setGivers] = useState<Record<string, { name: string; uri: string | null }>>({});
+  useEffect(() => {
+    if (!userId || !allActivities.length) return;
+    fetchReactionsOn(allActivities.map((a) => a.id)).then((rows) => {
+      const by: Record<string, string[]> = {};
+      rows.forEach((r) => { if (r.user_id !== userId && r.emoji !== 'inspired') (by[r.target_id] ||= []).push(r.user_id); });
+      setRespectOn(by);
+      // Who they are: past-week cards name them and show their faces.
+      const ids = [...new Set(Object.values(by).flat())];
+      if (ids.length) {
+        supabase.from('users').select('id, display_name, avatar_url').in('id', ids).then(({ data }) => {
+          const p: Record<string, { name: string; uri: string | null }> = {};
+          (data ?? []).forEach((u: any) => { p[u.id] = { name: formatDisplayName(u).split(' ')[0], uri: u.avatar_url }; });
+          setGivers(p);
+        }, () => {});
+      }
+    }, () => {});
+  }, [userId, allActivities]);
   // Training toward: the next event you're entered in, beside Personal bests.
   // First visit (no activities yet): which getting-started steps are done.
   const [hasTeam, setHasTeam] = useSnapState('journal.hasTeam', false);
   const [hasFocus, setHasFocus] = useSnapState('journal.hasFocus', false);
+  // Every event (race) by id, so an event week can be headlined by it.
+  const [races, setRaces] = useSnapState<Record<string, { name: string; race_type: string }>>('journal.races', {});
   const [nextEvent, setNextEvent] = useSnapState<{ name: string; race_date: string; location: string | null } | null>('journal.nextEvent', null);
   const [uploading, setUploading] = useState<string | null>(null);
+  // Files done / total while new photos and videos upload, for the overlay
+  // that holds the screen until they are in (Ricky, 2026-10-11).
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  // A new cover is positioned BEFORE anything uploads, so Cancel on the crop
+  // step really cancels (Ricky, 2026-10-11: it used to upload first and only
+  // then ask, and Cancel left the photo on).
+  const [pendingCrop, setPendingCrop] = useState<{ activityId: string; items: MediaItem[]; url: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadErrorActivityId, setUploadErrorActivityId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [mediaMap, setMediaMap] = useSnapState<Record<string, MediaRow[]>>('journal.mediaMap', {});
   // The ordering sheet, open between the phone's picker and the upload.
-  const [mediaPicker, setMediaPicker] = useState<{ activityId: string; items: MediaItem[]; notice?: string } | null>(null);
+  const [mediaPicker, setMediaPicker] = useState<{ activityId: string; items: MediaItem[]; notice?: string; arrangeOnly?: boolean; focus?: string } | null>(null);
+  // Phones position each photo in the picker itself, so there is no crop
+  // step after it; the wider layout keeps its crop step for the cover.
+  const pickerPositions = !sidePageWide(windowWidth);
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
   // Effort badge height should track the stat column's height (not the photo's,
   // which can stand taller) — measured directly since flex stretch can't single
@@ -346,6 +407,9 @@ export default function MyActivitiesScreen() {
   const [filterType, setFilterType] = useState('All');
   const [sortOrder, setSortOrder] = useState<'latest' | 'oldest'>('latest');
   const [prOnly, setPrOnly] = useState(false);
+  // Starred activities only, and the Filter pop-up (Ricky, 2026-10-16).
+  const [starredOnly, setStarredOnly] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [showTypeFilter, setShowTypeFilter] = useState(false);
   // Mobile Activity Journal's "search by date" — ISO YYYY-MM-DD, matched
   // against started_at's date portion. Entered via a plain prompt (YYYY-MM-DD,
@@ -356,6 +420,19 @@ export default function MyActivitiesScreen() {
   // ordered list of activities (most-recent-first, matching the horizontal
   // rows' own order) plus which index within it is currently open.
   const [diaryList, setDiaryList] = useState<DiaryActivity[] | null>(null);
+  // Tapping the Activity tab again closes the open activity and photo (Ricky, 2026-10-11).
+  const [tabReselects, setTabReselects] = useState(0);
+  // With nothing open, it goes back to the start: this week, this month, the
+  // top of the year (Ricky, 2026-10-14).
+  const weekPagerRef = useRef<ScrollView>(null);
+  const monthScrollRef = useRef<ScrollView>(null);
+  const yearScrollRef = useRef<ScrollView>(null);
+  const somethingOpen = useRef(false);
+  const backToStart = useRef(() => {});
+  useEffect(() => onTabReselect('/my-activities', () => {
+    if (somethingOpen.current) { setTabReselects((n) => n + 1); setEnlargedPhoto(null); return; }
+    backToStart.current();
+  }), []);
   // A just-uploaded cover photo — shown behind the crop-positioner overlay
   // until the user confirms a focal point or skips (keeping the center
   // default). Separate from the upload flow itself so it works whether the
@@ -370,11 +447,12 @@ export default function MyActivitiesScreen() {
   // fills the screen and vertical swipe/scroll snaps to the next, retro-app
   // style. Falls back to a generous flex fill before the first layout pass.
   const [pagerHeight, setPagerHeight] = useState(0);
-  // Which week page the pager is on. Only pages near it are drawn in full;
-  // the rest are empty space of the same height. Drawing every week at once
-  // (a year or more of photo cards) held the phone for seconds on opening
-  // and on every switch back to Week.
-  const [weekPageIndex, setWeekPageIndex] = useState(0);
+  // How many weeks are drawn. More are added as you near the bottom. Drawing
+  // every week at once (a year or more of photo cards) held the phone for
+  // seconds on opening and on every switch back to Week.
+  const [weeksShown, setWeeksShown] = useState(4);
+  // Where each week starts in the list, for "Go to last week".
+  const weekTops = useRef<Record<string, number>>({});
   // Mobile Activity Journal's 3-way layout switch — Rows (horizontal
   // per-week scroll), Weekly (full-screen one-week-per-page swipe, the
   // previous default), Month (calendar grid, swipe between months). Kept
@@ -399,12 +477,26 @@ export default function MyActivitiesScreen() {
   // positions — one real vertical scroll instead of N of them fixes that
   // structurally, not just visually).
   const [visibleMonthIndex, setVisibleMonthIndex] = useState(0);
+  // While an arrow is sliding the calendar to a month, the positions it passes
+  // through mustn't change the card above (it flickered back to the old month).
+  const monthArrowTarget = useRef<number | null>(null);
+  const goToMonth = (idx: number) => {
+    monthArrowTarget.current = idx;
+    setVisibleMonthIndex(idx);
+    monthPagerRef.current?.scrollTo({ x: idx * monthStride, animated: true });
+    setTimeout(() => { if (monthArrowTarget.current === idx) monthArrowTarget.current = null; }, 700);
+  };
   // Re-snap to the current month every time you switch INTO Month view, not
   // just once ever — otherwise switching to Rows/Week and back leaves you
   // wherever you'd previously scrolled, which reads as random rather than
   // "here's now" the way the Week hero always resets to this week.
   useEffect(() => {
-    if (journalLayout === 'month') hasScrolledMonthPager.current = false;
+    if (journalLayout === 'month') {
+      hasScrolledMonthPager.current = false;
+      // Straight to the latest month, so the card never shows the oldest
+      // one while the pager is still measuring.
+      if (monthGroups.length) setVisibleMonthIndex(monthGroups.length - 1);
+    }
   }, [journalLayout]);
 
   // Scoring config is small, cached in effort.ts, and only feeds the ×N badge,
@@ -420,6 +512,28 @@ export default function MyActivitiesScreen() {
   // gap before day 1 — this sidesteps percentage/gap math entirely.
   const [calGridWidth, setCalGridWidth] = useState(0);
   const calCellSize = calGridWidth > 0 ? (calGridWidth - 24 - 6 * 6) / 7 : 0;
+
+  // A Share from the feed or a team: open that activity with its share up,
+  // once it's among the loaded activities; done, it goes back to Teams.
+  const [shareFromTeams, setShareFromTeams] = useState<string | null>(null);
+  useEffect(() => {
+    const take = () => {
+      const id = pendingShare();
+      if (!id || !allActivities.some((a) => a.id === id)) return;
+      clearShareRequest();
+      openDiary(allActivities, id);
+      setShareFromTeams(id);
+    };
+    take();
+    return onShareRequest(take);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allActivities]);
+
+  // Deleted from Manual entry: close its card and drop it at once.
+  useEffect(() => onActivityDeleted((id) => {
+    setDiaryList((prev) => (prev?.some((a) => a.id === id) ? null : prev));
+    setAllActivities((prev) => prev.filter((a) => a.id !== id));
+  }), []);
 
   // Bumped on every visit; keys the week's Effort so it counts up each time.
   const [journalVisit, setJournalVisit] = useState(0);
@@ -443,6 +557,13 @@ export default function MyActivitiesScreen() {
     supabase.from('races').select('name, race_date, location').eq('user_id', user.id)
       .gte('race_date', todayIso).order('race_date', { ascending: true }).limit(1).maybeSingle()
       .then(({ data }) => setNextEvent(data ?? null));
+    supabase.from('races').select('id, name, race_type').eq('user_id', user.id)
+      .then(({ data }) => {
+        if (!data) return;
+        const map: Record<string, { name: string; race_type: string }> = {};
+        data.forEach((r) => { map[r.id] = { name: r.name, race_type: r.race_type }; });
+        setRaces(map);
+      });
 
     // The whole history, not a slice. This page groups activities into weekly,
     // month and year views entirely client-side, so anything not fetched simply
@@ -451,7 +572,7 @@ export default function MyActivitiesScreen() {
     // active account) while the older data sat in the table untouched.
     const data = await fetchAllActivities(
       user.id,
-      'id, name, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, shared_from_activity_id, pinned, effort_confirmed',
+      'id, name, activity_type, started_at, utc_offset_seconds, duration_seconds, distance_meters, elevation_meters, effort_score, photo_url, photo_focal_x, photo_focal_y, exercises, race_id, notes, location, companions, shared_from_activity_id, pinned, effort_confirmed',
     );
     if (data) {
       setAllActivities(data);
@@ -465,19 +586,49 @@ export default function MyActivitiesScreen() {
       }
 
       const pbMap: Record<string, string> = {};
+      const prevMap: Record<string, number> = {};
+      // Every PB stays a PB (Ricky, 2026-10-24): each activity that went
+      // further (or longer) than every earlier one of its type was a PB that
+      // day, and keeps it after it is beaten, the way lifts and fastest
+      // times already did. The first of a type has nothing to beat.
       for (const [type, acts] of byType) {
-        if (acts.length < 2) continue;
         const useDistance = DISTANCE_SPORTS.has(type);
-        let record = acts[0];
-        for (const a of acts) {
-          const metric = useDistance ? (a.distance_meters || 0) : (a.duration_seconds || 0);
-          const recMetric = useDistance ? (record.distance_meters || 0) : (record.duration_seconds || 0);
-          if (metric > recMetric) record = a;
+        const metricOf = (a: Activity) => (useDistance ? (a.distance_meters || 0) : (a.duration_seconds || 0));
+        const inOrder = acts.slice().sort((x, y) => new Date(x.started_at).getTime() - new Date(y.started_at).getTime());
+        let best = -1;
+        for (const a of inOrder) {
+          const v = metricOf(a);
+          if (best >= 0 && v > best && v > 0) {
+            pbMap[a.id] = useDistance ? `Farthest ${type}` : `Longest ${type}`;
+            prevMap[a.id] = best;
+          }
+          if (v > best) best = v;
         }
-        const metricVal = useDistance ? (record.distance_meters || 0) : (record.duration_seconds || 0);
-        if (metricVal > 0) pbMap[record.id] = useDistance ? `Furthest ${type}` : `Longest ${type}`;
+      }
+      // A lift PB is the activity's best: it takes the place of "longest".
+      const liftCheck = liftPbChecker(loggedLifts(data.map((a) => ({ ...a, user_id: user!.id }))));
+      const liftMap: Record<string, LiftPb> = {};
+      for (const a of data) {
+        const lp = liftCheck(user!.id, a.id, a.started_at, a.exercises);
+        if (!lp) continue;
+        liftMap[a.id] = lp;
+        pbMap[a.id] = `Heaviest ${lp.lift}`;
+        delete prevMap[a.id];
       }
       setPbs(pbMap);
+      setPbPrev(prevMap);
+      setLiftPbs(liftMap);
+
+      // Fastest times need each run's best efforts, which the shared history
+      // leaves out; runs only, so this stays small.
+      selectAll((from, to) => supabase.from('activities')
+        .select('id, activity_type, started_at, distance_meters, duration_seconds, best_efforts')
+        .eq('user_id', user.id)
+        .in('activity_type', [...RUN_TYPES])
+        .order('started_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to))
+        .then((runs) => setFastest(fastestBests(runs, getPrefs().units === 'imperial')));
 
       const thisWeek = data.filter(a => getMondayStart(new Date(a.started_at)) === currentWeekStart);
       setThisWeekTotal(Math.round(thisWeek.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10);
@@ -537,20 +688,22 @@ export default function MyActivitiesScreen() {
     // What is already posted comes first, selected and numbered in its saved
     // order, with the new picks after it — so the whole set can be
     // rearranged in one place, not just the part being added.
-    const cover = allActivities.find(a => a.id === activityId)?.photo_url ?? null;
-    const existing = existingAsItems(mediaMap[activityId] || [], cover);
+    const act = allActivities.find(a => a.id === activityId);
+    const existing = existingAsItems(mediaMap[activityId] || [], act?.photo_url ?? null, { x: act?.photo_focal_x ?? null, y: act?.photo_focal_y ?? null });
     setMediaPicker({ activityId, items: [...existing, ...items], notice: rejected[0] });
   }
 
   // Reorder (or remove) what is already posted, without picking anything new.
-  function arrangeMedia(activityId: string) {
-    const cover = allActivities.find(a => a.id === activityId)?.photo_url ?? null;
-    setMediaPicker({ activityId, items: existingAsItems(mediaMap[activityId] || [], cover) });
+  // `focus` opens it on that photo, for positioning it.
+  function arrangeMedia(activityId: string, focus?: string) {
+    const act = allActivities.find(a => a.id === activityId);
+    const items = existingAsItems(mediaMap[activityId] || [], act?.photo_url ?? null, { x: act?.photo_focal_x ?? null, y: act?.photo_focal_y ?? null });
+    setMediaPicker({ activityId, items, arrangeOnly: true, focus });
   }
 
   // Saves the whole arranged set — removals, new uploads and the new order —
   // and makes #1 the cover. See saveArrangement in lib/activityMedia.ts.
-  async function uploadMedia(activityId: string, items: MediaItem[]) {
+  async function uploadMedia(activityId: string, items: MediaItem[], focal?: { x: number; y: number }) {
     if (!userId) return;
     setUploading(activityId);
     try {
@@ -562,12 +715,25 @@ export default function MyActivitiesScreen() {
         items,
         existing: mediaMap[activityId] || [],
         currentCover: previousUrl,
+        onProgress: (done, total) => setUploadProgress(total > 0 ? { done, total } : null),
       });
       if (result.errors.length) reportUploadError(activityId, result.errors[0]);
 
       setMediaMap(prev => ({ ...prev, [activityId]: result.rows }));
 
-      if (result.coverChanged) {
+      if (result.coverChanged && focal && result.cover) {
+        // Positioned before upload: save that crop with the new cover.
+        const patch = { photo_url: result.cover, photo_focal_x: focal.x, photo_focal_y: focal.y };
+        const { error: focalErr } = await supabase.from('activities').update({ photo_focal_x: focal.x, photo_focal_y: focal.y }).eq('id', activityId);
+        if (focalErr) notify("Couldn't save the photo position", focalErr.message);
+        setAllActivities(prev => prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)));
+        setDiaryList(prev => prev ? prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)) : prev);
+      } else if (pickerPositions) {
+        // Positions were set in the picker and saved with the set.
+        const patch = { photo_url: result.cover, photo_focal_x: result.coverFocal.x, photo_focal_y: result.coverFocal.y };
+        setAllActivities(prev => prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)));
+        setDiaryList(prev => prev ? prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)) : prev);
+      } else if (result.coverChanged) {
         const patch = { photo_url: result.cover, photo_focal_x: null, photo_focal_y: null };
         setAllActivities(prev => prev.map(a => (a.id === activityId ? { ...a, ...patch } : a)));
         // diaryList is a separate snapshot the open viewer renders from — it
@@ -582,6 +748,7 @@ export default function MyActivitiesScreen() {
       }
     } finally {
       setUploading(null);
+      setUploadProgress(null);
     }
   }
 
@@ -635,7 +802,14 @@ export default function MyActivitiesScreen() {
       pinned: a.pinned,
       race_id: a.race_id,
       isPb: !!pbs[a.id],
+      pbPrev: liftPbs[a.id] ? liftPbs[a.id].prevKg : pbPrev[a.id] ?? null,
+      pbLift: liftPbs[a.id]?.lift ?? null,
+      fastest: fastest[a.id] ?? null,
+      pbStood: (() => { const title = headlinePbTitle(a); return title ? pbStood.get(`${title}|${a.id}`) ?? null : null; })(),
+      utc_offset_seconds: a.utc_offset_seconds ?? null,
+      pbKind: liftPbs[a.id] ? 'lift' : DISTANCE_SPORTS.has(a.activity_type) ? 'distance' : 'time',
       effort_confirmed: a.effort_confirmed,
+      exercises: a.exercises,
     };
   }
 
@@ -651,8 +825,8 @@ export default function MyActivitiesScreen() {
     return (
       <View style={styles.fvWrap}>
         <View style={styles.fvHero}>
-          {Platform.OS === 'web' && <View pointerEvents="none" style={styles.fvHeroGlow} />}
-          <Text style={styles.fvTitle}>Past training counts.</Text>
+          {Platform.OS === 'web' && <View style={[styles.fvHeroGlow, { pointerEvents: 'none' }]} />}
+          <Text style={styles.fvTitle}>Past activities count.</Text>
           <Text style={styles.fvSub}>Connect a device to import it, with Effort.</Text>
           <View style={styles.fvStats}>
             {['Effort', 'Activities', 'Hours'].map((l) => (
@@ -761,13 +935,165 @@ export default function MyActivitiesScreen() {
   const activityTypes = useMemo(() => Array.from(new Set(allActivities.map(a => a.activity_type))).sort(), [allActivities]);
   const filteredActivities = useMemo(() => allActivities.filter(a =>
     (filterType === 'All' || a.activity_type === filterType) &&
-    (!prOnly || !!pbs[a.id]) &&
+    (!prOnly || !!pbs[a.id] || !!fastest[a.id]) &&
+    (!starredOnly || !!a.pinned) &&
     (!dateFilter || localIsoDate(a.started_at) === dateFilter)
-  ), [allActivities, filterType, prOnly, pbs, dateFilter]);
+  ), [allActivities, filterType, prOnly, pbs, fastest, starredOnly, dateFilter]);
   const groups = useMemo(() => computeGroups(filteredActivities, sortOrder), [filteredActivities, sortOrder]);
   // Flat, continuously-ordered list matching the rows' own display order —
   // what the diary viewer tap-through navigates across.
   const flatOrdered = groups.flatMap((g) => g.activities);
+  // Week layout: with a filter on, matches show as one grid (see below).
+  const filtering = filterType !== 'All' || prOnly || starredOnly || !!dateFilter;
+
+  // Personal bests by record ("Farthest run", "Fastest 5 km", "Heaviest
+  // bench press"), newest first in each. The newest is the current record;
+  // the rest are earlier PBs it has since beaten.
+  function groupPbs(list: Activity[]): { title: string; acts: Activity[] }[] {
+    const by = new Map<string, Activity[]>();
+    const add = (title: string, a: Activity) => { const l = by.get(title) ?? []; l.push(a); by.set(title, l); };
+    for (const a of list) {
+      const label = pbs[a.id];
+      if (label) add(label.startsWith('Heaviest') ? label : `${label.split(' ')[0]} ${activityDisplayName(a.activity_type).toLowerCase()}`, a);
+      for (const b of fastest[a.id] ?? []) add(fastestTitle(b), a);
+    }
+    const at = (a: Activity) => new Date(a.started_at).getTime();
+    return [...by].map(([title, acts]) => ({ title, acts: acts.sort((x, y) => at(y) - at(x)) }))
+      .sort((x, y) => at(y.acts[0]) - at(x.acts[0]));
+  }
+  const pbGroups = useMemo(() => (prOnly ? groupPbs(filteredActivities) : []), [prOnly, filteredActivities, pbs, fastest]);
+  // Current against the whole history, not only what a filter leaves.
+  const allPbGroups = useMemo(() => groupPbs(allActivities), [allActivities, pbs, fastest]);
+  const currentPbIds = useMemo(() => new Set(allPbGroups.map((g) => g.acts[0].id)), [allPbGroups]);
+  // "title|activity id" → how long that PB stood before the next one beat
+  // it. The current record has none.
+  const pbStood = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const g of allPbGroups) {
+      for (let i = 1; i < g.acts.length; i++) {
+        out.set(`${g.title}|${g.acts[i].id}`, pbStoodText(new Date(g.acts[i - 1].started_at).getTime() - new Date(g.acts[i].started_at).getTime()));
+      }
+    }
+    return out;
+  }, [allPbGroups]);
+  // The record a card or the viewer names first: the PB label, else the
+  // longest fastest time (the viewer's own order).
+  function headlinePbTitle(a: Activity): string | null {
+    const label = pbs[a.id];
+    if (label) return label.startsWith('Heaviest') ? label : `${label.split(' ')[0]} ${activityDisplayName(a.activity_type).toLowerCase()}`;
+    const top = fastest[a.id]?.[0];
+    return top ? fastestTitle(top) : null;
+  }
+  const [openPbGroups, setOpenPbGroups] = useState<Set<string>>(new Set());
+
+  // The Personal bests filter: a section per record, the current PB and the
+  // one before it, the rest folded (Ricky, 2026-10-24, mockup approved).
+  function renderPbGroups() {
+    return pbGroups.map((g) => {
+      const open = openPbGroups.has(g.title);
+      const shown = open ? g.acts : g.acts.slice(0, 2);
+      const hidden = g.acts.length - 2;
+      return (
+        <View key={g.title} style={styles.pbSection}>
+          <View style={styles.pbSectionHead}>
+            <Text style={styles.pbSectionTitle}>{g.title}</Text>
+            <Text style={styles.pbSectionCount}>{g.acts.length} {g.acts.length === 1 ? 'PB' : 'PBs'}</Text>
+          </View>
+          <View style={styles.jGrid}>
+            {shown.map((a, ci) => renderJournalCard(a, ci))}
+          </View>
+          {hidden > 0 ? (
+            <TouchableOpacity
+              style={styles.pbMore}
+              activeOpacity={0.8}
+              onPress={() => setOpenPbGroups((cur) => { const next = new Set(cur); if (next.has(g.title)) next.delete(g.title); else next.add(g.title); return next; })}
+              accessibilityRole="button"
+            >
+              <Text style={styles.pbMoreText}>{open ? 'Show fewer' : `${hidden} earlier ${hidden === 1 ? 'PB' : 'PBs'}`}</Text>
+              <RivalIcon name={open ? 'chevronUp' : 'chevronDown'} size={18} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      );
+    });
+  }
+
+  // A PB card on the Activity tab: the current record in full gold, one
+  // that has since been beaten in faded gold (Ricky, 2026-10-24).
+  function renderJournalCard(activity: Activity, ci: number) {
+    const pbLabel = pbs[activity.id];
+    // Fastest times are PBs too, and get the same ring.
+    const badgeKind: 'pb' | 'race' | null = pbLabel || fastest[activity.id]?.length ? 'pb' : activity.race_id ? 'race' : null;
+    // Phones: events in ivory with a small label (Ricky, 2026-10-16, C1);
+    // desktop keeps its red.
+    const currentPb = badgeKind === 'pb' && currentPbIds.has(activity.id);
+    const ringColor = badgeKind === 'pb' ? (currentPb ? RivalColors.rankAnchors.unrivaled : 'rgba(255,215,0,0.32)') : badgeKind === 'race' ? (mobileNav ? RivalColors.event : '#ff5c5c') : 'transparent';
+    const race = mobileNav && activity.race_id ? races[activity.race_id] : undefined;
+    const raceTag = race ? (['Triathlon', 'HYROX', 'CrossFit'].includes(race.race_type) ? race.race_type : 'Event') : null;
+    const cardDistance = formatDistance(activity.distance_meters, activity.activity_type);
+    const cardStat = cardDistance || (activity.duration_seconds > 0 ? formatDurationClock(activity.duration_seconds) : '');
+    return (
+      <TouchableOpacity
+        key={activity.id}
+        style={[styles.jGridCard, cardIn(ci)]}
+        activeOpacity={0.85}
+        onPress={() => openDiary(flatOrdered, activity.id)}
+      >
+        {activity.photo_url ? (
+          <CoverImage
+            uri={activity.photo_url}
+            focalX={activity.photo_focal_x}
+            focalY={activity.photo_focal_y}
+            style={styles.jCardPhoto}
+          />
+        ) : (
+          <View style={styles.jCardArt}>
+            {/* Phones: the sky for the hour it started, with the icon
+                large and faint over it (Ricky, 2026-10-14). */}
+            {wide ? null : <SkyBackdrop startedAt={activity.started_at} utcOffsetSeconds={activity.utc_offset_seconds} />}
+            {wide
+              ? <RivalIcon name={activityIconName(activity.activity_type)} size={48} color={RivalColors.accentText} />
+              : <RivalIcon name={activityIconName(activity.activity_type)} size={128} color="rgba(255,255,255,0.16)" />}
+          </View>
+        )}
+        <View style={[styles.jCardScrim, { pointerEvents: 'none' }]} />
+        {raceTag ? (
+          <View style={[styles.jCardEventTag, { pointerEvents: 'none' }]}>
+            <RivalIcon name="flag" size={10} color="#2a2116" />
+            <Text style={styles.jCardEventTagText}>{raceTag}</Text>
+          </View>
+        ) : null}
+        <View style={[styles.jCardDayBadge, raceTag && [styles.jCardDayBadgeSide, activity.pinned && { right: 36 }], { pointerEvents: 'none' }]}>
+          <Text style={styles.jCardDayText}>{filtering
+            ? new Date(activity.started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+            : raceTag ? dayOfWeekLabel(activity.started_at).slice(0, 3) : dayOfWeekLabel(activity.started_at)}</Text>
+        </View>
+        {activity.pinned && (
+          <View style={styles.jCardPin}>
+            <GoldStar size={18} />
+          </View>
+        )}
+        {prOnly && currentPb ? (
+          <View style={[styles.jCardCurrent, { pointerEvents: 'none' }]}><Text style={styles.jCardCurrentText}>Current</Text></View>
+        ) : null}
+        <View style={styles.jCardBody}>
+          <View style={{ flex: 1 }}>
+            {/* Phones: the distance leads and the title steps back, the
+                two styles swapped (Ricky, 2026-10-11). */}
+            <Text style={wide ? styles.jCardName : [styles.jCardStat, { marginTop: 0, color: RivalColors.accentText }]} numberOfLines={1}>{cardDisplayName(activity.name, activity.activity_type)}</Text>
+            {!!cardStat && <Text style={wide ? styles.jCardStat : [styles.jCardName, { marginTop: 2 }]}>{cardStat}</Text>}
+          </View>
+          <View style={styles.jCardEffort}>
+            {/* Phones: the label above the number (Ricky, 2026-10-11). */}
+            {!wide ? <Text style={styles.jCardEffortLabel}>Effort</Text> : null}
+            <Text style={styles.jCardEffortNum}>{activity.effort_score}</Text>
+            {wide ? <Text style={styles.jCardEffortLabel}>Effort</Text> : null}
+          </View>
+        </View>
+        {badgeKind && <View style={[styles.jCardRing, { borderColor: ringColor }, { pointerEvents: 'none' }]} />}
+      </TouchableOpacity>
+    );
+  }
 
   // Month layout's calendar pages — one per calendar month present in
   // allActivities (capped at 100 rows, so realistically the last few
@@ -835,8 +1161,22 @@ export default function MyActivitiesScreen() {
     monthPagerRef.current?.scrollTo({ x: targetIndex * monthStride, animated: false });
   }, [journalLayout, monthPagerWidth, monthGroups.length, monthStride]);
 
+  somethingOpen.current = !!diaryList || !!enlargedPhoto;
+  backToStart.current = () => {
+    weekPagerRef.current?.scrollTo({ y: 0, animated: true });
+    const last = monthGroups.length - 1;
+    if (last >= 0) {
+      setVisibleMonthIndex(last);
+      monthPagerRef.current?.scrollTo({ x: last * monthStride, animated: true });
+    }
+    monthScrollRef.current?.scrollTo({ y: 0, animated: true });
+    yearScrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
   const currentWeekStartForHero = getMondayStart(new Date());
-  const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+  // Last Monday on the calendar (not 7 x 24 hours back, which misses by an
+  // hour in a week the clocks change).
+  const lastWeekStart = (() => { const d = new Date(currentWeekStartForHero); d.setDate(d.getDate() - 7); return getMondayStart(d); })();
   // allActivities is capped at 100 most-recent rows (see loadActivities) — plenty
   // for a streak read, which only ever looks a handful of weeks back.
   const streak = useMemo(() => calculateStreak(allActivities), [allActivities]);
@@ -853,7 +1193,7 @@ export default function MyActivitiesScreen() {
     };
   }
   const thisWk = weekAgg(currentWeekStartForHero);
-  const lastWk = weekAgg(currentWeekStartForHero - oneWeekMs);
+  const lastWk = weekAgg(lastWeekStart);
   const thisWeekCount = thisWk.count;
   const effortDelta = lastWk.effort > 0 ? Math.round((thisWk.effort - lastWk.effort) / lastWk.effort * 100) : null;
 
@@ -918,12 +1258,47 @@ export default function MyActivitiesScreen() {
   }
   const contextLine = weekContextLine();
 
+  // The week card's ladder (Ricky, 2026-10-16): last week, the monthly
+  // average, the best week this month and the strongest week ever, each a
+  // rung to pass. Weeks are the finished ones, never this week itself.
+  const weekCheckpoints: Checkpoint[] = (() => {
+    const totals = new Map<number, number>();
+    allActivities.forEach((a) => {
+      const ws = getMondayStart(new Date(a.started_at));
+      if (ws === currentWeekStartForHero) return;
+      totals.set(ws, (totals.get(ws) || 0) + (a.effort_score || 0));
+    });
+    const now = new Date();
+    const monthWeeks = [...totals.entries()]
+      .filter(([ws]) => { const d = new Date(ws); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); })
+      .map(([, e]) => e);
+    const out: Checkpoint[] = [];
+    if (lastWk.effort > 0) out.push({ key: 'last', label: 'Last week', value: lastWk.effort });
+    if (monthWeeks.length > 1) out.push({ key: 'avg', label: 'Monthly average', value: monthWeeks.reduce((a, b) => a + b, 0) / monthWeeks.length });
+    const strongest = Math.max(0, ...totals.values());
+    const monthBest = Math.max(0, ...monthWeeks);
+    const yearBest = Math.max(0, ...[...totals.entries()].filter(([ws]) => new Date(ws).getFullYear() === now.getFullYear()).map(([, e]) => e));
+    if (monthBest > 0 && monthBest < strongest) out.push({ key: 'month', label: 'Best week this month', value: monthBest });
+    if (yearBest > 0 && yearBest < strongest) out.push({ key: 'year', label: 'Best week this year', value: yearBest });
+    if (strongest > 0) out.push({ key: 'top', label: 'Strongest week', value: strongest });
+    // Two rungs at the same figure read as one; keep the plainer, earlier name
+    // ("Last week" over "Best week this month").
+    return out.filter((c, i) => !out.some((o, j) => j < i && Math.abs(o.value - c.value) < 0.05));
+  })();
+
   // Empty-week comparison — shown in place of the (otherwise nonexistent)
   // grid when this week has no activities yet, so Monday reads as a fresh
   // scoreboard rather than a broken/blank page.
   // Empty week (option C): a line for the new week, then the most recent
   // activities, faded. Last week's if there were any; otherwise the last
   // three whenever they were, so a quiet stretch still shows the rhythm.
+  // The empty This week card: only lines short enough for one line on a
+  // phone (Ricky, 2026-10-19).
+  const weekLine = (() => {
+    const pool = QUOTES.filter((q) => (q.category === 'consistency' || q.category === 'longterm' || q.category === 'progress') && q.text.length <= 27);
+    const src = pool.length ? pool : QUOTES;
+    return src[hashStr(String(currentWeekStartForHero)) % src.length];
+  })();
   const weekQuote = (() => {
     const pool = QUOTES.filter((q) => q.category === 'consistency' || q.category === 'longterm' || q.category === 'progress');
     const src = pool.length ? pool : QUOTES;
@@ -931,17 +1306,8 @@ export default function MyActivitiesScreen() {
   })();
   const lastWeekActs = allActivities.filter((a) => {
     const t = new Date(a.started_at).getTime();
-    return t >= currentWeekStartForHero - oneWeekMs && t < currentWeekStartForHero;
+    return t >= lastWeekStart && t < currentWeekStartForHero;
   });
-  const recentActs = (lastWeekActs.length > 0
-    ? lastWeekActs
-    : allActivities.filter((a) => new Date(a.started_at).getTime() < currentWeekStartForHero)
-  ).slice().sort((a, b) => b.started_at.localeCompare(a.started_at)).slice(0, 3);
-  const recentLabel = lastWeekActs.length > 0
-    ? `Last week · ${Math.round(lastWk.effort).toLocaleString()} Effort`
-    : recentActs.length > 0
-      ? `Last active · ${new Date(recentActs[0].started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
-      : null;
 
   const emptyWeekLine = lastWk.count > 0
     ? `Last week: ${Math.round(lastWk.effort)} Effort across ${lastWk.count} ${lastWk.count === 1 ? 'activity' : 'activities'}.`
@@ -957,7 +1323,7 @@ export default function MyActivitiesScreen() {
   allActivities.forEach((a) => {
     const d = new Date(a.started_at);
     if (d.getFullYear() !== now.getFullYear() || d.getMonth() !== now.getMonth()) return;
-    if (pbs[a.id]) {
+    if (pbs[a.id] && !liftPbs[a.id]) {
       const useDistance = DISTANCE_SPORTS.has(a.activity_type);
       // Second-best of the same type gives the "how much better" delta line.
       const rivals = allActivities.filter(o => o.activity_type === a.activity_type && o.id !== a.id);
@@ -984,27 +1350,92 @@ export default function MyActivitiesScreen() {
         });
       }
     }
+    // A lift PB by the shared rule (lib/liftPb.ts); every tagged lift used to
+    // count here, PB or not.
+    const lp = liftPbs[a.id];
+    if (lp) {
+      const delta = lp.prevKg ? Math.round((lp.weightKg - lp.prevKg) * 10) / 10 : null;
+      monthlyPbs.push({
+        id: `${a.id}-${lp.lift}`, eyebrow: 'NEW PEAK REACHED', title: lp.lift,
+        value: `${lp.weightKg}`, unit: 'KG',
+        progress: delta && delta > 0 ? `+${delta}KG IMPROVEMENT` : null,
+        date: a.started_at,
+      });
+    }
+  });
+  monthlyPbs.sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime());
+
+  // The phone's month bests (Ricky, 2026-10-16, option B): what, the day and
+  // what it beat, with the new fastest times included.
+  const monthBests: MonthBest[] = [];
+  allActivities.forEach((a) => {
+    const d = new Date(a.started_at);
+    if (d.getFullYear() !== now.getFullYear() || d.getMonth() !== now.getMonth()) return;
+    const day = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const noun = activityTypeLabel(a.activity_type).toLowerCase();
+    const icon = activityIconName(a.activity_type);
+    if (pbs[a.id]) {
+      const prev = pbPrev[a.id];
+      if (DISTANCE_SPORTS.has(a.activity_type)) {
+        const shown = formatActivityDistance(a.distance_meters, a.activity_type) ?? '';
+        const [value, unit] = shown.split(' ');
+        monthBests.push({
+          key: `${a.id}-far`, activityId: a.id, icon, title: `Farthest ${noun}`,
+          sub: day, was: prev ? formatActivityDistance(prev, a.activity_type) ?? undefined : undefined,
+          value, unit, date: a.started_at,
+        });
+      } else {
+        monthBests.push({
+          key: `${a.id}-long`, activityId: a.id, icon, title: `Longest ${noun}`,
+          sub: day, was: prev ? formatDurationClock(prev) : undefined,
+          value: formatDurationClock(a.duration_seconds), date: a.started_at,
+        });
+      }
+    }
+    (fastest[a.id] ?? []).forEach((b) => {
+      monthBests.push({
+        key: `${a.id}-${b.meters}`, activityId: a.id, icon, title: fastestTitle(b),
+        sub: day, was: formatDurationClock(b.prevSeconds),
+        value: formatDurationClock(b.seconds), date: a.started_at,
+      });
+    });
     (a.exercises || []).forEach((ex) => {
       if (!ex.prLift) return;
-      // Previous best for the same canonical lift, from earlier tagged PBs.
-      const started = new Date(a.started_at).getTime();
-      let prevBest = 0;
+      // The figure that made it a best: the weight, or for a lift done
+      // without one, sets × reps. Compared with the same lift logged before;
+      // the first time it is logged there is nothing struck through.
+      const started = d.getTime();
+      const volume = (e: { sets?: number | null; reps?: number | null }) => (e.sets || 1) * (e.reps || 0);
+      let prev: { weight: number; sets?: number | null; reps?: number | null } | null = null;
       allActivities.forEach((o) => {
         if (new Date(o.started_at).getTime() >= started) return;
         (o.exercises || []).forEach((oe) => {
-          if (oe.prLift === ex.prLift && (oe.weight || 0) > prevBest) prevBest = oe.weight || 0;
+          if (oe.prLift !== ex.prLift) return;
+          const better = ex.weight
+            ? (oe.weight || 0) > (prev?.weight ?? 0)
+            : volume(oe) > (prev ? volume(prev) : 0);
+          if (better) prev = { weight: oe.weight || 0, sets: oe.sets, reps: oe.reps };
         });
       });
-      const delta = ex.weight && prevBest > 0 ? Math.round((ex.weight - prevBest) * 10) / 10 : null;
-      monthlyPbs.push({
-        id: `${a.id}-${ex.prLift}`, eyebrow: 'NEW PEAK REACHED', title: ex.prLift,
-        value: ex.weight ? `${ex.weight}` : 'PB', unit: ex.weight ? 'KG' : '',
-        progress: delta && delta > 0 ? `+${delta}KG IMPROVEMENT` : null,
+      const p = prev as { weight: number; sets?: number | null; reps?: number | null } | null;
+      // Bodyweight bests read as total reps, the figure that decides them;
+      // sets × reps is the detail under the name (Ricky, 2026-10-16).
+      const weighted = !!ex.weight;
+      const was = weighted ? (p?.weight ? formatWeight(p.weight) : null) : (p && volume(p) > 0 ? String(volume(p)) : null);
+      const split = !weighted && ex.sets && ex.sets > 1 && ex.reps ? ` · ${ex.sets} × ${ex.reps}` : '';
+      monthBests.push({
+        key: `${a.id}-${ex.prLift}`, activityId: a.id, icon: 'weights', title: ex.prLift,
+        sub: `${day}${split}`, was: was ?? undefined,
+        value: weighted ? formatWeight(ex.weight!).split(' ')[0] : ex.reps ? String(volume(ex)) : '—',
+        unit: weighted ? formatWeight(ex.weight!).split(' ')[1] : ex.reps ? ' reps' : undefined,
         date: a.started_at,
       });
     });
   });
-  monthlyPbs.sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime());
+  // A first entry has nothing to beat, so it isn't a best; only the ones
+  // with a figure they improved on count (Ricky, 2026-10-16).
+  const monthBestsShown = monthBests.filter((b) => !!b.was);
+  monthBestsShown.sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime());
 
   function ordinalDay(day: number): string {
     if (day % 10 === 1 && day !== 11) return `${day}st`;
@@ -1055,13 +1486,134 @@ export default function MyActivitiesScreen() {
     </View>
   );
 
-  // This week's days with an activity (Monday = 0), for the dots in the week card.
-  const weekDaysDone = new Set(
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  // Effort per day this week (Monday = 0), for the week card's columns.
+  const weekDayEffort = [0, 0, 0, 0, 0, 0, 0];
+  allActivities
+    .filter((a) => getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
+    .forEach((a) => { weekDayEffort[(new Date(a.started_at).getDay() + 6) % 7] += a.effort_score || 0; });
+  // Days this week with a personal best get the faded gold of the Effort
+  // numbers instead of the usual dot (Ricky, 2026-10-14).
+  const weekPbDays = new Set(
     allActivities
-      .filter((a) => getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
+      .filter((a) => ((pbs[a.id] && pbPrev[a.id]) || fastest[a.id]) && getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
       .map((a) => (new Date(a.started_at).getDay() + 6) % 7),
   );
-  const todayIdx = (new Date().getDay() + 6) % 7;
+
+  // The week's event, if it had one: its name, its legs in order, and the
+  // days it fell on (Ricky, 2026-10-16, event weeks W2).
+  const weekEvent = (acts: Activity[]) => {
+    const raceId = acts.find((a) => a.race_id && races[a.race_id])?.race_id;
+    if (!raceId) return null;
+    const legs = acts.filter((a) => a.race_id === raceId)
+      .sort((x, y) => new Date(x.started_at).getTime() - new Date(y.started_at).getTime());
+    return {
+      name: formatRaceName(races[raceId].name),
+      legs: legs.map((a) => ({
+        key: a.id, type: a.activity_type,
+        text: formatDistance(a.distance_meters, a.activity_type) || formatDurationClock(a.duration_seconds),
+      })),
+      days: new Set(legs.map((a) => (new Date(a.started_at).getDay() + 6) % 7)),
+    };
+  };
+  const thisWeekEvent = weekEvent(allActivities.filter((a) => getMondayStart(new Date(a.started_at)) === getMondayStart(new Date())));
+
+  // Weeks off aren't pages of their own; the swipe skips them and the next
+  // older week says how many there were (Ricky, 2026-10-16, "Off B").
+  // The gaps are measured between the week cards themselves (the same
+  // remembered week starts), never against week starts worked out again now:
+  // after a trip across time zones with the app open, the two sets sat an
+  // hour apart, nothing matched, and every gap ran on to today ("6 weeks off"
+  // between two active weeks, Ricky 2026-10-22). Rounding to whole weeks also
+  // absorbs the hour a clock change adds or takes away.
+  const WEEK_MS = 7 * 86400000;
+  const activeWeekStarts = groups.filter((g) => g.activities.length > 0).map((g) => g.weekStart).sort((a, b) => a - b);
+  const weeksOff = (ws: number, dir: 1 | -1) => {
+    const neighbour = dir === 1
+      ? activeWeekStarts.find((w) => w > ws + 3 * 86400000) ?? currentWeekStartForHero
+      : [...activeWeekStarts].reverse().find((w) => w < ws - 3 * 86400000);
+    if (neighbour === undefined) return 0;
+    return Math.max(0, Math.round(Math.abs(neighbour - ws) / WEEK_MS) - 1);
+  };
+  const weeksOffText = (ws: number, n: number) => {
+    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    // From midday, so an hour either way never tips onto the day before.
+    const from = new Date(ws + 12 * 3600000);
+    from.setDate(from.getDate() + 7);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 7 * (n - 1) + 6);
+    return `${n === 1 ? '1 week' : `${n} weeks`} off · ${from.toLocaleDateString(undefined, opts)} – ${to.toLocaleDateString(undefined, opts)}`;
+  };
+
+  // Past weeks: stats only, no cover photo (Ricky, 2026-10-18).
+  const renderWeekCover = (group: WeekGroup, label: string) => {
+    const acts = group.activities;
+    const seconds = acts.reduce((s, a) => s + (a.duration_seconds || 0), 0);
+    const meters = acts.reduce((s, a) => s + (a.distance_meters || 0), 0);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.round((seconds % 3600) / 60);
+    // Which of the week's seven days had an activity, Monday first.
+    // Each day of the week, Monday first: the event's day in ivory, a day
+    // with a personal best in gold, any other active day lit.
+    const ev = weekEvent(acts);
+    const wb = weekBests(acts);
+    const days = [0, 1, 2, 3, 4, 5, 6].map((i) => (ev?.days.has(i) ? 'event' as const
+      : wb.days.has(i) ? 'best' as const
+      : acts.some((a) => (new Date(a.started_at).getDay() + 6) % 7 === i) ? 'on' as const : null));
+    const bests = wb.titles;
+    // A best when there is one, otherwise the Respect the week received: never
+    // a comparison with the week before (Ricky, 2026-10-18).
+    // Each person once, most Respect first.
+    const counts = new Map<string, number>();
+    acts.forEach((a) => (respectOn[a.id] ?? []).forEach((id) => counts.set(id, (counts.get(id) || 0) + 1)));
+    const people = [...counts.keys()].sort((x, y) => counts.get(y)! - counts.get(x)!)
+      .map((id) => givers[id] ?? { name: 'Someone', uri: null });
+    // One best named with its figure; more than one, the first named and the
+    // rest counted (Ricky, 2026-10-19).
+    const chip = bests.length ? { text: bests[0], figure: wb.figures[0] || undefined, more: bests.length - 1, best: true }
+      : people.length ? { text: '', people }
+      : null;
+    const dist = meters >= 100 ? (formatActivityDistance(meters, 'Run') ?? '').split(' ') : null;
+    const totals = [
+      // Time, distance, activities, as on This week.
+      { parts: h > 0 ? [{ value: String(h), unit: 'h' }, { value: String(m).padStart(2, '0'), unit: 'm' }] : [{ value: String(m), unit: 'min' }], label: 'Time' },
+      ...(dist ? [{ parts: [{ value: dist[0], unit: dist[1] }], label: 'Distance' }] : []),
+      { parts: [{ value: String(acts.length) }], label: acts.length === 1 ? 'Activity' : 'Activities' },
+    ];
+    return (
+      <WeekSummaryCard
+        // An event week leads with the event; the week moves into the kicker
+        // (Ricky, 2026-10-19: events are rare and matter most).
+        kicker={ev ? `${label} · ${formatWeekRangeCompact(group.weekStart)}` : formatWeekRangeCompact(group.weekStart)}
+        title={ev ? ev.name : label}
+        event={!!ev}
+        days={days}
+        effort={group.total}
+        totals={totals}
+        note={chip}
+      />
+    );
+  };
+
+  // For past week cards: the week's bests.
+  const weekBests = (acts: Activity[]) => {
+    const days = new Set<number>();
+    const titles: string[] = [];
+    // The figure that set each best, in the same order as titles.
+    const figures: string[] = [];
+    acts.forEach((a) => {
+      const noun = activityTypeLabel(a.activity_type).toLowerCase();
+      const pb = !!pbs[a.id] && !!pbPrev[a.id];
+      if (pb) {
+        const far = DISTANCE_SPORTS.has(a.activity_type);
+        titles.push(far ? `Farthest ${noun}` : `Longest ${noun}`);
+        figures.push(far ? (formatDistance(a.distance_meters, a.activity_type) ?? '') : formatDuration(a.duration_seconds));
+      }
+      (fastest[a.id] ?? []).forEach((b) => { titles.push(fastestTitle(b)); figures.push(formatDurationClock(b.seconds)); });
+      if (pb || fastest[a.id]?.length) days.add((new Date(a.started_at).getDay() + 6) % 7);
+    });
+    return { days, titles, figures };
+  };
 
   // 3-way layout switch (Rows/Week/Month) — sits directly below the stat
   // card (tight, via negative margin, matching the filterBarTight pattern
@@ -1070,8 +1622,11 @@ export default function MyActivitiesScreen() {
   // shared function to avoid the triplication (and drift) that came from
   // copy-pasting this into all three layout blocks previously.
   function renderJournalToggle(wide: boolean) {
+    // Filter sits beside Week, Month and Year; what is on shows underneath
+    // (Ricky, 2026-10-16, option A).
     return (
-      <View style={[styles.jLayoutToggleRow, wide ? styles.jLayoutToggleRowTightWide : styles.jLayoutToggleRowTight]}>
+      <View>
+      <View style={[styles.jLayoutToggleRow, styles.jLayoutToggleRowSplit, wide ? styles.jLayoutToggleRowTightWide : styles.jLayoutToggleRowTight]}>
         <View style={styles.jLayoutToggle}>
           {([
             { key: 'weekly' as const, icon: 'calendar' as const, label: 'Week' },
@@ -1083,13 +1638,24 @@ export default function MyActivitiesScreen() {
               style={[styles.jLayoutToggleItem, journalLayout === opt.key && styles.jLayoutToggleItemActive]}
               onPress={() => setJournalLayout(opt.key)}
             >
-              <RivalIcon name={opt.icon} size={13} color={journalLayout === opt.key ? RivalColors.accentText : RivalColors.textSecondary} />
+              <RivalIcon name={opt.icon} size={13} color={journalLayout === opt.key ? '#fff' : 'rgba(255,255,255,0.6)'} />
               <Text style={[styles.jLayoutToggleLabel, journalLayout === opt.key && styles.jLayoutToggleLabelActive]}>{opt.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
+        <FilterButton count={filterCount(activityFilters)} onPress={() => setFilterSheetOpen(true)} />
+      </View>
+      <ShowingLine filters={activityFilters} onChange={setActivityFilters} />
       </View>
     );
+  }
+
+  const activityFilters: ActivityFilters = { starred: starredOnly, bests: prOnly, type: filterType, date: dateFilter };
+  function setActivityFilters(f: ActivityFilters) {
+    setStarredOnly(f.starred);
+    setPrOnly(f.bests);
+    setFilterType(f.type);
+    setDateFilter(f.date);
   }
 
   return (
@@ -1098,7 +1664,7 @@ export default function MyActivitiesScreen() {
           fading into the page colour before the cards (Ricky's pick, option A,
           2026-09-28). Desktop keeps the full-page photo. */}
       {mobileNav ? (
-        <View pointerEvents="none" style={styles.photoBand}>
+        <View style={[styles.photoBand, { pointerEvents: 'none' }]}>
           <Image
             source={require('../../../assets/images/backgrounds/optimized/a-single-solo-athlete-standing-on.jpg')}
             style={StyleSheet.absoluteFill}
@@ -1140,25 +1706,30 @@ export default function MyActivitiesScreen() {
 
         {mobileNav ? (
           <>
+          <FilterSheet
+            visible={filterSheetOpen}
+            filters={activityFilters}
+            onChange={setActivityFilters}
+            types={activityTypes}
+            shownCount={filteredActivities.length}
+            dateText={dateFilter ? isoToDisplayDate(dateFilter) : null}
+            onClose={() => setFilterSheetOpen(false)}
+          />
           {journalLayout === 'weekly' && (
-          // Full-screen weekly pager — one week fills the screen, swipe/scroll
-          // up snaps to the next (retro-app style). RNW's ScrollView applies
-          // CSS scroll-snap for free via `pagingEnabled` (wraps each direct
-          // child in a scrollSnapAlign:'start' View) — no manual CSS needed.
-          // Each week page's height is pinned to the pager's own measured
-          // height (onLayout) so "one week = one screen" holds regardless of
-          // how much content that week has; a week with more cards than fit
-          // scrolls internally via its own nested grid ScrollView instead of
-          // fighting the outer snap.
+          // Weeks stacked in one continuous scroll (Ricky, 2026-10-21). It was
+          // a snap pager, one week a screen, each week scrolling on its own:
+          // a long week needed one swipe to reach its end and another to move
+          // on, and the two scroll areas fought each other.
           <ScrollView
-            pagingEnabled
+            ref={weekPagerRef}
             style={styles.jPager}
+            contentContainerStyle={styles.jWeekList}
             onLayout={(e) => setPagerHeight(e.nativeEvent.layout.height)}
-            scrollEventThrottle={32}
+            scrollEventThrottle={64}
             onScroll={(e) => {
-              if (!pagerHeight) return;
-              const idx = Math.round(e.nativeEvent.contentOffset.y / pagerHeight);
-              setWeekPageIndex((cur) => (cur === idx ? cur : idx));
+              const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+              if (contentOffset.y + layoutMeasurement.height * 2.5 < contentSize.height) return;
+              setWeeksShown((n) => (n < groups.length ? n + 4 : n));
             }}
             showsVerticalScrollIndicator={false}
           >
@@ -1189,31 +1760,26 @@ export default function MyActivitiesScreen() {
               </View>
             )}
 
-            {!loading && groups.map((group, gi) => {
-              if (Math.abs(gi - weekPageIndex) > 2) {
-                return <View key={group.weekStart} style={{ height: pagerHeight || 600 }} />;
-              }
+            {!loading && groups.slice(0, weeksShown).map((group) => {
               const isCurrentWeek = group.weekStart === currentWeekStartForHero;
+              // With a filter on, every match is one grid under this week's
+              // card: no week cards or stats in between (Ricky, 2026-10-24).
+              if (filtering && !isCurrentWeek) return null;
+              const gridActs = filtering && isCurrentWeek ? flatOrdered : group.activities;
               // Nothing logged yet: the first-visit page instead of an empty week.
               if (isCurrentWeek && allActivities.length === 0) {
                 return (
-                  <ScrollView
-                    key={group.weekStart}
-                    style={pagerHeight ? { height: pagerHeight } : undefined}
-                    contentContainerStyle={styles.jWeekPage}
-                    showsVerticalScrollIndicator={false}
-                  >
+                  <View key={group.weekStart} style={[styles.jWeekPage, pagerHeight ? { minHeight: pagerHeight } : null]}>
                     {journalTitle}
                     {renderFirstVisit()}
-                  </ScrollView>
+                  </View>
                 );
               }
               return (
-                <ScrollView
+                <View
                   key={group.weekStart}
-                  style={pagerHeight ? { height: pagerHeight } : undefined}
-                  contentContainerStyle={styles.jWeekPage}
-                  showsVerticalScrollIndicator={false}
+                  style={styles.jWeekPage}
+                  onLayout={(e) => { weekTops.current[group.weekStart] = e.nativeEvent.layout.y; }}
                 >
                   {isCurrentWeek ? (
                     <>
@@ -1233,91 +1799,49 @@ export default function MyActivitiesScreen() {
                       {/* This week: title and Effort on one row, a dot per day
                           underneath. Tap it for the details (time, distance,
                           filters). Add activity sits straight under the card. */}
-                      <View style={styles.weekHero}>
-                        {Platform.OS === 'web' && <View pointerEvents="none" style={styles.weekHeroEdge} />}
-                        <TouchableOpacity style={styles.weekHeroRow} activeOpacity={0.7} onPress={() => setHeroExpanded((v) => !v)}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.weekHeroTitle}>This week</Text>
-                            <Text style={styles.weekHeroSub}>
-                              {formatWeekRangeCompact(currentWeekStartForHero)} · {thisWeekCount === 1 ? '1 activity' : `${thisWeekCount} activities`}
-                            </Text>
-                          </View>
-                          <View style={styles.weekHeroEffort}>
-                            <CountUpNumber key={journalVisit} value={thisWeekTotal} style={styles.weekHeroNum} />
-                            <Text style={styles.weekHeroLabel}>Effort</Text>
-                          </View>
-                          <RivalIcon name="chevronDown" size={16} color={RivalColors.textSecondary} style={heroExpanded ? styles.recapChevronOpen : undefined} />
-                        </TouchableOpacity>
-                        <View style={styles.weekDots}>
-                          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                            <View key={i} style={styles.weekDotCol}>
-                              <View style={[styles.weekDot, weekDaysDone.has(i) ? styles.weekDotOn : i === todayIdx ? styles.weekDotToday : null]} />
-                              <Text style={styles.weekDotLabel}>{d}</Text>
-                            </View>
-                          ))}
-                        </View>
+                      <WeekCard
+                        kicker={thisWeekEvent ? `Event week · ${formatWeekRangeCompact(currentWeekStartForHero)}` : thisWeekCount === 0 ? 'This week' : formatWeekRangeCompact(currentWeekStartForHero)}
+                        title={thisWeekEvent ? thisWeekEvent.name : thisWeekCount === 0 ? '' : 'This week'}
+                        event={!!thisWeekEvent}
+                        effort={<CountUpNumber key={journalVisit} value={thisWeekTotal} style={weekEffortStyle} />}
+                        expanded={heroExpanded}
+                        onToggle={() => setHeroExpanded((v) => !v)}
+                        still={thisWeekCount === 0}
+                      >
+                        {thisWeekCount === 0 ? (() => {
+                          // Nothing logged yet: the month so far instead of empty columns.
+                          const now = new Date();
+                          const inMonth = (y: number, mo: number) => allActivities.filter((a) => { const d = new Date(a.started_at); return d.getFullYear() === y && d.getMonth() === mo; });
+                          // Early in a month with nothing yet: last month, whole.
+                          const thisMonth = inMonth(now.getFullYear(), now.getMonth());
+                          const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                          const whole = thisMonth.length === 0;
+                          const monthActs = whole ? inMonth(lastStart.getFullYear(), lastStart.getMonth()) : thisMonth;
+                          return (
+                            <EmptyWeek
+                              quote={weekLine.text}
+                              whole={whole}
+                              month={(whole ? lastStart : now).toLocaleDateString(undefined, { month: 'long' })}
+                              count={monthActs.length}
+                              seconds={monthActs.reduce((t, a) => t + (a.duration_seconds || 0), 0)}
+                              meters={monthActs.reduce((t, a) => t + (a.distance_meters || 0), 0)}
+                              dayOfMonth={now.getDate()}
+                              daysInMonth={new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}
+                            />
+                          );
+                        })() : <>
+                        {thisWeekEvent ? <EventLegs legs={thisWeekEvent.legs} /> : null}
+                        <DayColumns effort={weekDayEffort} bests={weekPbDays} today={todayIdx} events={thisWeekEvent?.days} />
                         {heroExpanded && (
-                        <>
-                        <View style={styles.recapStatgrid}>
-                          <View style={styles.recapStatcell}>
-                            <RivalIcon name="pulse" size={27} color={RivalColors.accentFill} />
-                            {/* The pulse icon (27) is taller than its neighbors' icons (20) —
-                                pull the number back up so all three numbers still share
-                                one baseline despite the extra icon height above it. */}
-                            <Text style={[styles.recapStatValue, { marginTop: -6 }]}>{thisWeekCount}</Text>
-                            <Text style={styles.recapStatTitle}>{thisWeekCount === 1 ? 'Activity' : 'Activities'}</Text>
-                          </View>
-                          <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
-                            <RivalIcon name="timerOutline" size={20} color={RivalColors.accentFill} />
-                            <Text style={styles.recapStatValue}>{formatDuration(thisWk.seconds) || '0m'}</Text>
-                            <Text style={styles.recapStatTitle}>Time</Text>
-                          </View>
-                          <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
-                            <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
-                            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                              <Text style={styles.recapStatValue}>{thisWk.km >= 0.1 ? toDisplayDistance(thisWk.km).toFixed(1) : '0'}</Text>
-                              <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
-                            </View>
-                            <Text style={styles.recapStatTitle}>Distance</Text>
-                          </View>
-                        </View>
-                        {contextLine && (
-                          <Text style={styles.recapQuote}>
-                            {contextLine.highlight}{contextLine.rest}
-                          </Text>
+                          <>
+                            {/* Each figure carries its own change on last week, so
+                                the "% vs last week" line is no longer needed. */}
+                            <WeekNumbers count={thisWeekCount} seconds={thisWk.seconds} km={thisWk.km} prev={lastWk} />
+                            <WeekLadder effort={thisWk.effort} checkpoints={weekCheckpoints} />
+                          </>
                         )}
-
-                        {/* Momentum chip — vs-last-week delta. Not in the mockup
-                            (which never modeled this data), kept so real signal isn't
-                            lost, now living inside the hero card under the quote. */}
-                        {effortDelta !== null && (
-                          <View style={styles.momentumRow}>
-                            <View style={styles.momentumChip}>
-                              <RivalIcon name={effortDelta >= 0 ? 'trendUp' : 'trendDown'} size={13} color={effortDelta >= 0 ? RivalColors.success : '#ff5c5c'} />
-                              <Text style={styles.momentumChipText}>{Math.abs(effortDelta)}% vs last week</Text>
-                            </View>
-                          </View>
-                        )}
-
-                        {/* Filter + PBs-only toggles — moved here (bottom-right of the
-                            hero card) from the standalone toolbar row above. */}
-                        <View style={styles.recapCornerBtnRow}>
-                          <TouchableOpacity
-                            style={[styles.recapFilterBtn, prOnly && styles.toolbarBtnActive]}
-                            onPress={() => setPrOnly(!prOnly)}
-                          >
-                            <RivalIcon name="trophy" size={14} color={prOnly ? RivalColors.accentText : RivalColors.textSecondary} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.recapFilterBtn, showTypeFilter && styles.toolbarBtnActive]}
-                            onPress={() => setShowTypeFilter(!showTypeFilter)}
-                          >
-                            <RivalIcon name="search" size={14} color={showTypeFilter ? RivalColors.accentText : RivalColors.textSecondary} />
-                          </TouchableOpacity>
-                        </View>
-                        </>
-                        )}
-                      </View>
+                        </>}
+                      </WeekCard>
                       <TouchableOpacity style={styles.weekHeroAdd} activeOpacity={0.85} onPress={() => router.push('/add-workout')}>
                         <RivalIcon name="add" size={18} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
                         <Text style={styles.weekHeroAddText}>Add activity</Text>
@@ -1325,7 +1849,7 @@ export default function MyActivitiesScreen() {
                       {/* Training toward: the next event (or Add event), then
                           Personal bests. Your own goals-to-come, kept off Today. */}
                       {SHOW_TRAINING_TOWARD && <>
-                      <Text style={styles.towardLabel}>{nextEvent ? 'Training toward' : 'Records'}</Text>
+                      <Text style={styles.towardLabel}>{nextEvent ? 'Working toward' : 'Records'}</Text>
                       <View style={styles.towardCard}>
                         {nextEvent && (
                         <>
@@ -1338,7 +1862,7 @@ export default function MyActivitiesScreen() {
                             <RivalIcon name="flag" size={16} color={nextEvent ? RivalColors.surfaceLowest : 'rgba(255,255,255,0.6)'} />
                           </View>
                           <View style={styles.towardText}>
-                            <Text style={styles.towardTitle} numberOfLines={1}>{nextEvent ? nextEvent.name : 'No event scheduled'}</Text>
+                            <Text style={styles.towardTitle} numberOfLines={1}>{nextEvent ? formatRaceName(nextEvent.name) : 'No event scheduled'}</Text>
                             <Text style={styles.towardSub} numberOfLines={1}>
                               {nextEvent
                                 ? `${new Date(nextEvent.race_date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}${nextEvent.location ? ` · ${nextEvent.location}` : ''}`
@@ -1374,113 +1898,27 @@ export default function MyActivitiesScreen() {
                       </>}
                       {renderJournalToggle(false)}
 
-                      {(filterType !== 'All' || prOnly || dateFilter || showTypeFilter) && (
-                      <View style={[styles.filterBar, styles.filterBarTight]}>
-                        {(filterType !== 'All' || prOnly || dateFilter) && !showTypeFilter && (
-                          <View style={styles.activeFiltersRow}>
-                            {filterType !== 'All' && (
-                              <TouchableOpacity style={styles.activeFilterChip} onPress={() => setFilterType('All')}>
-                                <RivalIcon name={activityIconName(filterType)} size={12} color={RivalColors.accentText} />
-                                <Text style={styles.activeFilterChipText}>{filterType}</Text>
-                                <RivalIcon name="close" size={12} color={RivalColors.textSecondary} />
-                              </TouchableOpacity>
-                            )}
-                            {prOnly && (
-                              <TouchableOpacity style={styles.activeFilterChip} onPress={() => setPrOnly(false)}>
-                                <RivalIcon name="fire" size={12} color={RivalColors.accentText} />
-                                <Text style={styles.activeFilterChipText}>PBs only</Text>
-                                <RivalIcon name="close" size={12} color={RivalColors.textSecondary} />
-                              </TouchableOpacity>
-                            )}
-                            {dateFilter && (
-                              <TouchableOpacity style={styles.activeFilterChip} onPress={() => setDateFilter(null)}>
-                                <RivalIcon name="calendar" size={12} color={RivalColors.accentText} />
-                                <Text style={styles.activeFilterChipText}>{isoToDisplayDate(dateFilter)}</Text>
-                                <RivalIcon name="close" size={12} color={RivalColors.textSecondary} />
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        )}
-                        {showTypeFilter && (
-                          <View style={{ gap: 10 }}>
-                            <View>
-                              <Text style={styles.typeFilterLabel}>Type</Text>
-                              <View style={styles.typeFilterRow}>
-                                <TouchableOpacity style={[styles.typeFilterChip, filterType === 'All' && styles.typeFilterChipActive]} onPress={() => { setFilterType('All'); setShowTypeFilter(false); }}>
-                                  <Text style={[styles.typeFilterChipText, filterType === 'All' && styles.typeFilterChipTextActive]}>All</Text>
-                                </TouchableOpacity>
-                                {activityTypes.map((t) => (
-                                  <TouchableOpacity key={t} style={[styles.typeFilterChip, filterType === t && styles.typeFilterChipActive]} onPress={() => { setFilterType(t); setShowTypeFilter(false); }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                                      <RivalIcon name={activityIconName(t)} size={13} color={filterType === t ? RivalColors.accentText : RivalColors.textSecondary} />
-                                      <Text style={[styles.typeFilterChipText, filterType === t && styles.typeFilterChipTextActive]}>{t}</Text>
-                                    </View>
-                                  </TouchableOpacity>
-                                ))}
-                              </View>
-                            </View>
-                            <View>
-                              <Text style={styles.typeFilterLabel}>Date</Text>
-                              <View style={styles.typeFilterRow}>
-                                <TouchableOpacity
-                                  style={[styles.typeFilterChip, !!dateFilter && styles.typeFilterChipActive]}
-                                  onPress={() => {
-                                    if (Platform.OS !== 'web') return;
-                                    const input = window.prompt('Search by date (DD/MM/YYYY)', dateFilter ? isoToDisplayDate(dateFilter) : '');
-                                    if (input === null) return;
-                                    if (input.trim() === '') { setDateFilter(null); setShowTypeFilter(false); return; }
-                                    const iso = displayToIsoDate(input);
-                                    if (!iso) { window.alert('Enter a valid date as DD/MM/YYYY.'); return; }
-                                    setDateFilter(iso);
-                                    setShowTypeFilter(false);
-                                  }}
-                                >
-                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                                    <RivalIcon name="calendar" size={13} color={dateFilter ? RivalColors.accentText : RivalColors.textSecondary} />
-                                    <Text style={[styles.typeFilterChipText, !!dateFilter && styles.typeFilterChipTextActive]}>{dateFilter ? isoToDisplayDate(dateFilter) : 'Search by date'}</Text>
-                                  </View>
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-                          </View>
-                        )}
-                      </View>
-                      )}
-
-                      {monthlyPbs.length > 0 && (
-                        <View style={styles.monthlyPbCard}>
-                          <View style={styles.monthlyPbHeader}>
-                            <Text style={styles.monthlyPbTitle}>{monthName} PBs</Text>
-                            <View style={styles.monthlyPbCount}>
-                              <Text style={styles.monthlyPbCountText}>{monthlyPbs.length}</Text>
-                            </View>
-                          </View>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthlyPbRow}>
-                            {monthlyPbs.map((pb) => (
-                              <View key={pb.id} style={styles.monthlyPbEntry}>
-                                <Text style={styles.monthlyPbName} numberOfLines={1}>{pb.title}</Text>
-                                <View style={styles.monthlyPbValueRow}>
-                                  <Text style={[styles.monthlyPbValue, styles.monthlyPbValueSerif]}>{pb.value}</Text>
-                                  {!!pb.unit && <Text style={styles.monthlyPbUnit}>{pb.unit}</Text>}
-                                </View>
-                              </View>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
+                      <MonthBests month={monthName} bests={monthBestsShown} onOpen={(id) => openDiary(allActivities, id)} />
                     </>
                   ) : (
-                    <WeekStatPill
-                      title={group.weekStart === currentWeekStartForHero - oneWeekMs ? 'Last Week' : `Week ${getWeekNumber(new Date(group.weekStart))}`}
-                      dateRange={formatWeekRangeCompact(group.weekStart)}
-                      activities={group.activities}
-                    />
+                    <>
+                    {filterCount(activityFilters) === 0 && weeksOff(group.weekStart, 1) > 0 ? (
+                      <View style={[styles.weeksOff, !wide && styles.weeksOffCentred]}>
+                        <View style={styles.weeksOffRule} />
+                        <Text style={styles.weeksOffText}>{weeksOffText(group.weekStart, weeksOff(group.weekStart, 1))}</Text>
+                        <View style={styles.weeksOffRule} />
+                      </View>
+                    ) : null}
+                    {/* Every past week the same, one activity or several: the
+                        week card, then its activities (Ricky, 2026-10-18, A). */}
+                    {renderWeekCover(group, group.weekStart === lastWeekStart ? 'Last week' : `Week ${getWeekNumber(new Date(group.weekStart))}`)}
+                    </>
                   )}
 
                   {/* Card grid — scrolls together with the hero/header above as
                       one continuous page (not a separately-clipped region). */}
                   <View style={styles.jGridContent}>
-                    {isCurrentWeek && group.activities.length === 0 ? (
+                    {isCurrentWeek && gridActs.length === 0 ? (
                       // Monday (or any day before the first activity lands) —
                       // a lone "Add Activity" card on an otherwise-empty grid
                       // read as broken. Show a real comparison to last week
@@ -1492,83 +1930,47 @@ export default function MyActivitiesScreen() {
                             <Text style={styles.nwQuote}>{`\u201C${weekQuote.text}\u201D`}</Text>
                           </>
                         )}
-                        {recentLabel ? (
-                          <>
-                            <Text style={styles.nwLabel}>{recentLabel}</Text>
-                            <View style={styles.nwList}>
-                              {recentActs.map((a) => {
-                                const dist = formatDistance(a.distance_meters, a.activity_type);
+                        {filterCount(activityFilters) > 0 ? (
+                          // Filtered: say so, rather than the new-week pointer
+                          // to last week, which read as part of the filter
+                          // (Ricky, 2026-10-24).
+                          <Text style={styles.jWeekEmptySub}>No activities match the filter.</Text>
+                        ) : lastWeekActs.length > 0 ? (
+                          // A pointer to last week, not a copy of it (Ricky,
+                          // 2026-10-20, Slim): its photos and its dates; a tap
+                          // goes on to last week's page below.
+                          <TouchableOpacity
+                            style={styles.lwCard}
+                            activeOpacity={0.85}
+                            onPress={() => weekPagerRef.current?.scrollTo({ y: weekTops.current[lastWeekStart] ?? pagerHeight, animated: true })}
+                            accessibilityRole="button"
+                            accessibilityLabel="Go to last week"
+                          >
+                            {Platform.OS === 'web' ? <View style={[styles.lwGlow, { pointerEvents: 'none' }]} /> : null}
+                            <View style={styles.lwPhotos}>
+                              {[0, 1, 2].map((k) => {
+                                const withPhoto = lastWeekActs.filter((a) => a.photo_url);
+                                const p = withPhoto[k];
                                 return (
-                                  <TouchableOpacity key={a.id} style={styles.nwRow} activeOpacity={0.8} onPress={() => openDiary(recentActs, a.id)}>
-                                    <View style={styles.nwTile}>
-                                      <RivalIcon name={activityIconName(a.activity_type)} size={18} color="#1a1411" />
-                                    </View>
-                                    <View style={styles.nwText}>
-                                      <Text style={styles.nwName} numberOfLines={1}>{a.name || a.activity_type}</Text>
-                                      <Text style={styles.nwMeta} numberOfLines={1}>
-                                        {new Date(a.started_at).toLocaleDateString(undefined, { weekday: 'short' })}{dist ? ` · ${dist}` : ''}
-                                      </Text>
-                                    </View>
-                                    <Text style={styles.nwEffort}>{Math.round(a.effort_score || 0)}</Text>
-                                  </TouchableOpacity>
+                                  <View key={k} style={[styles.lwPhoto, k > 0 && styles.lwPhotoOverlap, !p && styles.lwSky]}>
+                                    {p ? <Image source={{ uri: cardPhoto(p.photo_url!) }} style={styles.lwPhotoImg} /> : null}
+                                  </View>
                                 );
                               })}
                             </View>
-                          </>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text style={styles.lwKicker}>Last week</Text>
+                              <Text style={styles.lwDates}>{formatWeekRangeCompact(lastWeekStart)}</Text>
+                            </View>
+                            <RivalIcon name="chevronDown" size={18} color="rgba(255,255,255,0.45)" />
+                          </TouchableOpacity>
                         ) : (
                           <Text style={styles.jWeekEmptySub}>Every activity you add or sync appears here, week by week.</Text>
                         )}
                       </View>
                     ) : (
                     <View style={styles.jGrid}>
-                      {group.activities.map((activity, ci) => {
-                        const pbLabel = pbs[activity.id];
-                        const badgeKind: 'pb' | 'race' | null = pbLabel ? 'pb' : activity.race_id ? 'race' : null;
-                        const ringColor = badgeKind === 'pb' ? RivalColors.rankAnchors.unrivaled : badgeKind === 'race' ? '#ff5c5c' : 'transparent';
-                        const cardDistance = formatDistance(activity.distance_meters, activity.activity_type);
-                        const cardStat = cardDistance || (activity.duration_seconds > 0 ? formatDurationClock(activity.duration_seconds) : '');
-                        return (
-                          <TouchableOpacity
-                            key={activity.id}
-                            style={[styles.jGridCard, cardIn(ci)]}
-                            activeOpacity={0.85}
-                            onPress={() => openDiary(flatOrdered, activity.id)}
-                          >
-                            {activity.photo_url ? (
-                              <CoverImage
-                                uri={activity.photo_url}
-                                focalX={activity.photo_focal_x}
-                                focalY={activity.photo_focal_y}
-                                style={styles.jCardPhoto}
-                              />
-                            ) : (
-                              <View style={styles.jCardArt}>
-                                <RivalIcon name={activityIconName(activity.activity_type)} size={48} color={RivalColors.accentText} />
-                              </View>
-                            )}
-                            <View style={styles.jCardScrim} pointerEvents="none" />
-                            <View style={styles.jCardDayBadge} pointerEvents="none">
-                              <Text style={styles.jCardDayText}>{dayOfWeekLabel(activity.started_at)}</Text>
-                            </View>
-                            {activity.pinned && (
-                              <View style={styles.jCardPin}>
-                                <RivalIcon name="star" size={16} color={RivalColors.accentText} />
-                              </View>
-                            )}
-                            <View style={styles.jCardBody}>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.jCardName} numberOfLines={1}>{cardDisplayName(activity.name, activity.activity_type)}</Text>
-                                {!!cardStat && <Text style={styles.jCardStat}>{cardStat}</Text>}
-                              </View>
-                              <View style={styles.jCardEffort}>
-                                <Text style={styles.jCardEffortNum}>{activity.effort_score}</Text>
-                                <Text style={styles.jCardEffortLabel}>Effort</Text>
-                              </View>
-                            </View>
-                            {badgeKind && <View pointerEvents="none" style={[styles.jCardRing, { borderColor: ringColor }]} />}
-                          </TouchableOpacity>
-                        );
-                      })}
+                      {prOnly ? renderPbGroups() : gridActs.map((activity, ci) => renderJournalCard(activity, ci))}
                       {false && isCurrentWeek && (
                         // Replaced by the Add activity pill in the week card; kept.
                         // Wrapped in a full grid-column slot (matches jGridCard's
@@ -1588,13 +1990,8 @@ export default function MyActivitiesScreen() {
                       )}
                     </View>
                     )}
-                    {/* Swipe hint — new affordance teaching the swipe-up-for-next-week
-                        gesture, which didn't exist before this layout. */}
-                    <View style={styles.jSwipeHint}>
-                      <RivalIcon name="chevronDown" size={18} color={RivalColors.textSecondary} />
-                    </View>
                   </View>
-                </ScrollView>
+                </View>
               );
             })}
           </ScrollView>
@@ -1615,151 +2012,67 @@ export default function MyActivitiesScreen() {
             contentContainerStyle={styles.jContent}
             showsVerticalScrollIndicator={false}
             {...pullProps}
+            ref={(n: any) => { monthScrollRef.current = n; (pullProps as any).ref?.(n); }}
           >
             {pullIndicator}
             {journalTitle}
-            <View style={[styles.recapCard, !heroExpanded && styles.recapCardCollapsed]}>
-              <TouchableOpacity style={styles.recapTitleRow} activeOpacity={0.7} onPress={() => setHeroExpanded((v) => !v)}>
-                <View>
-                  <Text style={styles.recapTitle}>{activeRecapTitleText}</Text>
-                </View>
-                <View style={styles.recapEffortInline}>
-                  <View style={styles.recapEffortNumCol}>
-                    <Text style={styles.recapEffortNum}>{activeMg.total}</Text>
-                    <Text style={styles.recapEffortLabel}>Effort</Text>
-                  </View>
-                  <RivalIcon name="chevronDown" size={16} color={RivalColors.textSecondary} style={heroExpanded ? styles.recapChevronOpen : undefined} />
-                </View>
-              </TouchableOpacity>
+            {mobileNav ? (() => {
+              // Phones (Ricky, 2026-10-20, A): the month card in This week's
+              // form: dates, title, Effort, a column per week, then the three
+              // tiles. No comparisons with other months.
+              const first = new Date(activeMg.year, activeMg.month, 1);
+              const last = new Date(activeMg.year, activeMg.month, activeMg.daysInMonth);
+              const monthActs = allActivities.filter((a) => { const d = new Date(a.started_at); return d.getFullYear() === activeMg.year && d.getMonth() === activeMg.month; });
+              const weeks: { label: string; effort: number; current: boolean; best: boolean; event: boolean }[] = [];
+              // Step by calendar weeks, not 7×24 hours: across a clock change
+              // the hour-based step would miss the Monday and lose that week.
+              for (const d = new Date(getMondayStart(first)); d.getTime() <= last.getTime(); d.setDate(d.getDate() + 7)) {
+                const ws = d.getTime();
+                // The days of the month this week covers: "5–11", "26–31".
+                const start = new Date(Math.max(ws, first.getTime()));
+                // By the calendar, not by adding hours, so a clock change can't shift it.
+                const sunday = new Date(ws); sunday.setDate(sunday.getDate() + 6);
+                const end = sunday.getTime() > last.getTime() ? last : sunday;
+                const weekActs = monthActs.filter((a) => getMondayStart(new Date(a.started_at)) === ws);
+                weeks.push({
+                  label: start.getDate() === end.getDate() ? String(start.getDate()) : `${start.getDate()}–${end.getDate()}`,
+                  effort: weekActs.reduce((t, a) => t + (a.effort_score || 0), 0),
+                  best: weekBests(weekActs).titles.length > 0,
+                  event: !!weekEvent(weekActs),
+                  current: ws === getMondayStart(new Date()),
+                });
+              }
+              const kicker = `${first.toLocaleDateString(undefined, { month: 'short' })} 1 – ${activeMg.daysInMonth}`;
+              // Older months by name ("August", "March 2025"), not "Month Total".
+              const title = activeRecapTitleText === 'This Month' ? 'This month' : activeRecapTitleText === 'Last Month' ? 'Last month'
+                : first.toLocaleDateString(undefined, activeMg.year === new Date().getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' });
+              return (
+                <WeekCard kicker={kicker} title={title} effort={<Text style={weekEffortStyle}>{Math.round(activeMg.total).toLocaleString()}</Text>} expanded onToggle={() => {}} fixed>
+                  <Text style={styles.monthByWeek}>By week</Text>
+                  <MonthWeekColumns weeks={weeks} />
+                  <WeekNumbers count={activeMg.count} seconds={activeMg.seconds} km={activeMg.km} />
+                </WeekCard>
+              );
+            })() : (
+            <WeekCard
+              title={activeRecapTitleText}
+              sub={activeMg.count === 1 ? '1 activity' : `${activeMg.count} activities`}
+              effort={<Text style={weekEffortStyle}>{activeMg.total}</Text>}
+              expanded={heroExpanded}
+              onToggle={() => setHeroExpanded((v) => !v)}
+            >
               {heroExpanded && (
-              <>
-              <View style={styles.recapStatgrid}>
-                <View style={styles.recapStatcell}>
-                  <RivalIcon name="pulse" size={27} color={RivalColors.accentFill} />
-                  <Text style={[styles.recapStatValue, { marginTop: -6 }]}>{activeMg.count}</Text>
-                  <Text style={styles.recapStatTitle}>{activeMg.count === 1 ? 'Activity' : 'Activities'}</Text>
-                </View>
-                <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
-                  <RivalIcon name="timerOutline" size={20} color={RivalColors.accentFill} />
-                  <Text style={styles.recapStatValue}>{formatDuration(activeMg.seconds) || '0m'}</Text>
-                  <Text style={styles.recapStatTitle}>Time</Text>
-                </View>
-                <View style={[styles.recapStatcell, styles.recapStatcellDivider]}>
-                  <RivalIcon name="distance" size={20} color={RivalColors.accentFill} />
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                    <Text style={styles.recapStatValue}>{activeMg.km >= 0.1 ? toDisplayDistance(activeMg.km).toFixed(1) : '0'}</Text>
-                    <Text style={styles.recapStatUnit}>{distanceUnit()}</Text>
-                  </View>
-                  <Text style={styles.recapStatTitle}>Distance</Text>
-                </View>
-              </View>
-
-              {activeMonthContextLine && (
-                <Text style={styles.recapQuote}>
-                  {activeMonthContextLine.highlight}{activeMonthContextLine.rest}
-                </Text>
+                <>
+                  <WeekNumbers count={activeMg.count} seconds={activeMg.seconds} km={activeMg.km} />
+                  <WeekNote highlight={activeMonthContextLine?.highlight} rest={activeMonthContextLine?.rest} delta={null} />
+                  {activeMonthEffortDelta !== null ? (
+                    <Text style={styles.monthDelta}>{`${Math.abs(activeMonthEffortDelta)}% vs last month`}</Text>
+                  ) : null}
+                </>
               )}
-
-              {activeMonthEffortDelta !== null && (
-                <View style={styles.momentumRow}>
-                  <View style={styles.momentumChip}>
-                    <RivalIcon name={activeMonthEffortDelta >= 0 ? 'trendUp' : 'trendDown'} size={13} color={activeMonthEffortDelta >= 0 ? RivalColors.success : '#ff5c5c'} />
-                    <Text style={styles.momentumChipText}>{Math.abs(activeMonthEffortDelta)}% vs last month</Text>
-                  </View>
-                </View>
-              )}
-
-              <View style={styles.recapCornerBtnRow}>
-                <TouchableOpacity
-                  style={[styles.recapFilterBtn, prOnly && styles.toolbarBtnActive]}
-                  onPress={() => setPrOnly(!prOnly)}
-                >
-                  <RivalIcon name="trophy" size={14} color={prOnly ? RivalColors.accentText : RivalColors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.recapFilterBtn, showTypeFilter && styles.toolbarBtnActive]}
-                  onPress={() => setShowTypeFilter(!showTypeFilter)}
-                >
-                  <RivalIcon name="search" size={14} color={showTypeFilter ? RivalColors.accentText : RivalColors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-              </>
-              )}
-            </View>
-            {renderJournalToggle(true)}
-
-            {(filterType !== 'All' || prOnly || dateFilter || showTypeFilter) && (
-            <View style={[styles.filterBar, styles.filterBarTightWide]}>
-              {(filterType !== 'All' || prOnly || dateFilter) && !showTypeFilter && (
-                <View style={styles.activeFiltersRow}>
-                  {filterType !== 'All' && (
-                    <TouchableOpacity style={styles.activeFilterChip} onPress={() => setFilterType('All')}>
-                      <RivalIcon name={activityIconName(filterType)} size={12} color={RivalColors.accentText} />
-                      <Text style={styles.activeFilterChipText}>{filterType}</Text>
-                      <RivalIcon name="close" size={12} color={RivalColors.textSecondary} />
-                    </TouchableOpacity>
-                  )}
-                  {prOnly && (
-                    <TouchableOpacity style={styles.activeFilterChip} onPress={() => setPrOnly(false)}>
-                      <RivalIcon name="fire" size={12} color={RivalColors.accentText} />
-                      <Text style={styles.activeFilterChipText}>PBs only</Text>
-                      <RivalIcon name="close" size={12} color={RivalColors.textSecondary} />
-                    </TouchableOpacity>
-                  )}
-                  {dateFilter && (
-                    <TouchableOpacity style={styles.activeFilterChip} onPress={() => setDateFilter(null)}>
-                      <RivalIcon name="calendar" size={12} color={RivalColors.accentText} />
-                      <Text style={styles.activeFilterChipText}>{isoToDisplayDate(dateFilter)}</Text>
-                      <RivalIcon name="close" size={12} color={RivalColors.textSecondary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-              {showTypeFilter && (
-                <View style={{ gap: 10 }}>
-                  <View>
-                    <Text style={styles.typeFilterLabel}>Type</Text>
-                    <View style={styles.typeFilterRow}>
-                      <TouchableOpacity style={[styles.typeFilterChip, filterType === 'All' && styles.typeFilterChipActive]} onPress={() => { setFilterType('All'); setShowTypeFilter(false); }}>
-                        <Text style={[styles.typeFilterChipText, filterType === 'All' && styles.typeFilterChipTextActive]}>All</Text>
-                      </TouchableOpacity>
-                      {activityTypes.map((t) => (
-                        <TouchableOpacity key={t} style={[styles.typeFilterChip, filterType === t && styles.typeFilterChipActive]} onPress={() => { setFilterType(t); setShowTypeFilter(false); }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                            <RivalIcon name={activityIconName(t)} size={13} color={filterType === t ? RivalColors.accentText : RivalColors.textSecondary} />
-                            <Text style={[styles.typeFilterChipText, filterType === t && styles.typeFilterChipTextActive]}>{t}</Text>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                  <View>
-                    <Text style={styles.typeFilterLabel}>Date</Text>
-                    <View style={styles.typeFilterRow}>
-                      <TouchableOpacity
-                        style={[styles.typeFilterChip, !!dateFilter && styles.typeFilterChipActive]}
-                        onPress={() => {
-                          if (Platform.OS !== 'web') return;
-                          const input = window.prompt('Search by date (DD/MM/YYYY)', dateFilter ? isoToDisplayDate(dateFilter) : '');
-                          if (input === null) return;
-                          if (input.trim() === '') { setDateFilter(null); setShowTypeFilter(false); return; }
-                          const iso = displayToIsoDate(input);
-                          if (!iso) { window.alert('Enter a valid date as DD/MM/YYYY.'); return; }
-                          setDateFilter(iso);
-                          setShowTypeFilter(false);
-                        }}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                          <RivalIcon name="calendar" size={13} color={dateFilter ? RivalColors.accentText : RivalColors.textSecondary} />
-                          <Text style={[styles.typeFilterChipText, !!dateFilter && styles.typeFilterChipTextActive]}>{dateFilter ? isoToDisplayDate(dateFilter) : 'Search by date'}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              )}
-            </View>
+            </WeekCard>
             )}
+            {renderJournalToggle(true)}
 
             <View>
             <ScrollView
@@ -1768,18 +2081,30 @@ export default function MyActivitiesScreen() {
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onLayout={(e) => setMonthPagerWidth(Math.round(e.nativeEvent.layout.width))}
-              onMomentumScrollEnd={(e) => {
+              // The page is tracked as it scrolls, not when the swipe settles:
+              // react-native-web never fires onMomentumScrollEnd (there is no
+              // such browser event), so a swipe never told the app which month
+              // was showing. Months two away from the stale one were never drawn
+              // (a black page) and Month Total stayed on the old month.
+              scrollEventThrottle={50}
+              onScroll={(e) => {
                 if (monthStride <= 0) return;
-                const idx = Math.round(e.nativeEvent.contentOffset.x / monthStride);
-                setVisibleMonthIndex(Math.max(0, Math.min(monthGroups.length - 1, idx)));
+                const idx = Math.max(0, Math.min(monthGroups.length - 1, Math.round(e.nativeEvent.contentOffset.x / monthStride)));
+                if (monthArrowTarget.current !== null) {
+                  if (idx === monthArrowTarget.current) monthArrowTarget.current = null;
+                  return;
+                }
+                setVisibleMonthIndex((cur) => (cur === idx ? cur : idx));
               }}
             >
               {monthGroups.map((mg, mi) => {
-                // Only the months beside the one showing are drawn in full.
-                if (Math.abs(mi - visibleMonthIndex) > 1) {
+                // Only the months near the one showing are drawn in full; two
+                // either side, so a quick double swipe lands on a drawn month.
+                if (Math.abs(mi - visibleMonthIndex) > 2) {
                   return <View key={`${mg.year}-${mg.month}`} style={monthPageWidth ? { width: monthPageWidth } : styles.jMonthPageFallback} />;
                 }
-                const leadingBlanks = mg.startWeekday;
+                // Phones start the week on Monday, as everywhere else in the app.
+                const leadingBlanks = mobileNav ? (mg.startWeekday + 6) % 7 : mg.startWeekday;
                 const dayCells: Array<{ day: number } | null> = [
                   ...Array.from({ length: leadingBlanks }, () => null),
                   ...Array.from({ length: mg.daysInMonth }, (_, i) => ({ day: i + 1 })),
@@ -1787,25 +2112,28 @@ export default function MyActivitiesScreen() {
                 const filteredByDay = filteredMonthByKey.get(`${mg.year}-${mg.month}`)?.byDay;
                 return (
                   <View key={`${mg.year}-${mg.month}`} style={monthPageWidth ? { width: monthPageWidth } : styles.jMonthPageFallback}>
-                    <View style={styles.jMonthCard}>
+                    <View style={[styles.jMonthCard, mobileNav && styles.jMonthCardPhone]}>
                       <View style={styles.jMonthHeader}>
-                        <Text style={styles.jMonthTitle}>{mg.label}</Text>
+                        {/* Phones: the year only when it isn't this one. */}
+                        <Text style={[styles.jMonthTitle, mobileNav && styles.jMonthTitlePhone]}>{mobileNav && mg.year === new Date().getFullYear() ? mg.label.replace(/\s*\d{4}$/, '') : mg.label}</Text>
                         {/* Fades to transparent at both tips instead of a hard-cut
                             border, so the line reads as tapering to a point
                             rather than just stopping. */}
-                        <View style={styles.jMonthTitleUnderline} />
+                        {mobileNav ? null : <View style={styles.jMonthTitleUnderline} />}
                       </View>
                       <View style={styles.jDowRow}>
-                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                        {(mobileNav ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S']).map((d, i) => (
                           <Text key={i} style={styles.jDow}>{d}</Text>
                         ))}
                       </View>
                       <View style={styles.jCalGrid} onLayout={(e) => setCalGridWidth(e.nativeEvent.layout.width)}>
                         {dayCells.map((cell, idx) => {
                           const sizeOverride = calCellSize > 0 ? { width: calCellSize } : null;
-                          if (!cell) return <View key={`blank-${idx}`} style={[styles.jCalCellEmpty, sizeOverride]} />;
+                          if (!cell) return <View key={`blank-${idx}`} style={[styles.jCalCellEmpty, mobileNav && styles.jCalCellPhone, sizeOverride]} />;
                           const dayActs = filteredByDay?.get(cell.day) || [];
                           const isFuture = new Date(mg.year, mg.month, cell.day) > new Date();
+                          const nowD = new Date();
+                          const isToday = mobileNav && mg.year === nowD.getFullYear() && mg.month === nowD.getMonth() && cell.day === nowD.getDate();
                           if (dayActs.length === 0) {
                             // Today-or-earlier empty days are a quick "log this day"
                             // shortcut into manual entry, prefilled with the tapped
@@ -1815,17 +2143,17 @@ export default function MyActivitiesScreen() {
                               return (
                                 <TouchableOpacity
                                   key={cell.day}
-                                  style={[styles.jCalCellRest, sizeOverride]}
+                                  style={[styles.jCalCellRest, mobileNav && styles.jCalCellPhone, mobileNav && styles.jCalCellQuiet, sizeOverride]}
                                   activeOpacity={0.7}
                                   onPress={() => router.push(`/manual-entry?date=${isoDate}`)}
                                 >
                                   <View style={styles.jCalIconSlot} />
-                                  <Text style={styles.jCalDaynum}>{cell.day}</Text>
+                                  <Text style={[styles.jCalDaynum, isToday && styles.jCalDaynumToday]}>{cell.day}</Text>
                                 </TouchableOpacity>
                               );
                             }
                             return (
-                              <View key={cell.day} style={[styles.jCalCellFuture, sizeOverride]}>
+                              <View key={cell.day} style={[styles.jCalCellFuture, mobileNav && styles.jCalCellPhone, mobileNav && styles.jCalCellQuiet, sizeOverride]}>
                                 <View style={styles.jCalIconSlot} />
                                 <Text style={styles.jCalDaynumFuture}>{cell.day}</Text>
                               </View>
@@ -1838,10 +2166,17 @@ export default function MyActivitiesScreen() {
                           return (
                             <TouchableOpacity
                               key={cell.day}
-                              style={[styles.jCalCellActive, badgeStyle, sizeOverride]}
+                              style={[styles.jCalCellActive, mobileNav && styles.jCalCellPhone, mobileNav && styles.jCalCellActivePhone, badgeStyle, mobileNav && badgeStyle && styles.jCalCellBadgePhone, sizeOverride]}
                               activeOpacity={0.85}
                               onPress={() => openDiary(flatOrdered, dayActs[0].id)}
                             >
+                              {/* Phones: no photo means the day's own sky, as on the
+                                  day tiles (Ricky, 2026-10-20: never salmon). */}
+                              {mobileNav && !withPhoto?.photo_url ? (
+                                <View style={[styles.jCalCellPhoto, { pointerEvents: 'none' }]}>
+                                  <SkyBackdrop startedAt={dayActs[0].started_at} utcOffsetSeconds={dayActs[0].utc_offset_seconds} />
+                                </View>
+                              ) : null}
                               {withPhoto?.photo_url && (
                                 <CoverImage
                                   uri={withPhoto.photo_url}
@@ -1857,10 +2192,10 @@ export default function MyActivitiesScreen() {
                                   depending on what else was in the cell. */}
                               <View style={styles.jCalIconSlot}>
                                 {!withPhoto?.photo_url && (
-                                  <RivalIcon name={activityIconName(dayActs[0].activity_type)} size={22} color={RivalColors.accentText} style={{ opacity: 0.55 }} />
+                                  <RivalIcon name={activityIconName(dayActs[0].activity_type)} size={mobileNav ? 20 : 22} color={mobileNav ? 'rgba(255,255,255,0.75)' : RivalColors.accentText} style={mobileNav ? undefined : { opacity: 0.55 }} />
                                 )}
                               </View>
-                              <Text style={withPhoto ? styles.jCalDaynumPhoto : styles.jCalDaynumActive}>{cell.day}</Text>
+                              <Text style={[withPhoto || mobileNav ? styles.jCalDaynumPhoto : styles.jCalDaynumActive, isToday && styles.jCalDaynumToday]}>{cell.day}</Text>
                             </TouchableOpacity>
                           );
                         })}
@@ -1871,7 +2206,7 @@ export default function MyActivitiesScreen() {
                           <Text style={styles.jCalLegendText}>Personal Best</Text>
                         </View>
                         <View style={styles.jCalLegendItem}>
-                          <View style={[styles.jCalLegendSwatch, styles.jCalLegendSwatchRace]} />
+                          <View style={[styles.jCalLegendSwatch, styles.jCalLegendSwatchRace, mobileNav && { backgroundColor: RivalColors.event }]} />
                           <Text style={styles.jCalLegendText}>Event</Text>
                         </View>
                       </View>
@@ -1881,28 +2216,24 @@ export default function MyActivitiesScreen() {
               })}
             </ScrollView>
             <TouchableOpacity
-              style={[styles.jMonthChevron, styles.jMonthChevronLeft]}
+              style={[styles.jMonthChevron, styles.jMonthChevronLeft, mobileNav && styles.jMonthChevronPhone]}
               activeOpacity={0.7}
               disabled={visibleMonthIndex <= 0}
               onPress={() => {
-                const idx = Math.max(0, visibleMonthIndex - 1);
-                setVisibleMonthIndex(idx);
-                monthPagerRef.current?.scrollTo({ x: idx * monthStride, animated: true });
+                goToMonth(Math.max(0, visibleMonthIndex - 1));
               }}
             >
-              <RivalIcon name="monthBack" size={18} color={visibleMonthIndex <= 0 ? RivalColors.textSecondary : RivalColors.accentText} />
+              <RivalIcon name="monthBack" size={18} color={visibleMonthIndex <= 0 ? (mobileNav ? 'rgba(255,255,255,0.25)' : RivalColors.textSecondary) : mobileNav ? 'rgba(255,255,255,0.7)' : RivalColors.accentText} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.jMonthChevron, styles.jMonthChevronRight]}
+              style={[styles.jMonthChevron, styles.jMonthChevronRight, mobileNav && styles.jMonthChevronPhone]}
               activeOpacity={0.7}
               disabled={visibleMonthIndex >= monthGroups.length - 1}
               onPress={() => {
-                const idx = Math.min(monthGroups.length - 1, visibleMonthIndex + 1);
-                setVisibleMonthIndex(idx);
-                monthPagerRef.current?.scrollTo({ x: idx * monthStride, animated: true });
+                goToMonth(Math.min(monthGroups.length - 1, visibleMonthIndex + 1));
               }}
             >
-              <RivalIcon name="monthForward" size={18} color={visibleMonthIndex >= monthGroups.length - 1 ? RivalColors.textSecondary : RivalColors.accentText} />
+              <RivalIcon name="monthForward" size={18} color={visibleMonthIndex >= monthGroups.length - 1 ? (mobileNav ? 'rgba(255,255,255,0.25)' : RivalColors.textSecondary) : mobileNav ? 'rgba(255,255,255,0.7)' : RivalColors.accentText} />
             </TouchableOpacity>
             </View>
           </ScrollView>
@@ -1910,11 +2241,13 @@ export default function MyActivitiesScreen() {
 
           {journalLayout === 'year' && (
           // The year at a glance, from the activities already loaded here.
-          <ScrollView contentContainerStyle={styles.jWeekPage} {...pullProps}>
+          // Extra room at the end, like the other journal views, so the last
+          // button clears the floating bottom nav.
+          <ScrollView contentContainerStyle={[styles.jWeekPage, styles.jYearPage]} {...pullProps} ref={(n: any) => { yearScrollRef.current = n; (pullProps as any).ref?.(n); }}>
             {pullIndicator}
             {journalTitle}
             {renderJournalToggle(false)}
-            <JournalYearView activities={allActivities as any} />
+            <JournalYearView activities={allActivities as any} onOpenActivity={(id) => openDiary(allActivities, id)} />
           </ScrollView>
           )}
           </>
@@ -2043,7 +2376,7 @@ export default function MyActivitiesScreen() {
                   <RivalIcon name={btn.icon} size={16} color={btn.active ? RivalColors.accentText : RivalColors.textSecondary} />
                 </TouchableOpacity>
                 {hoveredToolbarBtn === btn.key && (
-                  <View style={styles.toolbarTooltip} pointerEvents="none">
+                  <View style={[styles.toolbarTooltip, { pointerEvents: 'none' }]}>
                     <Text style={styles.toolbarTooltipText}>{btn.label}</Text>
                   </View>
                 )}
@@ -2172,7 +2505,7 @@ export default function MyActivitiesScreen() {
                           <Text style={styles.multiplierBadgeText}>×{multiplier}</Text>
                         </View>
                         {hoveredMultiplierId === activity.id && (
-                          <View style={styles.multiplierTooltip} pointerEvents="none">
+                          <View style={[styles.multiplierTooltip, { pointerEvents: 'none' }]}>
                             <Text style={styles.multiplierTooltipText}>Effort multiplier</Text>
                           </View>
                         )}
@@ -2283,7 +2616,7 @@ export default function MyActivitiesScreen() {
                             ) : (
                               <TouchableOpacity key={m.id} onPress={() => setEnlargedPhoto(m.media_url)}>
                                 <Image
-                                  source={{ uri: m.media_url }}
+                                  source={{ uri: cardPhoto(m.media_url) }}
                                   style={[
                                     styles.galleryPhotoInline,
                                     statColHeights[activity.id]
@@ -2336,9 +2669,6 @@ export default function MyActivitiesScreen() {
                         <TouchableOpacity style={styles.cameraBtn} onPress={() => router.push(`/scan-workout?activityId=${activity.id}`)}>
                           <RivalIcon name="settings" size={18} color={RivalColors.textSecondary} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.cameraBtn} onPress={() => router.push(`/ai-share?activityId=${activity.id}`)}>
-                          <RivalIcon name="ai" size={18} color={RivalColors.textSecondary} />
-                        </TouchableOpacity>
                       </View>
                     </View>
 
@@ -2361,7 +2691,7 @@ export default function MyActivitiesScreen() {
                           ) : (
                             <TouchableOpacity key={m.id} onPress={() => setEnlargedPhoto(m.media_url)}>
                               <Image
-                                source={{ uri: m.media_url }}
+                                source={{ uri: cardPhoto(m.media_url) }}
                                 style={styles.galleryPhoto}
                                 resizeMode="cover"
                               />
@@ -2391,7 +2721,7 @@ export default function MyActivitiesScreen() {
             anywhere (or ✕) to dismiss. */}
         {enlargedPhoto && (
           <TouchableOpacity style={styles.lightbox} activeOpacity={1} onPress={() => setEnlargedPhoto(null)}>
-            <Image source={{ uri: enlargedPhoto }} style={styles.lightboxImage} resizeMode="contain" />
+            <Image source={{ uri: fullPhoto(enlargedPhoto) }} style={styles.lightboxImage} resizeMode="contain" />
             <TouchableOpacity style={styles.lightboxClose} onPress={() => setEnlargedPhoto(null)}>
               <RivalIcon name="close" size={22} color={RivalColors.textPrimary} />
             </TouchableOpacity>
@@ -2403,16 +2733,24 @@ export default function MyActivitiesScreen() {
           <ActivityDiaryViewer
             activities={diaryList}
             startIndex={diaryIndex}
-            onClose={() => setDiaryList(null)}
+            onClose={() => { setDiaryList(null); setShareFromTeams(null); }}
+            closeSignal={tabReselects}
+            openShareFor={shareFromTeams}
+            onShareDone={() => { setShareFromTeams(null); setDiaryList(null); goToTab('/team-feed'); }}
             onUpdate={(id, patch) => {
               updateActivityLocal(id, patch as Partial<Activity>);
               setDiaryList((prev) => prev ? prev.map((a) => a.id === id ? { ...a, ...patch } : a) : prev);
             }}
             onUploadPhoto={uploadPhoto}
             onArrangeMedia={arrangeMedia}
+            onPositionPhoto={(id, url) => {
+              if (pickerPositions) { arrangeMedia(id, url); return; }
+              const a = allActivities.find((x) => x.id === id);
+              if (a?.photo_url) setPositioningPhoto({ activityId: id, url: a.photo_url, previousUrl: a.photo_url, previousFocalX: a.photo_focal_x ?? null, previousFocalY: a.photo_focal_y ?? null });
+            }}
             mediaById={Object.fromEntries(Object.entries(mediaMap).map(([id, rows]) => [
               id,
-              rows.map((m) => ({ url: m.media_url, type: m.media_type })),
+              rows.map((m) => ({ url: m.media_url, type: m.media_type, focalX: m.focal_x, focalY: m.focal_y })),
             ]))}
           />
         )}
@@ -2420,22 +2758,80 @@ export default function MyActivitiesScreen() {
         {mediaPicker && (
           <MediaPicker
             initial={mediaPicker.items}
+            initialFocus={mediaPicker.focus}
             initialNotice={mediaPicker.notice}
             title="Photos and videos"
-            doneLabel="Save"
+            // Adding new photos says what happens; reordering what's already
+            // posted is just a save (Ricky, 2026-10-11).
+            doneLabel={mediaPicker.arrangeOnly ? 'Save' : 'Add to activity'}
             onCancel={() => setMediaPicker(null)}
             onDone={(items) => {
               const { activityId } = mediaPicker;
               setMediaPicker(null);
+              // A new photo becoming the cover is cropped first, from the
+              // file still on the phone; nothing uploads until it's confirmed.
+              const firstPhoto = items.find((i) => i.type === 'photo');
+              if (!pickerPositions && firstPhoto && !firstPhoto.existingId) {
+                setPendingCrop({ activityId, items, url: firstPhoto.uri });
+                return;
+              }
               uploadMedia(activityId, items);
             }}
           />
         )}
 
-        {/* Crop positioner — shown right after a cover photo upload finishes. */}
+        {/* While new photos upload: hold the screen with what's happening, so
+            nothing seems stuck and nothing else gets started meanwhile. */}
+        {uploadProgress && (
+          <Modal visible transparent animationType="fade">
+            <View style={styles.uploadHold}>
+              <View style={styles.uploadCard}>
+                <ActivityIndicator color={RivalColors.accentText} />
+                <Text style={styles.uploadTitle}>Adding to activity</Text>
+                <Text style={styles.uploadSub}>
+                  {uploadProgress.done < uploadProgress.total
+                    ? `${uploadProgress.done} of ${uploadProgress.total} uploaded`
+                    : 'Finishing up'}
+                </Text>
+                <View style={styles.uploadTrack}>
+                  <View style={[styles.uploadFill, { width: `${Math.max(6, Math.round((uploadProgress.done / uploadProgress.total) * 100))}%` }]} />
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* Crop step for a new cover, before upload. Cancel drops the whole
+            add: nothing has been uploaded yet. */}
+        {pendingCrop && (
+          <PhotoPositioner
+            key={pendingCrop.url}
+            photoUrl={pendingCrop.url}
+            choices={pendingCrop.items.filter((i) => i.type === 'photo').map((i) => i.uri)}
+            // Choosing another cover moves it to #1, the cover's place, and
+            // starts its crop fresh.
+            onChooseCover={(uri) => setPendingCrop((cur) => {
+              if (!cur) return cur;
+              const chosen = cur.items.find((i) => i.uri === uri);
+              if (!chosen) return cur;
+              return { ...cur, url: uri, items: [chosen, ...cur.items.filter((i) => i !== chosen)] };
+            })}
+            onCancel={() => setPendingCrop(null)}
+            onConfirm={(x, y) => {
+              const { activityId, items } = pendingCrop;
+              setPendingCrop(null);
+              uploadMedia(activityId, items, { x, y });
+            }}
+          />
+        )}
+
+        {/* Crop positioner — shown after a cover changes to a photo that was
+            already uploaded (e.g. reordering). */}
         {positioningPhoto && (
           <PhotoPositioner
             photoUrl={positioningPhoto.url}
+            initialX={positioningPhoto.previousFocalX ?? 0.5}
+            initialY={positioningPhoto.previousFocalY ?? 0.5}
             onCancel={async () => {
               const { activityId, previousUrl, previousFocalX, previousFocalY } = positioningPhoto;
               setPositioningPhoto(null);
@@ -2533,6 +2929,10 @@ const styles = StyleSheet.create({
   weekDotOn: {
     backgroundColor: RivalColors.accentFill,
     ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } : {}),
+  } as any,
+  weekDotPb: {
+    backgroundColor: '#f5b759',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffe6b0, #f5b759)' } : {}),
   } as any,
   weekDotToday: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.6)' },
   weekDotLabel: { fontSize: 9.5, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
@@ -2730,7 +3130,7 @@ const styles = StyleSheet.create({
   // `absolute` here was relative to a container whose height grows with
   // scrollable content, so the button drifted upward as the page scrolled
   // instead of staying put. Same fix as RivalTopNav's bottom tab bar.
-  fab: { position: 'fixed' as any, bottom: 28, right: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 20, borderRadius: RivalRadius.full, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6, zIndex: 150 },
+  fab: { position: 'fixed' as any, bottom: 28, right: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 20, borderRadius: RivalRadius.full, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, boxShadow: '0px 4px 12px rgba(0,0,0,0.4)', elevation: 6, zIndex: 150 },
   fabText: { fontSize: 15, fontWeight: '700', color: RivalButtonColors.label(RivalColors.onAccentFill) },
 
   // ===== Mobile Activity Journal (ported from the Claude mockup) =====
@@ -2740,14 +3140,23 @@ const styles = StyleSheet.create({
   // nav), which is what makes `pagerHeight` from its onLayout meaningful and
   // lets each week page's explicit pixel height actually take effect.
   jPager: { flex: 1 },
+  // Room under the last week for the bottom nav.
+  jWeekList: { paddingBottom: 120 },
   jWeekPage: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, gap: 14 },
+  uploadHold: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 24 },
+  uploadCard: { width: '100%', maxWidth: 320, alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 22, borderRadius: 20, backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  uploadTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', marginTop: 4 },
+  uploadSub: { fontSize: 13, color: RivalColors.textSecondary },
+  uploadTrack: { alignSelf: 'stretch', height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 6 },
+  uploadFill: { height: 4, borderRadius: 2, backgroundColor: RivalColors.accentText },
+  // Room at the end of a scrolling page for the floating bottom nav.
+  jYearPage: { paddingBottom: 120 },
   jGridContent: { marginTop: 4, paddingBottom: 32, gap: 10 },
   // justifyContent centers items on a wrap-line that doesn't fill the row —
   // the flexGrow:1 photo cards still stretch to consume any leftover space
   // on their own lines, so this only visibly centers the narrower, non-growing
   // jAddCard when it lands alone on the last line.
   jGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
-  jSwipeHint: { alignItems: 'center', paddingTop: 4, opacity: 0.6 },
   jTitleBlock: { alignSelf: 'center', marginTop: 16, marginBottom: 16, paddingVertical: 8, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)' },
   jTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '500', fontSize: 17, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   jSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.32)', textAlign: 'center', marginTop: 2 },
@@ -2762,12 +3171,17 @@ const styles = StyleSheet.create({
   // (jWeekPage:14 vs jContent:18) so it hugs the card instead of floating a
   // full gap below it, same technique as filterBarTight/filterBarTightWide.
   jLayoutToggleRowTight: { marginTop: -18 },
+  // Week, Month and Year on the left, Filter on the right.
+  jLayoutToggleRowSplit: { justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  monthDelta: { marginTop: -8, fontSize: 12.5, color: 'rgba(255,255,255,0.5)' },
   jLayoutToggleRowTightWide: { marginTop: -18 },
-  jLayoutToggle: { flexDirection: 'row', backgroundColor: 'rgba(45,36,31,0.75)', borderWidth: 1, borderColor: 'rgba(255,181,158,0.14)', borderRadius: 12, padding: 3, gap: 2 },
-  jLayoutToggleItem: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 9 },
-  jLayoutToggleItemActive: { backgroundColor: 'rgba(255,181,158,0.12)' },
-  jLayoutToggleLabel: { fontSize: 10, fontWeight: '700', color: RivalColors.textSecondary },
-  jLayoutToggleLabelActive: { color: RivalColors.accentText },
+  // Matches the Filter button beside it: a clear pill, the chosen one lit
+  // in white (Ricky, 2026-10-16).
+  jLayoutToggle: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 999, padding: 3, gap: 2 },
+  jLayoutToggleItem: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: 'transparent' },
+  jLayoutToggleItemActive: { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.55)' },
+  jLayoutToggleLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
+  jLayoutToggleLabelActive: { color: '#fff' },
 
   // Rows layout — continuous vertical scroll, hero once at top, each week's
   // cards in their own horizontally-scrolling row.
@@ -2793,6 +3207,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(19,19,19,0.55)', borderWidth: 1, borderColor: '#323232',
   },
   jMonthChevronLeft: { left: 6 },
+  // Phones (Ricky, 2026-10-20, A): the calendar on the same plain card as the
+  // week cards, no underline or salmon edge; quiet empty days; grey arrows.
+  monthByWeek: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginBottom: -6 },
+  jMonthCardPhone: {
+    borderRadius: 22, borderWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderBottomColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: RivalGhost.ground, paddingBottom: 14,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'none' } as any : {}),
+  },
+  jMonthTitlePhone: { fontWeight: '700', fontSize: 23, color: '#fff' },
+  jCalCellQuiet: { backgroundColor: 'rgba(255,255,255,0.035)' },
+  jMonthChevronPhone: { top: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0 },
   jMonthChevronRight: { right: 6 },
   jMonthCard: {
     borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,181,158,0.14)',
@@ -2822,15 +3247,24 @@ const styles = StyleSheet.create({
   // to fill in, which fights the "dead" feeling rather than fixing it.
   jCalCellFuture: { width: '13%', aspectRatio: 3 / 4, borderRadius: 9, backgroundColor: '#2a2320', alignItems: 'center', justifyContent: 'center' },
   jCalCellActive: { width: '13%', aspectRatio: 3 / 4, borderRadius: 9, borderWidth: 2, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center', backgroundColor: '#3b2f27', overflow: 'hidden' },
+  // Phones: square days, a little rounder; today ringed in white.
+  jCalCellPhone: { aspectRatio: 1, borderRadius: 11 },
+  // Today: its date in salmon (Ricky, 2026-10-20, 1). Not a ring, which is
+  // kept for a best or an event, and white read as an event's ivory.
+  jCalDaynumToday: { color: RivalColors.accentText, opacity: 1, fontWeight: '900' },
+  // No frame round an active day: the photo or sky runs to the edge. Only a
+  // best, an event or today draws a ring.
+  jCalCellActivePhone: { borderWidth: 0, backgroundColor: 'transparent' },
+  jCalCellBadgePhone: { borderWidth: 1.5 },
   jCalCellPb: { borderColor: RivalColors.rankAnchors.unrivaled },
-  jCalCellRace: { borderColor: '#ff5c5c' },
+  jCalCellRace: { borderColor: RivalColors.event },
   jCalCellPhoto: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
   // Reserved space above the day number — see the comment at its call sites.
   jCalIconSlot: { height: 22, alignItems: 'center', justifyContent: 'center' },
   jCalDaynum: { fontSize: 12, fontWeight: '800', color: RivalColors.accentText, opacity: 0.35 },
   jCalDaynumFuture: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.28)' },
   jCalDaynumActive: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.85)' },
-  jCalDaynumPhoto: { fontSize: 12, fontWeight: '800', color: '#fff', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  jCalDaynumPhoto: { fontSize: 12, fontWeight: '800', color: '#fff', ...rivalTextShadow('rgba(0,0,0,0.8)', 0, 1, 4) },
   jCalLegend: { flexDirection: 'row', justifyContent: 'center', gap: 16, paddingTop: 14 },
   jCalLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   jCalLegendSwatch: { width: 11, height: 11, borderRadius: 3, backgroundColor: '#3b2f27' },
@@ -2940,6 +3374,19 @@ const styles = StyleSheet.create({
   fvStepSub: { fontSize: 11.5, color: RivalColors.textSecondary, marginTop: 1 },
   nwKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText, textTransform: 'uppercase', marginTop: 6 },
   nwQuote: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '600', fontSize: 18, lineHeight: 25, color: 'rgba(255,255,255,0.88)', textAlign: 'center', marginTop: 8, marginBottom: 18, paddingHorizontal: 12 },
+  lwCard: {
+    alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 14, overflow: 'hidden',
+    paddingVertical: 12, paddingHorizontal: 16, borderRadius: 18,
+    backgroundColor: RivalGhost.ground, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+  },
+  lwGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 80, backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.14), rgba(232,131,95,0) 70%)' } as any,
+  lwPhotos: { flexDirection: 'row' },
+  lwPhoto: { width: 44, height: 44, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: RivalGhost.ground, backgroundColor: '#2a2522' },
+  lwPhotoOverlap: { marginLeft: -12 },
+  lwSky: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #2c3846, #4d5f72)' } as any : { backgroundColor: '#3a4a5c' },
+  lwPhotoImg: { width: '100%', height: '100%' },
+  lwKicker: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: '#fff' },
+  lwDates: { fontFamily: RivalFontFamily, fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   nwLabel: { alignSelf: 'flex-start', fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary, textTransform: 'uppercase', marginBottom: 8, marginLeft: 2 },
   nwList: { alignSelf: 'stretch', gap: 8, opacity: 0.6 },
   nwRow: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 10, borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: '#2a2a2a' },
@@ -2989,5 +3436,22 @@ const styles = StyleSheet.create({
   jCardEffortNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 16, fontWeight: '700', color: '#fff', lineHeight: 18 },
   jCardEffortLabel: { fontSize: 7, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.accentText },
   jCardPin: { position: 'absolute', top: 10, right: 10, zIndex: 4 },
+  weeksOff: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
+  // Phones: midway between the week above and the card below (Ricky,
+  // 2026-10-21). 60 above it otherwise (grid 32 + page 14 + page 14), 16 under.
+  weeksOffCentred: { marginTop: -19, marginBottom: 21 },
+  weeksOffRule: { flex: 1, borderTopWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.35)' },
+  weeksOffText: { fontSize: 11.5, fontWeight: '700', color: '#fff' },
+  jCardEventTag: { position: 'absolute', top: 9, left: 9, zIndex: 3, flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, paddingHorizontal: 7, borderRadius: 999, backgroundColor: RivalColors.event },
+  jCardEventTagText: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: '#2a2116' },
+  jCardDayBadgeSide: { left: undefined, right: 12, alignItems: 'flex-end' },
   jCardRing: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2.5, borderRadius: 20 },
+  jCardCurrent: { position: 'absolute', top: 32, left: 0, right: 0, alignItems: 'center' },
+  jCardCurrentText: { overflow: 'hidden', backgroundColor: RivalColors.rankAnchors.unrivaled, color: '#2a2116', fontSize: 8.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
+  pbSection: { width: '100%', marginBottom: 22 },
+  pbSectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginHorizontal: 2, marginBottom: 10 },
+  pbSectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: RivalColors.accentText },
+  pbSectionCount: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
+  pbMore: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  pbMoreText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
 });

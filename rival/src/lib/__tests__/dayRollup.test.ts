@@ -168,3 +168,27 @@ describe('localDayKey', () => {
     expect(localDayKey(atLocal(2026, 1, 5, 12))).toBe('2026-01-05');
   });
 });
+
+describe('a synced walk someone meant', () => {
+  const base = { activity_type: 'Walk', provider: 'strava' };
+  it('keeps the default names in the day card', () => {
+    for (const name of ['Morning Walk', 'Lunch Walk', 'Evening walk', 'Walk', 'Walking', 'Vancouver Walking', '', null]) {
+      expect(rollsUpIntoDayCard({ ...base, name })).toBe(true);
+    }
+  });
+  it('gives its own post to a typed name, a photo or notes', () => {
+    expect(rollsUpIntoDayCard({ ...base, name: 'Grouse Grind with Sandy' })).toBe(false);
+    expect(rollsUpIntoDayCard({ ...base, name: 'Morning Walk', photo_url: 'https://x/p.jpg' })).toBe(false);
+    expect(rollsUpIntoDayCard({ ...base, name: 'Morning Walk', notes: 'Legs felt good' })).toBe(false);
+    expect(rollsUpIntoDayCard({ ...base, name: 'Morning Walk', notes: '   ' })).toBe(true);
+  });
+});
+
+describe('day card distance', () => {
+  it('adds up the walks and survives a merge without doubling', () => {
+    const day = (h: number) => atLocal(2026, 9, 23, h);
+    const [a] = buildDayRollups([walk('a', day(8), 600, 4, { distance_meters: 1200 }), walk('b', day(12), 900, 6, { distance_meters: 2200 })]);
+    expect(a.totalMeters).toBe(3400);
+    expect(mergeRollups(a, a).totalMeters).toBe(3400);
+  });
+});

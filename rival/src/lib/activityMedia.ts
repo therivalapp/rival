@@ -15,9 +15,12 @@ export type MediaRow = {
   media_url: string;
   media_type: 'photo' | 'video';
   position: number | null;
+  // Which part stays in view (media_focal.sql); null is the centre.
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
-export const MEDIA_COLUMNS = 'id, activity_id, media_url, media_type, position';
+export const MEDIA_COLUMNS = 'id, activity_id, media_url, media_type, position, focal_x, focal_y';
 
 // Marks an item that is the cover but has no activity_media row — a photo that
 // arrived some other way. It is part of the set like any other; saving gives
@@ -33,7 +36,13 @@ export function sortMedia<T extends { position: number | null }>(rows: T[]): T[]
 // What the picker should start with for an activity that already has media:
 // the cover first — it is the photo that was chosen as the face of the
 // activity — then the rest in their saved order.
-export function existingAsItems(rows: MediaRow[], coverUrl: string | null): MediaItem[] {
+// The cover's position is the activity's own (photo_focal_x/y), which is
+// what every card has always drawn it with.
+export function existingAsItems(
+  rows: MediaRow[],
+  coverUrl: string | null,
+  coverFocal?: { x: number | null; y: number | null },
+): MediaItem[] {
   const ordered = sortMedia(rows);
   const items: MediaItem[] = ordered.map((r) => ({
     uri: r.media_url,
@@ -41,11 +50,16 @@ export function existingAsItems(rows: MediaRow[], coverUrl: string | null): Medi
     mimeType: r.media_type === 'video' ? 'video/mp4' : 'image/jpeg',
     ext: '',
     existingId: r.id,
+    focalX: r.focal_x,
+    focalY: r.focal_y,
   }));
   if (coverUrl) {
     const at = items.findIndex((i) => i.uri === coverUrl);
     if (at > 0) items.unshift(...items.splice(at, 1));
     else if (at === -1) items.unshift({ uri: coverUrl, type: 'photo', mimeType: 'image/jpeg', ext: '', existingId: COVER_ONLY });
+    if (coverFocal && (coverFocal.x != null || coverFocal.y != null)) {
+      items[0] = { ...items[0], focalX: coverFocal.x, focalY: coverFocal.y };
+    }
   }
   return items;
 }
@@ -61,6 +75,8 @@ function storagePath(url: string): string | null {
 export type SaveResult = {
   rows: MediaRow[];
   cover: string | null;
+  // The cover's position as saved on the activity.
+  coverFocal: { x: number | null; y: number | null };
   coverChanged: boolean;
   errors: string[];
 };
@@ -72,6 +88,7 @@ export async function saveArrangement({
   existing,
   currentCover,
   keepCover = false,
+  onProgress,
 }: {
   activityId: string;
   userId: string;
@@ -85,6 +102,8 @@ export async function saveArrangement({
   // Leave the cover alone and only add — for callers that append without
   // showing the whole set.
   keepCover?: boolean;
+  // Called as each new file finishes uploading: (done, total).
+  onProgress?: (done: number, total: number) => void;
 }): Promise<SaveResult> {
   const errors: string[] = [];
   const keptIds = new Set(items.map((i) => i.existingId).filter(Boolean));
@@ -108,48 +127,70 @@ export async function saveArrangement({
     }
   }
 
-  // 2. Every item, in order: upload what is new, move what already exists.
-  // One at a time, so a failure lands on a specific item rather than
-  // scrambling the order of the rest.
-  const rows: MediaRow[] = [];
-  for (let position = 0; position < items.length; position++) {
-    const item = items[position];
-
-    if (item.existingId && item.existingId !== COVER_ONLY) {
-      const before = existing.find((r) => r.id === item.existingId);
-      if (before && before.position !== position) {
-        const { error, count } = await supabase
-          .from('activity_media')
-          .update({ position }, { count: 'exact' })
-          .eq('id', item.existingId);
-        if (error || !count) errors.push("Couldn't save the new order");
-      }
-      if (before) rows.push({ ...before, position });
-      continue;
-    }
-
-    let url = item.uri;
-    if (!item.existingId) {
-      if (!item.blob) continue;
+  // 2a. Upload every new file at once (Ricky, 2026-10-11: four photos one
+  // after another took ~40 seconds). Only the files go in parallel; the rows
+  // below are still written one at a time, in order, so a failure still lands
+  // on a specific item and the posting order holds.
+  const fresh = items.filter((i) => !i.existingId && i.blob);
+  let uploaded = 0;
+  onProgress?.(0, fresh.length);
+  const uploads = new Map<MediaItem, Promise<{ url: string } | { error: string }>>();
+  for (const item of fresh) {
+    uploads.set(item, (async () => {
       const up = item.type === 'photo'
-        ? await fitPhoto({ blob: item.blob, mimeType: item.mimeType, ext: item.ext || 'jpg' })
-        : { blob: item.blob, mimeType: item.mimeType, ext: item.ext || 'mp4' };
+        ? await fitPhoto({ blob: item.blob!, mimeType: item.mimeType, ext: item.ext || 'jpg' })
+        : { blob: item.blob!, mimeType: item.mimeType, ext: item.ext || 'mp4' };
       const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const path = `${userId}/${activityId}-${uniqueId}.${up.ext}`;
       const { error: storageErr } = await supabase.storage
         .from('activity-photos')
         .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
-      if (storageErr) { errors.push(`Upload failed: ${storageErr.message}`); continue; }
-      url = supabase.storage.from('activity-photos').getPublicUrl(path).data.publicUrl;
+      uploaded += 1;
+      onProgress?.(uploaded, fresh.length);
+      if (storageErr) return { error: `Upload failed: ${storageErr.message}` };
+      return { url: supabase.storage.from('activity-photos').getPublicUrl(path).data.publicUrl };
+    })());
+  }
+
+  // 2b. Every item, in order: record what is new, move what already exists.
+  const rows: MediaRow[] = [];
+  // Saved url → the picker item it came from, for the cover's position.
+  const itemByUrl = new Map<string, MediaItem>();
+  for (let position = 0; position < items.length; position++) {
+    const item = items[position];
+
+    if (item.existingId && item.existingId !== COVER_ONLY) {
+      const before = existing.find((r) => r.id === item.existingId);
+      const fx = item.focalX ?? null;
+      const fy = item.focalY ?? null;
+      if (before && (before.position !== position || before.focal_x !== fx || before.focal_y !== fy)) {
+        const { error, count } = await supabase
+          .from('activity_media')
+          .update({ position, focal_x: fx, focal_y: fy }, { count: 'exact' })
+          .eq('id', item.existingId);
+        if (error || !count) errors.push("Couldn't save the new order");
+      }
+      if (before) { rows.push({ ...before, position, focal_x: fx, focal_y: fy }); itemByUrl.set(before.media_url, item); }
+      continue;
+    }
+
+    let url = item.uri;
+    if (!item.existingId) {
+      const pending = uploads.get(item);
+      if (!pending) continue;
+      const res = await pending;
+      if ('error' in res) { errors.push(res.error); continue; }
+      url = res.url;
     }
 
     const { data, error } = await supabase
       .from('activity_media')
-      .insert({ activity_id: activityId, media_url: url, media_type: item.type, position })
+      .insert({ activity_id: activityId, media_url: url, media_type: item.type, position, focal_x: item.focalX ?? null, focal_y: item.focalY ?? null })
       .select(MEDIA_COLUMNS)
       .single();
     if (error || !data) { errors.push(`Couldn't save: ${error?.message ?? 'unknown error'}`); continue; }
     rows.push(data as MediaRow);
+    itemByUrl.set((data as MediaRow).media_url, item);
   }
 
   // 3. The cover is the first photo — Instagram's rule, and what the numbers
@@ -158,14 +199,16 @@ export async function saveArrangement({
   const firstPhoto = rows.find((r) => r.media_type === 'photo')?.media_url ?? null;
   const cover = keepCover && currentCover ? currentCover : firstPhoto;
   const coverChanged = cover !== currentCover;
-  if (coverChanged) {
-    // The saved crop was measured against the old cover.
+  // The cover keeps the position its item was given in the picker.
+  const coverItem = cover ? itemByUrl.get(cover) : undefined;
+  const coverFocal = { x: coverItem?.focalX ?? null, y: coverItem?.focalY ?? null };
+  if (!keepCover || !currentCover) {
     const { error } = await supabase
       .from('activities')
-      .update({ photo_url: cover, photo_focal_x: null, photo_focal_y: null })
+      .update({ photo_url: cover, photo_focal_x: coverFocal.x, photo_focal_y: coverFocal.y })
       .eq('id', activityId);
     if (error) errors.push(`Couldn't set the cover: ${error.message}`);
   }
 
-  return { rows, cover, coverChanged, errors };
+  return { rows, cover, coverFocal, coverChanged, errors };
 }

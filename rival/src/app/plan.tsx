@@ -78,7 +78,11 @@ export default function PlanScreen() {
         .eq('user_id', user.id)
         .gte('started_at', weekStart.toISOString())
         .lt('started_at', weekEnd.toISOString()),
-      supabase.from('league_members').select('league_id, leagues(id, name)').eq('user_id', user.id).eq('status', 'active'),
+      // Each team with its members in the same request, rather than the
+      // members fetched once the teams are known (2026-10-21).
+      supabase.from('league_members')
+        .select('league_id, leagues(id, name, league_members(league_id, user_id, status, users(display_name)))')
+        .eq('user_id', user.id).eq('status', 'active'),
     ]);
 
     // Build scoring map
@@ -102,11 +106,9 @@ export default function PlanScreen() {
     let leagueStandings: LeagueStanding[] = [];
 
     if (leagueIds.length > 0) {
-      const { data: allMembers } = await supabase
-        .from('league_members')
-        .select('league_id, user_id, users(display_name)')
-        .in('league_id', leagueIds)
-        .eq('status', 'active');
+      const allMembers = leagueMemberships
+        .flatMap((l: any) => l.league_members ?? [])
+        .filter((m: any) => m.status === 'active');
 
       const everyMemberId = Array.from(new Set((allMembers || []).map((m: any) => m.user_id)));
       const { data: acts } = everyMemberId.length

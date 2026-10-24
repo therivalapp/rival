@@ -5,6 +5,7 @@ import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
 import { RivalBackButton } from './RivalBackButton';
+import { useSheetDrag } from './useSheetDrag';
 import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGE_MAX_WIDTH, SIDE_SHEET_MAX_WIDTH } from '../../constants/breakpoints';
 
 // The phone pop-up style set by Plan an activity: grey sheet with a warm glow
@@ -28,7 +29,8 @@ export function GreySheet({
   // rising from the bottom edge.
   const dialog = width >= BREAKPOINT_WIDE_LAYOUT;
   // No close button: a pop-up closes by tapping outside it (the caller's
-  // backdrop) or by dragging it down from the top.
+  // backdrop) or by dragging it down: from anywhere on web (useSheetDrag),
+  // from the top on native.
   const dragY = useRef(new Animated.Value(0)).current;
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -45,10 +47,11 @@ export function GreySheet({
     },
     onPanResponderTerminate: () => Animated.spring(dragY, { toValue: 0, useNativeDriver: false }).start(),
   })).current;
+  const dragRef = useSheetDrag(onClose);
   return (
-    <Animated.View style={[g.sheet, dialog && g.sheetDialog, { maxHeight: height * (dialog ? 0.86 : 0.92), transform: [{ translateY: dragY }] }]}>
-      <View style={g.glow} pointerEvents="none" />
-      <View {...pan.panHandlers} style={g.dragZone}>
+    <Animated.View ref={dialog ? undefined : dragRef} style={[g.sheet, dialog && g.sheetDialog, { maxHeight: height * (dialog ? 0.86 : 0.92), transform: [{ translateY: dragY }] }]}>
+      <View style={[g.glow, { pointerEvents: 'none' }]} />
+      <View {...(Platform.OS === 'web' ? {} : pan.panHandlers)} style={g.dragZone}>
         {dialog ? null : <View style={g.grabber} />}
         <View style={g.head}>
           {kicker ? <Text style={g.kicker}>{kicker}</Text> : null}
@@ -202,7 +205,7 @@ export function GreyPageHead({
   const wide = useWindowDimensions().width >= BREAKPOINT_WIDE_LAYOUT;
   return (
     <View style={gp.head}>
-      <View style={[gp.glow, wide && gp.glowWide]} pointerEvents="none" />
+      <View style={[gp.glow, wide && gp.glowWide, { pointerEvents: 'none' }]} />
       {onBack ? <RivalBackButton onPress={onBack} style={gp.back} /> : null}
       <Text style={g.kicker}>{kicker}</Text>
       <Text style={gp.title}>{title}</Text>

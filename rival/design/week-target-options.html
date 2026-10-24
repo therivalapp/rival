@@ -1,0 +1,87 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Week Target Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:680px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:340px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:90px}
+.g{border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:14px 16px 10px}
+.rule{border-top:1px solid rgba(255,255,255,.07);margin:0 0 12px}
+.chev{text-align:center;color:rgba(255,255,255,.35);font-size:13px;margin-top:8px}
+.kick{font-size:9.5px;letter-spacing:1.6px;color:var(--muted);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 24px Georgia,serif;line-height:1.1}
+.ember{background:linear-gradient(180deg,#fff 10%,#ffb59e 75%,#e8835f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.muted{color:var(--muted)}
+
+/* A checkpoints */
+.track{position:relative;height:8px;border-radius:999px;background:rgba(255,255,255,.08);margin:26px 6px 30px}
+.fill{position:absolute;inset:0 auto 0 0;border-radius:999px;background:linear-gradient(90deg,#c96a4a,#f0b29b);box-shadow:0 0 12px rgba(232,131,95,.55)}
+.cp{position:absolute;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:var(--ground);border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#2a1408}
+.cp.done{background:#f0b29b;border-color:#f0b29b}
+.cp.goal{border-color:#ffc94d;background:rgba(255,201,77,.15)}
+.cp b{position:absolute;top:-21px;white-space:nowrap;font-size:10px;font-weight:700;color:rgba(255,255,255,.75)}
+.cp i{position:absolute;top:19px;white-space:nowrap;font-style:normal;font-size:10px;color:var(--muted)}
+.cp.goal b{color:#ffe6a8;right:-4px}.cp.goal i{right:-4px}
+.cap{font-size:13px;color:rgba(255,255,255,.85)}.cap b{color:var(--accent)}
+
+/* B next target */
+.next{display:flex;align-items:center;gap:14px}
+.next .big{font:italic 700 34px Georgia,serif;line-height:1}
+.next .x{flex:1}
+.bar{height:6px;border-radius:999px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;width:20%;background:linear-gradient(90deg,#c96a4a,#f0b29b);border-radius:999px}
+
+/* C rank */
+.rank{display:flex;align-items:center;gap:12px}
+.medal{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font:italic 700 18px Georgia,serif;background:rgba(232,131,95,.16);border:1px solid rgba(255,181,158,.4);color:#ffd3c2}
+.rank .x div{font:italic 700 18px Georgia,serif}
+.rank .x span{font-size:12px;color:var(--muted)}
+
+/* D ring */
+.ringrow{display:flex;align-items:center;gap:14px}
+.ring{width:62px;height:62px;flex:none}
+</style></head><body>
+<h1>Making the target line worth reading</h1>
+<p class="lead">Today it is one plain sentence. Each option turns it into something you can watch move as the week goes on. Example week: 156.3 Effort, last week 95.7 (passed), monthly average 128 (passed), strongest week 774.5.</p>
+<div class="row">
+
+<div class="opt"><div class="t">A · Checkpoints</div><div class="d">A glowing track with the week's markers on it: last week and the monthly average tick off as you pass them, the strongest week waits in gold at the end. One line underneath names the next one.</div>
+<div class="g"><div class="rule"></div>
+ <div class="track"><div class="fill" style="width:20%"></div>
+  <div class="cp done" style="left:12.4%">✓<b>Last week</b></div>
+  <div class="cp done" style="left:16.5%">✓<i>Month avg</i></div>
+  <div class="cp goal" style="left:calc(100% - 8px)"><b>774.5</b><i>Strongest</i></div>
+ </div>
+ <div class="cap">Last week passed. <b>618.2 Effort</b> to the strongest week.</div>
+ <div class="chev">⌃</div>
+</div></div>
+
+<div class="opt"><div class="t">B · The next target, big</div><div class="d">The gap as a large ember figure with what it's for beside it, and a slim bar filling toward it. Always the nearest target not yet passed, so it never looks out of reach.</div>
+<div class="g"><div class="rule"></div>
+ <div class="next"><div class="big ember">618.2</div><div class="x"><div class="kick">To the strongest week</div><div class="bar"><i></i></div></div></div>
+ <div class="chev">⌃</div>
+</div></div>
+
+<div class="opt"><div class="t">C · Where the week ranks</div><div class="d">How this week compares with every week this year, in a round badge, and the gap to the next place up. Climbs as you train: 9th, then 6th, then 3rd.</div>
+<div class="g"><div class="rule"></div>
+ <div class="rank"><div class="medal">6th</div><div class="x"><div>6th strongest week this year</div><span>41.2 Effort to move up to 5th</span></div></div>
+ <div class="chev">⌃</div>
+</div></div>
+
+<div class="opt"><div class="t">D · A ring to last week</div><div class="d">A small ember ring filling toward last week's Effort, closing when you pass it, then starting toward the next target. Familiar from fitness rings.</div>
+<div class="g"><div class="rule"></div>
+ <div class="ringrow">
+  <svg class="ring" viewBox="0 0 62 62"><circle cx="31" cy="31" r="26" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6"/><circle cx="31" cy="31" r="26" fill="none" stroke="#e8835f" stroke-width="6" stroke-linecap="round" stroke-dasharray="163.4" stroke-dashoffset="0" transform="rotate(-90 31 31)"/><text x="31" y="36" text-anchor="middle" font-size="15" font-weight="800" fill="#ffd3c2">✓</text></svg>
+  <div><div class="kick">Last week passed</div><div class="ser">Next: monthly best</div><div class="muted" style="font-size:12px">43.7 Effort to go</div></div>
+ </div>
+ <div class="chev">⌃</div>
+</div></div>
+
+</div>
+</body></html>

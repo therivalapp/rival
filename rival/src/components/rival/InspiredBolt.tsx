@@ -34,11 +34,11 @@ export function InspiredBolt({ on, size, onColour, offColour, onStyle, animate }
         <RivalIcon name="bolt" size={size} color={on ? onColour : offColour} style={on && onStyle ? (onStyle as any) : undefined} />
       </View>
       {play ? (
-        <View key={`c${play}`} pointerEvents="none" style={{
+        <View key={`c${play}`} style={[{
           position: 'absolute', left: 0, top: 0, opacity: 0,
           animationName: 'rivalBoltCharge', animationDuration: `${CHARGE_MS}ms`,
           animationDelay: `${CHARGE_DELAY_MS}ms`, animationTimingFunction: 'ease-out', animationFillMode: 'forwards',
-        } as any}>
+        } as any, { pointerEvents: 'none' }]}>
           <RivalIcon name="bolt" size={size} color="transparent" style={{ WebkitTextStroke: `1px ${onColour}` } as any} />
         </View>
       ) : null}

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import { formatDisplayName } from '../../../lib/identity';
 import { RivalColors, RivalSerifFamily } from '../../../constants/rivalTheme';
 import { RivalIcon } from '../RivalIcon';
 import { RivalAvatar } from '../RivalAvatar';
+import { useSnapState } from '../../../lib/snapState';
 
 // The team's weekly leaderboard, with history: step back week by week, see
 // who moved up or down since the week before, and who was last week's MVP.
@@ -65,16 +66,22 @@ export function WeeklyStandings({
   onChallenge: (userId: string, name: string) => void;
 }) {
   const [offset, setOffset] = useState(0);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [mvpId, setMvpId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
   const memberKey = members.map(m => m.user_id).join(',');
+  // Remembered per team and week (lib/snapState.ts), so opening Members again
+  // shows the standings at once and refreshes behind them (2026-10-21).
+  const k = `standings.${memberKey}.${offset}`;
+  const [rows, setRows] = useSnapState<Row[]>(`${k}.rows`, []);
+  const [mvpId, setMvpId] = useSnapState<string | null>(`${k}.mvp`, null);
+  const [loading, setLoading] = useSnapState(`${k}.loading`, true);
 
+  const firstLoad = useRef(true);
   const load = useCallback(async () => {
     const ids = members.map(m => m.user_id);
     if (ids.length === 0) { setRows([]); setLoading(false); return; }
-    setLoading(true);
+    // Switching weeks shows the spinner as before; only the first load after
+    // opening the tab draws the remembered standings.
+    if (!firstLoad.current) setLoading(true);
+    firstLoad.current = false;
     const { start, end } = weekWindow(offset);
     const prev = weekWindow(offset - 1);
     // Two queries for the whole team, grouped in memory — not two per member.

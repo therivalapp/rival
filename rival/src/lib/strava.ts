@@ -38,7 +38,7 @@ export async function connectStrava(onComplete?: () => void) {
   }, 500);
 }
 
-export type FullImportProgress = { savedSoFar: number; page: number };
+export type FullImportProgress = { savedSoFar: number; page: number; secondsSoFar: number };
 export type FullImportResult =
   | { ok: true; saved: number; importedSeconds: number; importedEffort: number; newMilestones: string[] }
   | { ok: false; error: string; saved: number; importedSeconds: number; importedEffort: number };
@@ -91,7 +91,7 @@ export async function runFullStravaImport(
     importedSeconds += data.importedSeconds ?? 0;
     importedEffort += data.importedEffort ?? 0;
     if (data.newMilestones?.length) newMilestones = newMilestones.concat(data.newMilestones);
-    onProgress?.({ savedSoFar: saved, page });
+    onProgress?.({ savedSoFar: saved, page, secondsSoFar: importedSeconds });
 
     if (!data.hasMore) {
       invalidateActivityCache();

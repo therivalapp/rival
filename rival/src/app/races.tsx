@@ -14,6 +14,7 @@ import type { RivalIconName } from '../components/rival';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { useSheetDrag } from '../components/rival/useSheetDrag';
 
 const RACE_TYPES = ['Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Custom', 'Other'];
 const EVENT_TYPE_ICONS: Record<string, RivalIconName> = {
@@ -119,7 +120,7 @@ function getFinishMessage(actualTime: string, goalTime: string | null): string {
   const goal = parseTimeToSeconds(goalTime);
   const diff = goal - actual;
   if (diff >= 600) return "You absolutely smashed your goal. That's what all those early mornings were for.";
-  if (diff >= 60) return "Goal crushed. Every second of training showed up today.";
+  if (diff >= 60) return "Well ahead of the goal. Every second of effort showed up today.";
   if (diff >= -60) return "Right on target — that's not luck, that's discipline.";
   if (diff >= -300) return "Just shy of the goal, but you crossed that line. That takes everything.";
   if (diff >= -900) return "The time doesn't define the effort. You were out there when it counted.";
@@ -178,7 +179,10 @@ function SheetGroup({ m, children }: { m: boolean; children: React.ReactNode }) 
 }
 
 export default function RacesScreen() {
-  const { add } = useLocalSearchParams<{ add?: string }>();
+  // Phones: drag the Find an event sheet down from anywhere to close it.
+  const findDrag = useSheetDrag(() => setShowFind(false));
+  // `then=back`: opened to add one event (the share's countdown), so saving returns there.
+  const { add, then } = useLocalSearchParams<{ add?: string; then?: string }>();
   const [races, setRaces] = useState<Race[]>([]);
   const [completedRaces, setCompletedRaces] = useState<Race[]>([]);
   const [leagueMateIds, setLeagueMateIds] = useState<Set<string>>(new Set());
@@ -258,6 +262,21 @@ export default function RacesScreen() {
 
     const today = todayLocalStr();
 
+    // The events don't depend on who your teammates are, so they load at the
+    // same time as the teammates rather than after them (2026-10-21). Each
+    // event brings its own "interested" marks, instead of every mark in the
+    // app being downloaded and matched up here.
+    const eventsP = Promise.all([
+      supabase.from('races').select('*, users(display_name), race_interests(user_id)')
+        .or(`is_public.eq.true,user_id.eq.${user.id}`)
+        .gte('race_date', today).order('race_date', { ascending: true }),
+      supabase.from('races').select('*, users(display_name)')
+        .eq('user_id', user.id).lt('race_date', today).order('race_date', { ascending: false }),
+      supabase.from('activities').select('distance_meters, started_at')
+        .eq('user_id', user.id)
+        .gte('started_at', new Date(Date.now() - 56 * 24 * 60 * 60 * 1000).toISOString()),
+    ]);
+
     // Get league mates
     const leagueIds = await getMyTeamIds(user.id).catch(() => [] as string[]);
 
@@ -272,24 +291,15 @@ export default function RacesScreen() {
     const friendSet = new Set(friendIds);
     setLeagueMateIds(friendSet);
 
-    const [racesRes, pastRes, interestsRes, activitiesRes] = await Promise.all([
-      supabase.from('races').select('*, users(display_name)')
-        .or(`is_public.eq.true,user_id.eq.${user.id}`)
-        .gte('race_date', today).order('race_date', { ascending: true }),
-      supabase.from('races').select('*, users(display_name)')
-        .eq('user_id', user.id).lt('race_date', today).order('race_date', { ascending: false }),
-      supabase.from('race_interests').select('race_id, user_id'),
-      supabase.from('activities').select('distance_meters, started_at')
-        .eq('user_id', user.id)
-        .gte('started_at', new Date(Date.now() - 56 * 24 * 60 * 60 * 1000).toISOString()),
-    ]);
+    const [racesRes, pastRes, activitiesRes] = await eventsP;
 
     const totalKm = (activitiesRes.data || []).reduce((s, a) => s + (a.distance_meters || 0), 0) / 1000;
     const avgWeeklyKm = totalKm / 8;
 
     const withMeta = (racesRes.data || []).map((r: any) => {
-      const raceInterests = (interestsRes.data || []).filter((i: any) => i.race_id === r.id);
-      return { ...r, interest_count: raceInterests.length, i_am_interested: raceInterests.some((i: any) => i.user_id === user.id), avg_weekly_km: avgWeeklyKm };
+      const raceInterests: any[] = r.race_interests || [];
+      const { race_interests: _interests, ...race } = r;
+      return { ...race, interest_count: raceInterests.length, i_am_interested: raceInterests.some((i: any) => i.user_id === user.id), avg_weekly_km: avgWeeklyKm };
     });
 
     setRaces(withMeta);
@@ -344,6 +354,7 @@ export default function RacesScreen() {
     }
     setSaving(false);
     closeModal();
+    if (!editingRace && then === 'back' && router.canGoBack()) { router.back(); return; }
     load();
   }
 
@@ -600,7 +611,7 @@ export default function RacesScreen() {
         />
         {editingRace && (
           <TouchableOpacity style={ms.deleteLink} onPress={() => { const id = editingRace.id; closeModal(); deleteRace(id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <RivalIcon name="delete" size={15} color={RivalColors.error} />
+            <RivalIcon name="delete" size={15} color={RivalColors.danger} />
             <Text style={ms.deleteLinkText}>Delete event</Text>
           </TouchableOpacity>
         )}
@@ -747,7 +758,7 @@ export default function RacesScreen() {
         <Modal visible={showFind} transparent animationType="slide" onRequestClose={() => setShowFind(false)}>
           <View style={styles.modalOverlay}>
             {m && <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowFind(false)} accessibilityLabel="Close" />}
-            <View style={[styles.findModalCard, m && ms.sheet, m && { paddingBottom: 0 }]}>
+            <View ref={m ? findDrag : undefined} style={[styles.findModalCard, m && ms.sheet, m && { paddingBottom: 0 }]}>
               <View style={styles.findModalHeader}>
                 <Text style={m ? rm.serifTitleSm : styles.modalTitle}>{m ? 'Find an event' : 'Find an Event'}</Text>
                 {!m && (
@@ -1502,7 +1513,7 @@ const ms = StyleSheet.create({
   chip: { borderRadius: 999, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: RivalWarm.field, paddingHorizontal: 14 },
   sheetActions: { gap: 10 },
   deleteLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
-  deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.error },
+  deleteLinkText: { fontSize: 14, fontWeight: '700', color: RivalColors.danger },
   discRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46 },
   discName: { flex: 1, minWidth: 0, color: RivalColors.textPrimary, fontSize: 15, fontWeight: '500', paddingVertical: 8, backgroundColor: 'transparent', borderWidth: 0 },
   discKm: { width: 64, color: RivalColors.textPrimary, fontSize: 15, fontWeight: '500', textAlign: 'right', paddingVertical: 8, backgroundColor: 'transparent', borderWidth: 0 },

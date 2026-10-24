@@ -1,4 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Image, Modal } from 'react-native';
+import { makeRankCard, shareCardFile, type ShareFigure } from '../lib/shareCard';
+import { drawRankStamp, stampBlob, stampFontsReady } from '../lib/shareStamp';
+import { fullPhoto } from '../lib/imageUrl';
+import { distanceUnit, toDisplayDistance } from '../lib/units';
+import { RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
+import { BusyText } from '../components/rival/BusyText';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { rankSheen, rankTextSheen, rankTileFill, RANK_TILE_INK } from '../constants/rankSheen';
@@ -57,6 +64,15 @@ export default function RanksScreen() {
   const wide = sidePageWide(width);
   const [totalXp, setTotalXp] = useState(0);
   const [pace, setPace] = useState<RankPace | null>(null);
+  // For sharing the rank: the year's activities and distance, and the most
+  // recent photo to set it on.
+  const [yearCount, setYearCount] = useState(0);
+  const [yearKm, setYearKm] = useState(0);
+  const [photo, setPhoto] = useState<{ url: string; fx: number | null; fy: number | null } | null>(null);
+  const [share, setShare] = useState<{ card: { url: string; blob: Blob }; stamp: { url: string; blob: Blob } } | null>(null);
+  const [shareChoice, setShareChoice] = useState<'card' | 'stamp'>('card');
+  const [making, setMaking] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -64,13 +80,17 @@ export default function RanksScreen() {
       if (!user) return;
       const { data } = await supabase
         .from('activities')
-        .select('effort_score')
+        .select('effort_score, distance_meters, photo_url, photo_focal_x, photo_focal_y, started_at')
         .eq('user_id', user.id)
         // Rank is a season measure everywhere else (top bar, Home, Stats);
         // lifetime Effort here showed a rank the rest of the app didn't.
         .gte('started_at', getSeasonStartISO());
       const xp = data?.reduce((sum, a) => sum + (a.effort_score || 0), 0) ?? 0;
       setTotalXp(xp);
+      setYearCount(data?.length ?? 0);
+      setYearKm((data ?? []).reduce((sum, a) => sum + (a.distance_meters || 0), 0) / 1000);
+      const latest = [...(data ?? [])].filter((a) => a.photo_url).sort((a, b) => (a.started_at < b.started_at ? 1 : -1))[0];
+      if (latest) setPhoto({ url: latest.photo_url!, fx: latest.photo_focal_x, fy: latest.photo_focal_y });
 
       // When their training began, for the pace projection: anyone with
       // activities from before this year is measured from 1 January.
@@ -88,6 +108,56 @@ export default function RanksScreen() {
 
   const currentLevel = getLevel(totalXp);
 
+  async function openRankShare() {
+    if (making) return;
+    setMaking(true);
+    setShareError(null);
+    try {
+      const { light, dark } = rankSheen(currentLevel.level);
+      const figures: ShareFigure[] = [
+        // White on rank shares: the rank's material is the one colour (Ricky,
+        // 2026-10-22, cleaner than gold competing with it).
+        { value: Math.round(totalXp).toLocaleString(), label: 'Effort' },
+        { value: yearCount.toLocaleString(), label: 'Activities' },
+        ...(yearKm > 0 ? [{ value: Math.round(toDisplayDistance(yearKm)).toLocaleString(), unit: distanceUnit(), label: 'Distance' }] : []),
+      ];
+      const cardBlob = await makeRankCard({
+        photoUrl: photo?.url ?? null,
+        focalX: photo?.fx,
+        focalY: photo?.fy,
+        rankName: currentLevel.name,
+        kicker: `${getCurrentSeasonYear()} rank · Level ${currentLevel.level} of ${LEVELS.length}`,
+        light,
+        dark,
+        figures,
+      });
+      await stampFontsReady();
+      const stampFile = await stampBlob(drawRankStamp(currentLevel.name, light, figures));
+      setShareChoice('card');
+      setShare({ card: { url: URL.createObjectURL(cardBlob), blob: cardBlob }, stamp: { url: URL.createObjectURL(stampFile), blob: stampFile } });
+    } catch {
+      setShareError('The picture could not be made. Try again.');
+    } finally {
+      setMaking(false);
+    }
+  }
+
+  function closeRankShare() {
+    if (share) { URL.revokeObjectURL(share.card.url); URL.revokeObjectURL(share.stamp.url); }
+    setShare(null);
+  }
+
+  async function sendRankShare() {
+    if (!share) return;
+    const file = shareChoice === 'card' ? share.card : share.stamp;
+    try {
+      const done = await shareCardFile(file.blob, `rival-${currentLevel.name.toLowerCase()}${shareChoice === 'stamp' ? '-stamp.png' : '.jpg'}`);
+      if (done !== 'cancelled') closeRankShare();
+    } catch {
+      setShareError('Sharing did not open. Try again.');
+    }
+  }
+
   if (!wide) {
     const next = LEVELS.find((l) => l.level === currentLevel.level + 1);
     const span = next ? next.minXp - currentLevel.minXp : 1;
@@ -99,33 +169,48 @@ export default function RanksScreen() {
           <GreyPageHead kicker={String(getCurrentSeasonYear())} title="Ranks" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
           {/* The rank, and the Effort behind it, up front. */}
-          <View style={[rb.card, rb.hero, ms.rankCard]}>
-            <Text style={rb.label}>{getCurrentSeasonYear()} rank</Text>
-            <Text style={rb.big}>{currentLevel.name}</Text>
+          {/* Made of the rank's own material, its icon large behind, dark
+              lettering (Ricky, 2026-10-18, "W2"). */}
+          <View style={[ms.matCard, rankTileFill(currentLevel.level)]}>
+            <RivalIcon name={`rank${currentLevel.name}` as RivalIconName} size={190} color="rgba(16,14,12,0.13)" style={ms.matMark} />
+            <Text style={ms.matLabel}>{getCurrentSeasonYear()} rank</Text>
+            <Text style={ms.matName}>{currentLevel.name}</Text>
             <View style={ms.effortRow}>
-              <Text style={ms.effortNum}>{Math.round(totalXp).toLocaleString()}</Text>
-              <Text style={ms.effortUnit}>Effort this year</Text>
+              <Text style={ms.matEffort}>{Math.round(totalXp).toLocaleString()}</Text>
+              <Text style={ms.matUnit}>Effort this year</Text>
             </View>
             {next ? (
               <>
-                <View style={rb.bar}><View style={[rb.barFill, { width: `${Math.max(2, Math.round(pct * 100))}%` as any }]} /></View>
-                <Text style={ms.sub}>{Math.max(0, Math.ceil(next.minXp - totalXp)).toLocaleString()} Effort to {next.name} · Level {currentLevel.level}</Text>
+                <View style={ms.matBar}><View style={[ms.matFill, { width: `${Math.max(2, Math.round(pct * 100))}%` as any }]} /></View>
+                <Text style={ms.matSub}>{Math.max(0, Math.ceil(next.minXp - totalXp)).toLocaleString()} Effort to {next.name} · Level {currentLevel.level}</Text>
               </>
             ) : (
-              <Text style={ms.sub}>The top rank.</Text>
+              <Text style={ms.matSub}>The top rank.</Text>
             )}
           </View>
+
+          {/* Share the rank (Ricky, 2026-10-22): a card or a see-through stamp. */}
+          {Platform.OS === 'web' && totalXp > 0 ? (
+            <TouchableOpacity style={ms.shareBtn} onPress={openRankShare} disabled={making} activeOpacity={0.85}>
+              <RivalIcon name="share" size={16} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
+              <BusyText busy={making} style={ms.shareText}>{making ? 'Making…' : `Share ${currentLevel.name}`}</BusyText>
+            </TouchableOpacity>
+          ) : null}
+          {shareError && !share ? <Text style={ms.shareError}>{shareError}</Text> : null}
 
           {/* Where this year is heading. A projection only — rank is always
               what has been earned. A latecomer also sees what a full year at
               their pace would reach: something to aim at next year. */}
           {pace ? (
-            <View style={[rb.card, ms.paceCard]}>
+            <View style={[rb.card, ms.paceCard, { overflow: 'hidden' }]}>
+              {/* The rank it heads for, in that rank's colour and icon; only
+                  the rank held gets the full material card. */}
+              <RivalIcon name={`rank${pace.yearEnd.level.name}` as RivalIconName} size={120} color={rankSheen(pace.yearEnd.level.level).light + '14'} style={ms.paceMark} />
               <View style={ms.paceRow}>
-                <View style={rb.badge}><RivalIcon name="trendUp" size={16} color={RivalColors.accentText} /></View>
+                <View style={[ms.paceCoin, rankTileFill(pace.yearEnd.level.level)]}><RivalIcon name={`rank${pace.yearEnd.level.name}` as RivalIconName} size={18} color={RANK_TILE_INK} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={rb.label}>On pace for</Text>
-                  <Text style={ms.paceRank}>{pace.yearEnd.level.name}</Text>
+                  <Text style={[ms.paceRank, rankTextSheen(pace.yearEnd.level.level)]}>{pace.yearEnd.level.name}</Text>
                   <Text style={ms.sub2}>About {pace.yearEnd.effort.toLocaleString()} Effort by 31 December at the current pace.</Text>
                 </View>
               </View>
@@ -136,7 +221,7 @@ export default function RanksScreen() {
                     <Text style={rb.label}>A full year at this pace</Text>
                     <Text style={ms.paceRank}>{pace.fullYear.level.name}</Text>
                     <Text style={ms.sub2}>
-                      Based on training since {pace.start.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}. The first full year begins on 1 January.
+                      Based on activity since {pace.start.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}. The first full year begins on 1 January.
                     </Text>
                   </View>
                 </View>
@@ -165,7 +250,7 @@ export default function RanksScreen() {
                       (Ricky, 2026-10-03), in its own material
                       (constants/rankSheen.ts): reached ones filled solid, the
                       next one lit, the rest waiting, faint. */}
-                  <View style={ms.tileArt} pointerEvents="none">
+                  <View style={[ms.tileArt, { pointerEvents: 'none' }]}>
                     <RivalIcon
                       name={RANK_ICONS[lvl.level - 1]}
                       size={112}
@@ -197,8 +282,8 @@ export default function RanksScreen() {
                 {/* No card: one big trophy on its own, like a team crest
                     (Ricky, 2026-10-03), the words centred over it. Faint until
                     reached, then solid gold with a glow and dark words. */}
-                <View style={[ms.topGlow, reached && ms.topGlowReached]} pointerEvents="none" />
-                <View style={ms.topArt} pointerEvents="none">
+                <View style={[ms.topGlow, reached && ms.topGlowReached, { pointerEvents: 'none' }]} />
+                <View style={[ms.topArt, { pointerEvents: 'none' }]}>
                   <RivalIcon
                     name="rankUnrivaled"
                     size={250}
@@ -222,6 +307,37 @@ export default function RanksScreen() {
             <Text style={ms.effortLinkText}>How Effort works →</Text>
           </TouchableOpacity>
         </ScrollView>
+        <Modal visible={!!share} transparent animationType="fade" onRequestClose={closeRankShare}>
+          {share ? (
+            <View style={ms.shareBackdrop}>
+              {shareChoice === 'card' ? (
+                <Image source={{ uri: share.card.url }} style={[ms.sharePreview, { height: Math.min(520, (width - 96) * 16 / 9) }]} resizeMode="contain" />
+              ) : (
+                <View style={[ms.sharePreview, ms.stampStage, { height: Math.min(520, (width - 96) * 16 / 9) }]}>
+                  {photo ? <Image source={{ uri: fullPhoto(photo.url) }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+                  <Image source={{ uri: share.stamp.url }} style={ms.stampOnStage} resizeMode="contain" />
+                </View>
+              )}
+              <View style={ms.choiceRow}>
+                <TouchableOpacity style={[ms.choice, shareChoice === 'card' && ms.choiceOn]} onPress={() => setShareChoice('card')}>
+                  <Text style={[ms.choiceText, shareChoice === 'card' && ms.choiceTextOn]}>Card</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[ms.choice, shareChoice === 'stamp' && ms.choiceOn]} onPress={() => setShareChoice('stamp')}>
+                  <Text style={[ms.choiceText, shareChoice === 'stamp' && ms.choiceTextOn]}>Stamp</Text>
+                </TouchableOpacity>
+              </View>
+              {shareChoice === 'stamp' ? <Text style={ms.stampHint}>A see-through stamp to place over a photo.</Text> : null}
+              <TouchableOpacity style={[ms.shareBtn, ms.shareBtnModal]} onPress={sendRankShare} activeOpacity={0.85}>
+                <RivalIcon name="share" size={16} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
+                <Text style={ms.shareText}>Share</Text>
+              </TouchableOpacity>
+              {shareError ? <Text style={ms.shareError}>{shareError}</Text> : null}
+              <TouchableOpacity onPress={closeRankShare} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
+                <Text style={ms.shareClose}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -292,8 +408,6 @@ export default function RanksScreen() {
             );
           })}
         </View>
-
-        <Text style={styles.footer}>Everyone has a Rival. Only a few become Unrivaled.</Text>
 
       </ScrollView>
     </SafeAreaView>
@@ -380,17 +494,41 @@ const styles = StyleSheet.create({
     width: 2,
     height: '100%',
   },
-  footer: {
-    fontSize: 13,
-    color: RivalColors.accentText,
-    textAlign: 'center',
-    marginTop: 32,
-    fontStyle: 'italic',
-  },
 });
 
 // Mobile only — the blend (see RivalGreySheet's rb).
 const ms = StyleSheet.create({
+  shareBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 999, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  shareBtnModal: { alignSelf: 'stretch', maxWidth: 320, width: '100%' },
+  shareText: { fontSize: 14.5, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  shareError: { fontSize: 12.5, color: '#ff8f8f', textAlign: 'center' },
+  // The pop-up standard: warm grey ground with the soft top glow, never
+  // see-through black (Ricky, 2026-10-22).
+  shareBackdrop: {
+    flex: 1, backgroundColor: RivalGhost.ground, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' } as any : {}),
+  },
+  sharePreview: { aspectRatio: 9 / 16, borderRadius: 18 },
+  stampStage: { overflow: 'hidden', backgroundColor: '#2a2522', justifyContent: 'flex-end', alignItems: 'center' },
+  stampOnStage: { width: '92%', height: '34%', marginBottom: '6%' as any },
+  stampHint: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: -4 },
+  choiceRow: { flexDirection: 'row', gap: 8 },
+  choice: { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,181,158,0.22)', backgroundColor: 'rgba(255,209,190,0.05)' },
+  choiceOn: { borderColor: 'transparent', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  choiceText: { fontSize: 13.5, fontWeight: '800', color: 'rgba(255,255,255,0.75)' },
+  choiceTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  shareClose: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.6)', paddingVertical: 4 },
+  matCard: { position: 'relative', overflow: 'hidden', borderRadius: 22, borderWidth: 1, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 18, gap: 8 },
+  matMark: { position: 'absolute', right: -34, top: -24 },
+  matLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: 'rgba(16,14,12,0.62)' },
+  matName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 52, lineHeight: 58, color: RANK_TILE_INK },
+  matEffort: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 26, color: RANK_TILE_INK, fontVariant: ['tabular-nums'] },
+  matUnit: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(16,14,12,0.65)' },
+  matBar: { alignSelf: 'stretch', height: 8, borderRadius: 4, backgroundColor: 'rgba(16,14,12,0.2)', overflow: 'hidden' },
+  matFill: { height: 8, borderRadius: 4, backgroundColor: RANK_TILE_INK },
+  matSub: { fontSize: 12.5, color: 'rgba(16,14,12,0.78)', textAlign: 'center' },
+  paceMark: { position: 'absolute', right: -20, bottom: -26 },
+  paceCoin: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 120 },
   rankCard: { alignItems: 'center', paddingVertical: 16, gap: 8 },
   effortRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: -2 },

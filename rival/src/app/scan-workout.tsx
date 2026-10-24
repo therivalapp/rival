@@ -14,9 +14,12 @@ import { findMatchingRaceId } from '../lib/raceMatch';
 import { RivalColors, RivalRadius, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm, rb, GreyPageHead, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
 import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB } from '../components/rival/MediaPicker';
+import { tilesFor, useRecentTypes } from '../lib/recentTypes';
 import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { effortGoldText } from '../constants/reactionColours';
+import { toDisplayDistance, distanceUnit as distanceUnitLabel } from '../lib/units';
 
 type ExtractedWorkout = {
   workoutType: string;
@@ -79,6 +82,11 @@ function applyClassDurationFloor(workoutType: string, durationSeconds: number): 
 }
 
 export default function ScanWorkoutScreen() {
+  // The person's own types lead the Type chips (lib/recentTypes.ts); all ten stay.
+  const recentTypes = useRecentTypes();
+  const allTypes = TYPE_OPTIONS.map((o) => o.type);
+  const typeOptions = tilesFor(recentTypes.filter((t) => allTypes.includes(t)), allTypes, 99)
+    .map((t) => TYPE_OPTIONS.find((o) => o.type === t)!);
   const [scanImages, setScanImages] = useState<Array<{ uri: string; aspectRatio: number }>>([]);
   const [extraMedia, setExtraMedia] = useState<MediaItem[]>([]);
   const [extractedWorkout, setExtractedWorkout] = useState<ExtractedWorkout | null>(null);
@@ -126,6 +134,8 @@ export default function ScanWorkoutScreen() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [savedActivityId, setSavedActivityId] = useState<string | null>(null);
   const [savedHasPhoto, setSavedHasPhoto] = useState(false);
+  // What the phone's saved moment shows: the name and its figures.
+  const [saved, setSaved] = useState<{ name: string; effort: number; seconds: number; exercises: number; km: number } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg');
@@ -248,6 +258,7 @@ export default function ScanWorkoutScreen() {
     setFieldError(null);
     setGeneralError(null);
     setSuccessMsg(null);
+    setSaved(null);
     setActivityDateStr(isoToDisplayDate(todayLocalStr()));
     setEditActivityId(null);
     setEditOriginalStartedAt(null);
@@ -734,6 +745,13 @@ export default function ScanWorkoutScreen() {
       }
 
       setSuccessMsg(`${name} saved with ${Math.round(effortScore)} Effort.`);
+      setSaved({
+        name,
+        effort: Math.round(effortScore),
+        seconds: extractedWorkout.duration || 0,
+        exercises: extractedWorkout.exercises.length,
+        km: extractedWorkout.distance || 0,
+      });
       setSavedActivityId(activityId);
       setSavedHasPhoto(!!firstPhotoUrl);
       // Check milestones fire-and-forget
@@ -783,18 +801,36 @@ export default function ScanWorkoutScreen() {
         )}
         {loadingEdit && <Text style={st.subtitle}>Loading…</Text>}
 
-        {successMsg && (
+        {saved && !wide ? (
+          // Phone: the save as a finished moment, not a notice (Ricky,
+          // 2026-10-22). Time, then exercises or distance, then Effort, all at
+          // one size; a figure the scan didn't give is left out.
+          <View style={mx.saved}>
+            <View style={mx.savedBadge}><RivalIcon name="check" size={22} color={RivalButtonColors.label(RivalColors.onAccentFill)} /></View>
+            <Text style={mx.savedKicker}>SAVED</Text>
+            <Text style={mx.savedName}>{saved.name}</Text>
+            <View style={mx.savedFigs}>
+              {[
+                saved.seconds > 0 ? { v: formatDurationHMS(saved.seconds), l: 'TIME' } : null,
+                saved.exercises > 0 ? { v: String(saved.exercises), l: 'EXERCISES' }
+                  : saved.km > 0 ? { v: toDisplayDistance(saved.km).toFixed(1), l: distanceUnitLabel().toUpperCase() } : null,
+                { v: String(saved.effort), l: 'EFFORT', gold: true },
+              ].filter(Boolean).map((f, i) => (
+                <View key={f!.l} style={[mx.savedFig, i > 0 && mx.savedFigLine]}>
+                  <Text style={[mx.savedFigValue, f!.gold && effortGoldText]}>{f!.v}</Text>
+                  <Text style={mx.savedFigLabel}>{f!.l}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity onPress={() => goToTab('/my-activities')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
+              <Text style={mx.savedDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        ) : successMsg && (
           <View style={st.successBanner}>
             <Text style={st.successBannerText}>{em('✓ ')}{successMsg}</Text>
             {savedActivityId && savedHasPhoto && (
               <View style={st.enhanceCta}>
-                <TouchableOpacity
-                  style={st.enhanceBtn}
-                  onPress={() => router.replace(`/ai-share?activityId=${savedActivityId}`)}
-                >
-                  {!wide ? <RivalIcon name="ai" size={16} color={st.enhanceBtnText.color as string} /> : null}
-                  <Text style={st.enhanceBtnText}>{em('✨ ')}Enhance photo with AI</Text>
-                </TouchableOpacity>
                 <TouchableOpacity onPress={() => goToTab('/my-activities')}>
                   <Text style={st.enhanceDoneText}>Done</Text>
                 </TouchableOpacity>
@@ -803,7 +839,7 @@ export default function ScanWorkoutScreen() {
           </View>
         )}
 
-        {scanImages.length === 0 && !extractedWorkout && !editParamId && !wide ? (
+        {saved && !wide ? null : scanImages.length === 0 && !extractedWorkout && !editParamId && !wide ? (
           // Mobile: the same hero as Add workout, so arriving here from a
           // cancelled camera reads as the same place, not a new screen.
           // The blend, the same as Add an activity.
@@ -910,7 +946,7 @@ export default function ScanWorkoutScreen() {
                 <View style={st.typeFieldBox}>
                   <Text style={st.fieldLabel}>Type</Text>
                   <View style={st.typeChipRow}>
-                    {TYPE_OPTIONS.map((opt) => {
+                    {typeOptions.map((opt) => {
                       const selected = extractedWorkout.workoutType === opt.type;
                       return (
                         <TouchableOpacity
@@ -1506,6 +1542,21 @@ const mobileStyles = {
 
 // Mobile-only pieces of the empty state.
 const mx = StyleSheet.create({
+  // The phone's saved moment (scan-saved-polished mockup).
+  saved: { alignItems: 'center', paddingTop: 14, paddingHorizontal: 8 },
+  savedBadge: {
+    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+  },
+  savedKicker: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, color: RivalColors.accentText },
+  savedName: { fontFamily: rm.serifTitle.fontFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', color: '#fff', textAlign: 'center', marginTop: 6 },
+  savedFigs: { flexDirection: 'row', alignSelf: 'stretch', marginTop: 22, paddingVertical: 4 },
+  savedFig: { flex: 1, alignItems: 'center' },
+  savedFigLine: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,209,190,0.10)' },
+  savedFigValue: { fontFamily: rm.serifTitle.fontFamily, fontStyle: 'italic', fontSize: 30, lineHeight: 36, fontWeight: '700', color: '#fff' },
+  savedFigLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
+  savedPrimary: { alignSelf: 'stretch', marginTop: 26 },
+  savedDone: { color: RivalColors.accentText, fontSize: 14, fontWeight: '700', textAlign: 'center', paddingTop: 14, paddingBottom: 4 },
   blendHint: { fontSize: 12.5, lineHeight: 17, color: RivalColors.textSecondary },
   blendStep: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   blendNum: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },

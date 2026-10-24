@@ -1,0 +1,83 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>First Lift PB</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Copied from manual-entry.tsx's mobile Lifts card (styles `m`). */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #141312; font-family: Manrope, system-ui, sans-serif; color: #fff; padding: 24px 16px; }
+  .row { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 375px; }
+  .cap { font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,0.6); text-align: center; line-height: 1.45; }
+  .cap b { color: #fff; }
+  .phone { width: 375px; border-radius: 28px; background: #232120; padding: 20px 16px; }
+  .card { background: rgba(255,209,190,0.05); border-radius: 16px; border: 1px solid rgba(255,181,158,0.22); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .head { display: flex; align-items: center; gap: 12px; }
+  .label { font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #c8bdb5; }
+  .hint { font-size: 11.5px; color: rgba(255,255,255,0.4); margin-top: 3px; }
+  .count { min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px; background: #D97757; display: inline-flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800; color: #5c1902; margin-left: 8px; }
+  .toggle { width: 32px; height: 32px; border-radius: 16px; background: rgba(255,209,190,0.16); display: flex; align-items: center; justify-content: center; margin-left: auto; }
+  .unit { display: flex; align-self: flex-start; background: rgba(255,255,255,0.05); border-radius: 999px; padding: 3px; gap: 2px; }
+  .unit span { padding: 6px 16px; border-radius: 999px; font-size: 12.5px; font-weight: 800; color: #c8bdb5; }
+  .unit span.on { background: linear-gradient(135deg, #D97757 0%, #ffb59e 100%); color: #5c1902; }
+  .lift { background: rgba(255,255,255,0.04); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .nameRow { display: flex; align-items: center; gap: 10px; }
+  .idx { width: 22px; height: 22px; border-radius: 11px; text-align: center; line-height: 22px; font-size: 11px; font-weight: 800; color: #ffb59e; background: rgba(255,209,190,0.10); flex: none; }
+  .name { flex: 1; padding: 7px 11px; font-size: 15.5px; font-weight: 700; }
+  .remove { width: 26px; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; flex: none; }
+  .fields { display: flex; gap: 8px; }
+  .field { flex: 1; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.18); border-radius: 10px; padding: 8px 0; gap: 2px; }
+  .field .l { font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: rgba(255,255,255,0.45); }
+  .field .v { font-size: 22px; font-weight: 300; }
+  /* New: shown only on a lift logged for the first time. */
+  .first { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid rgba(255,209,190,0.08); }
+  .first .txt { flex: 1; min-width: 0; }
+  .first .t { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); }
+  .first .s { font-size: 11.5px; color: rgba(255,255,255,0.45); margin-top: 2px; line-height: 1.35; }
+  .first.on .t { color: #ffd27a; }
+  .sw { width: 42px; height: 25px; border-radius: 999px; background: rgba(255,255,255,0.12); position: relative; flex: none; }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 19px; height: 19px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.35); }
+  .sw.on { background: linear-gradient(160deg, #fff0b0 0%, #f5c76a 45%, #c4932a 100%); }
+  .sw.on::after { left: 20px; }
+  .add { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 0; border-radius: 999px; border: 1px dashed rgba(255,209,190,0.35); font-size: 13.5px; font-weight: 700; color: #ffb59e; }
+</style></head><body>
+<div class="row" id="row"></div>
+<script>
+const x = '<svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round"/></svg>';
+const chev = '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="#ffb59e" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const plus = '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#ffb59e" stroke-width="2.2" stroke-linecap="round"/></svg>';
+function lift(i, name, sets, reps, kg, first) {
+  const row = first === undefined ? '' : `
+    <div class="first ${first ? 'on' : ''}">
+      <div class="txt">
+        <div class="t">Personal best</div>
+        <div class="s">First ${name} on RIVAL. Turn on if this is a personal best.</div>
+      </div>
+      <div class="sw ${first ? 'on' : ''}"></div>
+    </div>`;
+  return `<div class="lift">
+    <div class="nameRow"><span class="idx">${i}</span><span class="name">${name}</span><span class="remove">${x}</span></div>
+    <div class="fields">
+      <div class="field"><span class="l">Sets</span><span class="v">${sets}</span></div>
+      <div class="field"><span class="l">Reps</span><span class="v">${reps}</span></div>
+      <div class="field"><span class="l">Kg</span><span class="v">${kg}</span></div>
+    </div>${row}
+  </div>`;
+}
+function phone(lifts, cap) {
+  return `<div class="col"><div class="phone"><div class="card">
+    <div class="head"><div><div><span class="label">Lifts</span><span class="count">${lifts.length}</span></div><div class="hint">Optional · tracked as PBs</div></div><div class="toggle">${chev}</div></div>
+    <div class="unit"><span class="on">kg</span><span>lb</span></div>
+    ${lifts.join('')}
+    <div class="add">${plus}Add another exercise</div>
+  </div></div><div class="cap">${cap}</div></div>`;
+}
+document.fonts.load('700 40px Manrope').finally(() => {
+  document.getElementById('row').innerHTML = [
+    phone([lift(1, 'Bench Press', 1, 1, 300, false)], '<b>1. First bench press.</b> The switch is off, so it saves as a normal lift. Nothing shows on the activity or in the feed.'),
+    phone([lift(1, 'Bench Press', 1, 1, 300, true)], '<b>2. Switched on.</b> Saved as a personal best: the PB badge in the feed and on the activity, ready to share.'),
+    phone([lift(1, 'Bench Press', 3, 5, 120), lift(2, 'Deadlift', 1, 1, 200, false)], '<b>3. Bench logged before.</b> No switch on it: a bench is a PB only when it beats the heaviest. The first deadlift gets the switch.'),
+  ].join('');
+});
+</script>
+</body></html>

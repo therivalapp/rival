@@ -8,7 +8,8 @@
 // It decides PRESENTATION, never whether something counts — Effort is
 // unaffected either way.
 
-export type RollupPart = { seconds: number; xp: number };
+// Each walk keeps what the day card's list shows for it (Ricky, 2026-10-21).
+export type RollupPart = { seconds: number; xp: number; meters?: number; startedAt?: string; name?: string | null };
 
 export type RollupRow = {
   id: string;
@@ -18,6 +19,10 @@ export type RollupRow = {
   started_at: string;
   duration_seconds: number | null;
   effort_score: number | null;
+  distance_meters?: number | null;
+  name?: string | null;
+  photo_url?: string | null;
+  notes?: string | null;
 };
 
 export type DayRollup = {
@@ -29,6 +34,7 @@ export type DayRollup = {
   parts: Record<string, RollupPart>;
   count: number;
   totalSeconds: number;
+  totalMeters: number;
   xp: number;
   typeLabel: string;
   // The EARLIEST walk of the day, not the latest, so the card settles where
@@ -54,9 +60,23 @@ const ROLLED_UP_PROVIDERS = new Set(['strava', 'garmin', 'shared']);
 // experiences them.
 //
 // Only walks: a short auto-synced RUN is still a session someone set out to do.
-export function rollsUpIntoDayCard(a: Pick<RollupRow, 'activity_type' | 'provider'>): boolean {
+//
+// A synced walk that shows someone meant it (a photo, notes, or a name they
+// typed rather than the app's "Morning Walk") keeps its own post, like any
+// run (Ricky, 2026-10-21).
+export function rollsUpIntoDayCard(a: Pick<RollupRow, 'activity_type' | 'provider' | 'name' | 'photo_url' | 'notes'>): boolean {
   return (a.activity_type || '').toLowerCase() === 'walk'
-    && ROLLED_UP_PROVIDERS.has((a.provider || '').toLowerCase());
+    && ROLLED_UP_PROVIDERS.has((a.provider || '').toLowerCase())
+    && !a.photo_url
+    && !(a.notes || '').trim()
+    && isDefaultWalkName(a.name);
+}
+
+// The names a watch or Strava gives a walk on its own: "Morning Walk",
+// "Lunch Walk", Garmin's "Walking" or "Vancouver Walking".
+export function isDefaultWalkName(name: string | null | undefined): boolean {
+  const n = (name || '').trim();
+  return !n || /^((morning|afternoon|evening|night|lunch) )?walk(ing)?$/i.test(n) || /^[\p{L} .'-]+ walking$/iu.test(n);
 }
 
 // LIMITATION: activities store started_at as UTC and the athlete's own timezone
@@ -86,6 +106,7 @@ export function rollupFromParts(
     parts,
     count: values.length,
     totalSeconds: values.reduce((sum, v) => sum + v.seconds, 0),
+    totalMeters: values.reduce((sum, v) => sum + (v.meters || 0), 0),
     xp: Math.round(values.reduce((sum, v) => sum + v.xp, 0) * 10) / 10,
     typeLabel: values.length === 1 ? 'walk' : 'walks',
     ts,
@@ -105,7 +126,7 @@ export function buildDayRollups(rows: RollupRow[]): DayRollup[] {
   for (const [key, list] of groups) {
     const [userId, dayIso] = key.split('|');
     const parts: Record<string, RollupPart> = {};
-    for (const a of list) parts[a.id] = { seconds: a.duration_seconds || 0, xp: a.effort_score || 0 };
+    for (const a of list) parts[a.id] = { seconds: a.duration_seconds || 0, xp: a.effort_score || 0, meters: a.distance_meters || 0, startedAt: a.started_at, name: a.name ?? null };
     const earliest = list.reduce((min, a) => (a.started_at < min ? a.started_at : min), list[0].started_at);
     out.push(rollupFromParts(userId, dayIso, parts, earliest));
   }

@@ -269,7 +269,7 @@ export function MultiDayScan() {
         </GreyRows>
         <View style={s.overlayActions}>
           <TouchableOpacity onPress={() => removeDraft(editing)} style={s.remove} accessibilityRole="button">
-            <RivalIcon name="delete" size={16} color={RivalColors.textSecondary} />
+            <RivalIcon name="delete" size={16} color={RivalColors.danger} />
             <Text style={s.removeText}>Remove day</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setEditing(null)} style={s.done} accessibilityRole="button">
@@ -456,7 +456,7 @@ const s = StyleSheet.create({
   overlayTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, color: RivalColors.textPrimary, textAlign: 'center', marginBottom: 4 },
   overlayActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   remove: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10 },
-  removeText: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary },
+  removeText: { fontSize: 13, fontWeight: '700', color: RivalColors.danger },
   done: { paddingVertical: 10, paddingHorizontal: 22, borderRadius: 999, backgroundColor: 'rgba(255,181,158,0.14)' },
   doneText: { fontSize: 13.5, fontWeight: '800', color: RivalColors.accentText },
 });

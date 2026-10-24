@@ -1,0 +1,129 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delete Account Flow</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120}
+*{box-sizing:border-box}
+body{margin:0;background:#070606;color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 28px;max-width:720px}
+.row{display:flex;flex-wrap:wrap;gap:34px;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:10px;width:340px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.phone{width:340px;border-radius:44px;border:8px solid #1b1918;background:radial-gradient(ellipse 120% 40% at 50% 0,#3a2c24,#141110 60%) #141110;overflow:hidden;display:flex;flex-direction:column}
+.status{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:700}
+.top{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.logo{font-size:17px;letter-spacing:4px;font-weight:800;color:#e8835f}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7b8c6a,#3b4a5a);border:2px solid rgba(255,255,255,.25)}
+.body{padding:14px 14px 0;display:flex;flex-direction:column;gap:12px}
+.nav{margin:16px 14px 14px;height:52px;border-radius:20px;background:#1c1a19;border:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-around}
+.nav i{width:22px;height:16px;border-radius:4px;background:rgba(255,255,255,.25)}
+.nav i.on{background:#e8835f;box-shadow:0 0 0 10px rgba(232,131,95,.12)}
+.kick{font-size:9.5px;letter-spacing:1.7px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 20px Georgia,serif;line-height:1.15}
+.u{font:600 .45em -apple-system,sans-serif;font-style:normal;color:rgba(255,255,255,.55);margin:0 3px 0 1px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.effc{text-align:right}.effc b{display:block;font:italic 700 21px/1 Georgia,serif}.effc span{font-size:8.5px;letter-spacing:1.7px;color:var(--accent);font-weight:800}
+.huge{font:italic 700 40px/1 Georgia,serif}
+.mini{display:flex;gap:15px}.mini div{display:flex;flex-direction:column}.mini b{font:italic 700 16px/1.1 Georgia,serif}
+.lab{font-size:8.5px;letter-spacing:1.2px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.chip{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;height:24px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(20,40,28,.6);color:#7fe0a4}
+.chip svg{width:13px;height:13px}
+.cover{position:relative;border-radius:22px;overflow:hidden;padding:14px;display:flex;flex-direction:column;justify-content:space-between;background-size:cover}
+.cover:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,12,11,.5) 0%,rgba(14,12,11,0) 26%,rgba(14,12,11,.25) 52%,rgba(20,17,16,.96) 100%)}
+.cover>*{position:relative;z-index:1}
+.cover .bigic{position:absolute;left:24%;top:14%;width:52%;height:46%;z-index:1;color:rgba(255,255,255,.15)}
+.stack{display:flex;flex-direction:column;gap:8px}
+.chev{text-align:center;color:rgba(255,255,255,.35);font-size:12px;margin-top:-4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.c{position:relative;aspect-ratio:3/4;border-radius:18px;overflow:hidden;background-size:cover;background-position:center}
+.c:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,0) 30%,rgba(20,17,16,.85) 100%)}
+.c>*{position:relative;z-index:1}
+.c .day{position:absolute;top:8px;left:0;right:0;text-align:center;font:italic 12px Georgia,serif;color:rgba(255,255,255,.8)}
+.c .art{position:absolute;left:20%;top:22%;width:60%;height:44%;color:rgba(255,255,255,.15)}
+.c .b{position:absolute;left:10px;right:10px;bottom:9px;display:flex;align-items:flex-end;justify-content:space-between}
+.c .b span{display:block;font-size:11px;color:var(--accent)}
+.c .b b{font:italic 700 15px Georgia,serif}
+.c .e{text-align:right}.c .e small{display:block;font-size:7px;letter-spacing:1.3px;color:var(--accent);font-weight:800}
+.sky1{background:linear-gradient(180deg,#5f7d96,#9bb0bf 40%,#3a3330)}
+.sky2{background:linear-gradient(180deg,#46617a,#5d7487 45%,#2a2522)}
+.sky3{background:linear-gradient(180deg,#1d2440,#3b2d48 50%,#3e2a26)}
+.slim{display:flex;align-items:center;gap:10px;padding:13px 15px;border-radius:18px;background:var(--ground);border:1px solid rgba(255,255,255,.06)}
+.slim .x{flex:1}.slim .x .s{font-size:12px;color:var(--muted)}
+.rest{display:flex;align-items:center;gap:10px;padding:13px 15px;border-radius:16px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.12)}
+.rest .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22)}
+.note{text-align:center;color:var(--muted);font-size:13px;padding:20px 10px 30px}
+.note b{display:block;font:italic 700 18px Georgia,serif;color:rgba(255,255,255,.85);margin-bottom:4px}
+</style><style>
+.back{display:flex;align-items:center;gap:10px;padding:2px 2px 6px}
+.back i{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-style:normal;color:rgba(255,255,255,.7)}
+.back b{font:italic 700 21px Georgia,serif}
+.card{border-radius:20px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:15px;display:flex;flex-direction:column;gap:10px}
+.lbl{font-size:9.5px;letter-spacing:1.7px;font-weight:800;text-transform:uppercase;color:var(--muted)}
+.p{font-size:13px;line-height:1.5;color:rgba(255,255,255,.78)}
+.rows{border-radius:14px;background:rgba(255,209,190,.05)}
+.rows div{display:flex;align-items:center;justify-content:flex-start;text-align:left;gap:10px;padding:10px 12px;font-size:13px}
+.rows div+div{border-top:1px solid rgba(255,255,255,.06)}
+.rows span{margin-left:auto;color:var(--muted);font-size:12px}
+.rows .dot{margin-left:0}.dot{width:8px;height:8px;border-radius:50%;background:#e8835f;flex:none}
+.btn{display:flex;align-items:center;justify-content:center;height:44px;border-radius:999px;font-weight:800;font-size:14px}
+.salmon{background:linear-gradient(180deg,#ffc2ad,#e8835f);color:#2a1408}
+.ghost{border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.88)}
+.red{background:rgba(255,92,92,.14);border:1px solid rgba(255,92,92,.45);color:#ff5c5c}
+.redsolid{background:#ff5c5c;color:#2a0b0b}
+.link{text-align:center;font-size:12.5px;color:var(--muted)}
+.link u{color:rgba(255,255,255,.75)}
+.ok{display:flex;gap:10px;align-items:flex-start;border-radius:14px;padding:11px 12px;background:rgba(95,211,138,.1)}
+.ok b{display:block;font-size:13px;color:#7fe0a4}
+.ok span{font-size:12px;color:rgba(255,255,255,.7)}
+.tick{width:20px;height:20px;border-radius:50%;background:#7fe0a4;color:#0e2a18;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none}
+.big{text-align:center;padding:14px 6px 4px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.env{width:58px;height:58px;border-radius:50%;background:rgba(232,131,95,.16);display:flex;align-items:center;justify-content:center;font-size:24px;color:#ffb59e}
+.serif{font:italic 700 22px Georgia,serif}
+.mail{width:340px;border-radius:16px;background:#f6f3ef;color:#1d1a18;overflow:hidden;font:14px/1.5 -apple-system,sans-serif}
+.mail .hd{padding:12px 16px;border-bottom:1px solid #e3ddd6;font-size:12px;color:#6b625b}
+.mail .hd b{color:#1d1a18}
+.mail .bd{padding:20px 18px;display:flex;flex-direction:column;gap:12px}
+.mail .logo{font-size:15px;letter-spacing:4px;font-weight:800;color:#c96a4a}
+.mail h3{margin:0;font:italic 700 22px Georgia,serif}
+.mail .mbtn{align-self:flex-start;padding:11px 18px;border-radius:999px;background:#ff5c5c;color:#fff;font-weight:800;font-size:13px}
+.mail .small{font-size:12px;color:#7a716a}
+</style>
+</head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="run" viewBox="0 0 24 24"><circle cx="14" cy="4.5" r="2" fill="currentColor"/><path d="M7 21l3-6 3 2 1 4M9 11l3-3 3 3 3 1M12 8l-2 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="swim" viewBox="0 0 24 24"><circle cx="17" cy="7" r="2.2" fill="currentColor"/><path d="M3 15c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M3 19c2-1.5 4-1.5 6 0s4 1.5 6 0 4-1.5 6 0M7 12l4-5 4 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="lift" viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+</defs></svg>
+<h1>Deleting an account</h1><p class="lead">Modelled on Strava: delete is offered with a copy first, and the final step is a link sent by email. Red is used only for the delete actions; the archive is a normal salmon action.</p><div class="row"><div class="col"><div class="t">1 · Delete account</div><div class="d">From Profile, Account. Says plainly what goes, offers a copy first, then the request. Nothing is removed on this screen.</div><div class="phone"><div class="status"><span>9:41</span><span>●●●</span></div><div class="top"><span class="logo">RIVAL</span><span class="av"></span></div><div class="body">
+<div class="back"><i>‹</i><b>Delete account</b></div>
+<div class="card"><span class="lbl">What is removed</span>
+ <div class="rows"><div><span class="dot"></span><em style="flex:1;font-style:normal;text-align:left">Activities and routes</em><span>237</span></div><div><span class="dot"></span><em style="flex:1;font-style:normal;text-align:left">Photos and journal entries</em><span>48</span></div><div><span class="dot"></span><em style="flex:1;font-style:normal;text-align:left">Teams, Effort and ranks</em><span>3 teams</span></div></div>
+ <p class="p" style="margin:0">Teammates keep their own activities. Shared activities stay on their accounts.</p></div>
+<div class="card"><span class="lbl">Keep a copy</span>
+ <p class="p" style="margin:0">A file of every activity, route, photo and journal entry, sent by email as a download link.</p>
+ <div class="btn salmon">Request archive</div></div>
+<div class="btn red">Request account deletion</div>
+<div class="link">A final confirmation is sent to r•••@hotmail.co.nz</div><div style="height:10px"></div></div><div class="nav"><i></i><i></i><i></i><i></i></div></div></div><div class="col"><div class="t">2 · Archive requested</div><div class="d">The archive button turns into a confirmation. The archive is prepared in the background and emailed when ready; the person can carry on, or still go ahead with deletion.</div><div class="phone"><div class="status"><span>9:41</span><span>●●●</span></div><div class="top"><span class="logo">RIVAL</span><span class="av"></span></div><div class="body">
+<div class="back"><i>‹</i><b>Delete account</b></div>
+<div class="card"><span class="lbl">Keep a copy</span>
+ <div class="ok"><span class="tick">✓</span><div><b>Archive requested</b><span>A download link will be emailed to r•••@hotmail.co.nz, usually within a few minutes. The link works for 7 days.</span></div></div></div>
+<div class="btn red">Request account deletion</div>
+<div class="link">Waiting for the archive first is recommended.</div><div style="height:160px"></div></div><div class="nav"><i></i><i></i><i></i><i></i></div></div></div><div class="col"><div class="t">3 · Check email</div><div class="d">After requesting deletion. The account stays fully working until the link in the email is used. A clear way to delete without email is kept, as Apple requires.</div><div class="phone"><div class="status"><span>9:41</span><span>●●●</span></div><div class="top"><span class="logo">RIVAL</span><span class="av"></span></div><div class="body">
+<div class="back"><i>‹</i><b>Delete account</b></div>
+<div class="card"><div class="big"><div class="env">✉</div><div class="serif">Check email</div>
+ <p class="p" style="margin:0">A link to permanently delete this account was sent to r•••@hotmail.co.nz. It works for 24 hours.</p></div>
+ <div class="btn ghost">Send again</div>
+ <div class="btn ghost">Cancel request</div></div>
+<div class="link">No email? <u>Delete now instead</u></div><div style="height:120px"></div></div><div class="nav"><i></i><i></i><i></i><i></i></div></div></div><div class="col"><div class="t">4 · The email</div><div class="d">Plain and factual, with one red button. Says what happens and how to stop it.</div>
+<div class="mail"><div class="hd">From <b>RIVAL</b> · To r•••@hotmail.co.nz<br>Confirm account deletion</div>
+<div class="bd"><span class="logo">RIVAL</span><h3>Confirm account deletion</h3>
+<p style="margin:0">A request was made to delete the RIVAL account for Ricky Jackson-Lewis. This removes all activities, photos, teams and Effort history, and cannot be undone.</p>
+<span class="mbtn">Delete account permanently</span>
+<p class="small" style="margin:0">This link works for 24 hours. If you did not ask for this, ignore this email and nothing will change.</p></div></div></div><div class="col"><div class="t">5 · Final step</div><div class="d">The link opens RIVAL on one last screen. Deleting signs out and shows a short goodbye; cancelling leaves everything as it was.</div><div class="phone"><div class="status"><span>9:41</span><span>●●●</span></div><div class="top"><span class="logo">RIVAL</span><span class="av"></span></div><div class="body">
+<div class="card" style="margin-top:30px"><div class="big"><div class="env" style="background:rgba(255,92,92,.14);color:#ff5c5c">!</div><div class="serif">Delete account</div>
+ <p class="p" style="margin:0">All activities, photos, teams and Effort history for this account are removed. This cannot be undone.</p></div>
+ <div class="btn redsolid">Delete account permanently</div>
+ <div class="btn ghost">Keep account</div></div><div style="height:200px"></div></div><div class="nav"><i></i><i></i><i></i><i></i></div></div></div></div></body></html>

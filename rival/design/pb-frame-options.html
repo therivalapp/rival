@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personal Best Frame</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--sh:#24201d;--bright:#2e2925;--accent:#ffb59e;--muted:rgba(255,255,255,.55)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:560px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.opt{width:280px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.phone{height:580px;border-radius:44px;background:#000;padding:8px}
+.scr{position:relative;height:100%;border-radius:37px;overflow:hidden;background:var(--sh)}
+.photo{position:absolute;inset:0 0 auto 0;height:52%;background:linear-gradient(170deg,#1d5e75,#5fc1d0 55%,#24201d)}
+.melt{position:absolute;left:0;right:0;bottom:0;height:45%;background:linear-gradient(transparent,var(--sh))}
+.ttl{position:absolute;left:16px;right:16px;top:43%}
+.k{font-size:10px;letter-spacing:1.6px;color:var(--accent);font-weight:700;display:flex;align-items:center;gap:8px}
+.n{display:flex;justify-content:space-between;align-items:center;font:italic 700 21px Georgia,serif;margin-top:2px}
+.stats{position:absolute;left:12px;right:12px;top:57%;display:grid;grid-template-columns:repeat(4,1fr);background:var(--bright);border-radius:14px;padding:10px 2px;text-align:center;border:1px solid rgba(255,255,255,.06)}
+.stats b{display:block;font-size:14px}.stats span{font-size:8px;letter-spacing:1px;color:var(--muted)}
+.stats .e b{font:italic 700 17px Georgia,serif;background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.jr{position:absolute;left:12px;right:12px;top:72%;height:110px;background:#2b2724;border-radius:14px;padding:12px}
+.jr small{font-size:9px;letter-spacing:1.4px;color:var(--muted);font-weight:700}
+.jr div{font:italic 700 15px Georgia,serif;margin-top:6px}
+/* treatments */
+.hard{position:absolute;inset:0;border:4px solid #FFD700}
+.glow{position:absolute;inset:0;border-radius:37px;box-shadow:inset 0 0 0 1.5px rgba(255,215,0,.55),inset 0 0 38px rgba(255,201,77,.22);pointer-events:none}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:linear-gradient(90deg,rgba(255,201,77,.22),rgba(255,201,77,.08));border:1px solid rgba(255,201,77,.5);color:#ffe6a8;font-size:9px;letter-spacing:1.3px}
+.pill svg{width:10px;height:10px}
+.goldEdge{border-color:rgba(255,201,77,.45);box-shadow:0 0 18px rgba(255,201,77,.12)}
+.note{position:absolute;left:12px;right:12px;top:68.5%;font-size:11.5px;color:#ffe6a8;display:flex;gap:6px;align-items:center}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Personal best on the activity page</h1>
+<p class="lead">The hard yellow frame runs into the phone's rounded corners, which is what breaks it. Three calmer ways to mark a personal best.</p>
+<div class="row" id="r"></div>
+<script>
+const tro='<svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+const base=(pill,goldEdge,note)=>`<div class="photo"><div class="melt"></div></div>
+<div class="ttl"><div class="k">SWIM ${pill?`<span class="pill">${tro} PERSONAL BEST</span>`:''}</div><div class="n">Morning Swim<span style="font:normal 20px sans-serif;color:rgba(255,255,255,.8)">☆</span></div></div>
+<div class="stats ${goldEdge?'goldEdge':''}"><div><b>1:02:55</b><span>TIME</span></div><div><b>2070 m</b><span>DISTANCE</span></div><div><b>3 m</b><span>CLIMB</span></div><div class="e"><b>116.2</b><span>EFFORT</span></div></div>
+${note?`<div class="note">${tro} Farthest swim, up from 2,000 m</div>`:''}
+<div class="jr" style="${note?'top:74%':''}"><small>JOURNAL</small><div>How did it go?</div></div>`;
+const O=[
+ ['Current','A 4px yellow line on a square frame. The phone cuts its corners.',base(0,0,0)+'<div class="hard"></div>',0],
+ ['A · Soft gold glow','The frame becomes a fine gold line with a glow, rounded to the screen. Nothing to break.',base(0,0,0)+'<div class="glow"></div>',0],
+ ['B · Personal best label','No frame. A gold "Personal best" label by the type, a gold edge on the numbers, and what the best was.',base(1,1,1),1],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h,rec])=>`<div class="opt"><div class="t ${rec?'rec':''}">${t}${rec?' · recommended':''}</div><div class="d">${d}</div><div class="phone"><div class="scr">${h}</div></div></div>`).join('');
+</script>
+</body></html>

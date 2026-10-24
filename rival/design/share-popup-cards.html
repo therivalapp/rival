@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Share pop-up (ActivityDiaryViewer cardSheet): RivalGhost.ground + top glow;
+   cards = the Add an activity outlined ghost (border rgba(255,181,158,.22),
+   fill rgba(255,209,190,.05)); tiles = StatTiles. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:18px;display:flex;gap:26px;justify-content:center}
+.col{width:375px}h2{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+.note{font-size:12px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:17px}
+.scr{width:375px;height:812px;border-radius:28px;overflow:hidden;background:#232120 radial-gradient(ellipse 80% 260px at 50% 0%,rgba(217,119,87,.16),rgba(217,119,87,0) 70%) no-repeat;padding:30px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:12px}
+.stage{width:212px;height:377px;border-radius:16px;background:url(file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/candidates/a-single-runner-crossing-a-vast.png) center/cover;position:relative;flex-shrink:0}
+.stage.big{width:100%;height:auto;aspect-ratio:9/16}
+.hint{font-size:11.5px;color:rgba(255,255,255,.55);margin-top:-4px}
+.card{align-self:stretch;border-radius:16px;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05);padding:12px;display:flex;flex-direction:column;gap:9px}
+.lab{font-size:9.5px;font-weight:800;letter-spacing:1.4px;color:rgba(255,255,255,.5)}
+.strip{display:flex;gap:7px;overflow:hidden}.ch{width:40px;height:56px;flex-shrink:0;border-radius:8px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,209,190,.06)}.ch.on{border-color:#ffb59e}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.t{border-radius:10px;padding:7px 2px 6px;text-align:center;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05)}
+.t .v{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:13px;color:rgba(255,255,255,.6)}.t .v small{font-family:Manrope;font-style:normal;font-size:8px}
+.t .l{font-size:7.5px;font-weight:800;letter-spacing:.8px;color:rgba(255,255,255,.45);margin-top:2px}
+.t.on{background:linear-gradient(135deg,#ffb59e,#D97757);border-color:transparent}.t.on .v,.t.on .l{color:#2a120a}
+.t.g{background:linear-gradient(160deg,#fff0b0,#f5c76a 45%,#c4932a);border-color:transparent}.t.g .v,.t.g .l{color:#3a2600}
+.rule{height:1px;background:rgba(255,209,190,.1);margin:2px 0}
+.btn{align-self:stretch;min-height:50px;border-radius:999px;background:linear-gradient(135deg,#ffb59e,#D97757);color:#2a120a;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center}
+.lnk{font-size:13px;font-weight:700;color:#ffb59e}
+.stamp{position:absolute;left:8%;right:8%;bottom:9%;text-align:center;font-size:10px;color:#fff}
+</style></head><body>
+<script>
+const tiles=[['7.1','km','DISTANCE',1],['43:13','','TIME',1],['6:06','/km','PACE'],['9.8','km/h','SPEED'],['127','m','ELEVATION'],['766','','CALORIES'],['17.4','km/h','MAX SPEED'],['76','','EFFORT','g']];
+const grid=`<div class="grid">${tiles.map(([v,u,l,on])=>`<div class="t ${on==='g'?'g':on?'on':''}"><div class="v">${v}${u?`<small> ${u}</small>`:''}</div><div class="l">${l}</div></div>`).join('')}</div>`;
+const strip=`<div class="strip">${'<div class="ch"></div>'.repeat(1)}<div class="ch on"></div>${'<div class="ch"></div>'.repeat(7)}</div>`;
+const stamp='<div class="stamp"><div style="letter-spacing:4px;font-weight:800">RIVAL</div><div style="font-family:Georgia;font-style:italic;font-weight:700;font-size:15px;margin-top:4px">7.1 km · 43:13 · <span style="color:#ffc94d">76</span></div></div>';
+const A=`<div class="scr"><div class="stage">${stamp}</div><div class="hint">Drag to move · pinch to resize · twist to turn</div>
+<div class="card"><div class="lab">SWIPE FOR MORE</div>${strip}<div class="rule"></div><div class="lab">SELECT UP TO 3</div>${grid}</div><div class="btn">Share</div><div class="lnk">Share the stamp on its own</div></div>`;
+const B=`<div class="scr"><div class="stage">${stamp}</div><div class="hint">Drag to move · pinch to resize · twist to turn</div>
+<div class="card"><div class="lab">SWIPE FOR MORE</div>${strip}</div><div class="card"><div class="lab">SELECT UP TO 3</div>${grid}</div><div class="btn">Share</div><div class="lnk">Share the stamp on its own</div></div>`;
+document.write(`<div class="col"><h2>A · ONE CARD</h2>${A}<div class="note">The stamp choices and the stats together in one outlined card, split by a fine line. The photo above, the buttons below.</div></div>
+<div class="col"><h2>B · TWO CARDS</h2>${B}<div class="note">A card for the stamp choices and a card for the stats. A little more structure, a little more height.</div></div>`);
+</script></body></html>

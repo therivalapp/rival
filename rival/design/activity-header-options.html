@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Activity Header Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--surfaceHigh:#24201d;--bright:#2e2925;--accent:#ffb59e;--muted:rgba(255,255,255,.55)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 0 24px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.opt{width:280px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.phone{width:280px;height:520px;border-radius:36px;background:#000;padding:9px}
+.scr{position:relative;width:100%;height:100%;border-radius:28px;overflow:hidden;background:var(--surfaceHigh)}
+.photo{position:absolute;inset:0 0 auto 0;height:62%;background:linear-gradient(180deg,#cfe3f2 0%,#9bb7c4 22%,#6d7f5a 45%,#3f5a2f 70%,#4a2e33 100%)}
+.melt{position:absolute;left:0;right:0;bottom:0;height:40%;background:linear-gradient(transparent,var(--surfaceHigh))}
+.status{position:absolute;top:10px;left:22px;right:22px;display:flex;justify-content:space-between;font-weight:600;font-size:13px;color:#111;z-index:9}
+.island{position:absolute;top:8px;left:50%;width:84px;height:24px;margin-left:-42px;background:#000;border-radius:14px;z-index:9}
+.bars{position:absolute;left:12px;right:12px;display:flex;gap:4px;z-index:6}
+.bars i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35)}.bars i.on{background:#fff}
+.btn{position:absolute;display:grid;place-items:center;border-radius:50%;color:#fff;z-index:7}
+.grey{width:34px;height:34px;background:rgba(160,160,160,.55)}
+.glass{width:32px;height:32px;background:rgba(0,0,0,.32);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.star{color:var(--accent)}
+.title{position:absolute;left:14px;right:14px;top:52%;}
+.kick{font-size:10px;letter-spacing:1.6px;color:var(--accent);font-weight:700}
+.name{font:italic 700 20px Georgia,serif;display:flex;align-items:center;justify-content:space-between}
+.name span.s{font:normal 18px sans-serif;color:var(--accent)}
+.stats{position:absolute;left:12px;right:12px;top:68%;display:grid;grid-template-columns:repeat(4,1fr);background:var(--bright);border-radius:14px;padding:9px 2px;text-align:center}
+.stats b{display:block;font-size:14px}.stats span{font-size:8px;letter-spacing:1px;color:var(--muted)}
+.stats .e b{font:italic 700 17px Georgia,serif;color:#ffc94d}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Top of the activity page</h1>
+<p class="lead">Current layout, then three ways to calm it down. The bars only appear when there is more than one photo.</p>
+<div class="row" id="r"></div>
+<script>
+const st=`<div class="island"></div><div class="status"><span>9:24</span><span>●●●</span></div>`;
+const body=(starInTitle)=>`<div class="photo"><div class="melt"></div></div>
+<div class="title"><div class="kick">RUN</div><div class="name">Morning Run${starInTitle?'<span class="s">☆</span>':''}</div></div>
+<div class="stats"><div><b>39:42</b><span>TIME</span></div><div><b>6.8 km</b><span>DISTANCE</span></div><div><b>18 m</b><span>CLIMB</span></div><div class="e"><b>67.6</b><span>EFFORT</span></div></div>`;
+const O=[
+['Current','Grey buttons crowd the bar, and one photo still shows a full bar.',`${st}<div class="bars" style="top:40px"><i class="on"></i></div>
+<div class="btn grey" style="top:50px;left:12px">‹</div><div class="btn grey star" style="top:50px;right:52px">☆</div><div class="btn grey" style="top:50px;right:12px">•••</div>`+body(false)],
+['A · More room','No bar for one photo. Smaller dark glass buttons, set lower with space below the bars.',`${st}<div class="bars" style="top:40px"><i class="on"></i><i></i><i></i></div>
+<div class="btn glass" style="top:58px;left:12px">‹</div><div class="btn glass star" style="top:58px;right:50px">☆</div><div class="btn glass" style="top:58px;right:12px">•••</div>`+body(false)],
+['B · Star by the title','Only back and more on the photo. The pin star sits beside the title, where it belongs to the activity.',`${st}<div class="bars" style="top:40px"><i class="on"></i><i></i><i></i></div>
+<div class="btn glass" style="top:58px;left:12px">‹</div><div class="btn glass" style="top:58px;right:12px">•••</div>`+body(true)],
+['C · Bars at the bottom · recommended','B, with the bars moved down to sit just above the title. The top of the photo stays clear.',`${st}
+<div class="btn glass" style="top:48px;left:12px">‹</div><div class="btn glass" style="top:48px;right:12px">•••</div>`+body(true)+`<div class="bars" style="top:calc(52% - 12px)"><i class="on"></i><i></i><i></i></div>`],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h],i)=>`<div class="opt"><div class="t ${i==3?'rec':''}">${t}</div><div class="d">${d}</div><div class="phone"><div class="scr">${h}</div></div></div>`).join('');
+</script>
+</body></html>

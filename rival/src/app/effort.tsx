@@ -28,8 +28,8 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   },
   {
     icon: 'elevation',
-    title: 'Climbing adds Effort',
-    body: 'Climbing adds Effort on foot, bike and skis, including treadmill incline.',
+    title: 'Elevation adds Effort',
+    body: 'Elevation gain adds Effort on foot, bike and skis, including treadmill incline.',
   },
   {
     icon: 'check',
@@ -108,7 +108,7 @@ export default function EffortScreen() {
                 const what = [
                   ex.meters > 0 ? formatActivityDistance(ex.meters, ex.type) : null,
                   `${ex.minutes} min`,
-                  ex.climb > 0 ? `${formatElevation(ex.climb)} climbed` : null,
+                  ex.climb > 0 ? `${formatElevation(ex.climb)} elevation` : null,
                 ].filter(Boolean).join(' · ');
                 return (
                   <View key={i} style={[s.row, i > 0 && (phone ? s.rulePhone : s.rule)]}>
@@ -134,7 +134,7 @@ export default function EffortScreen() {
                 </View>
               ))}
             </View>
-            <GreyNote>Climbing adds {climbPer} on foot, bike and skis.</GreyNote>
+            <GreyNote>Elevation gain adds {climbPer} on foot, bike and skis.</GreyNote>
 
             <GreyLabel>Scored on time</GreyLabel>
             <View style={[s.card, phone && s.cardPhone]}>

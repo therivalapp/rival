@@ -1,0 +1,101 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Month Bests Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22);--gold:#ffd27a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:660px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:340px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.page{border-radius:26px;padding:14px;background:radial-gradient(ellipse at 50% 0,#3a2a22,#16120f 75%);display:flex;flex-direction:column;gap:12px}
+.bar{display:flex;align-items:center;justify-content:space-between}
+.seg{display:flex;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px}
+.seg span{padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:700;color:var(--muted)}.seg span.on{background:rgba(232,131,95,.2);color:#ffd3c2}
+.fbtn{height:34px;padding:0 13px;border-radius:999px;display:flex;align-items:center;font-size:12.5px;font-weight:700;color:rgba(255,255,255,.75);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}.card{height:110px;border-radius:14px}
+.c1{background:linear-gradient(170deg,#3e566a,#6d8193)}.c2{background:linear-gradient(160deg,#4a5a4a,#a3a89a)}
+
+.g{position:relative;overflow:hidden;border-radius:20px;background:var(--ground);border:1px solid rgba(255,201,77,.22);padding:14px 14px 15px;display:flex;flex-direction:column;gap:12px}
+.g:before{content:"";position:absolute;inset:0 0 auto 0;height:100px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(255,201,77,.14),rgba(255,201,77,0) 70%)}
+.g>*{position:relative}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--gold);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 21px Georgia,serif;line-height:1.15}
+.hd{display:flex;align-items:flex-end;justify-content:space-between}
+.see{font-size:12px;font-weight:700;color:var(--accent)}
+.ic{width:15px;height:15px;flex:none}
+.gold{background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* A tiles */
+.strip{display:flex;gap:8px;overflow:hidden}
+.tile{flex:none;width:150px;border-radius:14px;background:rgba(255,201,77,.06);border:1px solid rgba(255,201,77,.25);padding:10px 11px;display:flex;flex-direction:column;gap:3px}
+.tile .n{white-space:nowrap;font-size:9.5px;letter-spacing:.8px;font-weight:800;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;gap:5px}
+.tile b{font:italic 700 22px Georgia,serif;line-height:1.1}
+.tile b small{font:600 11px -apple-system,sans-serif;color:var(--muted);font-style:normal;margin-left:2px}
+.tile em{font-style:normal;font-size:11px;color:var(--muted)}
+
+/* B rows */
+.rows{background:rgba(255,201,77,.04);border:1px solid rgba(255,201,77,.2);border-radius:14px}
+.rows>div{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.rows>div+div{border-top:1px solid rgba(255,201,77,.12)}
+.rows .x{flex:1;min-width:0}.rows .x div{font-size:13.5px;font-weight:700}.rows .x span{font-size:11.5px;color:var(--muted)}
+.rows b{font:italic 700 18px Georgia,serif}
+.rows b small{font:600 11px -apple-system,sans-serif;color:var(--muted);font-style:normal;margin-left:2px}
+
+/* C band */
+.band{position:relative;overflow:hidden;border-radius:16px;background:var(--ground);border:1px solid rgba(255,201,77,.3);padding:12px 14px;display:flex;align-items:center;gap:12px}
+.band:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,201,77,.12),rgba(255,201,77,0) 70%)}
+.band>*{position:relative}
+.medal{width:40px;height:40px;border-radius:50%;background:rgba(255,201,77,.14);border:1px solid rgba(255,201,77,.4);display:flex;align-items:center;justify-content:center;flex:none}
+.band .x{flex:1}.band .x div{font:italic 700 18px Georgia,serif}.band .x span{font-size:12px;color:var(--muted)}
+.chev{color:var(--muted);font-size:16px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+<symbol id="run" viewBox="0 0 24 24"><circle cx="14" cy="4.5" r="2" fill="#ffd27a"/><path d="M7 21l3-6 3 2 1 4M9 11l3-3 3 3 3 1M12 8l-2 5" fill="none" stroke="#ffd27a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="lift" viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linecap="round"/></symbol>
+</defs></svg>
+<h1>October bests, three ways</h1>
+<p class="lead">The month's personal bests under Week, Month, Year and Filter. Example: a fastest 5 km, a farthest run and a lunge best. A lift logged without a weight reads "New best" instead of the bare "PB". Each best opens its activity.</p>
+<div class="row">
+
+<div class="opt"><div class="t">A · Gold tiles</div><div class="d">The grey card with a faint gold glow, the month as a serif title, and each best as a small gold-edged tile you can swipe through: what, the figure, and what it beat.</div>
+<div class="page">
+ <div class="bar"><div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div><div class="fbtn">Filter</div></div>
+ <div class="g">
+  <div class="hd"><div><div class="kick">Personal bests · 3</div><div class="ser">October</div></div></div>
+  <div class="strip">
+   <div class="tile"><span class="n"><svg class="ic"><use href="#run"/></svg>Fastest 5 km</span><b class="gold">24:10</b><em>was 25:02</em></div>
+   <div class="tile"><span class="n"><svg class="ic"><use href="#run"/></svg>Farthest run</span><b>12.4<small>km</small></b><em>was 10.2 km</em></div>
+   <div class="tile"><span class="n"><svg class="ic"><use href="#lift"/></svg>Lunge</span><b>New best</b><em>Oct 14</em></div>
+  </div>
+ </div>
+ <div class="cards"><div class="card c1"></div><div class="card c2"></div></div>
+</div></div>
+
+<div class="opt"><div class="t">B · A short list</div><div class="d">Same card, with the bests as rows: icon, what it was and the day, the figure on the right. Three at most, then "See all". Easiest to read at a glance.</div>
+<div class="page">
+ <div class="bar"><div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div><div class="fbtn">Filter</div></div>
+ <div class="g">
+  <div class="hd"><div><div class="kick">Personal bests · 3</div><div class="ser">October</div></div><span class="see">See all</span></div>
+  <div class="rows">
+   <div><svg class="ic"><use href="#run"/></svg><div class="x"><div>Fastest 5 km</div><span>Oct 15 · was 25:02</span></div><b class="gold">24:10</b></div>
+   <div><svg class="ic"><use href="#run"/></svg><div class="x"><div>Farthest run</div><span>Oct 13 · was 10.2 km</span></div><b>12.4<small>km</small></b></div>
+   <div><svg class="ic"><use href="#lift"/></svg><div class="x"><div>Lunge</div><span>Oct 14</span></div><b>New best</b></div>
+  </div>
+ </div>
+ <div class="cards"><div class="card c1"></div><div class="card c2"></div></div>
+</div></div>
+
+<div class="opt"><div class="t">C · One line</div><div class="d">A single slim gold band: "3 personal bests in October" with the latest underneath. Tap it to show only those activities (the Personal bests filter). Takes the least room.</div>
+<div class="page">
+ <div class="bar"><div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div><div class="fbtn">Filter</div></div>
+ <div class="band"><div class="medal"><svg class="ic" style="width:19px;height:19px"><use href="#trophy"/></svg></div><div class="x"><div>3 personal bests in October</div><span>Latest: fastest 5 km, 24:10</span></div><span class="chev">›</span></div>
+ <div class="cards"><div class="card c1"></div><div class="card c2"></div></div>
+</div></div>
+
+</div>
+</body></html>

@@ -1,3 +1,5 @@
+import { RivalCalendarGrid } from '../components/rival/RivalCalendarGrid';
+import { formatRaceName } from '../lib/identity';
 import { useState, useEffect } from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Platform, Image, Linking, useWindowDimensions } from 'react-native';
 import { sidePageWide } from '../constants/breakpoints';
@@ -12,6 +14,7 @@ import { displayToIsoDate, isoToDisplayDate, friendlyDate } from '../lib/dateFor
 import { formatGoalTimeMask } from '../lib/format';
 import { Asset } from 'expo-asset';
 import { BusyText } from '../components/rival/BusyText';
+import { avatarImage } from '../lib/imageUrl';
 
 const MODAL_BG_SOURCE = require('../../assets/images/backgrounds/optimized/trail-sisters-finish-line.jpg');
 // Same RN-Web gap as RivalFixedBackground: Image's style/resizeMode can't
@@ -651,7 +654,7 @@ export default function CreateLeagueScreen() {
                       onPress={() => chooseCrest(url)}
                       disabled={confirmingCrest}
                     >
-                      <Image source={{ uri: url }} style={styles.crestPickImg} resizeMode="cover" />
+                      <Image source={{ uri: avatarImage(url, 120) }} style={styles.crestPickImg} resizeMode="cover" />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -662,7 +665,7 @@ export default function CreateLeagueScreen() {
               <View style={styles.revealBlock}>
                 <Text style={styles.revealEyebrow}>Team Crest</Text>
                 <View style={styles.revealCrestFrame}>
-                  <Image source={{ uri: revealCrestUrl }} style={styles.revealCrestImg} />
+                  <Image source={{ uri: avatarImage(revealCrestUrl, 120) }} style={styles.revealCrestImg} />
                 </View>
                 <Text style={styles.title}>{name.trim()}</Text>
                 <Text style={styles.subtitle}>Generated uniquely for this team.</Text>
@@ -695,7 +698,7 @@ export default function CreateLeagueScreen() {
                   {!teamGoalMode && selectedRaceId === null ? <RivalIcon name="check" size={17} color={RivalColors.accentText} /> : null}
                 </GreyRow>
                 {myRaces.map((rc) => (
-                  <GreyRow key={rc.id} icon="race" label={rc.name} onPress={() => { setSelectedRaceId(rc.id); setTeamGoalMode(false); }}>
+                  <GreyRow key={rc.id} icon="race" label={formatRaceName(rc.name)} onPress={() => { setSelectedRaceId(rc.id); setTeamGoalMode(false); }}>
                     {!teamGoalMode && selectedRaceId === rc.id ? <RivalIcon name="check" size={17} color={RivalColors.accentText} /> : (
                       <Text style={pm.rowMeta}>{new Date(`${rc.race_date.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
                     )}
@@ -796,7 +799,7 @@ export default function CreateLeagueScreen() {
 
               <View>
                 <Text style={styles.label}>Shared Goal (Optional)</Text>
-                <Text style={styles.toggleSubtitle}>An event the team is training toward. Members keep individual goals while sharing the same finish line.</Text>
+                <Text style={styles.toggleSubtitle}>An event the team is working toward. Members keep individual goals while sharing the same finish line.</Text>
                 <TouchableOpacity
                   style={[styles.pathCardWide, !teamGoalMode && selectedRaceId === null && styles.pathCardActive]}
                   onPress={() => { setSelectedRaceId(null); setTeamGoalMode(false); }}
@@ -885,7 +888,7 @@ export default function CreateLeagueScreen() {
                       <Text style={[styles.selectedDateText, !goalTargetDate && styles.selectedDateTextEmpty]}>
                         {formatSelectedDate(goalTargetDate)}
                       </Text>
-                      <MonthCalendarPicker value={goalTargetDate} onChange={setGoalTargetDate} />
+                      {phone ? <RivalCalendarGrid value={goalTargetDate} onChange={setGoalTargetDate} /> : <MonthCalendarPicker value={goalTargetDate} onChange={setGoalTargetDate} />}
                     </View>
                   </>
                 )}
@@ -1304,7 +1307,7 @@ export default function CreateLeagueScreen() {
                   {Math.max(0, daysRemaining(raceDate)!)} {daysRemaining(raceDate) === 1 ? 'day' : 'days'} remaining
                 </Text>
               )}
-              <MonthCalendarPicker value={raceDate} onChange={setRaceDate} />
+              {phone ? <RivalCalendarGrid value={raceDate} onChange={setRaceDate} /> : <MonthCalendarPicker value={raceDate} onChange={setRaceDate} />}
             </View>
             </View>
 

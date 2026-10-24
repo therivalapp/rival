@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stacked Bests Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:640px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start}
+.opt{width:320px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.card{background:linear-gradient(180deg,#30261f,#211a16);border:1px solid rgba(255,201,77,.28);border-radius:20px;padding:12px;display:flex;flex-direction:column;gap:9px}
+.hd{display:flex;gap:9px;align-items:center}.av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7a9bb5,#3d5a6c)}
+.nm{font:italic 700 15px Georgia,serif}.sub{font-size:11px;color:var(--muted)}.sub b{color:var(--accent);font-weight:600}
+.ttl{font:italic 700 19px Georgia,serif}
+.ph{height:120px;border-radius:12px;background:linear-gradient(160deg,#3d5a6c,#c98b5b)}
+.stats{background:#36302b;border:1px solid rgba(255,201,77,.42);border-radius:13px;overflow:hidden}
+.band{display:flex;align-items:center;gap:7px;padding:8px 11px;font-size:12px;border-bottom:1px solid rgba(255,201,77,.18);background:linear-gradient(90deg,rgba(255,201,77,.13),rgba(255,201,77,0));white-space:nowrap}
+.band b{color:#ffe6a8}.band span{color:var(--muted)}
+.band svg{width:13px;height:13px;flex:none}
+.band.sm{padding:6px 11px 6px 31px;font-size:11.5px;background:linear-gradient(90deg,rgba(255,201,77,.07),rgba(255,201,77,0))}
+.band.more{padding:6px 11px 6px 31px;font-size:11px;color:#ffd27a;font-weight:700;background:none}
+.head{display:flex;align-items:center;gap:7px;padding:9px 11px;border-bottom:1px solid rgba(255,201,77,.18);background:linear-gradient(90deg,rgba(255,201,77,.18),rgba(255,201,77,0))}
+.head b{font:italic 700 15px Georgia,serif;background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chips{display:flex;flex-wrap:wrap;gap:5px;padding:8px 11px;border-bottom:1px solid rgba(255,201,77,.18)}
+.chips i{font-style:normal;font-size:11px;font-weight:700;color:#ffe6a8;background:rgba(255,201,77,.12);border:1px solid rgba(255,201,77,.25);border-radius:999px;padding:3px 8px}
+.chips i em{font-style:normal;color:var(--muted);font-weight:500;margin-left:4px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);padding:9px 2px;text-align:center}
+.grid div+div{border-left:1px solid rgba(255,255,255,.08)}
+.grid span{display:block;font-size:8px;letter-spacing:1.1px;color:var(--muted);font-weight:800}
+.grid b{display:block;font-size:14.5px;margin-top:2px}
+.gold{background:linear-gradient(#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.grid .e b{font:italic 700 17px Georgia,serif}
+.re{display:flex;gap:18px;font-weight:700;font-size:12.5px;color:rgba(255,255,255,.85)}.re em{font-style:normal;opacity:.55;font-weight:500}
+</style></head><body>
+<h1>When one run sets several bests</h1>
+<p class="lead">Example: a 10 km run that beats the earlier 10 km, 5 km, 1 mile and 1 km times at once. One best keeps the single band as built today.</p>
+<div class="row" id="r"></div>
+<script>
+const tro='<svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+const grid=`<div class="grid"><div><span>TIME</span><b>49:40</b></div><div><span>DISTANCE</span><b>10.0 km</b></div><div><span>CLIMB</span><b>41 m</b></div><div class="e"><span>EFFORT</span><b class="gold">104.3</b></div></div>`;
+const card=(top)=>`<div class="card"><div class="hd"><div class="av"></div><div><div class="nm">Ricky Jackson-Lewis</div><div class="sub">2h ago · <b>The Hidden Leaf</b></div></div></div><div class="ttl">Corniche 10k</div><div class="ph"></div><div class="stats">${top}${grid}</div><div class="re"><span>☆ Respect <em>3</em></span><span>ϟ Inspired <em>1</em></span></div></div>`;
+const A=card(`<div class="band">${tro}<b>Fastest 10 km</b><span> · 49:40, was 52:15</span></div>
+<div class="band sm"><b>Fastest 5 km</b><span> · 24:10, was 25:02</span></div>
+<div class="band sm"><b>Fastest 1 mile</b><span> · 7:39, was 7:58</span></div>
+<div class="band more">+1 more best · tap for details</div>`);
+const B=card(`<div class="band">${tro}<b>Fastest 10 km</b><span> · 49:40, was 52:15</span></div>
+<div class="band sm"><b>Fastest 5 km</b><span> · 24:10, was 25:02</span></div>
+<div class="band sm"><b>Fastest 1 mile</b><span> · 7:39, was 7:58</span></div>
+<div class="band sm"><b>Fastest 1 km</b><span> · 4:41, was 4:50</span></div>`);
+const C=card(`<div class="head">${tro}<b>4 new bests</b></div>
+<div class="chips"><i>10 km<em>49:40</em></i><i>5 km<em>24:10</em></i><i>1 mile<em>7:39</em></i><i>1 km<em>4:41</em></i></div>`);
+const O=[
+ ['A · Stack, up to three','The biggest best leads, the next two stack under it a little smaller, and the rest sit behind "+1 more" in Details. The card never grows by more than four lines.',A],
+ ['B · Stack them all','Every best gets its own line, one under the other. The full achievement on the card, but a run that beats six distances makes a tall card.',B],
+ ['C · One headline','"4 new bests" in serif gold, with each distance and time as a small chip. Reads as one big moment and stays compact however many there are.',C],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h])=>`<div class="opt"><div class="t">${t}</div><div class="d">${d}</div>${h}</div>`).join('');
+</script>
+</body></html>

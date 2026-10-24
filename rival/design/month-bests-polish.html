@@ -1,0 +1,101 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Month Bests Polish</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:680px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:350px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.page{border-radius:24px;padding:12px;background:radial-gradient(ellipse at 50% 0,#2a201b,#141110 75%)}
+.gold{background:linear-gradient(180deg,#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ser{font:italic 700 22px Georgia,serif;line-height:1.1}
+.kick{font-size:9.5px;letter-spacing:1.7px;font-weight:800;text-transform:uppercase}
+.fig{font:italic 700 23px Georgia,serif;line-height:1.15}
+.fig small{font:600 13px -apple-system,sans-serif;font-style:normal;-webkit-text-fill-color:rgba(255,255,255,.45)}
+.sub{font-size:11px;color:var(--muted)}
+.ic{width:15px;height:15px;flex:none}
+.strip{display:flex;gap:8px;overflow:hidden}
+
+/* 1 quiet grey */
+.c1{border-radius:22px;background:#232120;padding:15px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.c1:before{content:"";position:absolute;inset:0 0 auto 0;height:110px;background:radial-gradient(ellipse 70% 100% at 50% 0,rgba(255,201,77,.12),transparent 70%)}
+.c1>*{position:relative}
+.hd1{display:flex;align-items:center;gap:11px}
+.medal{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#ffe7a8,#d9a23a);box-shadow:0 4px 14px rgba(217,162,58,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.t1{flex:none;width:150px;border-radius:16px;background:rgba(255,255,255,.04);padding:12px}
+.t1 .n{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:rgba(255,255,255,.8);margin-bottom:4px}
+
+/* 2 amber tiles */
+.c2{border-radius:22px;background:#232120;padding:15px;display:flex;flex-direction:column;gap:12px}
+.t2{flex:none;width:150px;height:118px;border-radius:16px;padding:12px;position:relative;overflow:hidden;background:linear-gradient(155deg,#4a3a1c 0%,#2b2318 60%,#231d16 100%);box-shadow:inset 0 1px 0 rgba(255,231,168,.18)}
+.t2 .wm{position:absolute;right:-10px;bottom:-12px;width:78px;height:78px;opacity:.13}
+.t2>*:not(.wm){position:relative}
+.t2 .n{font-size:10px;letter-spacing:1px;font-weight:800;color:rgba(255,231,168,.75);text-transform:uppercase;margin-bottom:10px}
+
+/* 3 one strip like numbers card */
+.c3{border-radius:22px;background:#232120;padding:15px;display:flex;flex-direction:column;gap:12px}
+.s3{display:grid;grid-template-columns:1fr 1fr;border-radius:16px;background:rgba(255,209,190,.05);overflow:hidden}
+.s3>div{padding:12px 12px 11px;text-align:center}.s3>div+div{border-left:1px solid rgba(255,255,255,.07)}
+.s3 .n{font-size:9.5px;letter-spacing:1.3px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-top:4px}
+.s3 .chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:10.5px;color:#ffe6a8;background:rgba(255,201,77,.1);border-radius:999px;padding:2px 8px}
+
+/* 4 ribbon */
+.c4{border-radius:22px;background:linear-gradient(170deg,#2c2416,#211c17 45%,#1f1b18);padding:15px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.c4:after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,transparent,#ffc94d 30%,#fff1c7 50%,#ffc94d 70%,transparent)}
+.r4{display:flex;align-items:center;gap:12px;padding:10px 0}
+.r4+.r4{border-top:1px solid rgba(255,255,255,.06)}
+.r4 .badge{width:36px;height:36px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(255,201,77,.12)}
+.r4 .x{flex:1}.r4 .x div{font-size:14px;font-weight:700}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="lift" viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+</defs></svg>
+<h1>October bests, polished</h1>
+<p class="lead">No thin gold outlines. Gold is kept for the figures and one rich accent, so it reads as earned rather than decorated. Same two bests in each: Pull-up 3 × 10, Lunge 2 × 50.</p>
+<div class="row">
+
+<div class="opt"><div class="t">1 · Gold medal header</div><div class="d">The card in the same warm grey as the week card. A solid gold medal beside "October" carries the gold; the tiles are soft grey, gold only in the figures.</div>
+<div class="page"><div class="c1">
+ <div class="hd1"><div class="medal"><svg class="ic" style="width:20px;height:20px;color:#5a3b06"><use href="#trophy"/></svg></div><div><div class="kick" style="color:#ffd27a">Personal bests · 2</div><div class="ser">October</div></div></div>
+ <div class="strip">
+  <div class="t1"><div class="n"><svg class="ic" style="color:#ffd27a"><use href="#lift"/></svg>Pull-up</div><div class="fig gold">3 × 10</div><div class="sub">Oct 16</div></div>
+  <div class="t1"><div class="n"><svg class="ic" style="color:#ffd27a"><use href="#lift"/></svg>Lunge</div><div class="fig gold">2 × 50</div><div class="sub">Oct 16</div></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">2 · Amber tiles</div><div class="d">Each best is a warm amber tile with a faint large icon in the corner and a soft lit top edge, like a plaque. No outlines; the colour of the tile does the work.</div>
+<div class="page"><div class="c2">
+ <div><div class="kick" style="color:#ffd27a">Personal bests · 2</div><div class="ser">October</div></div>
+ <div class="strip">
+  <div class="t2"><svg class="wm" style="color:#ffd27a"><use href="#lift"/></svg><div class="n">Pull-up</div><div class="fig gold">3 × 10</div><div class="sub">Oct 16</div></div>
+  <div class="t2"><svg class="wm" style="color:#ffd27a"><use href="#lift"/></svg><div class="n">Lunge</div><div class="fig gold">2 × 50</div><div class="sub">Oct 16</div></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">3 · Like the numbers card</div><div class="d">The bests sit side by side in one recessed strip, the same as Activities / Time / Distance above. What it beat shows as a small gold pill. Most consistent with the week card.</div>
+<div class="page"><div class="c3">
+ <div><div class="kick" style="color:#ffd27a">Personal bests · 2</div><div class="ser">October</div></div>
+ <div class="s3">
+  <div><div class="fig gold">3 × 10</div><div class="n">Pull-up</div><span class="chip">Oct 16</span></div>
+  <div><div class="fig gold">2 × 50</div><div class="n">Lunge</div><span class="chip">Oct 16</span></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">4 · Gold ribbon and rows</div><div class="d">A warm card with one bright gold ribbon along the top edge, and each best as a clean row with a soft gold badge. Grows downward with no swiping.</div>
+<div class="page"><div class="c4">
+ <div><div class="kick" style="color:#ffd27a">Personal bests · 2</div><div class="ser">October</div></div>
+ <div>
+  <div class="r4"><div class="badge"><svg class="ic" style="width:18px;height:18px;color:#ffd27a"><use href="#lift"/></svg></div><div class="x"><div>Pull-up</div><span class="sub">Oct 16</span></div><div class="fig gold">3 × 10</div></div>
+  <div class="r4"><div class="badge"><svg class="ic" style="width:18px;height:18px;color:#ffd27a"><use href="#lift"/></svg></div><div class="x"><div>Lunge</div><span class="sub">Oct 16</span></div><div class="fig gold">2 × 50</div></div>
+ </div>
+</div></div></div>
+
+</div>
+<p class="lead" style="margin-top:28px">"First on record" is left off here, as a first entry isn't a best. With a real best the grey line would read "Oct 16 · was 3 × 8".</p>
+</body></html>

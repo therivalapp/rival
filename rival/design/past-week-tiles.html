@@ -1,0 +1,98 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Past Week Tiles</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--ember:#e8835f;--muted:rgba(255,255,255,.5);--ground:#232120;--tile:rgba(255,209,190,.05)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:680px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:350px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.page{border-radius:24px;padding:12px;background:radial-gradient(ellipse at 50% 0,#2a201b,#141110 75%)}
+.g{border-radius:22px;background:var(--ground);border:1px solid rgba(255,255,255,.06);padding:15px;display:flex;flex-direction:column;gap:13px;position:relative;overflow:hidden}
+.g:before{content:"";position:absolute;inset:0 0 auto 0;height:110px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(232,131,95,.16),transparent 70%)}
+.g>*{position:relative}
+.hdr{display:flex;align-items:flex-start;gap:10px}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 22px Georgia,serif;line-height:1.15}
+.eff{text-align:center}.eff b{display:block;font:italic 700 24px Georgia,serif;line-height:1}.eff span{font-size:9.5px;letter-spacing:2px;color:var(--accent);font-weight:800}
+.v{font:italic 700 22px/26px Georgia,serif;white-space:nowrap}
+.v small{font:600 12px -apple-system,sans-serif;font-style:normal;color:var(--muted);margin-left:1px}
+.l{font-size:9.5px;letter-spacing:1.3px;font-weight:800;color:var(--muted);text-transform:uppercase}
+.ic{width:16px;height:16px;color:var(--ember)}
+/* A grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.tile{border-radius:14px;background:var(--tile);padding:10px 10px 9px;display:flex;flex-direction:column;gap:3px}
+/* B */
+.strip{display:grid;grid-template-columns:repeat(3,1fr);border-radius:16px;background:var(--tile)}
+.strip>div{padding:12px 6px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
+.strip>div+div{border-left:1px solid rgba(255,255,255,.07)}
+.small{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.small>div{border-radius:12px;background:rgba(255,255,255,.035);padding:8px 10px}
+.small .v{font-size:16px;line-height:20px}
+/* C */
+.big{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bt{position:relative;overflow:hidden;border-radius:16px;background:var(--tile);padding:12px 13px;min-height:74px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
+.bt svg.wm{position:absolute;right:-8px;top:-8px;width:58px;height:58px;color:var(--ember);opacity:.12}
+.bt .v{font-size:24px;line-height:28px}
+.foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:0 2px}
+.foot b{color:#fff;font-weight:700}
+.gold{color:#ffe6a8}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="bars" viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+<symbol id="timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v4l3 2M9 2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="dist" viewBox="0 0 24 24"><path d="M5 20c0-6 14-4 14-10a4 4 0 00-8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="20" r="1.8" fill="currentColor"/></symbol>
+<symbol id="climb" viewBox="0 0 24 24"><path d="M3 19l6-9 4 5 3-4 5 8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 10h16M9 3v4M15 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z" fill="currentColor"/></symbol>
+</defs></svg>
+<h1>Past weeks as stats</h1>
+<p class="lead">No day columns and no pills: the week's figures as tiles, readable without opening the card. Example week: Sep 28 – Oct 4, 71.4 Effort, 3 activities, 4 h 12 m, 21.6 km, 340 m climbing, 3 days trained, longest 1 h 48 m.</p>
+<div class="row">
+
+<div class="opt"><div class="t">A · Six tiles</div><div class="d">Two rows of three equal tiles: Activities, Time, Distance, then Climb, Days trained, Longest activity. Everything at a glance, no tapping needed.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Sep 28 – Oct 4</div><div class="ser">Week 40</div></div><div class="eff"><b>71.4</b><span>EFFORT</span></div></div>
+ <div class="grid">
+  <div class="tile"><svg class="ic"><use href="#bars"/></svg><span class="v">3</span><span class="l">Activities</span></div>
+  <div class="tile"><svg class="ic"><use href="#timer"/></svg><span class="v">4<small>h</small> 12<small>m</small></span><span class="l">Time</span></div>
+  <div class="tile"><svg class="ic"><use href="#dist"/></svg><span class="v">21.6<small>km</small></span><span class="l">Distance</span></div>
+  <div class="tile"><svg class="ic"><use href="#climb"/></svg><span class="v">340<small>m</small></span><span class="l">Climb</span></div>
+  <div class="tile"><svg class="ic"><use href="#cal"/></svg><span class="v">3<small>/7</small></span><span class="l">Days</span></div>
+  <div class="tile"><svg class="ic"><use href="#timer"/></svg><span class="v">1<small>h</small> 48<small>m</small></span><span class="l">Longest</span></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">B · Main three, then three small</div><div class="d">The familiar Activities / Time / Distance strip from This week, with a quieter row of three smaller tiles under it. Keeps one look across all week cards.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Sep 28 – Oct 4</div><div class="ser">Week 40</div></div><div class="eff"><b>71.4</b><span>EFFORT</span></div></div>
+ <div class="strip">
+  <div><svg class="ic"><use href="#bars"/></svg><span class="v">3</span><span class="l">Activities</span></div>
+  <div><svg class="ic"><use href="#timer"/></svg><span class="v">4<small>h</small> 12<small>m</small></span><span class="l">Time</span></div>
+  <div><svg class="ic"><use href="#dist"/></svg><span class="v">21.6<small>km</small></span><span class="l">Distance</span></div>
+ </div>
+ <div class="small">
+  <div><span class="l">Climb</span><div class="v">340<small>m</small></div></div>
+  <div><span class="l">Days</span><div class="v">3<small>/7</small></div></div>
+  <div><span class="l">Longest</span><div class="v">1<small>h</small> 48<small>m</small></div></div>
+ </div>
+</div></div></div>
+
+<div class="opt"><div class="t">C · Four large tiles</div><div class="d">Four bigger tiles with a faint icon in the corner, like the activity-type tiles in Filter. One line under them for days trained and any bests.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Sep 28 – Oct 4</div><div class="ser">Week 40</div></div><div class="eff"><b>71.4</b><span>EFFORT</span></div></div>
+ <div class="big">
+  <div class="bt"><svg class="wm"><use href="#bars"/></svg><span class="v">3</span><span class="l">Activities</span></div>
+  <div class="bt"><svg class="wm"><use href="#timer"/></svg><span class="v">4<small>h</small> 12<small>m</small></span><span class="l">Time</span></div>
+  <div class="bt"><svg class="wm"><use href="#dist"/></svg><span class="v">21.6<small>km</small></span><span class="l">Distance</span></div>
+  <div class="bt"><svg class="wm"><use href="#climb"/></svg><span class="v">340<small>m</small></span><span class="l">Climb</span></div>
+ </div>
+ <div class="foot"><span><b>3 of 7</b> days trained</span><span class="gold">1 personal best</span></div>
+</div></div></div>
+
+</div>
+</body></html>

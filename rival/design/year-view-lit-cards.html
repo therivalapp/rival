@@ -1,0 +1,52 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* JournalYearView.tsx (Activity > Year, phone). Now = rm.card + s.cardPhone
+   (RivalGhost.ground #232120, white 0.06 border, radius 22). Change = Today's
+   card: surfaceHigh #282828 + mFocusLit (lit top edge, glow from top centre).
+   Layout, type and figures are unchanged; only the card surface differs. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.col{width:375px}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+.note{font-size:12px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:17px}
+.page{background:#131313;border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+.serif{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.card{border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px;border:1px solid}
+.now .card{background:#232120;border-color:rgba(255,255,255,.06)}
+.chg .card{background:#282828 radial-gradient(ellipse 70% 55% at 50% 0%,rgba(217,119,87,.17),rgba(217,119,87,.035) 60%,rgba(217,119,87,0) 85%) no-repeat border-box;
+  border-color:rgba(255,209,190,.26) rgba(255,209,190,.09) rgba(255,209,190,.03)}
+.lab{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffb59e}
+.head{display:flex;justify-content:space-between;align-items:center}
+.hint{font-size:12px;line-height:17px;color:rgba(255,255,255,.45)}
+.bars{display:flex;align-items:flex-end;gap:4px}
+.bc{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.ba{height:96px;display:flex;align-items:flex-end;align-self:stretch}
+.bar{border-radius:4px;width:100%}
+.bl{font-size:11px;font-weight:700;color:rgba(255,255,255,.45)}
+.grid{display:grid;grid-template-columns:repeat(17,1fr);gap:3px}
+.cell{aspect-ratio:1;border-radius:2px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hl{gap:4px;padding-top:14px;padding-bottom:14px}
+.hlt{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:4px}
+.hlv{font-size:20px}
+.hlu{font-size:14px;color:rgba(255,255,255,.7)}
+.ic{width:18px;height:18px}
+</style></head><body>
+<script>
+const months=[['J',4],['F',9],['M',38],['A',31],['M',50,1],['J',43],['J',30],['A',18],['S',10],['O',8],['N',0],['D',0]];
+const bars=`<div class="bars">${months.map(([l,v,b])=>`<div class="bc"><div class="ba"><div class="bar" style="height:${v?Math.max(4,v/50*96):2}px;background:${b?'linear-gradient(180deg,#f2b8a2,#D97757)':v?'rgba(255,181,158,0.32)':'rgba(255,255,255,0.07)'}"></div></div><div class="bl" style="${b?'color:#ffb59e':''}">${l}</div></div>`).join('')}</div>`;
+const lv=[0,0,2,2,2,2,2,2,0,3,3,3,4,4,4,4,4, 4,5,5,5,5,3,5,5,3,5,3,3,3,3,3,2,2, 3,0,2,2,2,4,2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1];
+const col=v=>v<0?'transparent;outline:1px solid rgba(255,255,255,.08);outline-offset:-1px':v===0?'rgba(255,255,255,0.06)':['', 'rgba(217,119,87,.35)','rgba(217,119,87,.45)','rgba(217,119,87,.7)','rgba(217,119,87,1)','rgba(232,131,95,1)'][v];
+const weeks=`<div class="grid">${lv.map(v=>`<div class="cell" style="background:${col(v)}"></div>`).join('')}</div>`;
+const flame='<svg class="ic" viewBox="0 0 24 24" fill="#E8835F"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg>';
+const watch='<svg class="ic" viewBox="0 0 24 24" fill="#E8835F"><path d="M15 1H9v2h6V1zm4.03 6.39 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.96 8.96 0 0 0 12 4a9 9 0 1 0 9 9c0-2.12-.74-4.07-1.97-5.61zM13 14h-2V8h2v6z"/></svg>';
+const page=(cls)=>`<div class="${cls}"><div class="page">
+<div class="card"><div class="lab">Month by month</div>${bars}<div class="hint">Biggest month: May, 2,639 Effort across 27 activities.</div></div>
+<div class="card"><div class="head"><div class="lab">Active weeks</div><div class="serif" style="font-size:18px">39 of 43</div></div>${weeks}<div class="hint">Longest streak: 28 weeks in a row with at least one activity.</div></div>
+<div class="tiles"><div class="card hl">${flame}<div class="hlt">Best week</div><div class="hlv serif">768 <span class="hlu">Effort</span></div><div class="hint">Week of 25 May</div></div>
+<div class="card hl">${watch}<div class="hlt">Longest activity</div><div class="hlv serif">3h 10m</div><div class="hint">Hike · 30 Mar</div></div></div>
+</div></div>`;
+const cols=[['Now',page('now'),'Activity > Year as it is: flat warm-grey cards with a faint white edge.'],
+ ['Change',page('chg'),'Today\'s card surface: a lit top edge and a soft glow from the top centre. Everything inside stays the same.']];
+document.write(cols.map(([t,c,n])=>`<div class="col"><h2>${t}</h2>${c}<div class="note">${n}</div></div>`).join(''));
+</script></body></html>

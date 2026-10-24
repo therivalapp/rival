@@ -182,6 +182,9 @@ serve(async (req) => {
         duration_seconds: activity.moving_time,
         elevation_meters: activity.total_elevation_gain,
         started_at: activity.start_date,
+        // The activity's own offset from UTC, so its time of day shows where it
+        // happened rather than where it is viewed (add_utc_offset.sql).
+        utc_offset_seconds: typeof activity.utc_offset === 'number' ? Math.round(activity.utc_offset) : null,
         effort_score: effortScore,
         raw_effort_score: effortScore,
         // start_date_local (not start_date) — races.race_date is a bare calendar
@@ -195,10 +198,13 @@ serve(async (req) => {
         // a later Strava sync clobber a name/details set by whichever source created it.
         const { data: existingRow } = await supabase
           .from('activities')
-          .select('name_locked, provider, effort_confirmed')
+          .select('name_locked, started_at_locked, provider, effort_confirmed')
           .eq('id', canonicalId)
           .maybeSingle()
         if (existingRow?.provider === 'strava' && !existingRow?.name_locked) fields.name = activity.name
+        // A start time set in RIVAL (started_at_locked) stays: a watch with a
+        // wrong clock uploads the wrong time and Strava can't correct it.
+        if (existingRow?.started_at_locked) delete fields.started_at
         // The athlete confirmed this activity is correct (effort_confirmed), so a
         // re-sync scores all of it rather than the capped amount.
         if (existingRow?.effort_confirmed) {

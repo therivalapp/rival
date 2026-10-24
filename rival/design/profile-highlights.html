@@ -1,0 +1,82 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile Highlights</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--surface:#1b1816;--card:#26201c;--bright:#2e2925;--accent:#ffb59e;--muted:rgba(255,255,255,.55);--line:rgba(255,255,255,.08)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 Manrope,-apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:560px}
+.row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.opt{width:300px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:54px}
+.phone{width:300px;height:620px;border-radius:38px;background:#000;padding:9px}
+.scr{position:relative;width:100%;height:100%;border-radius:30px;overflow:hidden;background:radial-gradient(ellipse at 50% -10%,#3a2a22,#16120f 60%);padding:46px 14px 0}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--accent);font-weight:700;text-align:center}
+.who{display:flex;flex-direction:column;align-items:center;gap:6px;margin:10px 0 14px}
+.av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7a9bb5,#3d5a6c);border:2px solid var(--accent)}
+.nm{font:italic 700 22px Georgia,serif}
+.rank{font-size:11px;letter-spacing:1.4px;font-weight:700;background:linear-gradient(90deg,#fff,#ffd27a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.mind{background:var(--card);border-radius:14px;padding:10px 12px;font:italic 14px Georgia,serif;color:rgba(255,255,255,.85);margin-bottom:16px}
+.mind b{display:block;font:700 9.5px Manrope,sans-serif;letter-spacing:1.4px;color:var(--muted);font-style:normal;margin-bottom:3px}
+.sec{display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px}
+.sec h3{margin:0;font:italic 700 18px Georgia,serif}
+.sec span{font-size:11.5px;color:var(--muted)}
+.gold{background:linear-gradient(180deg,#ffe6b0,#f5b759);-webkit-background-clip:text;background-clip:text;color:transparent;font:italic 700 15px Georgia,serif}
+/* A: carousel */
+.car{display:flex;gap:10px;overflow:hidden;margin-right:-14px}
+.hc{flex:0 0 180px;height:230px;border-radius:16px;position:relative;overflow:hidden;background:var(--c)}
+.hc .sh{position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(0,0,0,.75))}
+.hc .st{position:absolute;top:10px;right:10px;color:var(--accent);font-size:15px}
+.hc .b{position:absolute;left:12px;right:12px;bottom:11px}
+.hc .k{font-size:9.5px;letter-spacing:1.4px;color:var(--accent);font-weight:700}
+.hc .n{font:italic 700 17px Georgia,serif;line-height:1.15}
+.hc .m{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;color:rgba(255,255,255,.75);margin-top:3px}
+/* B: list */
+.list{display:flex;flex-direction:column;gap:8px}
+.li{display:flex;gap:10px;align-items:center;background:var(--card);border-radius:14px;padding:8px}
+.li .ph{width:54px;height:54px;border-radius:10px;background:var(--c);flex:none}
+.li .x{flex:1;min-width:0}
+.li .k{font-size:9px;letter-spacing:1.3px;color:var(--accent);font-weight:700}
+.li .n{font:italic 700 15px Georgia,serif}
+.li .m{font-size:11px;color:var(--muted)}
+.li .r{text-align:right}
+.li .r small{display:block;font-size:8.5px;letter-spacing:1.2px;color:var(--muted)}
+/* C: how to add */
+.photo{position:absolute;inset:0 0 auto 0;height:58%;background:linear-gradient(180deg,#cfe3f2,#7f9c86 45%,#3f5a2f 75%,#24201d)}
+.ttl{position:absolute;left:16px;right:16px;top:50%}
+.ttl .k{font-size:10px;letter-spacing:1.6px;color:var(--accent);font-weight:700}
+.ttl .n{display:flex;justify-content:space-between;align-items:center;font:italic 700 21px Georgia,serif}
+.ttl .s{font:normal 21px sans-serif;color:#ffd27a;text-shadow:0 0 10px rgba(255,210,122,.8)}
+.toast{position:absolute;left:16px;right:16px;top:64%;background:#2e2925;border:1px solid rgba(255,210,122,.35);border-radius:12px;padding:10px 12px;font-size:12.5px;display:flex;gap:8px;align-items:center}
+.toast b{color:#ffd27a}
+.empty{border:1.5px dashed rgba(255,255,255,.18);border-radius:16px;padding:18px 14px;text-align:center;color:var(--muted);font-size:12.5px;position:absolute;left:16px;right:16px;top:78%}
+.empty i{font-style:normal;color:var(--accent);font-size:18px;display:block;margin-bottom:4px}
+.rec{color:#ffc94d}
+</style></head><body>
+<h1>Highlights</h1>
+<p class="lead">Starring an activity adds it to Highlights on your page, where teammates see it when they tap your name. Up to six, newest first.</p>
+<div class="row" id="r"></div>
+<script>
+const H=[
+ ['RUN','Vale','5.0 km','9 Oct','62','linear-gradient(160deg,#3d5a6c,#c98b5b)'],
+ ['RIDE','Coast loop','31.4 km','28 Sep','88','linear-gradient(170deg,#2f4a63,#8fb3c9)'],
+ ['HIKE','Black Tusk','18.2 km','14 Aug','141','linear-gradient(150deg,#5b6f4d,#d9b26a)'],
+];
+const head=`<div class="kick">RICKY J.</div><div class="who"><div class="av"></div><div class="nm">Ricky Jackson-Lewis</div><div class="rank">ELITE · 4,210 EFFORT</div></div>
+<div class="mind"><b>MINDSET</b>We make each other better.</div>`;
+const sec=`<div class="sec"><h3>Highlights</h3><span>3 starred</span></div>`;
+const A=head+sec+`<div class="car">${H.map(h=>`<div class="hc" style="--c:${h[5]}"><div class="sh"></div><div class="st">★</div><div class="b"><div class="k">${h[0]}</div><div class="n">${h[1]}</div><div class="m"><span>${h[2]} · ${h[3]}</span><span class="gold">${h[4]}</span></div></div></div>`).join('')}</div>`;
+const B=head+sec+`<div class="list">${H.map(h=>`<div class="li"><div class="ph" style="--c:${h[5]}"></div><div class="x"><div class="k">${h[0]}</div><div class="n">${h[1]}</div><div class="m">${h[2]} · ${h[3]}</div></div><div class="r"><span class="gold">${h[4]}</span><small>EFFORT</small></div></div>`).join('')}</div>`;
+const C=`<div class="photo"></div><div class="ttl"><div class="k">RUN</div><div class="n">Vale<span class="s">★</span></div></div>
+<div class="toast"><span style="color:#ffd27a">★</span><span><b>Added to Highlights.</b> Shown on your page.</span></div>
+<div class="empty"><i>☆</i>On a page with no Highlights yet:<br>"Star an activity to show it here."</div>`;
+const O=[
+ ['A · Photo carousel','Large photo cards you swipe across, like a story row. Strongest for activities with photos.',A,1],
+ ['B · Compact list','A small photo, the title, distance, date and Effort. Takes less room, works without photos.',B,0],
+ ['How a star gets there','Tapping the star beside the title adds it. A short note confirms where it went.',C,0],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h,rec])=>`<div class="opt"><div class="t ${rec?'rec':''}">${t}${rec?' · recommended':''}</div><div class="d">${d}</div><div class="phone"><div class="scr">${h}</div></div></div>`).join('');
+</script>
+</body></html>

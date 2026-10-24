@@ -1,0 +1,76 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body { margin:0; background:#111; font-family: Manrope, sans-serif; }
+  .phone { width:393px; padding:14px 16px 30px; box-sizing:border-box; background:#131313; }
+  .note { color:#cfc6b8; font-size:12px; line-height:1.45; margin:0 0 14px; }
+  .showing { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+  .showing span { color:rgba(255,255,255,0.55); font-size:13px; }
+  .chip { border:1px solid rgba(255,255,255,0.18); border-radius:999px; padding:6px 14px; color:#fff; font-weight:700; font-size:13.5px; }
+  .sec { margin-bottom:22px; }
+  .secHead { display:flex; justify-content:space-between; align-items:baseline; margin:0 2px 10px; }
+  .secTitle { font-size:11px; font-weight:800; letter-spacing:1.6px; text-transform:uppercase; color:#ffb59e; }
+  .secCount { font-size:12px; color:rgba(255,255,255,0.5); font-weight:600; }
+  .grid { display:flex; flex-wrap:wrap; gap:12px; }
+  .card { width:calc(50% - 6px); aspect-ratio:3/4; border-radius:20px; overflow:hidden; position:relative; }
+  .sky-am { background:linear-gradient(180deg,#3f5468 0%,#5a6e7e 45%,#3b3a39 100%); }
+  .sky-pm { background:linear-gradient(180deg,#252a45 0%,#3a3550 45%,#4a3530 100%); }
+  .icon { position:absolute; left:0; right:0; top:22%; text-align:center; font-family:'Material Icons'; font-size:128px; color:rgba(255,255,255,0.16); line-height:1; }
+  .scrim { position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,0) 42%,rgba(8,8,8,0.88) 100%); }
+  .day { position:absolute; top:10px; left:0; right:0; text-align:center; font-family:Georgia,serif; font-style:italic; font-size:13px; color:rgba(255,255,255,0.75); }
+  .body { position:absolute; left:12px; right:12px; bottom:12px; display:flex; justify-content:space-between; align-items:flex-end; gap:6px; }
+  .name { font-size:12px; font-weight:600; color:#ffb59e; }
+  .stat { font-family:Georgia,serif; font-style:italic; font-weight:800; font-size:16px; color:#fff; margin-top:2px; }
+  .eff { text-align:center; }
+  .effL { font-size:7px; font-weight:800; letter-spacing:1px; color:#ffb59e; }
+  .effN { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:16px; color:#fff; }
+  .ring { position:absolute; inset:0; border-radius:20px; border:2.5px solid #FFD700; pointer-events:none; }
+  .ring.faded { border-color:rgba(255,215,0,0.32); }
+  .current { position:absolute; top:32px; left:50%; transform:translateX(-50%); background:#FFD700; color:#2a2116; font-size:8.5px; font-weight:800; letter-spacing:0.8px; padding:3px 7px; border-radius:999px; text-transform:uppercase; }
+  .card.old .day { right:auto; }
+  .more { width:100%; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 0; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); color:rgba(255,255,255,0.7); font-size:13px; font-weight:700; }
+  .more .material-icons { font-size:18px; }
+  .label { color:#9a9086; font-size:11px; margin:30px 0 8px; letter-spacing:1px; font-weight:800; }
+</style></head>
+<body><div class="phone">
+  <div class="showing"><span>Showing</span><div class="chip">Personal bests &nbsp;×</div></div>
+
+  <div class="sec">
+    <div class="secHead"><div class="secTitle">Furthest swim</div><div class="secCount">7 PBs</div></div>
+    <div class="grid">
+      <div class="card sky-am"><div class="icon">pool</div><div class="scrim"></div><div class="day">6 Jul</div><div class="current">Current</div>
+        <div class="body"><div><div class="name">Swim</div><div class="stat">2075 m</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">116.4</div></div></div><div class="ring"></div></div>
+      <div class="card sky-am"><div class="icon">pool</div><div class="scrim"></div><div class="day">17 May</div>
+        <div class="body"><div><div class="name">Swim</div><div class="stat">2000 m</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">113.5</div></div></div><div class="ring faded"></div></div>
+      <div class="more">5 earlier PBs <span class="material-icons">expand_more</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="secHead"><div class="secTitle">Furthest ride</div><div class="secCount">4 PBs</div></div>
+    <div class="grid">
+      <div class="card sky-pm"><div class="icon">directions_bike</div><div class="scrim"></div><div class="day">27 Jun</div><div class="current">Current</div>
+        <div class="body"><div><div class="name">Double race distance ✅</div><div class="stat">80.0 km</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">261.8</div></div></div><div class="ring"></div></div>
+      <div class="card sky-am"><div class="icon">directions_bike</div><div class="scrim"></div><div class="day">30 May</div>
+        <div class="body"><div><div class="name">Ride</div><div class="stat">70.0 km</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">226.8</div></div></div><div class="ring faded"></div></div>
+      <div class="card sky-am"><div class="icon">directions_bike</div><div class="scrim"></div><div class="day">23 May</div>
+        <div class="body"><div><div class="name">Ride</div><div class="stat">60.0 km</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">195.1</div></div></div><div class="ring faded"></div></div>
+      <div class="card sky-am"><div class="icon">directions_bike</div><div class="scrim"></div><div class="day">16 May</div>
+        <div class="body"><div><div class="name">Ride</div><div class="stat">55.0 km</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">178.8</div></div></div><div class="ring faded"></div></div>
+      <div class="more">Show fewer <span class="material-icons">expand_less</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="secHead"><div class="secTitle">Furthest run</div><div class="secCount">9 PBs</div></div>
+    <div class="grid">
+      <div class="card sky-am"><div class="icon">directions_run</div><div class="scrim"></div><div class="day">20 Jun</div><div class="current">Current</div>
+        <div class="body"><div><div class="name">Pemby Pounder Boiiiii</div><div class="stat">24.9 km</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">295.8</div></div></div><div class="ring"></div></div>
+      <div class="card sky-pm"><div class="icon">directions_run</div><div class="scrim"></div><div class="day">12 Nov 2025</div>
+        <div class="body"><div><div class="name">Run</div><div class="stat">21.9 km</div></div><div class="eff"><div class="effL">EFFORT</div><div class="effN">227.7</div></div></div><div class="ring faded"></div></div>
+      <div class="more">7 earlier PBs <span class="material-icons">expand_more</span></div>
+    </div>
+  </div>
+</div></body></html>

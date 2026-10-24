@@ -1,11 +1,12 @@
 import { createElement, useMemo, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RivalColors, RivalRadius, RivalGhost } from '../../constants/rivalTheme';
 import { RivalIcon } from './RivalIcon';
 import { confirmAction } from '../../lib/notify';
 import { CoverImage } from './CoverImage';
+import { FocalFrame } from './FocalFrame';
 import { GreySheet, GreyNote, GreyPrimary } from './RivalGreySheet';
 import { sidePageWide } from '../../constants/breakpoints';
 
@@ -29,6 +30,10 @@ export type MediaItem = {
   mimeType: string;
   ext: string;
   existingId?: string;
+  // Which part stays in view, 0 to 1 across and down; unset is the centre.
+  // Set by dragging the item in the picker's preview.
+  focalX?: number | null;
+  focalY?: number | null;
 };
 
 // Shared by every screen that adds media, so an activity has one limit
@@ -39,17 +44,18 @@ export type MediaItem = {
 export const MAX_MEDIA = 10;
 export const MAX_VIDEOS = 1;
 export const MAX_PHOTO_MB = 15;
-// Must not exceed the activity-photos bucket's own file_size_limit (25MB).
-// This was 50 while the bucket said 25, so a 30MB video passed the app's
-// check and then failed at upload with a raw storage error.
-export const MAX_VIDEO_MB = 25;
+// Must not exceed the activity-photos bucket's own file_size_limit, now 50MB
+// (raise_media_limit_50mb.sql, run 2026-10-11; the free plan's per-file most).
+// Raise the two together: when the app allowed 50 while the bucket said 25,
+// a 30MB video passed this check and then failed at upload.
+export const MAX_VIDEO_MB = 50;
 // A workout clip, not a documentary. Length is the real limit people meet;
 // the size cap above is the storage backstop behind it.
 export const MAX_VIDEO_SECONDS = 60;
 
 export type PickResult = { items: MediaItem[]; rejected: string[] };
 
-const TOO_LONG = `A video was over ${MAX_VIDEO_SECONDS / 60} minute and was left out`;
+const TOO_LONG = `A video was over ${MAX_VIDEO_SECONDS / 60} minute and couldn't be uploaded`;
 
 // Reads a video's length from its metadata without playing it. Null when the
 // browser cannot tell — an unreadable length lets the video through rather
@@ -69,8 +75,8 @@ function webVideoSeconds(uri: string): Promise<number | null> {
 
 function tooLarge(type: 'photo' | 'video', bytes: number): string | null {
   const mb = bytes / (1024 * 1024);
-  if (type === 'video' && mb > MAX_VIDEO_MB) return `A video was over ${MAX_VIDEO_MB}MB and was left out`;
-  if (type === 'photo' && mb > MAX_PHOTO_MB) return `A photo was over ${MAX_PHOTO_MB}MB and was left out`;
+  if (type === 'video' && mb > MAX_VIDEO_MB) return `A video was over ${MAX_VIDEO_MB}MB and couldn't be uploaded`;
+  if (type === 'photo' && mb > MAX_PHOTO_MB) return `A photo was over ${MAX_PHOTO_MB}MB and couldn't be uploaded`;
   return null;
 }
 
@@ -153,7 +159,7 @@ async function pickNative(): Promise<PickResult> {
 
 // Web only: react-native has no video element, but react-native-web renders
 // raw DOM elements, and an Instagram preview is a video that plays.
-export function WebVideo({ uri, style }: { uri: string; style: object }) {
+export function WebVideo({ uri, style, focalX, focalY }: { uri: string; style: object; focalX?: number | null; focalY?: number | null }) {
   if (Platform.OS !== 'web') {
     return (
       <View style={[style, styles.videoFallback]}>
@@ -167,12 +173,13 @@ export function WebVideo({ uri, style }: { uri: string; style: object }) {
     autoPlay: true,
     loop: true,
     playsInline: true,
-    style: { ...StyleSheet.flatten(style), objectFit: 'cover', display: 'block' },
+    style: { ...StyleSheet.flatten(style), objectFit: 'cover', objectPosition: `${(focalX ?? 0.5) * 100}% ${(focalY ?? 0.5) * 100}%`, display: 'block' },
   });
 }
 
 export function MediaPicker({
   initial,
+  initialFocus,
   alreadyAttached = 0,
   videosAlreadyAttached = 0,
   initialNotice,
@@ -183,6 +190,8 @@ export function MediaPicker({
 }: {
   // Starts selected, numbered in the order given.
   initial: MediaItem[];
+  // The item shown first in the preview; the first item if unset.
+  initialFocus?: string;
   // Media already saved on the activity, which counts against the limit.
   alreadyAttached?: number;
   videosAlreadyAttached?: number;
@@ -194,14 +203,14 @@ export function MediaPicker({
   onDone: (items: MediaItem[]) => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const room = Math.max(0, MAX_MEDIA - alreadyAttached);
   const videoRoom = Math.max(0, MAX_VIDEOS - videosAlreadyAttached);
 
   const [pool, setPool] = useState<MediaItem[]>(initial);
   // Selection order, by uri. Position in this list IS the badge number.
   const [order, setOrder] = useState<string[]>(() => preselect(initial, room, videoRoom).order);
-  const [focus, setFocus] = useState<string | null>(initial[0]?.uri ?? null);
+  const [focus, setFocus] = useState<string | null>(initialFocus ?? initial[0]?.uri ?? null);
   const [notice, setNotice] = useState<string | null>(
     initialNotice ?? preselect(initial, room, videoRoom).notice,
   );
@@ -227,6 +236,19 @@ export function MediaPicker({
       return;
     }
     setOrder((prev) => [...prev, item.uri]);
+  }
+
+  // Phone: the first tap on a photo shows it in the preview (choosing it if
+  // it wasn't), a tap on the one already shown takes it out. Instagram's
+  // rule, so positioning several photos needs no extra buttons.
+  function tapPhone(item: MediaItem) {
+    if (item.uri === focus) { toggle(item); return; }
+    setFocus(item.uri);
+    if (!order.includes(item.uri)) toggle(item);
+  }
+
+  function setFocal(uri: string, x: number, y: number) {
+    setPool((prev) => prev.map((m) => (m.uri === uri ? { ...m, focalX: x, focalY: y } : m)));
   }
 
   async function addMore() {
@@ -286,7 +308,17 @@ export function MediaPicker({
     const pcols = 3;
     const pgap = 7;
     const pcell = Math.floor((width - 36 - pgap * (pcols - 1)) / pcols);
+    // The preview is the shape of the Activity viewer's photo (full width,
+    // 56% of the screen's height: ActivityDiaryViewer's photoHeight), so
+    // what is in view here is what is in view there.
+    const viewerH = Math.max(320, Math.round(height * 0.56));
+    const previewH = Math.min(300, Math.round(height * 0.36));
+    const previewW = Math.round((previewH * width) / viewerH);
+    // In a Modal so it sits above the floating bottom nav, which is drawn
+    // straight onto the page over everything else in the app (Ricky,
+    // 2026-10-11: the Save button was hidden behind it).
     return (
+      <Modal visible transparent animationType="none" onRequestClose={onCancel}>
       <View style={[styles.overlay, pm.overlay]}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onCancel} accessibilityLabel="Cancel" />
         <GreySheet
@@ -299,21 +331,37 @@ export function MediaPicker({
             {order.length === 0 ? 'Tap photos in the order they should appear.' : `${order.length} selected, numbered in posting order. The first is the cover.`}
           </GreyNote>
           {notice ? <Text style={[styles.notice, { paddingHorizontal: 4, marginTop: 6 }]}>{notice}</Text> : null}
+          {focused ? (
+            <View style={pm.previewWrap}>
+              <FocalFrame
+                key={focused.uri}
+                uri={focused.uri}
+                type={focused.type}
+                focalX={focused.focalX ?? 0.5}
+                focalY={focused.focalY ?? 0.5}
+                width={previewW}
+                height={previewH}
+                onChange={(x, y) => setFocal(focused.uri, x, y)}
+                style={pm.preview}
+              />
+              <Text style={pm.previewHint}>Drag to position. Tap the photo below again to remove it.</Text>
+            </View>
+          ) : null}
           <View style={[pm.grid, { gap: pgap }]}>
             {pool.map((item) => {
               const n = order.indexOf(item.uri) + 1;
               return (
-                <TouchableOpacity key={item.uri} activeOpacity={0.85} onPress={() => toggle(item)} style={[pm.cell, { width: pcell, height: pcell }, n > 0 && pm.cellOn]}>
+                <TouchableOpacity key={item.uri} activeOpacity={0.85} onPress={() => tapPhone(item)} style={[pm.cell, { width: pcell, height: pcell }, n > 0 && pm.cellOn, item.uri === focus && pm.cellFocus]}>
                   {item.type === 'video'
-                    ? <WebVideo uri={item.uri} style={{ width: pcell, height: pcell }} />
-                    : <Image source={{ uri: item.uri }} style={{ width: pcell, height: pcell }} />}
+                    ? <WebVideo uri={item.uri} focalX={item.focalX} focalY={item.focalY} style={{ width: pcell, height: pcell }} />
+                    : <CoverImage uri={item.uri} focalX={item.focalX} focalY={item.focalY} style={{ width: pcell, height: pcell }} />}
                   {item.type === 'video' ? (
-                    <View style={styles.videoTag} pointerEvents="none"><RivalIcon name="video" size={13} color="#fff" /></View>
+                    <View style={[styles.videoTag, { pointerEvents: 'none' }]}><RivalIcon name="video" size={13} color="#fff" /></View>
                   ) : null}
                   {n === 1 && item.type === 'photo' ? (
-                    <View style={pm.cover} pointerEvents="none"><Text style={pm.coverText}>Cover</Text></View>
+                    <View style={[pm.cover, { pointerEvents: 'none' }]}><Text style={pm.coverText}>Cover</Text></View>
                   ) : null}
-                  <View style={[styles.badge, n > 0 && styles.badgeOn]} pointerEvents="none">
+                  <View style={[styles.badge, n > 0 && styles.badgeOn, { pointerEvents: 'none' }]}>
                     {n > 0 ? <Text style={styles.badgeText}>{n}</Text> : null}
                   </View>
                 </TouchableOpacity>
@@ -326,6 +374,7 @@ export function MediaPicker({
           </View>
         </GreySheet>
       </View>
+      </Modal>
     );
   }
 
@@ -382,13 +431,13 @@ export function MediaPicker({
                   : <Image source={{ uri: item.uri }} style={{ width: cell, height: cell }} />}
                 {/* Instagram lightens the one you are looking at, so the grid
                     always shows which item the preview belongs to. */}
-                {isFocused ? <View style={styles.focusWash} pointerEvents="none" /> : null}
+                {isFocused ? <View style={[styles.focusWash, { pointerEvents: 'none' }]} /> : null}
                 {item.type === 'video' ? (
-                  <View style={styles.videoTag} pointerEvents="none">
+                  <View style={[styles.videoTag, { pointerEvents: 'none' }]}>
                     <RivalIcon name="video" size={13} color="#fff" />
                   </View>
                 ) : null}
-                <View style={[styles.badge, n > 0 && styles.badgeOn]} pointerEvents="none">
+                <View style={[styles.badge, n > 0 && styles.badgeOn, { pointerEvents: 'none' }]}>
                   {n > 0 ? <Text style={styles.badgeText}>{n}</Text> : null}
                 </View>
               </TouchableOpacity>
@@ -480,6 +529,10 @@ const pm = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 },
   cell: { borderRadius: 12, overflow: 'hidden', backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
   cellOn: { borderColor: 'rgba(255,181,158,0.6)' },
+  cellFocus: { borderColor: '#fff', borderWidth: 2 },
+  previewWrap: { alignItems: 'center', marginTop: 12, gap: 8 },
+  preview: { borderRadius: 14, borderWidth: 1, borderColor: RivalGhost.border },
+  previewHint: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
   add: { alignItems: 'center', justifyContent: 'center', gap: 4, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
   cover: { position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.55)' },
   coverText: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.4, color: '#fff' },

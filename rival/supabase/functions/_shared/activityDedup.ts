@@ -56,6 +56,16 @@ export async function resolveCanonicalActivityId(
   supabase: any,
   candidate: ActivityCandidate,
 ): Promise<ResolveResult> {
+  // Deleted in RIVAL: never import it again (remember_deleted_imports.sql).
+  const { data: deleted } = await supabase
+    .from('deleted_activity_sources')
+    .select('user_id')
+    .eq('user_id', candidate.userId)
+    .eq('provider', candidate.provider)
+    .eq('provider_activity_id', candidate.providerActivityId)
+    .maybeSingle()
+  if (deleted) return { canonicalId: null, discard: true }
+
   // Fast path: this exact (user, provider, provider_activity_id) has been seen
   // before — no fuzzy matching needed, just report back which activity it belongs to.
   const { data: existingSource } = await supabase

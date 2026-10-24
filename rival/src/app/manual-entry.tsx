@@ -1,10 +1,13 @@
 import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
 import { defaultActivityName } from '../lib/activityName';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { selectAll } from '../lib/selectAll';
+import { tilesFor, useRecentTypes } from '../lib/recentTypes';
+import { activityDeleted } from '../lib/activityEvents';
 import { calculateEffortScore, effortBreakdown, loadScoringConfig, ScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
@@ -12,6 +15,7 @@ import { formatDuration } from '../lib/format';
 import { confirmAction } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
 import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG, rb } from '../components/rival';
+import { CoverImage } from '../components/rival/CoverImage';
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
@@ -21,7 +25,8 @@ import { TrainingPartners } from '../components/rival/TrainingPartners';
 import { tagTeammates, withinTagWindow, TAG_WINDOW_HOURS } from '../lib/sharedActivities';
 import { goToTab } from '../lib/tabNav';
 
-type Exercise = { name: string; sets?: number; reps?: number; weight?: number };
+// `markedPb`: a first-time lift the person says is a personal best (lib/liftPb.ts).
+type Exercise = { name: string; sets?: number; reps?: number; weight?: number; markedPb?: boolean };
 
 const KG_PER_LB = 0.453592;
 
@@ -39,8 +44,10 @@ const TYPE_OPTIONS: Array<{ type: string; label: string }> = [
 ];
 
 // Phone tiles, as in the review mockup; See all adds the rest.
-const PHONE_TILES = ['Run', 'Ride', 'Swim', 'CrossFit', 'Hike', 'WeightTraining', 'HIIT'];
-const MORE_TYPES = ['Walk', 'TrailRun', 'Rowing', 'Hyrox', 'Bootcamp', 'Yoga', 'Pilates', 'Workout'];
+// Workout and HYROX in place of Hike and HIIT (Ricky, 2026-10-18: used more).
+// Workout sits apart from Weights so the two dumbbells aren't side by side (Ricky, 2026-10-23).
+const PHONE_TILES = ['Run', 'Ride', 'Swim', 'CrossFit', 'WeightTraining', 'Hyrox', 'Workout'];
+const MORE_TYPES = ['Walk', 'Hike', 'TrailRun', 'Rowing', 'HIIT', 'Bootcamp', 'Yoga', 'Pilates'];
 const TILE_NAMES: Record<string, string> = { WeightTraining: 'Weights', Hyrox: 'HYROX', TrailRun: 'Trail run', HIIT: 'HIIT', CrossFit: 'CrossFit', VirtualRun: 'Treadmill', VirtualRide: 'Indoor ride' };
 // The activity name is a short label that fits one line on a feed card; the
 // story goes in the journal (Ricky, 2026-10-08).
@@ -75,6 +82,10 @@ export default function ManualEntryScreen() {
 
   const [workoutType, setWorkoutType] = useState('Run');
   const [showAllTypes, setShowAllTypes] = useState(false);
+  // The seven tiles: the person's own types first (lib/recentTypes.ts).
+  const recentTypes = useRecentTypes();
+  const tiles = tilesFor(recentTypes, PHONE_TILES);
+  const moreTypes = [...PHONE_TILES, ...MORE_TYPES].filter((t) => !tiles.includes(t));
   const [calOpen, setCalOpen] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [dateStr, setDateStr] = useState(() => (prefillDateIso ? isoToDisplayDate(prefillDateIso) || todayDisplay() : todayDisplay()));
@@ -133,6 +144,15 @@ export default function ManualEntryScreen() {
   // changing only the date field doesn't quietly reset an activity logged at
   // 6am to whatever time you happen to be editing it.
   const [originalStartedAt, setOriginalStartedAt] = useState<Date | null>(null);
+  // Start time of day, shown as 12-hour clock fields. A new entry starts at
+  // the current time; editing shows the activity's own (Ricky, 2026-10-09: a
+  // watch with a wrong clock needs its run's time put right here).
+  const [startHour, setStartHour] = useState(() => String(((new Date().getHours() + 11) % 12) + 1));
+  const [startMin, setStartMin] = useState(() => String(new Date().getMinutes()).padStart(2, '0'));
+  const [startPm, setStartPm] = useState(() => new Date().getHours() >= 12);
+  // What the activity said when it was opened for editing, so a save can tell
+  // which of the imported details were changed by hand.
+  const [loadedFrom, setLoadedFrom] = useState<{ provider: string | null; name: string } | null>(null);
   // What a blank name will be saved as.
   const namePlaceholder = defaultActivityName(workoutType, isEditMode && originalStartedAt ? originalStartedAt : new Date());
   // Held in state so the "≈ N Effort" hint can be computed synchronously on
@@ -141,6 +161,21 @@ export default function ManualEntryScreen() {
   // would actually save as 92 — worse than showing nothing.
   const [scoringConfig, setScoringConfig] = useState<ScoringConfig | null>(null);
   useEffect(() => { loadScoringConfig().then(setScoringConfig); }, []);
+
+  // The lifts logged before, so a lift logged for the first time can offer
+  // "Personal best" (Ricky, 2026-10-23). Null until loaded: no switch yet.
+  const [priorLifts, setPriorLifts] = useState<{ lift: string; activityId: string | null; at: number }[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await getAuthUser();
+      if (!user) return;
+      try {
+        const rows = await selectAll<any>((from, to) => supabase.from('exercise_entries')
+          .select('id, activity_id, exercise_name, performed_at').eq('user_id', user.id).order('id').range(from, to));
+        setPriorLifts(rows.map((r) => ({ lift: r.exercise_name, activityId: r.activity_id, at: new Date(r.performed_at).getTime() })));
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     if (!editId) return;
@@ -151,6 +186,10 @@ export default function ManualEntryScreen() {
       setWorkoutName(data.name || '');
       const started = new Date(data.started_at);
       setOriginalStartedAt(started);
+      setStartHour(String(((started.getHours() + 11) % 12) + 1));
+      setStartMin(String(started.getMinutes()).padStart(2, '0'));
+      setStartPm(started.getHours() >= 12);
+      setLoadedFrom({ provider: data.provider ?? null, name: data.name || '' });
       setDateStr(isoToDisplayDate(`${started.getFullYear()}-${String(started.getMonth() + 1).padStart(2, '0')}-${String(started.getDate()).padStart(2, '0')}`) || todayDisplay());
       setDurationMin(data.duration_seconds > 0 ? String(Math.floor(data.duration_seconds / 60)) : '');
       setDurationSec(data.duration_seconds > 0 ? String(data.duration_seconds % 60) : '');
@@ -177,7 +216,7 @@ export default function ManualEntryScreen() {
       const rows = (mediaRows ?? []) as MediaRow[];
       setSavedMedia(rows);
       setSavedCover(data.photo_url ?? null);
-      if (!wide) setMedia(existingAsItems(rows, data.photo_url ?? null));
+      if (!wide) setMedia(existingAsItems(rows, data.photo_url ?? null, { x: data.photo_focal_x ?? null, y: data.photo_focal_y ?? null }));
       setLoadingEdit(false);
     })();
   }, [editId]);
@@ -189,6 +228,23 @@ export default function ManualEntryScreen() {
     const raw = (Number.isFinite(mins) ? mins * 60 : 0) + (Number.isFinite(secs) ? secs : 0);
     return CLASS_BASED_TYPES.has(workoutType) && raw > 0 && raw < 30 * 60 ? CLASS_DURATION_FLOOR_SECONDS : raw;
   })();
+
+  // A new entry is taken to have just finished: the start time follows the
+  // time entered (10 min logged at 7:31 starts at 7:21), until the start
+  // time is set by hand (Ricky, 2026-10-24). Editing never moves it.
+  const startTouched = useRef(false);
+  const enteredSeconds = (Number(durationMin) || 0) * 60 + (Number(durationSec) || 0);
+  useEffect(() => {
+    if (isEditMode || startTouched.current) return;
+    const start = new Date(Date.now() - enteredSeconds * 1000);
+    setStartHour(String(((start.getHours() + 11) % 12) + 1));
+    setStartMin(String(start.getMinutes()).padStart(2, '0'));
+    setStartPm(start.getHours() >= 12);
+    // Started before midnight: it was yesterday's, if the date is still today.
+    const today = todayDisplay();
+    const startDay = isoToDisplayDate(`${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`);
+    setDateStr((cur) => (cur === today && startDay !== today ? startDay : cur));
+  }, [enteredSeconds, isEditMode]);
 
   // The ordering sheet, open between the phone's picker and this form.
   const [mediaPicker, setMediaPicker] = useState<{ items: MediaItem[]; notice?: string; saved: number; savedVideos: number } | null>(null);
@@ -250,6 +306,19 @@ export default function ManualEntryScreen() {
     if (!Number.isFinite(num)) return undefined;
     return weightUnit === 'lb' ? num * KG_PER_LB : num;
   }
+  // A tracked, weighted lift with nothing logged before this activity's day.
+  function isFirstLift(ex: Exercise): boolean {
+    const lift = matchCanonicalLift(ex.name);
+    if (!lift || !ex.weight || !priorLifts) return false;
+    const iso = displayToIsoDate(dateStr);
+    const dayEnd = iso ? new Date(`${iso}T23:59:59`).getTime() : Date.now();
+    const at = isEditMode && originalStartedAt ? originalStartedAt.getTime() : dayEnd;
+    return !priorLifts.some((p) => p.lift === lift && p.activityId !== editId && p.at < at);
+  }
+  function toggleMarkedPb(index: number) {
+    setExercises((prev) => prev.map((ex, i) => i === index ? { ...ex, markedPb: !ex.markedPb } : ex));
+  }
+
   function addExercise() { setExercises((prev) => [...prev, { name: '' }]); }
   function removeExercise(index: number) {
     setExercises((prev) => prev.filter((_, i) => i !== index));
@@ -268,9 +337,21 @@ export default function ManualEntryScreen() {
   }
   // Canonical-lift name suggestions (substring match) so a typed "shoulder"
   // surfaces "Overhead Press" and the lift feeds the PR tracker on save.
+  // An empty name offers the person's own lifts, most recent first, not
+  // already in this activity: their usual lift is one tap (Ricky, 2026-10-23).
+  function recentLifts(): string[] {
+    const inUse = new Set(exercises.map((ex) => matchCanonicalLift(ex.name)).filter(Boolean));
+    const seen: string[] = [];
+    [...(priorLifts ?? [])].sort((a, b) => b.at - a.at).forEach((p) => {
+      if (CANONICAL_LIFTS.includes(p.lift) && !inUse.has(p.lift) && !seen.includes(p.lift)) seen.push(p.lift);
+    });
+    return seen.slice(0, 6);
+  }
+
   function liftSuggestions(input: string): string[] {
     const q = (input || '').trim().toLowerCase();
-    if (!q || matchCanonicalLift(input)) return [];
+    if (!q) return recentLifts();
+    if (matchCanonicalLift(input)) return [];
     return CANONICAL_LIFTS.filter((lift) => lift.toLowerCase().includes(q)).slice(0, 6);
   }
 
@@ -288,7 +369,12 @@ export default function ManualEntryScreen() {
       setDeleting(false);
       return;
     }
-    router.back();
+    // Its lifts go too, or they'd still count in the PB history (the rows
+    // only lose their activity link when it's deleted).
+    await supabase.from('exercise_entries').delete().eq('activity_id', editId);
+    // Close its card on the Activity tab, so it's plainly gone.
+    activityDeleted(editId);
+    goToTab('/my-activities');
   }
 
   async function saveSession() {
@@ -325,7 +411,20 @@ export default function ManualEntryScreen() {
       // even if you only meant to fix its distance.
       const timeSource = isEditMode && originalStartedAt ? originalStartedAt : new Date();
       const name = workoutName.trim() || defaultActivityName(workoutType, timeSource);
-      const startedAt = new Date(y, m - 1, d, timeSource.getHours(), timeSource.getMinutes(), timeSource.getSeconds());
+      const hour12 = Math.min(12, Math.max(1, Number(startHour) || 12));
+      const minute = Math.min(59, Math.max(0, Number(startMin) || 0));
+      const hour24 = (hour12 % 12) + (startPm ? 12 : 0);
+      // Seconds are kept from the original when the clock time wasn't touched,
+      // so opening and saving an activity doesn't nudge its start at all.
+      const sameClock = hour24 === timeSource.getHours() && minute === timeSource.getMinutes();
+      const startedAt = new Date(y, m - 1, d, hour24, minute, sameClock ? timeSource.getSeconds() : 0);
+      // An imported activity (Strava) is refreshed by every sync. What was
+      // changed by hand here is locked so the next sync keeps it: the name, and
+      // the start time (a watch with a wrong clock uploads the wrong day).
+      const imported = isEditMode && !!loadedFrom?.provider && loadedFrom.provider !== 'manual';
+      const locks: Record<string, boolean> = {};
+      if (imported && workoutName.trim() && workoutName.trim() !== loadedFrom!.name) locks.name_locked = true;
+      if (imported && originalStartedAt && Math.abs(startedAt.getTime() - originalStartedAt.getTime()) >= 60 * 1000) locks.started_at_locked = true;
 
       // Only keep exercises the user actually named; tag canonical lifts so
       // they group with existing PR history in the feed/activity record.
@@ -333,7 +432,10 @@ export default function ManualEntryScreen() {
       const exercisesPayload = namedExercises.length > 0
         ? namedExercises.map((ex) => {
             const canonical = matchCanonicalLift(ex.name);
-            return canonical ? { ...ex, prLift: canonical } : ex;
+            // The mark only counts on a first-time lift; anything else is judged by weight.
+            const { markedPb, ...rest } = ex;
+            const kept = markedPb && isFirstLift(ex) ? { ...rest, markedPb: true } : rest;
+            return canonical ? { ...kept, prLift: canonical } : kept;
           })
         : null;
 
@@ -350,12 +452,15 @@ export default function ManualEntryScreen() {
             duration_seconds: durationSeconds,
             elevation_meters: elevation,
             started_at: startedAt.toISOString(),
+            // The phone's own time zone, so the time of day shows where it happened.
+            utc_offset_seconds: -startedAt.getTimezoneOffset() * 60,
             effort_score: effortScore,
             raw_effort_score: effortScore,
             effort_confirmed: stillConfirmed,
             notes: notes.trim() || null,
             exercises: exercisesPayload,
             race_id: raceId,
+            ...locks,
           })
           .eq('id', editId);
         if (error) {
@@ -386,6 +491,8 @@ export default function ManualEntryScreen() {
             duration_seconds: durationSeconds,
             elevation_meters: elevation,
             started_at: startedAt.toISOString(),
+            // The phone's own time zone, so the time of day shows where it happened.
+            utc_offset_seconds: -startedAt.getTimezoneOffset() * 60,
             effort_score: effortScore,
             raw_effort_score: effortScore,
             notes: notes.trim() || null,
@@ -560,7 +667,7 @@ export default function ManualEntryScreen() {
           onChangeText={(v) => { setDurationMin(v); if (fieldError?.field === 'duration') setFieldError(null); }}
           placeholder="0"
           placeholderTextColor={RivalColors.textSecondary}
-          keyboardType="numeric"
+          keyboardType="numeric" autoComplete="off"
         />
         <Text style={styles.metricUnit}>min</Text>
         <TextInput
@@ -577,7 +684,7 @@ export default function ManualEntryScreen() {
           }}
           placeholder="0"
           placeholderTextColor={RivalColors.textSecondary}
-          keyboardType="numeric"
+          keyboardType="numeric" autoComplete="off"
           maxLength={2}
         />
         <Text style={styles.metricUnit}>sec</Text>
@@ -688,15 +795,15 @@ export default function ManualEntryScreen() {
               <View style={styles.exFieldsRow}>
                 <View style={styles.exField}>
                   <Text style={styles.exFieldLabel}>Sets</Text>
-                  <TextInput style={styles.exFieldInput} value={ex.sets != null ? String(ex.sets) : ''} onChangeText={(v) => updateExerciseNum(i, 'sets', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" />
+                  <TextInput style={styles.exFieldInput} value={ex.sets != null ? String(ex.sets) : ''} onChangeText={(v) => updateExerciseNum(i, 'sets', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" autoComplete="off" />
                 </View>
                 <View style={styles.exField}>
                   <Text style={styles.exFieldLabel}>Reps</Text>
-                  <TextInput style={styles.exFieldInput} value={ex.reps != null ? String(ex.reps) : ''} onChangeText={(v) => updateExerciseNum(i, 'reps', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" />
+                  <TextInput style={styles.exFieldInput} value={ex.reps != null ? String(ex.reps) : ''} onChangeText={(v) => updateExerciseNum(i, 'reps', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" autoComplete="off" />
                 </View>
                 <View style={styles.exField}>
                   <Text style={styles.exFieldLabel}>Weight ({weightUnit})</Text>
-                  <TextInput style={styles.exFieldInput} value={kgToDisplay(ex.weight)} onChangeText={(v) => updateExerciseNum(i, 'weightDisplay', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" />
+                  <TextInput style={styles.exFieldInput} value={kgToDisplay(ex.weight)} onChangeText={(v) => updateExerciseNum(i, 'weightDisplay', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" autoComplete="off" />
                 </View>
               </View>
             </View>
@@ -722,7 +829,7 @@ export default function ManualEntryScreen() {
                 : <View style={[styles.mediaThumb, styles.mediaVideo]}><Text style={styles.mediaVideoIcon}>🎬</Text></View>}
               {/* The posting order, carried over from the ordering sheet. */}
               {!wide ? (
-                <View style={styles.mediaOrder} pointerEvents="none">
+                <View style={[styles.mediaOrder, { pointerEvents: 'none' }]}>
                   <Text style={styles.mediaOrderText}>{i + 1}</Text>
                 </View>
               ) : null}
@@ -763,7 +870,7 @@ export default function ManualEntryScreen() {
   const effortParts = [
     formatDuration(durationSeconds),
     ...(scoresDistance && enteredKm > 0 ? [`${enteredKm} ${distanceUnit()}`] : []),
-    ...(scoresClimb && enteredClimb > 0 ? [`${enteredClimb} ${elevationUnit()} climbed`] : []),
+    ...(scoresClimb && enteredClimb > 0 ? [`${enteredClimb} ${elevationUnit()} elevation`] : []),
   ].join(' + ');
   // Faster than the sport allows: less counts until it is confirmed, which
   // the athlete is asked about once it is saved.
@@ -853,14 +960,16 @@ export default function ManualEntryScreen() {
             <View key={i} style={m.lift}>
               <View style={m.liftNameRow}>
                 <Text style={m.liftIndex}>{i + 1}</Text>
+                {/* Empty, the name is a dashed salmon field asking to be
+                    filled, so a new exercise is not missed (Ricky, 2026-10-16). */}
                 <TextInput
-                  style={m.liftName}
+                  style={[m.liftName, !ex.name.trim() && m.liftNameEmpty]}
                   value={ex.name}
                   onChangeText={(v) => updateExerciseName(i, v)}
                   onFocus={() => setNameSuggestIndex(i)}
                   onBlur={() => setTimeout(() => setNameSuggestIndex((cur) => (cur === i ? null : cur)), 150)}
-                  placeholder="Exercise name"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholder="Add exercise name"
+                  placeholderTextColor="rgba(255,181,158,0.85)"
                 />
                 <TouchableOpacity style={m.liftRemove} onPress={() => removeExercise(i)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <RivalIcon name="close" size={15} color="rgba(255,255,255,0.45)" />
@@ -892,11 +1001,25 @@ export default function ManualEntryScreen() {
                       onChangeText={onChange}
                       placeholder="–"
                       placeholderTextColor="rgba(255,255,255,0.25)"
-                      keyboardType="numeric"
+                      keyboardType="numeric" autoComplete="off"
                     />
                   </View>
                 ))}
               </View>
+
+              {/* First time this lift is logged: the person can say it's a
+                  personal best; off, it saves as a normal lift and nothing shows. */}
+              {isFirstLift(ex) ? (
+                <TouchableOpacity style={m.firstLift} onPress={() => toggleMarkedPb(i)} activeOpacity={0.8} accessibilityRole="switch" accessibilityState={{ checked: !!ex.markedPb }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[m.firstLiftTitle, ex.markedPb && m.firstLiftTitleOn]}>Personal best</Text>
+                    <Text style={m.firstLiftSub}>{`First ${matchCanonicalLift(ex.name)} on RIVAL. Turn on if this is a personal best.`}</Text>
+                  </View>
+                  <View style={[m.pbSwitch, ex.markedPb && m.pbSwitchOn]}>
+                    <View style={[m.pbKnob, ex.markedPb && m.pbKnobOn]} />
+                  </View>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ))}
 
@@ -935,11 +1058,11 @@ export default function ManualEntryScreen() {
         {/* Seven tiles plus See all, four to a row; See all opens the rest in
             the same grid. A pick outside the seven shows in the eighth tile. */}
         <View style={m.tiles}>
-          {(showAllTypes ? [...PHONE_TILES, ...MORE_TYPES] : PHONE_TILES).map((t) => {
+          {(showAllTypes ? [...tiles, ...moreTypes] : tiles).map((t) => {
             const on = workoutType === t;
             return (
               <TouchableOpacity key={t} style={[m.tile, on && m.tileOn]} onPress={() => setWorkoutType(t)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                <View style={m.tileArt} pointerEvents="none">
+                <View style={[m.tileArt, { pointerEvents: 'none' }]}>
                   <RivalIcon name={activityIconName(t)} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                 </View>
                 <Text style={[m.tileText, on && m.tileTextOn]} numberOfLines={1}>{tileLabel(t)}</Text>
@@ -947,10 +1070,10 @@ export default function ManualEntryScreen() {
             );
           })}
           {(() => {
-            const outside = !PHONE_TILES.includes(workoutType) && !(showAllTypes && MORE_TYPES.includes(workoutType));
+            const outside = !tiles.includes(workoutType) && !(showAllTypes && moreTypes.includes(workoutType));
             return (
               <TouchableOpacity style={[m.tile, outside ? m.tileOn : m.tileAll]} onPress={() => setShowAllTypes((v) => !v)} activeOpacity={0.8} accessibilityRole="button">
-                <View style={m.tileArt} pointerEvents="none">
+                <View style={[m.tileArt, { pointerEvents: 'none' }]}>
                   <RivalIcon name={outside ? activityIconName(workoutType) : 'apps'} size={56} color={outside ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                 </View>
                 <Text style={[m.tileText, outside ? m.tileTextOn : m.tileAllText]} numberOfLines={1}>
@@ -976,7 +1099,7 @@ export default function ManualEntryScreen() {
                 onChangeText={(v) => { setDurationMin(v.replace(/\D/g, '')); if (fieldError?.field === 'duration') setFieldError(null); }}
                 placeholder="0"
                 placeholderTextColor="rgba(255,255,255,0.28)"
-                keyboardType="numeric"
+                keyboardType="numeric" autoComplete="off"
               />
               <Text style={m.rowUnit}>min</Text>
               <TextInput
@@ -990,7 +1113,7 @@ export default function ManualEntryScreen() {
                 }}
                 placeholder="00"
                 placeholderTextColor="rgba(255,255,255,0.28)"
-                keyboardType="numeric"
+                keyboardType="numeric" autoComplete="off"
                 maxLength={2}
               />
               <Text style={m.rowUnit}>sec</Text>
@@ -998,26 +1121,53 @@ export default function ManualEntryScreen() {
           </GreyRow>
           <GreyRow icon="distance" label="Distance">
             <View style={m.timeRow}>
-              <TextInput style={[m.rowInput, m.wideInput]} value={distanceKm} onChangeText={setDistanceKm} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" />
+              <TextInput style={[m.rowInput, m.wideInput]} value={distanceKm} onChangeText={setDistanceKm} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" autoComplete="off" />
               {distanceKm ? <Text style={m.rowUnit}>{distanceUnit()}</Text> : null}
             </View>
           </GreyRow>
           {isTreadmill ? (
             <GreyRow icon="elevation" label="Incline">
               <View style={m.timeRow}>
-                <TextInput style={[m.rowInput, m.wideInput]} value={inclinePct} onChangeText={setInclinePct} placeholder="Average" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" />
+                <TextInput style={[m.rowInput, m.wideInput]} value={inclinePct} onChangeText={setInclinePct} placeholder="Average" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" autoComplete="off" />
                 {inclinePct ? <Text style={m.rowUnit}>%</Text> : null}
               </View>
             </GreyRow>
           ) : (
             <GreyRow icon="elevation" label="Elevation">
               <View style={m.timeRow}>
-                <TextInput style={[m.rowInput, m.wideInput]} value={elevationM} onChangeText={setElevationM} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="numeric" />
+                <TextInput style={[m.rowInput, m.wideInput]} value={elevationM} onChangeText={setElevationM} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="numeric" autoComplete="off" />
                 {elevationM ? <Text style={m.rowUnit}>{elevationUnit()}</Text> : null}
               </View>
             </GreyRow>
           )}
           <GreyRow icon="calendar" label="Date" value={friendlyDate(dateStr)} onPress={() => setCalOpen(true)} />
+          <GreyRow icon="schedule" label="Start time">
+            <View style={m.timeRow}>
+              <TextInput
+                style={[m.rowInput, m.hourInput]}
+                value={startHour}
+                onChangeText={(v) => { startTouched.current = true; setStartHour(v.replace(/\D/g, '').slice(0, 2)); }}
+                placeholder="9"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                keyboardType="numeric" autoComplete="off"
+                accessibilityLabel="Start hour"
+              />
+              <Text style={m.rowUnit}>:</Text>
+              <TextInput
+                style={[m.rowInput, m.minInput]}
+                value={startMin}
+                onChangeText={(v) => { startTouched.current = true; setStartMin(v.replace(/\D/g, '').slice(0, 2)); }}
+                onBlur={() => setStartMin((v) => (v ? String(Math.min(59, Number(v))).padStart(2, '0') : '00'))}
+                placeholder="00"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                keyboardType="numeric" autoComplete="off"
+                accessibilityLabel="Start minute"
+              />
+              <TouchableOpacity onPress={() => { startTouched.current = true; setStartPm((v) => !v); }} style={m.ampm} accessibilityRole="button" accessibilityLabel={startPm ? 'PM, tap for AM' : 'AM, tap for PM'}>
+                <Text style={m.ampmText}>{startPm ? 'pm' : 'am'}</Text>
+              </TouchableOpacity>
+            </View>
+          </GreyRow>
           {/* Lifts as one more row here rather than a card of its own; the
               list opens below when tapped (Ricky, 2026-10-02). */}
           <GreyRow
@@ -1025,7 +1175,12 @@ export default function ManualEntryScreen() {
             label="Lifts"
             value={exercises.length > 0 ? `${exercises.length} ${exercises.length === 1 ? 'lift' : 'lifts'}` : undefined}
             placeholder="Optional"
-            onPress={() => setShowExercises((v) => !v)}
+            onPress={() => {
+              // Opening with none yet starts the first one, so there is
+              // something to fill in straight away.
+              if (!showExercises && exercises.length === 0) addExercise();
+              setShowExercises((v) => !v);
+            }}
           />
         </GreyRows>
         {isTreadmill && Number(inclinePct) > 0 ? (
@@ -1051,6 +1206,10 @@ export default function ManualEntryScreen() {
         )}
       </View>
 
+      {/* The lifts open straight under their row, not at the foot of the
+          page where a tap seemed to do nothing (Ricky, 2026-10-16). */}
+      {showExercises ? mobileLiftsCard : null}
+
       <Modal visible={calOpen} transparent animationType="fade" onRequestClose={() => setCalOpen(false)}>
         <View style={{ flex: 1 }}>
           <GreyCalendar
@@ -1069,7 +1228,7 @@ export default function ManualEntryScreen() {
         <TouchableOpacity style={m.mediaEmpty} onPress={pickMedia} activeOpacity={0.85} accessibilityRole="button">
           {/* A big tile like Upload on Add an activity: the camera large and
               faint behind the words (Ricky, 2026-10-03). */}
-          <View style={m.tileArt} pointerEvents="none">
+          <View style={[m.tileArt, { pointerEvents: 'none' }]}>
             <RivalIcon name="addPhoto" size={92} color="rgba(255,181,158,0.18)" />
           </View>
           <Text style={m.mediaEmptyTitle}>Add photos or a video</Text>
@@ -1090,13 +1249,13 @@ export default function ManualEntryScreen() {
                 style={m.thumbWrap}
               >
                 {item.type === 'photo'
-                  ? <Image source={{ uri: item.uri }} style={m.thumb} />
+                  ? <CoverImage uri={item.uri} focalX={item.focalX} focalY={item.focalY} style={m.thumb} />
                   : <View style={[m.thumb, m.thumbVideo]}><RivalIcon name="video" size={22} color={RivalColors.accentText} /></View>}
-                <View style={m.thumbOrder} pointerEvents="none">
+                <View style={[m.thumbOrder, { pointerEvents: 'none' }]}>
                   <Text style={m.thumbOrderText}>{i + 1}</Text>
                 </View>
                 {i === 0 && item.type === 'photo' ? (
-                  <View style={m.thumbCover} pointerEvents="none"><Text style={m.thumbCoverText}>Cover</Text></View>
+                  <View style={[m.thumbCover, { pointerEvents: 'none' }]}><Text style={m.thumbCoverText}>Cover</Text></View>
                 ) : null}
               </TouchableOpacity>
             ))}
@@ -1107,7 +1266,7 @@ export default function ManualEntryScreen() {
               </TouchableOpacity>
             ) : null}
           </ScrollView>
-          <Text style={m.cardHint}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min · tap a photo to reorder</Text>
+          <Text style={m.cardHint}>Up to {MAX_MEDIA} · 1 video, up to {MAX_VIDEO_SECONDS / 60} min · tap a photo to reorder or position it</Text>
           {mediaError && <Text style={styles.fieldError}>{mediaError}</Text>}
         </View>
       )}
@@ -1134,8 +1293,6 @@ export default function ManualEntryScreen() {
       {/* Who else was there. Partners can only be added within the tagging
           window, so an older date shows who is already on it and nothing more. */}
       {partnersCard}
-
-      {showExercises ? mobileLiftsCard : null}
 
       {/* Destructive, so it sits apart at the very end rather than next to
           the button you tap every time. */}
@@ -1219,10 +1376,6 @@ export default function ManualEntryScreen() {
             <Text style={styles.successText}>Activity saved</Text>
             {savedHasPhoto ? (
               <View style={styles.successActions}>
-                <TouchableOpacity style={[styles.enhanceBtn, { flexDirection: 'row', alignItems: 'center', gap: 6 }]} onPress={() => router.replace(`/ai-share?activityId=${savedActivityId}`)}>
-                  <RivalIcon name="ai" size={16} color={RivalColors.onAccentFill} />
-                  <Text style={styles.enhanceBtnText}>Enhance photo with AI</Text>
-                </TouchableOpacity>
                 <TouchableOpacity onPress={() => goToTab('/my-activities')}>
                   <Text style={styles.doneText}>Done</Text>
                 </TouchableOpacity>
@@ -1337,7 +1490,7 @@ const styles = StyleSheet.create({
   effortPreview: { fontSize: 13, color: RivalColors.accentText, fontWeight: '700' },
   classHint: { fontSize: 12, color: RivalColors.textSecondary, lineHeight: 17 },
   completeBtn: { marginTop: 4 },
-  discard: { color: RivalColors.textSecondary, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
+  discard: { color: RivalColors.danger, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
 
   notesInput: { backgroundColor: RivalColors.surfaceContainer, borderRadius: RivalRadius.DEFAULT, paddingHorizontal: 14, paddingVertical: 12, color: RivalColors.onSurface, fontSize: 15, minHeight: 110, textAlignVertical: 'top' },
 
@@ -1424,7 +1577,12 @@ const m = StyleSheet.create({
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
   },
   secInput: { width: 28, marginLeft: 6 },
+  // Hour and minute sit either side of the colon, as a clock reads.
+  hourInput: { width: 24 },
+  minInput: { width: 24, textAlign: 'left' },
   wideInput: { width: 110 },
+  ampm: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,181,158,0.4)', marginLeft: 4 },
+  ampmText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   rowUnit: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
   nameInput: {
     padding: 0, fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', color: '#fff', lineHeight: 30,
@@ -1533,9 +1691,11 @@ const m = StyleSheet.create({
   liftNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   liftIndex: { width: 22, height: 22, borderRadius: 11, textAlign: 'center', lineHeight: 22, fontSize: 11, fontWeight: '800', color: RivalColors.accentText, backgroundColor: 'rgba(255,209,190,0.10)', overflow: 'hidden' },
   liftName: {
-    flex: 1, minWidth: 0, padding: 0, fontSize: 15.5, fontWeight: '700', color: '#fff',
+    flex: 1, minWidth: 0, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 10, borderWidth: 1, borderColor: 'transparent',
+    fontSize: 15.5, fontWeight: '700', color: '#fff',
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
   },
+  liftNameEmpty: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.55)', backgroundColor: 'rgba(255,209,190,0.06)' },
   liftRemove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
   suggestBox: { backgroundColor: '#2a221e', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   suggestItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 },
@@ -1554,10 +1714,22 @@ const m = StyleSheet.create({
     paddingVertical: 12, borderRadius: 999, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.35)',
   },
   addLiftText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
+  // The first-time lift's "Personal best" switch (design/first-lift-pb-mockup.html).
+  firstLift: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: RivalGhost.hairline },
+  firstLiftTitle: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  firstLiftTitleOn: { color: '#ffd27a' },
+  firstLiftSub: { fontSize: 11.5, lineHeight: 15.5, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
+  pbSwitch: { width: 42, height: 25, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', padding: 3, justifyContent: 'center' },
+  pbSwitchOn: {
+    backgroundColor: '#f5c76a',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(160deg, #fff0b0 0%, #f5c76a 45%, #c4932a 100%)' } as any : {}),
+  },
+  pbKnob: { width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff', ...(Platform.OS === 'web' ? { boxShadow: '0px 1px 3px rgba(0,0,0,0.35)' } as any : {}) },
+  pbKnobOn: { alignSelf: 'flex-end' },
 
   dangerZone: { alignItems: 'center', paddingVertical: 18 },
-  dangerText: { fontSize: 13.5, fontWeight: '700', color: '#ff8f8f' },
-  discardText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.textSecondary },
+  dangerText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.danger },
+  discardText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.danger },
 
   saveBar: {
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 8,

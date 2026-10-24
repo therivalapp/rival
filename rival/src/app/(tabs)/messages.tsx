@@ -8,7 +8,8 @@ import { formatTeamName } from '../../lib/identity';
 import { RivalTopNav, RivalIcon, RivalWarm, rm } from '../../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { getUnreadChats, latestMessageByLeague } from '../../lib/unreadChats';
-import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { avatarImage } from '../../lib/imageUrl';
 
 // Same per-name color assignment as team-feed.tsx's team rail — kept as a
 // local copy rather than shared, matching how timeAgo is already duplicated
@@ -117,7 +118,7 @@ export default function MessagesScreen() {
       {mob && <Image source={SMOKE} style={ms.smoke} resizeMode="cover" />}
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <RivalTopNav active="chat" />
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, mob && styles.contentNavClear]}>
           <View style={mob && ms.head}>
             <Text style={[styles.title, mob && ms.title]}>Messages</Text>
             {mob && !loading && threads.length > 0 && (
@@ -162,7 +163,7 @@ export default function MessagesScreen() {
                     onPress={() => router.push({ pathname: '/chat', params: { id: t.leagueId } })}
                   >
                     {t.logoUrl ? (
-                      <Image source={{ uri: t.logoUrl }} style={[styles.avatar, mob && ms.crest, mob && t.unread && ms.crestUnread]} />
+                      <Image source={{ uri: avatarImage(t.logoUrl, 56) }} style={[styles.avatar, mob && ms.crest, mob && t.unread && ms.crestUnread]} />
                     ) : (
                       <View style={[styles.avatarFallback, { backgroundColor: tint.bg }]}>
                         <Text style={[styles.avatarInitial, { color: tint.color }]}>{t.name[0]?.toUpperCase()}</Text>
@@ -175,7 +176,10 @@ export default function MessagesScreen() {
                         </Text>
                         {t.lastAt && <Text style={styles.rowTime}>{timeAgo(t.lastAt)}</Text>}
                       </View>
-                      <Text style={[styles.rowPreview, t.unread && styles.rowPreviewUnread]} numberOfLines={1}>
+                      {/* Up to two lines, cut cleanly at the edge: no "…" anywhere in
+                          the app, and a long unbroken word breaks instead of
+                          running out of the card. */}
+                      <Text style={[styles.rowPreview, t.unread && styles.rowPreviewUnread]}>
                         {t.lastBody ? `${t.lastIsMine ? 'You: ' : ''}${t.lastBody}` : 'No messages yet.'}
                       </Text>
                     </View>
@@ -200,6 +204,8 @@ const styles = StyleSheet.create({
   },
   container: { flex: 1 },
   content: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 48, gap: 16, width: '100%', maxWidth: 640, marginHorizontal: 'auto' },
+  // Phones: room for the floating bottom nav, so the last item isn't hidden behind it.
+  contentNavClear: { paddingBottom: 120 },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700', color: '#fff' },
   stateText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, textAlign: 'center', marginTop: 40 },
 
@@ -213,7 +219,7 @@ const styles = StyleSheet.create({
   rowName: { fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
   rowNameUnread: { color: '#fff' },
   rowTime: { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
-  rowPreview: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  rowPreview: { fontSize: 13, lineHeight: 18, maxHeight: 36, overflow: 'hidden', color: 'rgba(255,255,255,0.5)', ...(Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as any) : null) },
   rowPreviewUnread: { color: 'rgba(255,255,255,0.75)', fontWeight: '600' },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: RivalColors.accentFill },
 
@@ -241,18 +247,21 @@ function rowIn(i: number): any {
 
 // Phone only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
+  // The activity page's lighter grey (Ricky, 2026-10-21: "give the chat page
+  // this feel") under the cards, but dark at the top like Today's podium, so
+  // the see-through top bar and the smoke read the same on both tabs.
   bg: {
-    backgroundColor: RivalWarm.page,
+    backgroundColor: RivalColors.surfaceHigh,
     ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'radial-gradient(ellipse 120% 55% at 100% 0%, rgba(217,119,87,0.14) 0%, rgba(17,14,12,0) 60%), radial-gradient(ellipse 90% 45% at 0% 100%, rgba(255,181,158,0.06) 0%, rgba(17,14,12,0) 60%)' } as any)
+      // Today's podium backdrop at the top: its warm light, then into grey.
+      ? ({ backgroundImage: 'radial-gradient(ellipse 90% 200px at 50% 120px, rgba(217,119,87,0.11), rgba(22,19,19,0) 75%), linear-gradient(180deg, #161313 0px, #161313 170px, #282828 330px)' } as any)
       : {}),
   },
-  // The same smoke as Home's Weekly Leader, faint, behind the heading only.
+  // The same smoke as Today's Weekly Leader, at Today's strength, over the
+  // whole page behind the cards (Ricky, 2026-10-21). It stays put while the
+  // list scrolls.
   smoke: {
-    position: 'absolute', top: -60, left: 0, right: 0, height: 320, width: '100%', opacity: 0.16, pointerEvents: 'none',
-    ...(Platform.OS === 'web'
-      ? ({ maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)' } as any)
-      : {}),
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.28, pointerEvents: 'none',
   },
   head: { alignItems: 'center', gap: 8, marginBottom: 4 },
   title: { fontSize: 30, lineHeight: 36, textAlign: 'center' },
@@ -263,14 +272,20 @@ const ms = StyleSheet.create({
   ruleRight: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55), transparent)' } as any) : { backgroundColor: 'rgba(255,181,158,0.4)' },
   list: { gap: 10 },
   row: {
-    borderWidth: 1, borderBottomWidth: 1, borderColor: RivalWarm.cardBorder, borderBottomColor: RivalWarm.cardBorder, backgroundColor: RivalWarm.card,
+    // The activity page's cards: a faint warm fill and a soft peach edge.
+    borderWidth: 1, borderBottomWidth: 1, borderColor: RivalGhost.border, borderBottomColor: RivalGhost.border, backgroundColor: RivalGhost.fill,
     borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12,
+    // Today's soft glow at the top centre (Ricky, 2026-10-21), drawn once so
+    // it doesn't repeat under the border along the bottom.
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)', backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box' } as any)
+      : {}),
   },
   // Unread: the card lifts a little — a salmon edge and a faint warm wash.
   rowUnread: {
-    borderColor: 'rgba(255,181,158,0.35)', borderBottomColor: 'rgba(255,181,158,0.35)',
+    borderColor: RivalGhost.borderOn, borderBottomColor: RivalGhost.borderOn,
     ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'linear-gradient(100deg, rgba(217,119,87,0.12) 0%, rgba(29,23,20,0) 60%)', boxShadow: '0 0 18px rgba(217,119,87,0.12)' } as any)
+      ? ({ backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%), linear-gradient(100deg, rgba(217,119,87,0.12) 0%, rgba(217,119,87,0) 60%)', boxShadow: '0 0 18px rgba(217,119,87,0.12)' } as any)
       : {}),
   },
   crest: { borderWidth: 1, borderColor: RivalWarm.cardBorder },

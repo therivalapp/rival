@@ -1,0 +1,79 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Activity Filter</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--sheet:#2b2725}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 Manrope,-apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 26px;max-width:540px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center}
+.opt{width:300px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:36px}
+.phone{position:relative;height:560px;border-radius:36px;background:#000;padding:9px}
+.scr{position:relative;height:100%;border-radius:28px;overflow:hidden;background:radial-gradient(ellipse at 50% 0,#33261f,#120e0c 70%);padding:40px 12px 0}
+.kick{text-align:center;font-size:9.5px;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:10px}
+.hero{position:relative;background:rgba(20,16,14,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:15px 15px 13px}
+.top{display:flex;justify-content:space-between}
+.top h2{margin:0;font:italic 700 21px Georgia,serif}.top p{margin:2px 0 0;font-size:11.5px;color:var(--muted)}
+.eff{text-align:right;font:italic 700 25px Georgia,serif;line-height:1}.eff small{display:block;font:700 8.5px Manrope,sans-serif;letter-spacing:2px;color:var(--accent);margin-top:4px}
+.dots{display:flex;justify-content:space-between;margin-top:13px;padding:0 3px}
+.dots div{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:8.5px;font-weight:700;color:rgba(255,255,255,.4)}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.12)}
+.dots i.on{background:linear-gradient(135deg,#d97757,#ffb59e)}.dots i.pb{background:linear-gradient(#ffe6b0,#f5b759)}
+.fbtn{position:absolute;right:12px;bottom:-14px;height:28px;padding:0 11px;border-radius:999px;background:#2a231f;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:rgba(255,255,255,.75)}
+.fbtn.on{border-color:rgba(255,201,77,.5);color:#fff}
+.fbtn svg{width:13px;height:13px}
+.badge{min-width:16px;height:16px;border-radius:8px;background:#ffc94d;color:#2a1c00;font-size:10px;display:grid;place-items:center;padding:0 4px}
+.tog{display:flex;gap:4px;margin:28px auto 12px;background:#1b1714;border-radius:999px;padding:3px;width:max-content}
+.tog span{padding:5px 13px;border-radius:999px;font-size:11px;color:var(--muted);font-weight:600}.tog span.on{background:#2e2622;color:#fff}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{height:120px;border-radius:14px;background:var(--c);position:relative}
+.card svg{position:absolute;top:8px;right:8px;width:15px;height:15px}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--sheet);border-radius:22px 22px 0 0;padding:10px 16px 22px}
+.grab{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);margin:0 auto 12px}
+.sh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.sh b{font:italic 700 19px Georgia,serif}.sh span{font-size:12px;font-weight:700;color:var(--accent)}
+.tr{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.tr svg{width:17px;height:17px;flex:none}
+.tr .x{flex:1}.tr .x div{font-weight:700;font-size:14px}.tr .x small{color:var(--muted);font-size:11.5px}
+.sw{width:38px;height:22px;border-radius:11px;background:rgba(255,255,255,.15);position:relative;flex:none}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.sw.on{background:#d97757}.sw.on:after{left:18px}
+.lab{font-size:9.5px;letter-spacing:1.4px;color:var(--muted);font-weight:700;margin:14px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.07);font-size:12px;font-weight:600;color:rgba(255,255,255,.8)}
+.chip.on{background:#fff;color:#1b1714}
+.done{margin-top:16px;height:42px;border-radius:999px;background:linear-gradient(90deg,#d97757,#f2b39b);display:grid;place-items:center;font-weight:800;color:#3a1608}
+</style></head><body>
+<h1>One filter button</h1>
+<p class="lead">The trophy and search buttons become one Filter button. It opens the grey pop-up used across RIVAL, with Starred and Personal bests as switches and activity types underneath.</p>
+<div class="row" id="r"></div>
+<script>
+const S={
+ tune:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="15" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+ star:id=>`<svg viewBox="0 0 24 24"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4d6"/><stop offset="1" stop-color="#ffc94d"/></linearGradient></defs><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="url(#${id})"/></svg>`,
+ trophy:'<svg viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 01-10 0zM5 5H3v2a4 4 0 004 4M19 5h2v2a4 4 0 01-4 4M10 14h4v3h-4zM8 20h8" fill="none" stroke="#ffd27a" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+};
+let n=0;const uid=()=>'s'+(n++);
+const hero=(btn)=>`<div class="kick">EVERY EFFORT TELLS A STORY</div><div class="hero"><div class="top"><div><h2>This week</h2><p>Oct 12 – 18 · 3 activities</p></div><div class="eff">116.9<small>EFFORT</small></div></div>
+<div class="dots">${'MTWTFSS'.split('').map((d,i)=>`<div><i class="${i==1?'pb':i==2||i==3?'on':''}"></i>${d}</div>`).join('')}</div>${btn}</div>`;
+const tog=`<div class="tog"><span>Week</span><span class="on">Month</span><span>Year</span></div>`;
+const G=['linear-gradient(160deg,#3d5a6c,#c98b5b)','linear-gradient(170deg,#2f4a63,#8fb3c9)','linear-gradient(150deg,#5b6f4d,#d9b26a)','linear-gradient(200deg,#6c3d4f,#e0956b)'];
+const cards=(k,star)=>`<div class="cards">${G.slice(0,k).map(c=>`<div class="card" style="--c:${c}">${star?S.star(uid()):''}</div>`).join('')}</div>`;
+const btn=(on,count)=>`<div class="fbtn ${on?'on':''}">${S.tune}Filter${count?`<span class="badge">${count}</span>`:''}</div>`;
+const sheet=`<div class="dim"></div><div class="sheet"><div class="grab"></div><div class="sh"><b>Filter</b><span>Clear</span></div>
+<div class="tr">${S.star(uid())}<div class="x"><div>Starred</div><small>Only activities you starred</small></div><div class="sw on"></div></div>
+<div class="tr">${S.trophy}<div class="x"><div>Personal bests</div><small>Only activities that set one</small></div><div class="sw"></div></div>
+<div class="lab">ACTIVITY TYPE</div><div class="chips"><span class="chip on">All</span><span class="chip">Run</span><span class="chip">Ride</span><span class="chip">Walk</span><span class="chip">Swim</span><span class="chip">Hike</span></div>
+<div class="done">Show 2 activities</div></div>`;
+const O=[
+ ['1 · At rest','One small Filter button on the week card, in place of two icons.',hero(btn())+tog+cards(4)],
+ ['2 · Filter open','The grey pop-up slides up. Switches for Starred and Personal bests, then the types.',hero(btn())+tog+cards(4)+sheet],
+ ['3 · Starred on','The button turns gold-edged and counts the filters in use. Only starred activities show.',hero(btn(1,1))+tog+cards(2,1)],
+];
+document.getElementById('r').innerHTML=O.map(([t,d,h])=>`<div class="opt"><div class="t">${t}</div><div class="d">${d}</div><div class="phone"><div class="scr">${h}</div></div></div>`).join('');
+</script>
+</body></html>

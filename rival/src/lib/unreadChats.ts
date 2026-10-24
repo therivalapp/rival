@@ -31,8 +31,10 @@ let cache: { at: number; result: UnreadResult } | null = null;
 /** Call after reading a thread, so the badge doesn't stay lit for 15s. */
 export function invalidateUnreadChats() {
   cache = null;
+  inflight = null;
+  generation++;
 }
-onPrefsChanged(() => { cache = null; });
+onPrefsChanged(invalidateUnreadChats);
 
 // The newest text message in each team, one small request per team, side by
 // side. Each is a single row read straight off the (league_id, created_at)
@@ -55,8 +57,23 @@ export async function latestMessageByLeague<T extends { league_id: string }>(
   return map;
 }
 
-export async function getUnreadChats(force = false): Promise<UnreadResult> {
-  if (!force && cache && Date.now() - cache.at < CACHE_MS) return cache.result;
+// Every mounted tab's top bar asks at the same moment on a tab switch; they
+// share the one request in flight rather than each sending their own.
+let inflight: Promise<UnreadResult> | null = null;
+// Only the newest request may fill the cache: an older one finishing late
+// (overtaken by a forced refresh, or started before a thread was read) would
+// put a stale count back on the badge.
+let generation = 0;
+
+export function getUnreadChats(force = false): Promise<UnreadResult> {
+  if (!force && cache && Date.now() - cache.at < CACHE_MS) return Promise.resolve(cache.result);
+  if (!force && inflight) return inflight;
+  const p = readUnreadChats(++generation).finally(() => { if (inflight === p) inflight = null; });
+  inflight = p;
+  return p;
+}
+
+async function readUnreadChats(gen: number): Promise<UnreadResult> {
 
   const { data: { user } } = await getAuthUser();
   if (!user) return EMPTY;
@@ -93,6 +110,6 @@ export async function getUnreadChats(force = false): Promise<UnreadResult> {
   }
 
   const result = { count, byLeague };
-  cache = { at: Date.now(), result };
+  if (gen === generation) cache = { at: Date.now(), result };
   return result;
 }

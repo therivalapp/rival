@@ -1,0 +1,77 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Rank Cards</title><style>
+:root{color-scheme:dark;--l:#d9c08e;--d:#8f7342;--ink:#1a1210;--gold:#ffd27a}
+body{margin:0;background:#0e0c0b;color:#fff;font:14px -apple-system,BlinkMacSystemFont,sans-serif;padding:26px 16px 40px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 6px}h2{font:italic 700 21px Georgia,serif;text-align:center;margin:30px 0 4px}
+.lead{color:rgba(255,255,255,.55);text-align:center;max-width:740px;margin:0 auto 22px;line-height:1.5}
+.row{display:flex;flex-wrap:wrap;gap:26px;justify-content:center;align-items:flex-start}
+.opt{width:360px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;font-weight:800;color:#ffb59e;text-transform:uppercase;text-align:center}
+.d{color:rgba(255,255,255,.55);font-size:12.5px;text-align:center;min-height:36px;line-height:1.45}
+.frame{border-radius:24px;padding:14px;background:#120f0e;display:flex;flex-direction:column;gap:12px}
+.sheen{background:linear-gradient(180deg,#fff 10%,var(--l) 120%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.kick{font-size:10px;letter-spacing:1.8px;font-weight:800;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.bar{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}.bar i{display:block;height:100%;width:26%;border-radius:999px;background:linear-gradient(90deg,var(--d),var(--l))}
+/* W3 */
+.w3{border-radius:20px;background:#211d1b;padding:16px;display:flex;flex-direction:column;gap:12px}
+.ladder{display:flex;align-items:center;justify-content:space-between}
+.ladder i{width:20px;height:20px;border-radius:50%;flex:none;position:relative}
+.ladder i.on{width:50px;height:50px;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.ladder i.on svg{width:24px;height:24px}
+.ladder i.fut{border:1.5px solid rgba(255,255,255,.14)}
+.ladder i.top{width:24px;height:24px;border:1.5px solid rgba(255,210,122,.75);background:linear-gradient(160deg,rgba(255,240,176,.22),rgba(196,147,42,.12))}
+.spark{position:absolute;color:var(--gold)}
+.w3 .nm{font:italic 700 30px/1 Georgia,serif}
+.ends{display:flex;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,.55)}.ends b{color:#fff}
+/* W2 */
+.w2{position:relative;overflow:hidden;border-radius:18px;padding:16px;background:linear-gradient(160deg,var(--l),var(--d));color:var(--ink);display:flex;flex-direction:column;gap:7px}
+.w2 .wm{position:absolute;right:-14px;top:-10px;width:118px;height:118px;color:rgba(26,18,16,.14)}
+.w2 .kick{color:rgba(26,18,16,.65)}.w2 .nm{font:italic 700 40px/1 Georgia,serif}
+.w2 .bar{background:rgba(26,18,16,.18)}.w2 .bar i{background:var(--ink)}
+.w2 .sub{font-size:12px;color:rgba(26,18,16,.75)}.w2 .sub b{color:var(--ink)}
+.strip{display:grid;grid-template-columns:1fr 1.05fr 1fr;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:#1c1918;overflow:hidden}
+.strip>div{padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.strip .v{font:italic 700 26px/1.1 Georgia,serif}.strip .l{font-size:9.5px;letter-spacing:1.5px;font-weight:800;color:rgba(255,255,255,.6);text-transform:uppercase}
+.strip .tile .v{font-size:21px}.strip .tile{background:linear-gradient(160deg,var(--l),var(--d));color:var(--ink);position:relative;overflow:hidden}
+.strip .tile .l{color:rgba(26,18,16,.7)}.strip .tile svg{width:16px;height:16px}
+.strip .tile .wm{position:absolute;right:-10px;bottom:-12px;width:56px;height:56px;color:rgba(26,18,16,.12)}
+.prof{display:flex;align-items:center;gap:14px;padding:6px 4px}
+.av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7b8c6a,#3b4a5a);border:2px solid rgba(255,255,255,.2)}
+.pname{font:italic 700 22px Georgia,serif}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;background:linear-gradient(160deg,var(--l),var(--d));color:var(--ink);font:italic 700 15px Georgia,serif;margin-top:6px}
+.chip svg{width:14px;height:14px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="sword" viewBox="0 0 24 24"><path fill="currentColor" d="M6.2 2.44 18.1 14.34l2.12-2.12 1.41 1.41-2.47 2.47 3.18 3.18c.39.39.39 1.02 0 1.41l-.71.71c-.39.39-1.02.39-1.41 0L17 18.23l-2.44 2.47-1.41-1.41 2.12-2.12L3.37 5.27V2.44H6.2m9.69 7.56 4.74-4.74V2.44H17.8l-4.74 4.74 2.83 2.82m-4.95 5.27-2.12-2.12-2.12 2.12-1.41-1.41-1.41 1.41 2.1 2.1-3.13 3.13.71.71c.39.39 1.02.39 1.41 0l3.13-3.13 2.1 2.1 1.41-1.41-1.41-1.41 2.12-2.12Z"/></symbol>
+<symbol id="star4" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0c.6 6.5 5.5 11.4 12 12-6.5.6-11.4 5.5-12 12-.6-6.5-5.5-11.4-12-12C6.5 11.4 11.4 6.5 12 0Z"/></symbol>
+<symbol id="bolt" viewBox="0 0 24 24"><path fill="currentColor" d="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z"/></symbol><symbol id="flame" viewBox="0 0 24 24"><path fill="currentColor" d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/></symbol></defs></svg>
+<h1>The rank: W3 on the reveal, W2 everywhere else</h1>
+<p class="lead">W3's last coin is Unrivaled: gold-edged, with the podium's small sparkles, but empty, so it draws the eye without saying what it is. W2, the bronze card, is how the rank appears around the app. Warrior shown; each rank uses its own material.</p>
+<div class="row">
+<div class="opt"><div class="t">W3 · The reveal</div><div class="d">Passed ranks filled, Warrior large, the next seven outlined, and the gold one at the end.</div>
+<div class="frame"><div class="w3">
+ <div class="ladder">
+  <i style="background:linear-gradient(160deg,#d8d3cc,#8a837b)"></i><i style="background:linear-gradient(160deg,#e6a882,#91573a)"></i>
+  <i class="on" style="background:linear-gradient(160deg,#d9c08e,#8f7342)"><svg><use href="#sword"/></svg></i>
+  <i class="fut"></i><i class="fut"></i><i class="fut"></i><i class="fut"></i><i class="fut"></i><i class="fut"></i>
+  <i class="top"><svg class="spark" style="width:9px;height:9px;top:-10px;right:-6px"><use href="#star4"/></svg><svg class="spark" style="width:6px;height:6px;bottom:-6px;left:-7px;opacity:.75"><use href="#star4"/></svg><svg class="spark" style="width:5px;height:5px;top:-4px;left:-9px;opacity:.6"><use href="#star4"/></svg></i>
+ </div>
+ <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="nm sheen">Warrior</span><span class="kick">3 of 10</span></div>
+ <div class="bar"><i></i></div><div class="ends"><span><b>6,210</b> Effort</span><span>Elite at <b>9,000</b></span></div>
+</div></div></div>
+</div>
+<h2>W2 around the app</h2><p class="lead" style="margin-bottom:18px">Three places the rank already shows.</p>
+<div class="row">
+<div class="opt"><div class="t">Today · the stats row</div><div class="d">The middle cell becomes a small bronze tile, so the rank stands out between Effort today and the streak.</div>
+<div class="frame"><div class="strip">
+ <div><svg style="width:16px;height:16px;color:#ffd27a"><use href="#bolt"/></svg><span class="v" style="color:#ffd27a">+43</span><span class="l">Effort today</span></div>
+ <div class="tile"><svg class="wm"><use href="#sword"/></svg><svg><use href="#sword"/></svg><span class="v">Warrior</span><span class="l">2026 rank</span></div>
+ <div><svg style="width:16px;height:16px;color:#e8835f"><use href="#flame"/></svg><span class="v" style="color:#e8835f">1</span><span class="l">Week streak</span></div>
+</div></div></div>
+<div class="opt"><div class="t">Profile and stats · the card</div><div class="d">The full bronze card, with progress to the next rank. Tapping it opens Ranks.</div>
+<div class="frame"><div class="w2"><svg class="wm"><use href="#sword"/></svg>
+ <span class="kick">2026 rank</span><span class="nm">Warrior</span>
+ <div class="bar"><i></i></div><span class="sub"><b>6,210</b> Effort · Elite at <b>9,000</b></span>
+</div></div></div>
+<div class="opt"><div class="t">Next to a name · the chip</div><div class="d">A small bronze chip under a name on a profile, made of the same material.</div>
+<div class="frame"><div class="prof"><div class="av"></div><div><div class="pname">Ricky Jackson-Lewis</div><span class="chip"><svg><use href="#sword"/></svg>Warrior</span></div></div></div></div>
+</div></body></html>

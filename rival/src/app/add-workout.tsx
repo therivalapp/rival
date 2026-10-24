@@ -8,7 +8,7 @@ import { RivalButtonColors, RivalColors, RivalRadius, RivalType } from '../const
 import { sidePageWide } from '../constants/breakpoints';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
-  { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a training app screen, gym whiteboard or workout card.' },
+  { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a fitness app screen, gym whiteboard or workout card.' },
   { icon: 'brain', title: '2. Automatic extraction', body: 'Exercises, sets, weights and distance are extracted from the image.' },
   { icon: 'verified', title: '3. Review and save', body: 'Confirm the details. Effort updates as soon as the activity is saved.' },
 ];
@@ -18,10 +18,10 @@ const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }>
 function TileArt({ icon, primary }: { icon: RivalIconName; primary?: boolean }) {
   return (
     <>
-      <View style={ms.tileArt} pointerEvents="none">
+      <View style={[ms.tileArt, { pointerEvents: 'none' }]}>
         <RivalIcon name={icon} size={118} color={primary ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.24)'} />
       </View>
-      <View style={[ms.tileFade, primary ? ms.tileFadePrimary : ms.tileFadeGhost]} pointerEvents="none" />
+      <View style={[ms.tileFade, primary ? ms.tileFadePrimary : ms.tileFadeGhost, { pointerEvents: 'none' }]} />
     </>
   );
 }

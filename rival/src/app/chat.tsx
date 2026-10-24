@@ -18,6 +18,7 @@ import { CalendarAddIcon } from '../components/rival/CalendarAddIcon';
 import { RivalColors, RivalRadius, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { goToTab } from '../lib/tabNav';
+import { avatarImage } from '../lib/imageUrl';
 
 // Dedicated team chat, laid out the way Messenger does it.
 //
@@ -447,7 +448,7 @@ export default function ChatScreen() {
             recognisable at a glance, the way it is in the teams rail. */}
         <TouchableOpacity onPress={() => router.push({ pathname: '/team-hub', params: { id: String(id) } })}>
           {teamLogo ? (
-            <Image source={{ uri: teamLogo }} style={[styles.headerLogo, mob && ms.headerLogo]} />
+            <Image source={{ uri: avatarImage(teamLogo, 48) }} style={[styles.headerLogo, mob && ms.headerLogo]} />
           ) : (
             <View style={[styles.headerLogo, styles.headerLogoFallback, mob && ms.headerLogo]}>
               <Text style={styles.headerLogoText}>{teamName.slice(0, 1).toUpperCase()}</Text>
@@ -570,7 +571,7 @@ export default function ChatScreen() {
                         isLastOfGroup ? (
                           <View style={[styles.avatar, isFirstOfGroup && styles.avatarUnderName]}>
                             {memberFor(msg.user_id)?.users?.avatar_url
-                              ? <Image source={{ uri: memberFor(msg.user_id)!.users!.avatar_url! }} style={styles.avatarImg} />
+                              ? <Image source={{ uri: avatarImage(memberFor(msg.user_id)!.users!.avatar_url!, 36) }} style={styles.avatarImg} />
                               : <Text style={styles.avatarText}>{nameFor(msg.user_id).slice(0, 2).toUpperCase()}</Text>}
                           </View>
                         ) : <View style={styles.avatarSpacer} />
@@ -674,7 +675,7 @@ export default function ChatScreen() {
                             {seenBy[msg.id].map((uid) => {
                               const url = memberFor(uid)?.users?.avatar_url;
                               return url ? (
-                                <Image key={uid} source={{ uri: url }} style={styles.seenAvatar} />
+                                <Image key={uid} source={{ uri: avatarImage(url, 24) }} style={styles.seenAvatar} />
                               ) : (
                                 <View key={uid} style={[styles.seenAvatar, styles.seenAvatarFallback]}>
                                   <Text style={styles.seenAvatarText}>{nameFor(uid).slice(0, 1).toUpperCase()}</Text>
@@ -732,7 +733,7 @@ export default function ChatScreen() {
               comes up clean. Native keeps the real TextInput. */}
           {Platform.OS === 'web' ? (
             <View style={[styles.inputWrap, mob && ms.field]}>
-              {!input && <Text style={styles.placeholder} pointerEvents="none">Message the team</Text>}
+              {!input && <Text style={[styles.placeholder, { pointerEvents: 'none' }]}>Message the team</Text>}
               {React.createElement('div', {
                 ref: editorRef,
                 contentEditable: true,

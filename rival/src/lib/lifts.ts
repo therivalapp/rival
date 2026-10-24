@@ -20,6 +20,8 @@ export const CANONICAL_LIFTS = [
   'Pause Bench Press', 'Deficit Deadlift', 'Rack Pull', 'Incline Dumbbell Press',
   'Dumbbell Bench Press', 'Skullcrusher', 'Tricep Extension', 'Hammer Curl',
   'Cable Row', 'Dumbbell Row',
+  // Bodyweight: bests by sets × reps (Ricky, 2026-10-16)
+  'Push-up', 'Air Squat',
 ];
 
 // Maps a canonical lift to every known phrasing/abbreviation that should resolve to it.
@@ -54,6 +56,8 @@ export const LIFT_ALIASES: Record<string, string[]> = {
   'Dip': ['dip', 'weighted dip', 'tricep dip', 'chest dip', 'parallel bar dip'],
   'Bicep Curl': ['bicep curl', 'biceps curl', 'barbell curl', 'bb curl', 'db curl', 'dumbbell curl', 'ez bar curl', 'ez curl', 'curl', 'dumbbell bicep curl', 'barbell bicep curl'],
   'Hip Thrust': ['hip thrust', 'barbell hip thrust', 'bb hip thrust'],
+  'Push-up': ['push up', 'pushup', 'press up', 'pressup', 'strict push up', 'hand release push up'],
+  'Air Squat': ['air squat', 'bodyweight squat', 'bw squat'],
   'Lunge': ['lunge', 'walking lunge', 'db lunge', 'dumbbell lunge', 'barbell lunge', 'reverse lunge'],
   'Leg Press': ['leg press'],
   'Lat Pulldown': ['lat pulldown', 'lat pull down', 'pulldown', 'pull down', 'wide grip pulldown'],

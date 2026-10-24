@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
+import { WeekNumbers } from './WeekCard';
+import type { RivalIconName } from './RivalIcon';
 import { router } from 'expo-router';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { rm, RivalWarm } from './RivalMobile';
 import { RivalColors, RivalSerifFamily } from '../../constants/rivalTheme';
+import { rankSheen, rankTextSheen } from '../../constants/rankSheen';
 import { buildYearReview, activityDisplayName, formatMinutes, type YearActivity } from '../../lib/yearReview';
-import { monthlyTotals, pbMoments, yearsWithActivity, yearWeeks } from '../../lib/yearJournal';
-import { getLevel, xpProgressInLevel } from '../../lib/xp';
+import { monthlyTotals, pbMoments, yearsWithActivity, yearWeeks, type PbMoment } from '../../lib/yearJournal';
+import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { formatDistance, formatDistanceWhole, toDisplayDistance, distanceUnit } from '../../lib/units';
 
 // The Activity Journal's Year tab: one year of training at a glance. Drawn from
@@ -17,6 +21,40 @@ const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', '
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const shortDate = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+// A bar filled in a rank's colours, dark to light (as on Today's milestone).
+function rankFill(from: string, to: string): object {
+  return Platform.OS === 'web'
+    ? { backgroundColor: to, backgroundImage: `linear-gradient(90deg, ${from}, ${to})` }
+    : { backgroundColor: to };
+}
+
+// A total as big digits with small units, the way Today shows "202h 59m":
+// "89 km", "2h 45m", and "1h" rather than "1h 0m" (Ricky, 2026-10-11).
+function TotalFigure({ km, minutes }: { km: number; minutes: number }) {
+  if (km > 0) {
+    const [num, ...unit] = formatDistanceWhole(km).split(' ');
+    return <Text style={s.typeTotal}>{num}<Text style={s.typeUnit}> {unit.join(' ')}</Text></Text>;
+  }
+  const total = Math.round(minutes);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return (
+    <Text style={s.typeTotal}>
+      {h > 0 ? <>{h}<Text style={s.typeUnit}>h</Text></> : null}
+      {m > 0 ? <>{h > 0 ? ' ' : ''}{m}<Text style={s.typeUnit}>m</Text></> : null}
+    </Text>
+  );
+}
+// The best itself, the row's headline figure ("42.1 km", "1h 20m").
+function pbValue(p: PbMoment): string {
+  return p.kind === 'distance' ? `${toDisplayDistance(p.value).toFixed(1)} ${distanceUnit()}` : formatMinutes(p.value);
+}
+// When, then what it beat: "Jul 7 · up from 40.0 km". The date leads so it
+// reads as when the best was set, not when the old one was.
+function pbFrom(p: PbMoment): string {
+  const from = p.kind === 'distance' ? `${toDisplayDistance(p.previous).toFixed(1)} ${distanceUnit()}` : formatMinutes(p.previous);
+  return `${shortDate(p.date)} · up from ${from}`;
+}
 
 function hexAlpha(hex: string, a: number): string {
   const n = parseInt(hex.slice(1), 16);
@@ -27,7 +65,7 @@ const GRADIENT: any = Platform.OS === 'web'
   ? { backgroundImage: `linear-gradient(180deg, #f2b39c 0%, ${RivalColors.accentFill} 100%)` }
   : { backgroundColor: RivalColors.accentFill };
 
-export function JournalYearView({ activities, header }: { activities: YearActivity[]; header?: React.ReactNode }) {
+export function JournalYearView({ activities, header, onOpenActivity }: { activities: YearActivity[]; header?: React.ReactNode; onOpenActivity?: (activityId: string) => void }) {
   const now = new Date();
   const years = useMemo(() => yearsWithActivity(activities, now), [activities]);
   const [year, setYear] = useState(now.getFullYear());
@@ -36,11 +74,30 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
   const review = useMemo(() => buildYearReview(activities, year), [activities, year]);
   const months = useMemo(() => monthlyTotals(activities, year), [activities, year]);
   const weeks = useMemo(() => yearWeeks(activities, year, now), [activities, year]);
-  const pbs = useMemo(() => pbMoments(activities, year), [activities, year]);
+  // One row per kind of personal best (Farthest swim, Longest yoga…), showing
+  // the latest, with the earlier ones in that kind folded underneath, so one
+  // sport beaten by 100 m at a time can't fill the list (Ricky, 2026-10-11).
+  const pbGroups = useMemo(() => {
+    const byType = new Map<string, PbMoment[]>();
+    for (const p of pbMoments(activities, year, Infinity)) {
+      const list = byType.get(p.type) ?? [];
+      list.push(p);
+      byType.set(p.type, list);
+    }
+    return [...byType.values()];
+  }, [activities, year]);
+  const [openPbTypes, setOpenPbTypes] = useState<Set<string>>(new Set());
+  const togglePbType = (type: string) => setOpenPbTypes((cur) => {
+    const next = new Set(cur);
+    if (next.has(type)) next.delete(type); else next.add(type);
+    return next;
+  });
 
   const isThisYear = year === now.getFullYear();
+  const phone = usePhone();
   const level = getLevel(review.effort);
   const progress = xpProgressInLevel(review.effort);
+  const nextLevel = level.maxXp !== Infinity ? LEVELS.find((l) => l.level === level.level + 1) ?? null : null;
   const maxMonth = Math.max(1, ...months.map((m) => m.effort));
   const best = months.reduce((b, m) => (m.effort > b.effort ? m : b), months[0]);
   const pastWeeks = weeks.filter((w) => !w.future);
@@ -80,7 +137,7 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
       <View style={s.stack}>
         {header}
         {yearSwitcher}
-        <View style={[rm.card, s.empty]}>
+        <View style={[rm.card, phone && s.cardPhone, s.empty]}>
           <RivalIcon name="calendar" size={28} color={RivalColors.accentText} />
           <Text style={rm.serifTitleSm}>{isThisYear ? `${year} starts with the first activity` : `Nothing logged in ${year}`}</Text>
           <Text style={[rm.hint, { textAlign: 'center' }]}>Every activity logged or synced from a connected device builds the year here.</Text>
@@ -100,26 +157,53 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
       {yearSwitcher}
 
       {/* The year in one number, and the rank it earned. */}
-      <View style={[rm.card, s.hero]}>
+      <View style={[rm.card, phone && s.cardPhone, s.hero]}>
+        {phone && Platform.OS === 'web' ? <View style={[s.heroGlow, { pointerEvents: 'none' }]} /> : null}
         <Text style={rm.label}>{year} Effort</Text>
         <Text style={s.heroNum}>{review.effort.toLocaleString()}</Text>
-        <View style={[s.rankChip, { borderColor: hexAlpha(level.color, 0.5), backgroundColor: hexAlpha(level.color, 0.12) }]}>
-          <RivalIcon name="medal" size={14} color={level.color} />
-          <Text style={[s.rankText, { color: level.color }]}>{level.name}</Text>
+        {/* The rank as Today and Ranks now show it: the rising chevrons and
+            the name in serif with its rank's sheen (Ricky, 2026-10-11). */}
+        <View style={s.rankLine}>
+          <RivalIcon name={phone ? (`rank${level.name}` as RivalIconName) : 'doubleChevronUp'} size={16} color={rankSheen(level.level).light} />
+          <Text style={[s.rankName, rankTextSheen(level.level)]}>{level.name}</Text>
         </View>
+        {/* Phones: the year's totals in the same tiles as the week and month
+            cards (Ricky, 2026-10-20); active days stays as a quiet line. */}
+        {phone ? (
+          <View style={s.heroTiles}>
+            <WeekNumbers count={review.count} seconds={review.minutes * 60} km={review.km} />
+            <Text style={s.heroDays}>{review.activeDays.toLocaleString()} active {review.activeDays === 1 ? 'day' : 'days'}</Text>
+          </View>
+        ) : (
         <Text style={s.heroMeta}>
           {review.count.toLocaleString()} {review.count === 1 ? 'activity' : 'activities'} · {formatMinutes(review.minutes)} · {review.activeDays.toLocaleString()} active {review.activeDays === 1 ? 'day' : 'days'}
         </Text>
-        {isThisYear && level.maxXp !== Infinity && (
-          <View style={s.nextWrap}>
-            <View style={s.track}><View style={[s.fill, GRADIENT, { width: `${Math.max(3, Math.round(progress.pct * 100))}%` }]} /></View>
-            <Text style={rm.hint}>{(level.maxXp - review.effort).toLocaleString()} Effort to the next rank</Text>
-          </View>
         )}
+        {/* The next rank, laid out like Legacy's Next milestone on Today: a
+            label and what's left, the rank's name in its sheen, and a bar in
+            that rank's colours. Tapping it opens Ranks (Ricky, 2026-10-11). */}
+        {isThisYear && nextLevel ? (() => {
+          const ns = rankSheen(nextLevel.level);
+          return (
+            <TouchableOpacity style={s.next} activeOpacity={0.7} onPress={() => router.push('/ranks')} accessibilityRole="button" accessibilityLabel={`Next rank: ${nextLevel.name}`}>
+              <View style={s.nextHead}>
+                <Text style={[s.nextLabel, { color: ns.light }]}>Next rank</Text>
+                <Text style={[s.nextToGo, { color: ns.light }]}>{(level.maxXp - review.effort).toLocaleString()} Effort to go</Text>
+              </View>
+              <View style={s.nextTitleLine}>
+                <Text style={[s.nextTitle, rankTextSheen(nextLevel.level)]} numberOfLines={1}>{nextLevel.name}</Text>
+                <RivalIcon name="chevronRight" size={16} color="rgba(255,255,255,0.45)" />
+              </View>
+              <View style={s.track}>
+                <View style={[s.fill, rankFill(ns.dark, ns.light), { width: `${Math.max(3, Math.round(progress.pct * 100))}%` }]} />
+              </View>
+            </TouchableOpacity>
+          );
+        })() : null}
       </View>
 
       {/* Month by month. */}
-      <View style={[rm.card, s.cardGap]}>
+      <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
         <Text style={rm.label}>Month by month</Text>
         <View style={s.bars}>
           {months.map((m) => {
@@ -151,9 +235,9 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
       </View>
 
       {/* Consistency: every week of the year. */}
-      <View style={[rm.card, s.cardGap]}>
+      <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
         <View style={rm.cardHead}>
-          <Text style={rm.label}>Weeks trained</Text>
+          <Text style={rm.label}>Active weeks</Text>
           <Text style={s.weeksCount}>{trainedWeeks} of {pastWeeks.length}</Text>
         </View>
         {/* Three even rows across the card, January top left. */}
@@ -181,38 +265,44 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
           ))}
         </View>
         {review.longestWeekStreak > 1 && (
-          <Text style={rm.hint}>Longest run: {review.longestWeekStreak} weeks in a row with at least one activity.</Text>
+          <Text style={rm.hint}>Longest streak: {review.longestWeekStreak} {review.longestWeekStreak === 1 ? 'week' : 'weeks'} in a row with at least one activity.</Text>
         )}
       </View>
 
       {/* Highlights. */}
       <View style={s.grid}>
         {review.bestWeek && (
-          <Highlight icon="fire" title="Best week" value={`${review.bestWeek.effort.toLocaleString()} Effort`} note={`Week of ${shortDate(review.bestWeek.start)}`} />
+          <Highlight icon="fire" title="Best week" value={`${review.bestWeek.effort.toLocaleString()} Effort`} note={`Week of ${shortDate(review.bestWeek.start)}`} units />
         )}
         {review.longestSession && (
-          <Highlight icon="timer" title="Longest activity" value={formatMinutes(review.longestSession.minutes)} note={`${activityDisplayName(review.longestSession.type)} · ${shortDate(review.longestSession.date)}`} />
+          <Highlight icon="timer" title="Longest activity" value={formatMinutes(review.longestSession.minutes)} note={`${activityDisplayName(review.longestSession.type)} · ${shortDate(review.longestSession.date)}`} units />
         )}
         {review.farthest && (
-          <Highlight icon="distance" title="Farthest" value={formatDistance(review.farthest.km)} note={`${activityDisplayName(review.farthest.type)} · ${shortDate(review.farthest.date)}`} />
+          <Highlight icon="distance" title="Farthest" value={formatDistance(review.farthest.km)} note={`${activityDisplayName(review.farthest.type)} · ${shortDate(review.farthest.date)}`} units />
         )}
         {review.topActivity && (
-          <Highlight icon={activityIconName(review.topActivity.type)} title="Most done" value={activityDisplayName(review.topActivity.type)} note={`${review.topActivity.count} ${review.topActivity.count === 1 ? 'time' : 'times'}`} />
+          <Highlight icon={activityIconName(review.topActivity.type)} title="Top activity" value={activityDisplayName(review.topActivity.type)} note={`${review.topActivity.count} ${review.topActivity.count === 1 ? 'time' : 'times'}`} />
         )}
       </View>
 
       {/* What the year was made of. */}
-      <View style={[rm.card, s.cardGap]}>
+      <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
         <Text style={rm.label}>By activity</Text>
         {review.byActivity.slice(0, 8).map((b) => (
           <View key={b.type} style={s.typeRow}>
             <RivalIcon name={activityIconName(b.type)} size={18} color={RivalColors.accentFill} />
             <View style={s.typeBody}>
+              {/* The total is the hero: large serif on the right. The count sits
+                  quietly beside the name (Ricky, 2026-10-11). A type with no
+                  distance or time (e.g. untimed workouts) shows only its count. */}
               <View style={s.typeTop}>
-                <Text style={s.typeName} numberOfLines={1}>{activityDisplayName(b.type)}</Text>
-                <Text style={s.typeMeta}>
-                  {b.count} · {b.km > 0 ? formatDistanceWhole(b.km) : formatMinutes(b.minutes)}
+                <Text style={s.typeName} numberOfLines={1}>
+                  {activityDisplayName(b.type)}
+                  <Text style={s.typeCount}>{'  '}{b.count} {b.count === 1 ? 'activity' : 'activities'}</Text>
                 </Text>
+                {b.km > 0 || b.minutes > 0 ? (
+                  <TotalFigure km={b.km} minutes={b.minutes} />
+                ) : null}
               </View>
               <View style={s.typeTrack}><View style={[s.typeFill, { width: `${Math.round((b.count / maxTypeCount) * 100)}%` }]} /></View>
             </View>
@@ -221,41 +311,87 @@ export function JournalYearView({ activities, header }: { activities: YearActivi
       </View>
 
       {/* Personal bests set this year. */}
-      {pbs.length > 0 && (
-        <View style={[rm.card, s.cardGap]}>
+      {pbGroups.length > 0 && (
+        <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
           <Text style={rm.label}>Personal bests</Text>
-          {pbs.map((p, i) => (
-            <View key={`${p.type}-${p.date.getTime()}`} style={[s.pbRow, i > 0 && s.pbBorder]}>
-              <View style={s.pbIcon}><RivalIcon name="trophy" size={15} color={RivalColors.rankAnchors.unrivaled} /></View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={s.pbTitle}>
-                  {p.kind === 'distance' ? `Farthest ${activityDisplayName(p.type).toLowerCase()}` : `Longest ${activityDisplayName(p.type).toLowerCase()}`}
-                </Text>
-                <Text style={rm.hint}>
-                  {p.kind === 'distance'
-                    ? `${toDisplayDistance(p.value).toFixed(1)} ${distanceUnit()}, up from ${toDisplayDistance(p.previous).toFixed(1)}`
-                    : `${formatMinutes(p.value)}, up from ${formatMinutes(p.previous)}`}
-                </Text>
+          {pbGroups.map((group, gi) => {
+            const [latest, ...earlier] = group;
+            const open = openPbTypes.has(latest.type);
+            const title = latest.kind === 'distance'
+              ? `Farthest ${activityDisplayName(latest.type).toLowerCase()}`
+              : `Longest ${activityDisplayName(latest.type).toLowerCase()}`;
+            return (
+              <View key={latest.type} style={gi > 0 && s.pbBorder}>
+                {/* A single best opens its activity. A type with several opens
+                    the list first, and each entry there opens its activity
+                    (Ricky, 2026-10-14). */}
+                <TouchableOpacity
+                  style={s.pbRow}
+                  activeOpacity={0.7}
+                  disabled={!earlier.length && (!latest.activityId || !onOpenActivity)}
+                  onPress={() => (earlier.length ? togglePbType(latest.type) : latest.activityId && onOpenActivity?.(latest.activityId))}
+                  accessibilityRole="button"
+                  accessibilityState={earlier.length ? { expanded: open } : undefined}
+                >
+                  <View style={s.pbIcon}><RivalIcon name="trophy" size={15} color={RivalColors.rankAnchors.unrivaled} /></View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={s.pbTitle}>{title}</Text>
+                    <Text style={rm.hint}>{pbFrom(latest)}</Text>
+                    {earlier.length ? (
+                      <Text style={s.pbMore}>{`Set ${group.length} times this year`}</Text>
+                    ) : null}
+                  </View>
+                  {/* The best is the trophy: large on the right, in gold
+                      (Ricky, 2026-10-11). The date moved under the title. */}
+                  <View style={s.pbRight}>
+                    <Text style={s.pbValue}>{pbValue(latest)}</Text>
+                    {earlier.length ? <RivalIcon name={open ? 'chevronDown' : 'chevronRight'} size={14} color={RivalWarm.muted} /> : null}
+                  </View>
+                </TouchableOpacity>
+                {open ? group.map((p) => (
+                  <TouchableOpacity
+                    key={p.date.getTime()}
+                    style={s.pbEarlier}
+                    activeOpacity={0.7}
+                    disabled={!p.activityId || !onOpenActivity}
+                    onPress={() => p.activityId && onOpenActivity?.(p.activityId)}
+                  >
+                    <Text style={[rm.hint, { flex: 1 }]}>{pbFrom(p)}</Text>
+                    <Text style={s.pbValueSmall}>{pbValue(p)}</Text>
+                  </TouchableOpacity>
+                )) : null}
               </View>
-              <Text style={s.pbDate}>{shortDate(p.date)}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
-      <TouchableOpacity style={rm.ghost} onPress={() => router.push('/year-review')} accessibilityRole="button">
-        <Text style={rm.ghostText}>Open the full year in review</Text>
+      {/* The view's one main action, so RIVAL's gradient pill (Ricky, 2026-10-11:
+          the dark outlined button read as disabled). */}
+      <TouchableOpacity style={rm.primary} onPress={() => router.push('/year-review')} accessibilityRole="button">
+        <Text style={rm.primaryText}>Open the full year in review</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-function Highlight({ icon, title, value, note }: { icon: any; title: string; value: string; note: string }) {
+// Phones: the year's cards in the week and month cards' grey (Ricky,
+// 2026-10-20); only the top one carries the warm glow.
+function usePhone() { return useWindowDimensions().width < BREAKPOINT_MOBILE_NAV; }
+
+function Highlight({ icon, title, value, note, units = false }: { icon: any; title: string; value: string; note: string; units?: boolean }) {
+  // With `units`, the digits stay large and the units ("h", "km", "Effort")
+  // are set small and soft, like the By activity totals; a "0m" is dropped.
+  const figure = units
+    ? value.replace(/ 0m$/, '').split(/(\d[\d.,]*)/).filter(Boolean).map((part, i) =>
+      /^\d/.test(part) ? part : <Text key={i} style={s.hlUnit}>{part}</Text>)
+    : value;
+  const phone = usePhone();
   return (
-    <View style={[rm.card, s.hl]}>
+    <View style={[rm.card, phone && s.cardPhone, s.hl]}>
       <RivalIcon name={icon} size={18} color={RivalColors.accentFill} />
       <Text style={s.hlTitle}>{title}</Text>
-      <Text style={s.hlValue} numberOfLines={1}>{value}</Text>
+      <Text style={s.hlValue} numberOfLines={1}>{figure}</Text>
       <Text style={rm.hint} numberOfLines={1}>{note}</Text>
     </View>
   );
@@ -270,11 +406,37 @@ const s = StyleSheet.create({
   empty: { alignItems: 'center', gap: 10, paddingVertical: 28 },
 
   hero: { alignItems: 'center', gap: 8, paddingVertical: 22 },
-  heroNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 52, lineHeight: 58, fontWeight: '700', color: RivalColors.accentText },
-  rankChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
-  rankText: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+  // The Legacy number's white-to-ember fade (home.tsx mLegacyHeroNumber); the
+  // side padding keeps the italic's last digit inside the gradient clip.
+  heroNum: {
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 52, lineHeight: 58, paddingHorizontal: 6, fontWeight: '700', color: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)',
+      backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
+    } as any : {}),
+  },
+  rankLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  rankName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.4, fontSize: 18 },
+  // Today's card (home.tsx mFocusLit): lit top edge and a soft glow from the
+  // top centre, in place of the flat warm-grey card (Ricky, 2026-10-22).
+  cardPhone: {
+    backgroundColor: RivalColors.surfaceHigh, borderRadius: 22, overflow: 'hidden',
+    borderWidth: 1, borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
+      backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
+    } as any : {}),
+  },
+  heroGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 120, backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%)' } as any,
+  heroTiles: { alignSelf: 'stretch', gap: 8, marginTop: 6 },
+  heroDays: { fontSize: 12, color: '#fff', textAlign: 'center' },
   heroMeta: { fontSize: 13, color: RivalWarm.soft, textAlign: 'center' },
-  nextWrap: { alignSelf: 'stretch', gap: 6, marginTop: 6, alignItems: 'center' },
+  next: { alignSelf: 'stretch', gap: 7, marginTop: 8, paddingTop: 12, paddingBottom: 0, borderTopWidth: 1, borderTopColor: 'rgba(255,209,190,0.08)' },
+  nextHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  nextLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' },
+  nextToGo: { fontSize: 12, fontWeight: '700' },
+  nextTitleLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: -4 },
+  nextTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 17, fontWeight: '700', lineHeight: 22, textTransform: 'uppercase', letterSpacing: 1.2, flexShrink: 1 },
   track: { alignSelf: 'stretch', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3 },
 
@@ -294,12 +456,16 @@ const s = StyleSheet.create({
   hl: { flexBasis: '47%', flexGrow: 1, gap: 4, paddingVertical: 14 },
   hlTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalWarm.muted, marginTop: 4 },
   hlValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', color: '#fff' },
+  hlUnit: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
 
   typeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   typeBody: { flex: 1, gap: 6 },
   typeTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
   typeName: { flex: 1, fontSize: 14.5, fontWeight: '700', color: '#fff' },
   typeMeta: { fontSize: 12.5, color: RivalWarm.soft },
+  typeCount: { fontSize: 12, fontWeight: '600', color: RivalWarm.muted },
+  typeTotal: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, lineHeight: 24, color: '#fff' },
+  typeUnit: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 13, color: 'rgba(255,255,255,0.7)' },
   typeTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' },
   typeFill: { height: 4, borderRadius: 2, backgroundColor: 'rgba(217,119,87,0.7)' },
 
@@ -308,4 +474,9 @@ const s = StyleSheet.create({
   pbIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,215,0,0.1)' },
   pbTitle: { fontSize: 14.5, fontWeight: '700', color: '#fff' },
   pbDate: { fontSize: 12, color: RivalWarm.muted },
+  pbRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pbValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, lineHeight: 26, color: RivalColors.rankAnchors.unrivaled },
+  pbValueSmall: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 15, color: 'rgba(255,215,0,0.75)' },
+  pbMore: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText, marginTop: 1 },
+  pbEarlier: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6, paddingLeft: 44 },
 });

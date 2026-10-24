@@ -1,0 +1,91 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Past Week Options</title>
+<style>
+:root{color-scheme:dark;--bg:#0e0c0b;--accent:#ffb59e;--muted:rgba(255,255,255,.5);--ground:#232120;--rec:rgba(255,209,190,.05);--recb:rgba(255,181,158,.22)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px 16px 60px}
+h1{font:italic 700 26px Georgia,serif;text-align:center;margin:0 0 4px}
+.lead{color:var(--muted);text-align:center;margin:0 auto 24px;max-width:680px}
+.row{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start}
+.opt{width:350px;display:flex;flex-direction:column;gap:10px}
+.t{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+.d{color:var(--muted);font-size:12.5px;text-align:center;min-height:72px}
+.page{border-radius:24px;padding:12px;background:radial-gradient(ellipse at 50% 0,#2a201b,#141110 75%)}
+.g{border-radius:22px;background:var(--ground);padding:15px;display:flex;flex-direction:column;gap:13px;position:relative;overflow:hidden}
+.g:before{content:"";position:absolute;inset:0 0 auto 0;height:110px;background:radial-gradient(ellipse 75% 100% at 50% 0,rgba(232,131,95,.18),transparent 70%)}
+.g>*{position:relative}
+.hdr{display:flex;align-items:flex-start;gap:10px}
+.kick{font-size:10px;letter-spacing:1.8px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.ser{font:italic 700 22px Georgia,serif;line-height:1.15}
+.sub{color:var(--muted);font-size:12px}
+.eff{text-align:center}.eff b{display:block;font:italic 700 26px Georgia,serif;line-height:1}.eff span{font-size:9.5px;letter-spacing:2px;color:var(--accent);font-weight:800}
+.cols{display:flex;gap:5px;align-items:flex-end;height:64px}
+.cols div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.cols i{width:100%;border-radius:6px 6px 3px 3px;background:rgba(255,255,255,.06)}
+.cols i.on{background:linear-gradient(180deg,#f0b29b,#c96a4a)}
+.cols em{font-style:normal;font-size:9.5px;font-weight:800;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:11.5px;font-weight:700}
+.pill.up{background:rgba(95,211,138,.12);color:#7fe0a4}
+.pill.done{background:rgba(232,131,95,.16);color:#ffd3c2}
+.pill.best{background:rgba(255,201,77,.14);color:#ffe6a8}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.strip{display:flex;gap:6px}.strip i{flex:1;height:54px;border-radius:10px}
+.p1{background:linear-gradient(160deg,#3d5a6c,#c98b5b)}.p2{background:linear-gradient(170deg,#2f4a63,#8fb3c9)}.p3{background:linear-gradient(150deg,#5b6f4d,#d9b26a)}
+.photo{margin:-15px -15px 0;height:120px;position:relative;background:linear-gradient(160deg,#3d5a6c,#c98b5b)}
+.photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(35,33,32,0) 20%,rgba(35,33,32,.6) 65%,var(--ground))}
+.photo .on{position:absolute;left:15px;right:15px;bottom:6px;z-index:1;display:flex;align-items:flex-end;gap:10px}
+.line{font:italic 15px/1.4 Georgia,serif;color:rgba(255,255,255,.85)}
+.chev{text-align:center;color:rgba(255,255,255,.35);font-size:13px;margin:-6px 0 -4px}
+.nav{display:flex;gap:16px;justify-content:center;align-items:center;margin-top:18px;padding:12px;border-radius:20px;background:#1c1a19}
+.nav div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;color:var(--muted)}
+.nav div.on{color:var(--accent)}
+.nav svg{width:20px;height:20px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="bars" viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+<symbol id="home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6h-6v6H4z" fill="currentColor"/></symbol>
+<symbol id="pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+<h1>Past weeks that still feel alive</h1>
+<p class="lead">Today a past week is a title, Effort and three numbers, with nothing of the week itself. Each option gives it back something that happened. Example: Oct 5 – 11, 95.7 Effort, 2 activities, a run on Wednesday and Friday.</p>
+<div class="row">
+
+<div class="opt"><div class="t">1 · Same as this week</div><div class="d">Past weeks get the date kicker and the day columns, exactly like this week, so they read as the same thing, just finished. Folded it's header and columns; open adds the numbers.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Oct 5 – 11</div><div class="ser">Last week</div></div><div class="eff"><b>95.7</b><span>EFFORT</span></div></div>
+ <div class="cols"><div><i style="height:6%"></i><em>M</em></div><div><i style="height:6%"></i><em>T</em></div><div><i class="on" style="height:62%"></i><em>W</em></div><div><i style="height:6%"></i><em>T</em></div><div><i class="on" style="height:68%"></i><em>F</em></div><div><i style="height:6%"></i><em>S</em></div><div><i style="height:6%"></i><em>S</em></div></div>
+ <div class="chev">⌄</div>
+</div></div></div>
+
+<div class="opt"><div class="t">2 · What the week earned</div><div class="d">Under the header, small pills for what the week achieved: up on the week before, a streak kept, a best set. A finished week shows its result, not just its totals.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Oct 5 – 11</div><div class="ser">Last week</div></div><div class="eff"><b>95.7</b><span>EFFORT</span></div></div>
+ <div class="pills"><span class="pill up">↗ 12% on the week before</span><span class="pill done">✓ 2 runs</span><span class="pill best">Fastest 1 km</span></div>
+ <div class="chev">⌄</div>
+</div></div></div>
+
+<div class="opt"><div class="t">3 · The week's photos</div><div class="d">A small strip of that week's photos under the header, like a contact sheet. Weeks without photos show their day columns instead.</div>
+<div class="page"><div class="g">
+ <div class="hdr"><div style="flex:1"><div class="kick">Oct 5 – 11</div><div class="ser">Last week</div><div class="sub">2 activities</div></div><div class="eff"><b>95.7</b><span>EFFORT</span></div></div>
+ <div class="strip"><i class="p1"></i><i class="p2"></i><i class="p3"></i></div>
+ <div class="chev">⌄</div>
+</div></div></div>
+
+<div class="opt"><div class="t">4 · Cover photo and a line</div><div class="d">The week's best photo fades in across the top, the title over it, and one line from the journal underneath. Feels like a diary page you'd want to reopen.</div>
+<div class="page"><div class="g">
+ <div class="photo"><div class="on"><div style="flex:1"><div class="kick">Oct 5 – 11</div><div class="ser">Last week</div></div><div class="eff"><b>95.7</b><span>EFFORT</span></div></div></div>
+ <div class="line">"Legs felt fresh along the corniche."</div>
+ <div class="chev">⌄</div>
+</div></div></div>
+
+</div>
+
+<h1 style="margin-top:40px;font-size:21px">The Activities icon</h1>
+<p class="lead">Left: today's pulse line. Right: the bar chart from the Activity tab in the bottom bar, so the numbers card points to the same place.</p>
+<div class="row">
+ <div class="opt"><div class="g" style="align-items:center"><svg style="width:22px;height:22px;color:#e8835f"><use href="#pulse"/></svg><b style="font:italic 700 29px Georgia,serif">4</b><span class="sub">ACTIVITIES · today</span></div></div>
+ <div class="opt"><div class="g" style="align-items:center"><svg style="width:22px;height:22px;color:#e8835f"><use href="#bars"/></svg><b style="font:italic 700 29px Georgia,serif">4</b><span class="sub">ACTIVITIES · tab icon</span></div>
+  <div class="nav"><div><svg><use href="#home"/></svg>Today</div><div class="on"><svg><use href="#bars"/></svg>Activity</div></div></div>
+</div>
+</body></html>

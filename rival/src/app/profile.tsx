@@ -13,14 +13,16 @@ import { ROUTE_MAPS_ENABLED } from '../lib/features';
 import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
 import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
+import { buildArchive } from '../lib/archive';
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
-import { sidePageWide } from '../constants/breakpoints';
+import { sidePageWide, BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
 import { RivalSerifFamily } from '../constants/rivalTheme';
 import { goToTab } from '../lib/tabNav';
+import { avatarImage } from '../lib/imageUrl';
 
 const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
   { value: 'metric', label: 'Metric', sub: 'Kilometres, metres and kilograms.' },
@@ -146,7 +148,7 @@ export default function ProfileScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<'data' | 'all' | null>(null);
   const [exportMsg, setExportMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
 
@@ -290,25 +292,36 @@ export default function ProfileScreen() {
     setPasswordMsg({ ok: true, text: 'Password updated.' });
   }
 
-  async function downloadData() {
+  // Two choices (Ricky, 2026-10-24): the data alone, a small file that is
+  // quick to save, or the data with every photo and video, as a .zip.
+  async function downloadData(withMedia: boolean) {
     setExportMsg(null);
-    setExporting(true);
+    setExporting(withMedia ? 'all' : 'data');
     try {
       const { data: { user } } = await getAuthUser();
       if (!user) return;
-      const { json, problems } = await buildDataExport(user.id, user.email ?? null);
-      const date = new Date().toISOString().slice(0, 10);
-      if (!saveJsonFile(json, `rival-data-${date}.json`)) {
+      if (Platform.OS !== 'web') {
         setExportMsg({ ok: false, text: 'Downloading is only available in the web app for now.' });
         return;
       }
-      setExportMsg(problems.length
-        ? { ok: false, text: `Downloaded, but ${problems.length} section${problems.length === 1 ? '' : 's'} could not be read. The file lists which.` }
-        : { ok: true, text: 'Downloaded.' });
+      if (!withMedia) {
+        const { json, problems } = await buildDataExport(user.id, user.email ?? null);
+        saveJsonFile(json, `rival-data-${new Date().toISOString().slice(0, 10)}.json`);
+        setExportMsg(problems.length
+          ? { ok: false, text: `Downloaded, but ${problems.length} section${problems.length === 1 ? '' : 's'} could not be read. The file lists which.` }
+          : { ok: true, text: 'Downloaded.' });
+        return;
+      }
+      // The whole archive, photos and videos included, not only the data
+      // (Ricky, 2026-10-24).
+      const c = await buildArchive(user.id, user.email ?? null, (done, total) => setExportMsg({ ok: true, text: `Saving photos and videos: ${done} of ${total}` }));
+      const parts = [`${c.activities.toLocaleString()} ${c.activities === 1 ? 'activity' : 'activities'}`, `${c.photos.toLocaleString()} ${c.photos === 1 ? 'photo' : 'photos'}`];
+      if (c.videos) parts.push(`${c.videos.toLocaleString()} ${c.videos === 1 ? 'video' : 'videos'}`);
+      setExportMsg({ ok: true, text: `Downloaded: ${parts.join(', ')}.` });
     } catch (e: any) {
       setExportMsg({ ok: false, text: `The download could not be prepared: ${e?.message ?? 'unknown error'}` });
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
@@ -546,7 +559,7 @@ export default function ProfileScreen() {
         <TouchableOpacity onPress={uploadAvatar} disabled={uploadingAvatar} style={styles.avatarWrap}>
           <View style={styles.avatar}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              <Image source={{ uri: avatarImage(avatarUrl, 120) }} style={styles.avatarImage} />
             ) : (
               <Text style={styles.avatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>
             )}
@@ -606,7 +619,7 @@ export default function ProfileScreen() {
             </View>
             {bioDirty && (
               <View style={styles.bioSaveRow}>
-                <TouchableOpacity onPress={() => setNewBio(bio)}><Text style={styles.cancelText}>Discard</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => setNewBio(bio)}><Text style={[styles.cancelText, { color: RivalColors.danger }]}>Discard</Text></TouchableOpacity>
                 <TouchableOpacity style={styles.saveChip} onPress={saveBio} disabled={savingBio}>
                   <BusyText busy={!!(savingBio)} style={styles.saveChipText}>{savingBio ? 'Saving…' : 'Save mindset'}</BusyText>
                 </TouchableOpacity>
@@ -698,7 +711,7 @@ export default function ProfileScreen() {
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
-      <Text style={styles.panelSub}>Sync training automatically from connected services.</Text>
+      <Text style={styles.panelSub}>Sync activities automatically from connected services.</Text>
 
       <View style={styles.appRow}>
         <View style={styles.appRowLeft}>
@@ -721,6 +734,18 @@ export default function ProfileScreen() {
           ? <View style={styles.connectedCheck}><RivalIcon name="check" size={14} color={RivalColors.tertiary} /></View>
           : <RivalButton label="Connect" onPress={() => startStravaConnect(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
       </View>
+
+      {/* A RIVAL or Strava archive file (Ricky, 2026-10-17). */}
+      <TouchableOpacity style={styles.appRow} onPress={() => router.push('/import-archive')} activeOpacity={0.8}>
+        <View style={styles.appRowLeft}>
+          <RivalIcon name="upload" size={18} color={RivalColors.accentText} />
+          <View>
+            <Text style={styles.appName}>Import an archive</Text>
+            <Text style={styles.appStatus}>A RIVAL or Strava archive file</Text>
+          </View>
+        </View>
+        <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.35)" />
+      </TouchableOpacity>
 
       {stravaConnected && (
         <>
@@ -903,8 +928,9 @@ export default function ProfileScreen() {
 
       <View style={styles.subSection}>
         <Text style={styles.subSectionTitle}>YOUR DATA</Text>
-        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, goals, events, teams, messages and recognition, as one file.</Text>
-        <RivalButton busy={exporting} label={exporting ? 'Preparing…' : 'Download my data'} onPress={downloadData} disabled={exporting} variant="secondary" style={styles.actionBtn} />
+        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, routes, goals, events, teams, messages and recognition. Data only is one small file. With photos and videos it is a .zip, which can take a few minutes.</Text>
+        <RivalButton busy={exporting === 'data'} label={exporting === 'data' ? 'Preparing…' : 'Download data'} onPress={() => downloadData(false)} disabled={!!exporting} variant="secondary" style={styles.actionBtn} />
+        <RivalButton busy={exporting === 'all'} label={exporting === 'all' ? 'Preparing…' : 'Download data, photos and videos'} onPress={() => downloadData(true)} disabled={!!exporting} variant="secondary" style={styles.actionBtn} />
         {exportMsg && <Text style={exportMsg.ok ? styles.okText : styles.errorText}>{exportMsg.text}</Text>}
       </View>
 
@@ -915,7 +941,9 @@ export default function ProfileScreen() {
 
       <View style={styles.dangerZone}>
         <Text style={styles.dangerTitle}>DANGER ZONE</Text>
-        <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount} disabled={deletingAccount}>
+        {/* Opens the delete-and-archive page (Ricky, 2026-10-17); the old
+            prompt-based handleDeleteAccount stays below, unused. */}
+        <TouchableOpacity style={styles.deleteAccountButton} onPress={() => router.push('/delete-account')} disabled={deletingAccount}>
           <BusyText busy={!!(deletingAccount)} style={styles.deleteAccountText}>{deletingAccount ? 'Deleting account…' : 'Delete account'}</BusyText>
         </TouchableOpacity>
       </View>
@@ -973,7 +1001,7 @@ export default function ProfileScreen() {
   const phoneMenu = (
     <View>
       <View style={styles.mHead}>
-        <View style={styles.mGlow} pointerEvents="none" />
+        <View style={[styles.mGlow, { pointerEvents: 'none' }]} />
         <Text style={styles.mKicker}>ACCOUNT</Text>
         <Text style={styles.mTitle}>Settings</Text>
         <Text style={styles.mSub}>Profile, preferences and connected apps.</Text>
@@ -1029,7 +1057,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={[styles.container, !wide && { backgroundColor: RivalGhost.ground }]} edges={['top', 'left', 'right']}>
       <RivalTopNav />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, windowWidth < BREAKPOINT_WIDE_LAYOUT && styles.contentNavClear]}
         {...pullProps}
       >
         {pullIndicator}
@@ -1088,6 +1116,8 @@ const styles = StyleSheet.create({
   },
   container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40, maxWidth: 1200, width: '100%', alignSelf: 'center' },
+  // Phones: room for the floating bottom nav, so the last item isn't hidden behind it.
+  contentNavClear: { paddingBottom: 120 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { color: RivalColors.textSecondary, fontSize: 16 },
 
@@ -1216,5 +1246,5 @@ const styles = StyleSheet.create({
   dangerZone: { marginTop: 24, borderTopWidth: 1, borderTopColor: RivalColors.outlineVariant, paddingTop: 16, gap: 8 },
   dangerTitle: { ...RivalType.labelCaps, color: RivalColors.error },
   deleteAccountButton: { alignItems: 'center', paddingVertical: 12 },
-  deleteAccountText: { color: RivalColors.error, fontSize: 13, fontWeight: '600' },
+  deleteAccountText: { color: RivalColors.danger, fontSize: 13, fontWeight: '600' },
 });

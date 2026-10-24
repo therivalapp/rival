@@ -83,7 +83,7 @@ export default function GettingStartedScreen() {
           <GreyPageHead
             kicker={isWelcome ? 'WELCOME TO RIVAL' : 'HOW RIVAL WORKS'}
             title={isWelcome && firstName ? `Welcome, ${firstName}` : 'We make each other better'}
-            sub="RIVAL turns training into Effort, alongside the people who keep you going."
+            sub="RIVAL turns every activity into Effort, alongside the people who keep you going."
             onBack={isWelcome ? undefined : back}
           />
           <View style={[rb.card, g2.ideas]}>
