@@ -117,6 +117,8 @@ const ICONS = {
   batch: 'calendar-view-week',
   addPhoto: 'add-a-photo',
   crop: 'crop',
+  // Repeat a workout on Log an activity.
+  replay: 'replay',
   video: 'videocam',
   brain: 'psychology',
   verified: 'verified',

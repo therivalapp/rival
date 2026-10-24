@@ -1197,12 +1197,19 @@ const SHOW_ADD_MORE = false;
 // not set up yet is a tile at the bottom of the page (Ricky, 2026-09-30).
 const SHOW_FOCUS_EMPTY_SECTION = false;
 
-const COUNT_UP_FROM = 0.7;
+// Where a count starts (Ricky, 2026-10-24): half the total for big totals,
+// so there is a real climb to watch. A small total starts nearer zero,
+// since half of 12 counts up just six: the share eases from 0 at 0 to half
+// at 200 and above. 40 counts from 4, 100 from 25, 30,000 from 15,000.
+function countUpFrom(value: number): number {
+  return Math.round(value * 0.5 * Math.min(1, value / 200));
+}
 const COUNT_UP_MS = 1600;
+const WAITING_OPACITY = 0.25;
 function CountUpText({ value, style }: { value: number; style: any }) {
   // Starts at the count's first frame, not the full total, so the number
   // doesn't flash at full and then drop back before counting up.
-  const [shown, setShown] = useState(() => Math.round(value * COUNT_UP_FROM));
+  const [shown, setShown] = useState(() => countUpFrom(value));
   const boxRef = useRef<any>(null);
   const numRef = useRef<any>(null);
   const played = useRef<number | null>(null);
@@ -1222,7 +1229,7 @@ function CountUpText({ value, style }: { value: number; style: any }) {
     };
     const run = () => {
       played.current = value;
-      const from = Math.round(value * COUNT_UP_FROM);
+      const from = countUpFrom(value);
       const start = performance.now();
       let last = -1;
       const tick = (now: number) => {
@@ -1230,6 +1237,10 @@ function CountUpText({ value, style }: { value: number; style: any }) {
         // Quintic ease-out: quick at first, then a long gentle settle.
         const n = Math.round(from + (value - from) * (1 - Math.pow(1 - p, 5)));
         if (n !== last) { last = n; paint(n); }
+        // Faint while it waits, so it never sits there looking stuck; it
+        // brightens over the first moments of the count.
+        const el = numRef.current;
+        if (Platform.OS === 'web' && el instanceof HTMLElement) el.style.opacity = String(Math.min(1, WAITING_OPACITY + (p / 0.2) * (1 - WAITING_OPACITY)));
         if (p < 1) raf = requestAnimationFrame(tick);
         else setShown(value);
       };
@@ -1239,8 +1250,14 @@ function CountUpText({ value, style }: { value: number; style: any }) {
     if (Platform.OS === 'web' && node instanceof Element && typeof IntersectionObserver !== 'undefined') {
       io = new IntersectionObserver((entries) => {
         if (entries.some((en) => en.isIntersecting)) { io?.disconnect(); run(); }
-      }, { threshold: 0.6 });
+        // Not as soon as it peeks in at the bottom: the count waits until the
+        // number is up past the lowest 15% of the screen, so it isn't
+        // missed while the Focus count above is still being watched (Ricky,
+        // 2026-10-24).
+      }, { threshold: 0.6, rootMargin: '0px 0px -15% 0px' });
       io.observe(node);
+      const el = numRef.current;
+      if (el instanceof HTMLElement) el.style.opacity = String(WAITING_OPACITY);
     } else {
       run();
     }
