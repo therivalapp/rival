@@ -14,6 +14,7 @@ import { findMatchingRaceId } from '../lib/raceMatch';
 import { formatDuration } from '../lib/format';
 import { confirmAction } from '../lib/notify';
 import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
+import { bestFor, lastTimeFor, percentWeight, repeatOptions, type LiftActivity, type LiftEntry, type LiftLine, type SavedWorkout } from '../lib/liftHistory';
 import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG, rb } from '../components/rival';
 import { CoverImage } from '../components/rival/CoverImage';
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
@@ -26,7 +27,8 @@ import { tagTeammates, withinTagWindow, TAG_WINDOW_HOURS } from '../lib/sharedAc
 import { goToTab } from '../lib/tabNav';
 
 // `markedPb`: a first-time lift the person says is a personal best (lib/liftPb.ts).
-type Exercise = { name: string; sets?: number; reps?: number; weight?: number; markedPb?: boolean };
+// `pct`: the weight was set as a percentage of the person's best (liftHistory.ts).
+type Exercise = { name: string; sets?: number; reps?: number; weight?: number; markedPb?: boolean; pct?: number };
 
 const KG_PER_LB = 0.453592;
 
@@ -46,6 +48,9 @@ const TYPE_OPTIONS: Array<{ type: string; label: string }> = [
 // Phone tiles, as in the review mockup; See all adds the rest.
 // Workout and HYROX in place of Hike and HIIT (Ricky, 2026-10-18: used more).
 // Workout sits apart from Weights so the two dumbbells aren't side by side (Ricky, 2026-10-23).
+// Gym activities, where the Lifts row is offered.
+const LIFT_TYPES = new Set(['WeightTraining', 'Workout', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
+
 const PHONE_TILES = ['Run', 'Ride', 'Swim', 'CrossFit', 'WeightTraining', 'Hyrox', 'Workout'];
 const MORE_TYPES = ['Walk', 'Hike', 'TrailRun', 'Rowing', 'HIIT', 'Bootcamp', 'Yoga', 'Pilates'];
 const TILE_NAMES: Record<string, string> = { WeightTraining: 'Weights', Hyrox: 'HYROX', TrailRun: 'Trail run', HIIT: 'HIIT', CrossFit: 'CrossFit', VirtualRun: 'Treadmill', VirtualRide: 'Indoor ride' };
@@ -171,11 +176,33 @@ export default function ManualEntryScreen() {
       if (!user) return;
       try {
         const rows = await selectAll<any>((from, to) => supabase.from('exercise_entries')
-          .select('id, activity_id, exercise_name, performed_at').eq('user_id', user.id).order('id').range(from, to));
+          .select('id, activity_id, exercise_name, weight_kg, reps, performed_at').eq('user_id', user.id).order('id').range(from, to));
         setPriorLifts(rows.map((r) => ({ lift: r.exercise_name, activityId: r.activity_id, at: new Date(r.performed_at).getTime() })));
+        setLiftEntries(rows.filter((r) => r.activity_id).map((r) => ({ name: r.exercise_name, weightKg: Number(r.weight_kg) || 0, reps: r.reps, at: r.performed_at })));
       } catch {}
+      // Past activities' lifts (sets, reps and weight are kept on the
+      // activity) and saved workouts, for Repeat a workout and last time.
+      const { data: acts } = await supabase.from('activities')
+        .select('id, started_at, activity_type, exercises').eq('user_id', user.id).not('exercises', 'is', null)
+        .order('started_at', { ascending: false }).limit(300);
+      setLiftHistory((acts ?? []).filter((a: any) => Array.isArray(a.exercises) && a.exercises.length)
+        .map((a: any) => ({ id: a.id, startedAt: a.started_at, activityType: a.activity_type, exercises: a.exercises })));
+      const { data: saved } = await supabase.from('saved_workouts')
+        .select('id, name, activity_type, exercises, last_used_at').order('last_used_at', { ascending: false });
+      setSavedWorkouts((saved ?? []).map((s: any) => ({ id: s.id, name: s.name, activityType: s.activity_type, exercises: s.exercises ?? [], lastUsedAt: s.last_used_at })));
     })();
   }, []);
+  // Lifts made quicker (Ricky, 2026-10-24): last time's numbers faded,
+  // percentages of a best, and workouts to repeat (lib/liftHistory.ts).
+  const [liftEntries, setLiftEntries] = useState<LiftEntry[]>([]);
+  const [liftHistory, setLiftHistory] = useState<LiftActivity[]>([]);
+  const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
+  const [pctFocus, setPctFocus] = useState<number | null>(null);
+  const [savingWorkout, setSavingWorkout] = useState<string | null>(null);
+  const [workoutMsg, setWorkoutMsg] = useState<string | null>(null);
+  // A saved workout's ⋯: which one is open, and the name being edited.
+  const [savedMenu, setSavedMenu] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (!editId) return;
@@ -335,6 +362,86 @@ export default function ManualEntryScreen() {
       return { ...ex, [field]: Number.isFinite(num as number) ? num : undefined };
     }));
   }
+  // Earlier than this activity: what "last time" and "your best" are read from.
+  const liftBeforeMs = isEditMode && originalStartedAt ? originalStartedAt.getTime() : Infinity;
+  const pastLifts = liftHistory.filter((a) => a.id !== editId);
+  const lastTime = (ex: Exercise) => (ex.name.trim() ? lastTimeFor(pastLifts, ex.name, liftBeforeMs) : null);
+  const bestOf = (ex: Exercise) => (ex.name.trim() ? bestFor(liftEntries.filter((e) => liftBeforeMs === Infinity || new Date(e.at).getTime() < liftBeforeMs), ex.name) : null);
+  function keepLastTime(index: number, field?: 'sets' | 'reps' | 'weight') {
+    setExercises((prev) => prev.map((ex, i) => {
+      if (i !== index) return ex;
+      const last = lastTime(ex);
+      if (!last) return ex;
+      const pick = (f: 'sets' | 'reps' | 'weight') => (ex[f] == null && last[f] != null && (!field || field === f) ? { [f]: last[f] } : {});
+      return { ...ex, ...pick('sets'), ...pick('reps'), ...pick('weight') };
+    }));
+  }
+  function setPctMode(index: number, on: boolean) {
+    setExercises((prev) => prev.map((ex, i) => {
+      if (i !== index) return ex;
+      if (!on) return { ...ex, pct: undefined };
+      const best = bestOf(ex);
+      // 0 marks % as chosen before anything is typed.
+      return { ...ex, pct: best && ex.weight ? Math.round((ex.weight / best.kg) * 100) : 0 };
+    }));
+  }
+  function updatePct(index: number, value: string) {
+    setExercises((prev) => prev.map((ex, i) => {
+      if (i !== index) return ex;
+      const pct = value.trim() === '' ? undefined : Number(value);
+      const best = bestOf(ex);
+      if (pct == null || !Number.isFinite(pct)) return { ...ex, pct: 0, weight: undefined };
+      return { ...ex, pct, weight: best ? percentWeight(best.kg, pct, weightUnit) : undefined };
+    }));
+  }
+  const repeats = repeatOptions(pastLifts, savedWorkouts, new Date());
+  function applyRepeat(lines: LiftLine[], savedId?: string) {
+    setExercises(lines.filter((l) => l?.name?.trim()).map((l) => ({ name: l.name, sets: l.sets, reps: l.reps, weight: l.weight })));
+    if (savedId) supabase.from('saved_workouts').update({ last_used_at: new Date().toISOString() }).eq('id', savedId).then(() => {});
+  }
+  async function saveWorkout() {
+    const name = (savingWorkout ?? '').trim();
+    if (!name) return;
+    const lines = exercises.filter((e) => e.name.trim()).map((e) => ({ name: matchCanonicalLift(e.name) || e.name.trim(), sets: e.sets, reps: e.reps, weight: e.weight }));
+    // The name of one already saved updates it with these lifts: how a
+    // routine that has changed is kept current.
+    const same = savedWorkouts.find((s) => s.name.trim().toLowerCase() === name.toLowerCase());
+    if (same) {
+      const now = new Date().toISOString();
+      const { error, count } = await supabase.from('saved_workouts')
+        .update({ exercises: lines, activity_type: workoutType, last_used_at: now }, { count: 'exact' }).eq('id', same.id);
+      if (error || !count) { setWorkoutMsg(`The workout could not be updated: ${error?.message ?? 'not found'}`); return; }
+      setSavedWorkouts((prev) => prev.map((s) => (s.id === same.id ? { ...s, exercises: lines, lastUsedAt: now } : s)));
+      setSavingWorkout(null);
+      setWorkoutMsg(`Updated ${same.name}.`);
+      return;
+    }
+    const { data, error } = await supabase.from('saved_workouts')
+      .insert({ name, activity_type: workoutType, exercises: lines }).select('id, last_used_at').single();
+    if (error || !data) { setWorkoutMsg(`The workout could not be saved: ${error?.message ?? 'unknown error'}`); return; }
+    setSavedWorkouts((prev) => [{ id: data.id, name, activityType: workoutType, exercises: lines, lastUsedAt: data.last_used_at }, ...prev]);
+    setSavingWorkout(null);
+    setWorkoutMsg(`Saved as ${name}.`);
+  }
+
+  async function renameSaved() {
+    if (!renaming) return;
+    const name = renaming.name.trim();
+    if (!name) return;
+    const { error, count } = await supabase.from('saved_workouts').update({ name }, { count: 'exact' }).eq('id', renaming.id);
+    if (error || !count) { setWorkoutMsg(`The workout could not be renamed: ${error?.message ?? 'not found'}`); return; }
+    setSavedWorkouts((prev) => prev.map((s) => (s.id === renaming.id ? { ...s, name } : s)));
+    setRenaming(null);
+  }
+  async function deleteSaved(id: string, name: string) {
+    setSavedMenu(null);
+    const sure = await confirmAction({ title: `Delete ${name}?`, message: 'It will no longer be offered under Repeat a workout. Activities already logged are not changed.', confirmLabel: 'Delete', destructive: true });
+    if (!sure) return;
+    const { error, count } = await supabase.from('saved_workouts').delete({ count: 'exact' }).eq('id', id);
+    if (error || !count) { setWorkoutMsg(`The workout could not be deleted: ${error?.message ?? 'not found'}`); return; }
+    setSavedWorkouts((prev) => prev.filter((s) => s.id !== id));
+  }
+
   // Canonical-lift name suggestions (substring match) so a typed "shoulder"
   // surfaces "Overhead Press" and the lift feeds the PR tracker on save.
   // An empty name offers the person's own lifts, most recent first, not
@@ -433,7 +540,9 @@ export default function ManualEntryScreen() {
         ? namedExercises.map((ex) => {
             const canonical = matchCanonicalLift(ex.name);
             // The mark only counts on a first-time lift; anything else is judged by weight.
-            const { markedPb, ...rest } = ex;
+            const { markedPb, pct, ...plain } = ex;
+            // A percentage is kept with the lift only when one was typed.
+            const rest = pct ? { ...plain, pct } : plain;
             const kept = markedPb && isFirstLift(ex) ? { ...rest, markedPb: true } : rest;
             return canonical ? { ...kept, prLift: canonical } : kept;
           })
@@ -867,6 +976,13 @@ export default function ManualEntryScreen() {
   const scoresClimb = (scoringConfig?.elevationRates?.[workoutType] ?? 0) > 0;
   const enteredKm = distanceKm.trim() === '' ? 0 : Number(distanceKm) || 0;
   const enteredClimb = elevationM.trim() === '' ? 0 : Number(elevationM) || 0;
+  // The rows fit the activity (Ricky, 2026-10-24): distance and elevation
+  // where the type earns Effort from them, lifts for gym activities.
+  // Anything already filled in stays, so a change of type never hides it.
+  const showDistance = !scoringConfig || scoresDistance || enteredKm > 0;
+  const showClimb = isTreadmill || !scoringConfig || scoresClimb || enteredClimb > 0;
+  const namedLifts = exercises.filter((e) => e.name?.trim()).length;
+  const showLifts = LIFT_TYPES.has(workoutType) || namedLifts > 0;
   const effortParts = [
     formatDuration(durationSeconds),
     ...(scoresDistance && enteredKm > 0 ? [`${enteredKm} ${distanceUnit()}`] : []),
@@ -929,12 +1045,19 @@ export default function ManualEntryScreen() {
 
   const mobileLiftsCard = (
     <View style={m.card}>
-      <TouchableOpacity style={m.liftsHead} onPress={() => setShowExercises((v) => !v)} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={m.liftsHead}
+        onPress={() => {
+          if (showExercises) setExercises((prev) => prev.filter((e) => e.name?.trim()));
+          setShowExercises((v) => !v);
+        }}
+        activeOpacity={0.8}
+      >
         <View style={{ flex: 1 }}>
           <View style={m.liftsTitleRow}>
             <Text style={m.cardLabel}>Lifts</Text>
-            {exercises.length > 0 ? (
-              <View style={m.liftsCount}><Text style={m.liftsCountText}>{exercises.length}</Text></View>
+            {namedLifts > 0 ? (
+              <View style={m.liftsCount}><Text style={m.liftsCountText}>{namedLifts}</Text></View>
             ) : null}
           </View>
           <Text style={[m.cardHint, { marginTop: 3 }]}>Optional · tracked as PBs</Text>
@@ -946,6 +1069,66 @@ export default function ManualEntryScreen() {
 
       {showExercises && (
         <>
+          {/* Nothing named yet: the workouts worth repeating today, one tap
+              each (Ricky, 2026-10-24). */}
+          {namedLifts === 0 && repeats.length > 0 ? (
+            <View style={m.repeatWrap}>
+              <Text style={m.cardLabel}>Repeat a workout</Text>
+              {repeats.map((r, ri) => (
+                <View key={r.key}>
+                  {renaming && renaming.id === r.savedId ? (
+                    <View style={[m.repeatRow, m.repeatRowFirst]}>
+                      <TextInput
+                        style={[m.saveWorkoutInput, { backgroundColor: 'transparent', paddingHorizontal: 0 }]}
+                        value={renaming.name}
+                        onChangeText={(v) => setRenaming({ ...renaming, name: v.slice(0, 60) })}
+                        autoFocus
+                        onSubmitEditing={renameSaved}
+                      />
+                      <TouchableOpacity onPress={() => setRenaming(null)}><Text style={m.repeatDetail}>Cancel</Text></TouchableOpacity>
+                      <TouchableOpacity style={m.sameBtn} onPress={renameSaved} disabled={!renaming.name.trim()}>
+                        <Text style={[m.sameBtnText, !renaming.name.trim() && { opacity: 0.4 }]}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={[m.repeatRow, ri === 0 && m.repeatRowFirst]} activeOpacity={0.8} onPress={() => applyRepeat(r.exercises, r.savedId)} accessibilityRole="button">
+                      <View style={m.repeatIcon}><RivalIcon name="replay" size={19} color={RivalColors.accentText} /></View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={m.repeatTitle}>{r.title}</Text>
+                        <Text style={m.repeatDetail}>{r.detail}</Text>
+                      </View>
+                      <Text style={m.repeatUse}>Use</Text>
+                      {/* Only a saved workout has a ⋯: past ones are the
+                          activities themselves (Ricky, 2026-10-24). */}
+                      {r.savedId ? (
+                        <TouchableOpacity
+                          style={m.repeatMore}
+                          onPress={() => setSavedMenu((cur) => (cur === r.savedId ? null : r.savedId!))}
+                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          accessibilityLabel={`More for ${r.title}`}
+                        >
+                          <RivalIcon name="moreHoriz" size={18} color="rgba(255,255,255,0.6)" />
+                        </TouchableOpacity>
+                      ) : null}
+                    </TouchableOpacity>
+                  )}
+                  {savedMenu && savedMenu === r.savedId && !renaming ? (
+                    <View style={m.savedMenu}>
+                      <TouchableOpacity style={m.savedMenuItem} onPress={() => { setSavedMenu(null); setRenaming({ id: r.savedId!, name: r.title }); }}>
+                        <RivalIcon name="edit" size={15} color={RivalColors.onSurface} />
+                        <Text style={m.savedMenuText}>Rename</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={m.savedMenuItem} onPress={() => deleteSaved(r.savedId!, r.title)}>
+                        <RivalIcon name="delete" size={15} color={RivalColors.danger} />
+                        <Text style={[m.savedMenuText, { color: RivalColors.danger }]}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+              <Text style={m.repeatOr}>or</Text>
+            </View>
+          ) : null}
           {exercises.length > 0 && (
             <View style={m.unitToggle}>
               {(['kg', 'lb'] as const).map((u) => (
@@ -987,25 +1170,95 @@ export default function ManualEntryScreen() {
                 </View>
               )}
 
-              <View style={m.liftFields}>
-                {([
-                  ['Sets', ex.sets != null ? String(ex.sets) : '', (v: string) => updateExerciseNum(i, 'sets', v)],
-                  ['Reps', ex.reps != null ? String(ex.reps) : '', (v: string) => updateExerciseNum(i, 'reps', v)],
-                  [weightUnit === 'kg' ? 'Kg' : 'Lb', kgToDisplay(ex.weight), (v: string) => updateExerciseNum(i, 'weightDisplay', v)],
-                ] as const).map(([label, value, onChange]) => (
-                  <View key={label} style={m.liftField}>
-                    <Text style={m.liftFieldLabel}>{label}</Text>
-                    <TextInput
-                      style={m.liftFieldInput}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="–"
-                      placeholderTextColor="rgba(255,255,255,0.25)"
-                      keyboardType="numeric" autoComplete="off"
-                    />
-                  </View>
-                ))}
-              </View>
+              {(() => {
+                // Last time's numbers show faded in the empty boxes; a tap
+                // keeps one, typing replaces it. Only what is kept is saved.
+                const last = lastTime(ex);
+                const best = bestOf(ex);
+                const pctOn = ex.pct != null && !!best;
+                const ghost = (f: 'sets' | 'reps' | 'weight') => (last && last[f] != null ? (f === 'weight' ? kgToDisplay(last[f]) : String(last[f])) : '');
+                const missing = (['sets', 'reps', 'weight'] as const).some((f) => ex[f] == null && last && last[f] != null);
+                const fields = [
+                  { f: 'sets' as const, label: 'Sets', value: ex.sets != null ? String(ex.sets) : '', onChange: (v: string) => updateExerciseNum(i, 'sets', v) },
+                  { f: 'reps' as const, label: 'Reps', value: ex.reps != null ? String(ex.reps) : '', onChange: (v: string) => updateExerciseNum(i, 'reps', v) },
+                ];
+                return (
+                  <>
+                    <View style={m.liftFields}>
+                      {fields.map(({ f, label, value, onChange }) => (
+                        <View key={label} style={m.liftField}>
+                          <Text style={m.liftFieldLabel}>{label}</Text>
+                          <TextInput
+                            style={m.liftFieldInput}
+                            value={value}
+                            onChangeText={onChange}
+                            onFocus={() => { if (ex[f] == null && last?.[f] != null) keepLastTime(i, f); }}
+                            selectTextOnFocus
+                            placeholder={ghost(f) || '–'}
+                            placeholderTextColor={ghost(f) ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.25)'}
+                            keyboardType="numeric" autoComplete="off"
+                          />
+                        </View>
+                      ))}
+                      <View style={[m.liftField, pctOn && pctFocus === i && m.liftFieldTyping]}>
+                        <Text style={m.liftFieldLabel}>{weightUnit === 'kg' ? 'Kg' : 'Lb'}</Text>
+                        {pctOn ? (
+                          // A percentage: typed as a number, shown as the
+                          // weight to load once typed (Ricky, 2026-10-24).
+                          <>
+                            <TextInput
+                              style={[m.liftFieldInput, pctFocus !== i && ex.weight != null && m.liftFieldCalc]}
+                              value={pctFocus === i ? (ex.pct ? String(ex.pct) : '') : kgToDisplay(ex.weight)}
+                              onChangeText={(v) => updatePct(i, v.replace(/[^\d.]/g, ''))}
+                              onFocus={() => setPctFocus(i)}
+                              onBlur={() => setPctFocus((cur) => (cur === i ? null : cur))}
+                              selectTextOnFocus
+                              placeholder="%"
+                              placeholderTextColor="rgba(255,255,255,0.28)"
+                              keyboardType="decimal-pad" autoComplete="off"
+                            />
+                            {ex.pct ? <Text style={m.liftFieldPct}>{`${ex.pct}%`}</Text> : null}
+                          </>
+                        ) : (
+                          <TextInput
+                            style={m.liftFieldInput}
+                            value={kgToDisplay(ex.weight)}
+                            onChangeText={(v) => updateExerciseNum(i, 'weightDisplay', v)}
+                            onFocus={() => { if (ex.weight == null && last?.weight != null) keepLastTime(i, 'weight'); }}
+                            selectTextOnFocus
+                            placeholder={ghost('weight') || '–'}
+                            placeholderTextColor={ghost('weight') ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.25)'}
+                            keyboardType="decimal-pad" autoComplete="off"
+                          />
+                        )}
+                      </View>
+                    </View>
+                    {pctOn || (best && ex.name.trim()) || (last && missing) ? (
+                      <View style={m.liftMeta}>
+                        <Text style={m.liftMetaText} numberOfLines={2}>
+                          {pctOn && best
+                            ? `${ex.pct ? `${ex.pct}% of ` : ''}${kgToDisplay(best.kg)} ${weightUnit}${best.estimated ? `, estimated from ${kgToDisplay(best.from.weightKg)} × ${best.from.reps}` : ', your best'} · ${new Date(best.from.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
+                            : last && missing ? `Last time · ${new Date(last.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : ''}
+                        </Text>
+                        {!pctOn && last && missing ? (
+                          <TouchableOpacity style={m.sameBtn} onPress={() => keepLastTime(i)} activeOpacity={0.8}>
+                            <Text style={m.sameBtnText}>Same as last time</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        {best ? (
+                          <View style={m.pctSeg}>
+                            {([['kg', false], ['%', true]] as const).map(([label, on]) => (
+                              <TouchableOpacity key={label} style={[m.pctSegBtn, pctOn === on && m.pctSegBtnOn]} onPress={() => setPctMode(i, on)}>
+                                <Text style={[m.pctSegText, pctOn === on && m.pctSegTextOn]}>{label === 'kg' ? weightUnit : '%'}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </>
+                );
+              })()}
 
               {/* First time this lift is logged: the person can say it's a
                   personal best; off, it saves as a normal lift and nothing shows. */}
@@ -1027,6 +1280,31 @@ export default function ManualEntryScreen() {
             <RivalIcon name="add" size={16} color={RivalColors.accentText} />
             <Text style={m.addLiftText}>{exercises.length ? 'Add another exercise' : 'Add an exercise'}</Text>
           </TouchableOpacity>
+          {/* Name these lifts to repeat them later (saved_workouts.sql). */}
+          {namedLifts > 0 ? (
+            savingWorkout != null ? (
+              <View style={m.saveWorkoutRow}>
+                <TextInput
+                  style={m.saveWorkoutInput}
+                  value={savingWorkout}
+                  onChangeText={(v) => setSavingWorkout(v.slice(0, 60))}
+                  placeholder="Workout name, e.g. Push day"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  autoFocus
+                  onSubmitEditing={saveWorkout}
+                />
+                <TouchableOpacity style={m.sameBtn} onPress={saveWorkout} disabled={!savingWorkout.trim()}>
+                  <Text style={[m.sameBtnText, !savingWorkout.trim() && { opacity: 0.4 }]}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => { setWorkoutMsg(null); setSavingWorkout(''); }} style={m.saveWorkoutLink}>
+                <RivalIcon name="replay" size={14} color={RivalColors.accentText} />
+                <Text style={m.saveWorkoutLinkText}>{savedWorkouts.length ? 'Save or update a workout to repeat' : 'Save as a workout to repeat'}</Text>
+              </TouchableOpacity>
+            )
+          ) : null}
+          {workoutMsg ? <Text style={m.cardHint}>{workoutMsg}</Text> : null}
         </>
       )}
     </View>
@@ -1119,13 +1397,15 @@ export default function ManualEntryScreen() {
               <Text style={m.rowUnit}>sec</Text>
             </View>
           </GreyRow>
+          {showDistance ? (
           <GreyRow icon="distance" label="Distance">
             <View style={m.timeRow}>
               <TextInput style={[m.rowInput, m.wideInput]} value={distanceKm} onChangeText={setDistanceKm} placeholder="Optional" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" autoComplete="off" />
               {distanceKm ? <Text style={m.rowUnit}>{distanceUnit()}</Text> : null}
             </View>
           </GreyRow>
-          {isTreadmill ? (
+          ) : null}
+          {!showClimb ? null : isTreadmill ? (
             <GreyRow icon="elevation" label="Incline">
               <View style={m.timeRow}>
                 <TextInput style={[m.rowInput, m.wideInput]} value={inclinePct} onChangeText={setInclinePct} placeholder="Average" placeholderTextColor="rgba(255,255,255,0.28)" keyboardType="decimal-pad" autoComplete="off" />
@@ -1170,18 +1450,23 @@ export default function ManualEntryScreen() {
           </GreyRow>
           {/* Lifts as one more row here rather than a card of its own; the
               list opens below when tapped (Ricky, 2026-10-02). */}
+          {showLifts ? (
           <GreyRow
             icon="weights"
             label="Lifts"
-            value={exercises.length > 0 ? `${exercises.length} ${exercises.length === 1 ? 'lift' : 'lifts'}` : undefined}
+            // Only lifts with a name count: opening the list adds a blank
+            // one to fill in, which isn't a lift yet (Ricky, 2026-10-24).
+            value={namedLifts > 0 ? `${namedLifts} ${namedLifts === 1 ? 'lift' : 'lifts'}` : undefined}
             placeholder="Optional"
             onPress={() => {
               // Opening with none yet starts the first one, so there is
-              // something to fill in straight away.
+              // something to fill in straight away. Closing drops blanks.
               if (!showExercises && exercises.length === 0) addExercise();
+              if (showExercises) setExercises((prev) => prev.filter((e) => e.name?.trim()));
               setShowExercises((v) => !v);
             }}
           />
+          ) : null}
         </GreyRows>
         {isTreadmill && Number(inclinePct) > 0 ? (
           <Text style={styles.classHint}>
@@ -1714,6 +1999,37 @@ const m = StyleSheet.create({
     paddingVertical: 12, borderRadius: 999, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.35)',
   },
   addLiftText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
+  repeatWrap: { gap: 8 },
+  repeatRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  repeatRowFirst: { backgroundColor: 'rgba(255,209,190,0.08)', borderColor: 'rgba(255,181,158,0.35)' },
+  repeatIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,209,190,0.10)', alignItems: 'center', justifyContent: 'center' },
+  repeatTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  repeatDetail: { fontSize: 11.5, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
+  repeatUse: { fontSize: 12, fontWeight: '800', color: RivalColors.accentText },
+  repeatMore: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: -2 },
+  savedMenu: { flexDirection: 'row', gap: 8, marginTop: 6, justifyContent: 'flex-end' },
+  savedMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  savedMenuText: { fontSize: 12.5, fontWeight: '700', color: RivalColors.onSurface },
+  repeatOr: { textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.35)', marginTop: 2 },
+  liftFieldTyping: { borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.55)' },
+  liftFieldCalc: { fontWeight: '500' },
+  liftFieldPct: { fontSize: 10, fontWeight: '700', color: RivalColors.accentText, marginTop: -1 },
+  liftMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  liftMetaText: { flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,0.45)' },
+  sameBtn: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,209,190,0.10)' },
+  sameBtnText: { fontSize: 12, fontWeight: '800', color: RivalColors.accentText },
+  pctSeg: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 999, padding: 2, gap: 2 },
+  pctSegBtn: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 999 },
+  pctSegBtnOn: { backgroundColor: 'rgba(255,209,190,0.16)' },
+  pctSegText: { fontSize: 11.5, fontWeight: '800', color: RivalColors.textSecondary },
+  pctSegTextOn: { color: RivalColors.accentText },
+  saveWorkoutRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  saveWorkoutInput: {
+    flex: 1, minWidth: 0, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.18)', color: '#fff', fontSize: 14,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+  },
+  saveWorkoutLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 4 },
+  saveWorkoutLinkText: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
   // The first-time lift's "Personal best" switch (design/first-lift-pb-mockup.html).
   firstLift: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: RivalGhost.hairline },
   firstLiftTitle: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },

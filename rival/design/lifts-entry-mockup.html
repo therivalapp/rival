@@ -1,0 +1,131 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body { margin:0; background:#151413; font-family:Manrope,sans-serif; }
+  .row { display:flex; gap:22px; padding:22px; align-items:flex-start; }
+  .col { width:393px; }
+  .tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+  .desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:54px; }
+  .phone { background:#232120; border-radius:28px; padding:16px; box-sizing:border-box; }
+  .card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px; }
+  .head { display:flex; align-items:center; gap:12px; }
+  .label { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#A0A0A0; }
+  .hint { font-size:11.5px; color:rgba(255,255,255,0.4); margin-top:3px; }
+  .count { min-width:18px; height:18px; border-radius:9px; background:#D97757; color:#5c1902; font-size:10.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; margin-left:8px; }
+  .toggle { width:32px; height:32px; border-radius:16px; background:rgba(255,209,190,0.16); display:flex; align-items:center; justify-content:center; color:#ffb59e; }
+  .mi { font-family:'Material Icons'; font-size:18px; line-height:1; }
+  .units { display:flex; align-self:flex-start; background:rgba(255,255,255,0.05); border-radius:999px; padding:3px; gap:2px; }
+  .units span { padding:6px 16px; border-radius:999px; font-size:12.5px; font-weight:800; color:#A0A0A0; }
+  .units .on { background:linear-gradient(90deg,#d97757,#f4a88c); color:#5c1902; }
+  .lift { background:rgba(255,255,255,0.04); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .nameRow { display:flex; align-items:center; gap:10px; }
+  .idx { width:22px; height:22px; border-radius:11px; background:rgba(255,209,190,0.10); color:#ffb59e; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .name { flex:1; padding:7px 11px; font-size:15.5px; font-weight:700; color:#fff; }
+  .x { width:26px; height:26px; border-radius:13px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.45); }
+  .x .mi { font-size:15px; }
+  .fields { display:flex; gap:8px; }
+  .f { flex:1; text-align:center; background:rgba(0,0,0,0.18); border-radius:10px; padding:8px 0; }
+  .fl { font-size:10px; font-weight:800; letter-spacing:0.6px; color:rgba(255,255,255,0.45); }
+  .fv { font-size:22px; font-weight:300; color:#fff; margin-top:2px; }
+  .fv.ghost { color:rgba(255,255,255,0.28); }
+  .fv.calc { color:#fff; font-weight:500; }
+  .fsub { font-size:10px; font-weight:700; color:#ffb59e; margin-top:1px; }
+  .fsub.dim { color:rgba(255,255,255,0.35); font-weight:600; }
+  .f.typing { box-shadow: inset 0 0 0 1.5px rgba(255,181,158,0.55); }
+  .last { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .lastText { font-size:12px; color:rgba(255,255,255,0.45); }
+  .same { font-size:12px; font-weight:800; color:#ffb59e; padding:6px 11px; border-radius:999px; background:rgba(255,209,190,0.10); white-space:nowrap; }
+  .add { display:flex; align-items:center; justify-content:center; gap:6px; padding:12px 0; border-radius:999px; border:1px dashed rgba(255,209,190,0.35); color:#ffb59e; font-size:13.5px; font-weight:700; }
+  .rep { display:flex; flex-direction:column; gap:8px; }
+  .repLabel { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#A0A0A0; margin-top:2px; }
+  .rw { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); }
+  .rw.first { background:rgba(255,209,190,0.08); border-color:rgba(255,181,158,0.35); }
+  .ri { width:34px; height:34px; border-radius:10px; background:rgba(255,209,190,0.10); display:flex; align-items:center; justify-content:center; color:#ffb59e; }
+  .ri .mi { font-size:19px; }
+  .rt { font-size:14px; font-weight:700; color:#fff; }
+  .rs { font-size:11.5px; color:rgba(255,255,255,0.45); margin-top:2px; }
+  .rgo { margin-left:auto; color:#ffb59e; font-size:12px; font-weight:800; }
+  .or { text-align:center; font-size:11.5px; color:rgba(255,255,255,0.35); }
+  .kb { margin-top:12px; background:#1b1a19; border-radius:14px; padding:10px; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .kb span { background:#3a3835; border-radius:7px; color:#fff; text-align:center; padding:9px 0; font-size:16px; }
+  .kb .pct { background:rgba(217,119,87,0.35); color:#ffd9cc; font-weight:700; }
+.seg { display:flex; background:rgba(255,255,255,0.05); border-radius:999px; padding:2px; gap:2px; } .seg span { padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:800; color:#A0A0A0; } .seg .on { background:rgba(255,209,190,0.16); color:#ffb59e; }
+</style></head><body><div class="row">
+
+<!-- A: repeat a workout -->
+<div class="col">
+  <div class="tag">1 · Repeat a workout</div>
+  <div class="desc">Opening Lifts on a Friday: last Friday's workout first. One tap copies every exercise with last time's numbers.</div>
+  <div class="phone"><div class="card">
+    <div class="head"><div style="flex:1"><div class="label">Lifts</div><div class="hint">Optional · tracked as PBs</div></div><div class="toggle"><span class="mi">expand_more</span></div></div>
+    <div class="rep">
+      <div class="repLabel">Repeat a workout</div>
+      <div class="rw first"><div class="ri"><span class="mi">replay</span></div><div><div class="rt">Same as last Friday</div><div class="rs">Bench press, Clean and jerk · 27 Jun</div></div><div class="rgo">Use</div></div>
+      <div class="rw"><div class="ri"><span class="mi">replay</span></div><div><div class="rt">Squat day</div><div class="rs">Squat, Deadlift, Lunges · 2 Jul</div></div><div class="rgo">Use</div></div>
+      <div class="rw"><div class="ri"><span class="mi">replay</span></div><div><div class="rt">26 Jun</div><div class="rs">Bench press, Overhead press</div></div><div class="rgo">Use</div></div>
+    </div>
+    <div class="or">or</div>
+    <div class="add"><span class="mi" style="font-size:16px">add</span>Add an exercise</div>
+  </div></div>
+</div>
+
+<!-- B: last time's numbers, faded -->
+<div class="col">
+  <div class="tag">2 · Last time, faded</div>
+  <div class="desc">Adding Bench press shows last time's sets, reps and weight faded. Tap one to keep it, type to change it, or keep all three at once.</div>
+  <div class="phone"><div class="card">
+    <div class="head"><div style="flex:1"><div class="label">Lifts<span class="count">2</span></div><div class="hint">Optional · tracked as PBs</div></div><div class="toggle"><span class="mi">expand_more</span></div></div>
+    <div class="units"><span class="on">kg</span><span>lb</span></div>
+    <div class="lift">
+      <div class="nameRow"><div class="idx">1</div><div class="name">Bench press</div><div class="x"><span class="mi">close</span></div></div>
+      <div class="fields">
+        <div class="f"><div class="fl">SETS</div><div class="fv ghost">3</div></div>
+        <div class="f"><div class="fl">REPS</div><div class="fv ghost">5</div></div>
+        <div class="f"><div class="fl">KG</div><div class="fv ghost">140</div></div>
+      </div>
+      <div class="last"><div class="lastText">Last time · 27 Jun</div><div class="same">Same as last time</div></div>
+    </div>
+    <div class="lift">
+      <div class="nameRow"><div class="idx">2</div><div class="name">Clean and jerk</div><div class="x"><span class="mi">close</span></div></div>
+      <div class="fields">
+        <div class="f"><div class="fl">SETS</div><div class="fv">5</div></div>
+        <div class="f"><div class="fl">REPS</div><div class="fv">2</div></div>
+        <div class="f"><div class="fl">KG</div><div class="fv ghost">115</div></div>
+      </div>
+      <div class="last"><div class="lastText">Last time · 27 Jun</div><div class="same">Same as last time</div></div>
+    </div>
+    <div class="add"><span class="mi" style="font-size:16px">add</span>Add another exercise</div>
+  </div></div>
+</div>
+
+<!-- C: percentages -->
+<div class="col">
+  <div class="tag">3 · Percent of your max</div>
+  <div class="desc">Switch a lift to %, type 80, and the box shows the weight to load, rounded to 2.5 kg, with where the max came from.</div>
+  <div class="phone"><div class="card">
+    <div class="head"><div style="flex:1"><div class="label">Lifts<span class="count">2</span></div><div class="hint">Optional · tracked as PBs</div></div><div class="toggle"><span class="mi">expand_more</span></div></div>
+    <div class="lift">
+      <div class="nameRow"><div class="idx">1</div><div class="name">Bench press</div><div class="x"><span class="mi">close</span></div></div>
+      <div class="fields">
+        <div class="f"><div class="fl">SETS</div><div class="fv">5</div></div>
+        <div class="f"><div class="fl">REPS</div><div class="fv">3</div></div>
+        <div class="f typing"><div class="fl">KG</div><div class="fv calc">112.5</div><div class="fsub">80%</div></div>
+      </div>
+      <div class="last"><div class="lastText">80% of 140 kg, your best · 26 Jun</div><div class="seg"><span>kg</span><span class="on">%</span></div></div>
+    </div>
+    <div class="lift">
+      <div class="nameRow"><div class="idx">2</div><div class="name">Squat</div><div class="x"><span class="mi">close</span></div></div>
+      <div class="fields">
+        <div class="f"><div class="fl">SETS</div><div class="fv">4</div></div>
+        <div class="f"><div class="fl">REPS</div><div class="fv">5</div></div>
+        <div class="f"><div class="fl">KG</div><div class="fv calc">112.5</div><div class="fsub">70%</div></div>
+      </div>
+      <div class="last"><div class="lastText">70% of 160 kg, your best · 2 Jul</div><div class="seg"><span>kg</span><span class="on">%</span></div></div>
+    </div>
+  </div>
+  </div>
+</div>
+
+</div></body></html>
