@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { RivalColors, RivalType } from '../../constants/rivalTheme';
+import { avatarImage } from '../../lib/imageUrl';
 
 function initials(name: string): string {
   return name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -22,7 +23,7 @@ export function RivalAvatar({
   return (
     <View style={{ width: size, height: size }}>
       {uri ? (
-        <Image source={{ uri }} style={[styles.img, { width: size, height: size, borderRadius: size / 2 }]} />
+        <Image source={{ uri: avatarImage(uri, size) }} style={[styles.img, { width: size, height: size, borderRadius: size / 2 }]} />
       ) : (
         <View style={[styles.fallback, { width: size, height: size, borderRadius: size / 2 }]}>
           <Text style={[styles.initials, { fontSize: size * 0.4 }]}>{initials(name)}</Text>

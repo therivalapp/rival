@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#121010;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;display:flex;gap:22px;justify-content:center;align-items:flex-start}
+.col{width:361px;flex:none}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.serif{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.card{position:relative;overflow:hidden;border-radius:22px;padding:16px 18px;background:#1f1b19;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:14px}
+.card:before{content:'';position:absolute;left:0;right:0;top:0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.card>*{position:relative}
+.head{display:flex;justify-content:space-between}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffd3c2}
+.t{font-size:26px;line-height:30px;margin-top:3px}
+.ef{text-align:center}.ef b{font-size:32px;line-height:36px;display:block}.ef i{font-style:normal;font-size:9.5px;letter-spacing:1.8px;font-weight:800;color:#ffb59e;text-transform:uppercase}
+.cols{display:flex;align-items:flex-end;gap:8px;height:96px}
+.cl{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:100%}
+.cl .v{font-size:11px;font-weight:800;color:#fff}
+.cl i{display:block;width:100%;border-radius:8px;background:linear-gradient(180deg,#f2b39c,#c4694a)}
+.cl i.z{height:8px;background:rgba(255,255,255,.08)}
+.cl i.now{background:linear-gradient(180deg,#f2b39c,#c4694a);outline:1.5px solid rgba(255,255,255,.5);outline-offset:2px}
+.cll{display:flex;gap:8px;margin-top:-6px}.cll span{flex:1;text-align:center;font-size:9.5px;font-weight:800;color:rgba(255,255,255,.45);letter-spacing:.5px}.cll span.on{color:#fff}
+.tiles{display:flex;gap:8px}.tile{flex:1;text-align:center;border-radius:14px;padding:10px 6px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.tile b{font-size:21px;line-height:25px;display:block}.tile em{font-family:Manrope;font-style:normal;font-size:11px;color:rgba(255,255,255,.55);font-weight:600}
+.tile i{font-style:normal;font-size:8.5px;letter-spacing:1.3px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.tog{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+.seg{display:flex;gap:4px;padding:4px;border-radius:22px;border:1px solid rgba(255,255,255,.1);background:#1b1817;font-size:12px;font-weight:700;color:rgba(255,255,255,.55)}
+.seg span{padding:7px 12px;border-radius:18px}.seg .on{border:1px solid rgba(255,255,255,.5);color:#fff}
+.flt{padding:8px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:700}
+.cal{border-radius:22px;padding:16px 14px;background:#1f1b19;border:1px solid rgba(255,255,255,.06)}
+.calh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.arr{width:30px;height:30px;border-radius:15px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);font-size:14px}
+.mt{font-size:22px}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}.dow span{text-align:center;font-size:9.5px;font-weight:800;color:rgba(255,255,255,.4)}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.d{aspect-ratio:1;border-radius:11px;position:relative;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;font-size:10.5px;font-weight:800;color:rgba(255,255,255,.3)}
+.d.e{background:rgba(255,255,255,.035)}
+.d.a{background:linear-gradient(160deg,#d9805f,#9c543d);color:#fff}
+.d.a2{background:linear-gradient(160deg,#e9a184,#b8664a);color:#fff}
+.d.p{background-size:cover;background-position:center;color:#fff}
+.d.p:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.55))}
+.d.p span{position:relative;z-index:1}
+.d.today{outline:1.5px solid #fff;outline-offset:-1.5px;color:#fff}
+.d.x{opacity:0}
+.legend{display:flex;gap:14px;margin-top:12px;font-size:11px;color:rgba(255,255,255,.5);font-weight:600}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+/* week rows */
+.wr{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}
+.wr:first-of-type{border-top:0}
+.wl{width:58px;font-size:11px;font-weight:700;color:rgba(255,255,255,.6)}
+.wd{flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wd .d{border-radius:8px;font-size:0}
+.we{width:40px;text-align:right;font-size:17px}
+</style></head><body>
+<script>
+const P9='https://dgauxvrvqnkbfvarexok.supabase.co/storage/v1/object/public/activity-photos/09b2e197-8257-4d7c-a0e6-12dc0429eeff/93602d6a-7590-494c-b4ba-d6d1d8c17568-1791754435481-cj1k05.jpg';
+const P13='https://dgauxvrvqnkbfvarexok.supabase.co/storage/v1/object/public/activity-photos/09b2e197-8257-4d7c-a0e6-12dc0429eeff/56815b0f-f1f6-4162-942b-69ec5919a96c-1791995048169-9r3enf.jpg';
+const P14='https://dgauxvrvqnkbfvarexok.supabase.co/storage/v1/object/public/activity-photos/09b2e197-8257-4d7c-a0e6-12dc0429eeff/0d115e8a-f614-4a2a-bdb8-590ec73102eb-1791995172593-y77jq9.jpg';
+const act={3:72,7:45,16:1,17:43,18:23,20:76}, ph={9:P9,13:P13,14:P14};
+const monthCard=`<div class="card"><div class="head"><div><div class="k">Oct 1 – 31</div><div class="t serif">This month</div></div><div class="ef"><b class="serif">429</b><i>Effort</i></div></div>
+<div class="cols"><div class="cl"><span class="v">72</span><i style="height:30px"></i></div><div class="cl"><span class="v">95</span><i style="height:40px"></i></div><div class="cl"><span class="v">186</span><i style="height:78px"></i></div><div class="cl"><span class="v">76</span><i class="now" style="height:32px"></i></div><div class="cl"><i class="z"></i></div></div>
+<div class="cll"><span>Oct 1</span><span>Oct 5</span><span>Oct 12</span><span class="on">Oct 19</span><span>Oct 26</span></div>
+<div class="tiles"><div class="tile"><b class="serif">4<em>h</em> 11<em>m</em></b><i>Time</i></div><div class="tile"><b class="serif">40.5<em> km</em></b><i>Distance</i></div><div class="tile"><b class="serif">9</b><i>Activities</i></div></div></div>`;
+const tog=`<div class="tog"><div class="seg"><span>Week</span><span class="on">Month</span><span>Year</span></div><div class="flt">Filter</div></div>`;
+let cells='';for(let i=0;i<3;i++)cells+='<div class="d x"></div>';
+for(let d=1;d<=31;d++){let c='d e',st='';if(ph[d]){c='d p';st=`style="background-image:url('${ph[d]}')"`}else if(act[d]!=null){c='d '+(act[d]>60?'a':'a2')}
+ if(d===20)c+=' today';cells+=`<div class="${c}" ${st}><span>${d}</span></div>`}
+const cal=`<div class="cal"><div class="calh"><div class="arr">‹</div><div class="mt serif">October</div><div class="arr">›</div></div><div class="dow">${'MTWTFSS'.split('').map(l=>`<span>${l}</span>`).join('')}</div><div class="grid">${cells}</div>
+<div class="legend"><span><i style="background:#d9805f"></i>Active</span><span><i style="background:#888;outline:1.5px solid #fff"></i>Today</span><span>Photos show as the day</span></div></div>`;
+// week rows
+const weeks=[['Sep 28',[0,0,0,0,0,'72',0],72],['Oct 5',[0,0,'45',0,'P9',0,0],95],['Oct 12',[0,'P13','P14',0,'1','43','23'],186],['Oct 19',[0,'76',0,0,0,0,0],76],['Oct 26',[0,0,0,0,0,0,0],0]];
+const rows=weeks.map(([l,ds,e],wi)=>`<div class="wr"><div class="wl">${l}</div><div class="wd">${ds.map((v,i)=>{if(typeof v==='string'&&v.startsWith('P'))return `<div class="d p" style="background-image:url('${eval(v)}')"></div>`;const today=wi===3&&i===1;return `<div class="d ${v?(+v>60?'a':'a2'):'e'}${today?' today':''}"></div>`}).join('')}</div><div class="we serif">${e||'–'}</div></div>`).join('');
+const calW=`<div class="cal"><div class="calh"><div class="arr">‹</div><div class="mt serif">October</div><div class="arr">›</div></div><div class="dow" style="margin-left:68px;margin-right:50px">${'MTWTFSS'.split('').map(l=>`<span>${l}</span>`).join('')}</div>${rows}</div>`;
+document.write(`
+<div class="col"><h2>A · Month card + calendar <span>recommended</span></h2>${monthCard}${tog}${cal}</div>
+<div class="col"><h2>B · Month card + weeks</h2>${monthCard}${tog}${calW}</div>
+`);
+</script></body></html>

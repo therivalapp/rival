@@ -122,7 +122,7 @@ export function HistoryReveal({ kicker, activities, photoUrls, yearEffort, ctaLa
                 </View>
               ))}
             </View>
-            <View pointerEvents="none" style={r.fade} />
+            <View style={[r.fade, { pointerEvents: 'none' }]} />
           </View>
 
           <View style={r.body}>

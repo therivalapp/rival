@@ -20,6 +20,7 @@ import { goToTab } from '../lib/tabNav';
 import { RivalColors, RivalRadius, RivalType, RANK_LEVEL_COLORS, RivalSerifFamily, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
 import { rankSheen, rankTextSheen, rankTileFill, RANK_TILE_INK } from '../constants/rankSheen';
 import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
+import { avatarImage } from '../lib/imageUrl';
 
 // Refined Ember rank ramp only has 4 confirmed anchor colors from the Stitch
 // export (see rivalTheme.ts) — the interpolated 10-level ramp is provisional.
@@ -236,7 +237,7 @@ export default function StatsScreen() {
             <View style={pb.person}>
               <View style={[pb.avatar, { borderColor: rankSheen(lvl.level).light }]}>
                 {avatarUrl
-                  ? <Image source={{ uri: avatarUrl }} style={pb.avatarImg} />
+                  ? <Image source={{ uri: avatarImage(avatarUrl, 120) }} style={pb.avatarImg} />
                   : <Text style={pb.avatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>}
               </View>
               {mindset ? <Text style={pb.mindset} numberOfLines={3}>“{mindset}”</Text> : null}
@@ -384,7 +385,7 @@ export default function StatsScreen() {
         <RivalCard style={[styles.rankCard, { borderColor: rankColor + '55', borderWidth: 1 }]}>
           <View style={[styles.rankAvatar, { borderColor: rankColor }]}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.rankAvatarImage} />
+              <Image source={{ uri: avatarImage(avatarUrl, 120) }} style={styles.rankAvatarImage} />
             ) : (
               <Text style={styles.rankAvatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>
             )}
@@ -458,8 +459,8 @@ export default function StatsScreen() {
                         <RivalIcon name={activityIconName(h.activity_type)} size={120} color="rgba(255,181,158,0.18)" />
                       </View>
                     )}
-                    <View style={styles.hlShade} pointerEvents="none" />
-                    <View style={styles.hlStar} pointerEvents="none">
+                    <View style={[styles.hlShade, { pointerEvents: 'none' }]} />
+                    <View style={[styles.hlStar, { pointerEvents: 'none' }]}>
                       <GoldStar size={16} />
                     </View>
                     <View style={styles.hlBody}>
@@ -523,7 +524,7 @@ export default function StatsScreen() {
           </View>
           <View style={[styles.statCard]}>
             <Text style={[styles.statValue, { color: RivalColors.accentText }]}>{elevationNumber(totalElevationM)}</Text>
-            <Text style={styles.statLabel}>{elevationUnit()} climbed</Text>
+            <Text style={styles.statLabel}>{elevationUnit()} elevation</Text>
           </View>
           <View style={[styles.statCard]}>
             <Text style={[styles.statValue, { fontSize: 16 }]}>{memberSince || '—'}</Text>

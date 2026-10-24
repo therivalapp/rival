@@ -8,6 +8,8 @@ import { RivalIcon, activityIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
 import { BREAKPOINT_WIDE_LAYOUT, sidePageWide, SIDE_SHEET_MAX_WIDTH } from '../../constants/breakpoints';
+import { useSheetDrag } from './useSheetDrag';
+import { tilesFor, useRecentTypes } from '../../lib/recentTypes';
 
 // Planning a meet-up, in one sheet, from anywhere.
 //
@@ -172,8 +174,13 @@ export function PlanSessionSheet({
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   // Phones get the tile grid and centred title; desktop keeps the chips.
   const m = !sidePageWide(windowWidth);
+  // Phones: the person's own types first, as in Log an activity (lib/recentTypes.ts).
+  const recentTypes = useRecentTypes();
+  const quickTypes = m ? tilesFor(recentTypes, SESSION_TYPES) : SESSION_TYPES;
   // On a wide screen the sheet is a centred dialog, like the other pop-ups.
   const dialog = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
+  // Drag down from anywhere on it to close (phones).
+  const dragRef = useSheetDrag(onClose);
 
   // Load the session being edited into the form. Keyed on the row's id rather
   // than the object, so a refetch that returns an equal-but-new object can't
@@ -239,7 +246,7 @@ export function PlanSessionSheet({
     && Number(parsedTime[2]) >= 0 && Number(parsedTime[2]) <= 59;
   // True when the chosen activity isn't one of the seven quick chips — either
   // picked from the full list or typed as a custom one.
-  const outsidePick = type === CUSTOM || !SESSION_TYPES.includes(type);
+  const outsidePick = type === CUSTOM || !quickTypes.includes(type);
 
   const whenValid = startsIn !== null || (!!displayToIsoDate(date) && timeValid);
   const canPost = !!resolvedType && whenValid && !!location.trim();
@@ -372,11 +379,11 @@ export function PlanSessionSheet({
             cap exists only so a genuinely short viewport (landscape, or a small
             device with the keyboard up) degrades to scrolling instead of
             pushing the post button off-screen. */}
-        <View style={[styles.sheet, dialog && styles.sheetDialog, { maxHeight: windowHeight * (dialog ? 0.86 : 0.92) }]}>
+        <View ref={dialog ? undefined : dragRef} style={[styles.sheet, dialog && styles.sheetDialog, { maxHeight: windowHeight * (dialog ? 0.86 : 0.92) }]}>
           {/* Warm glow bleeding down from the top edge. The sheet was one flat
               tone end to end, so nothing said "this is the top" — a light
               source does that without adding a single line of chrome. */}
-          <View style={styles.glow} pointerEvents="none" />
+          <View style={[styles.glow, { pointerEvents: 'none' }]} />
           {dialog ? null : <View style={styles.grabber} />}
 
           {m ? (
@@ -414,7 +421,7 @@ export function PlanSessionSheet({
               // Seven tiles with round icon badges plus See all, four to a row.
               // The eighth tile also shows a pick made outside the seven.
               <View style={styles.tiles}>
-                {SESSION_TYPES.map((t) => {
+                {quickTypes.map((t) => {
                   const on = type === t;
                   return (
                     <TouchableOpacity
@@ -676,7 +683,7 @@ export function PlanSessionSheet({
                   {/* The tinted band marks the selected row. It sits BEHIND the
                       wheels and ignores touches, so a tap still lands on the
                       number under it. */}
-                  <View style={styles.wheelBand} pointerEvents="none" />
+                  <View style={[styles.wheelBand, { pointerEvents: 'none' }]} />
                   <Wheel values={HOURS} value={hh} onChange={(v) => setWheelTime(`${v}:${mm}`)} open={timeOpen} />
                   <Text style={styles.wheelColon}>:</Text>
                   <Wheel values={MINUTES} value={mm} onChange={(v) => setWheelTime(`${hh}:${v}`)} open={timeOpen} />
@@ -686,7 +693,7 @@ export function PlanSessionSheet({
                       over the top and bottom thirds does that without having to
                       recompute per-row opacity on every scroll frame. Must not
                       swallow touches. */}
-                  <View style={styles.wheelFade} pointerEvents="none" />
+                  <View style={[styles.wheelFade, { pointerEvents: 'none' }]} />
                 </View>
 
                 <TouchableOpacity style={styles.timeDone} onPress={() => setTimeOpen(false)}>

@@ -53,7 +53,7 @@ export function WeekCover({ kicker, event, effort, photo, sky, line, lineEvent, 
           <RivalIcon name={activityIconName(sky.type)} size={150} color="rgba(255,255,255,0.15)" style={{ marginTop: -60 }} />
         </View>
       )}
-      <View pointerEvents="none" style={[s.fill, s.scrim]} />
+      <View style={[s.fill, s.scrim, { pointerEvents: 'none' }]} />
       <View style={s.top}>
         <Text style={[s.kicker, event && { color: RivalColors.event }]} numberOfLines={1}>{kicker}</Text>
         <View style={s.effort}>
@@ -113,7 +113,7 @@ export function SoloWeekCover({ kicker, activity, chip, onPress }: {
     const pace = formatSpeedOrPace(a.distance_meters || 0, a.duration_seconds, a.activity_type);
     if (pace) stats.push({ label: /\/(km|mi)/.test(pace) ? 'Pace' : 'Speed', value: pace });
   }
-  if ((a.elevation_meters ?? 0) > 0) stats.push({ label: 'Climb', value: formatElevation(a.elevation_meters || 0) });
+  if ((a.elevation_meters ?? 0) > 0) stats.push({ label: 'Elevation', value: formatElevation(a.elevation_meters || 0) });
   return (
     <WeekCover
       kicker={kicker}

@@ -13,13 +13,17 @@ import { activityTypeLabel } from './EffortBreakdownSheet';
 // Week, Month and Year, which opens a grey pop-up.
 
 /** The card itself. Tapping the header opens and folds it. */
-export function WeekCard({ kicker, title, sub, effort, expanded, onToggle, compact, event, children }: {
+export function WeekCard({ kicker, title, sub, effort, expanded, onToggle, compact, event, still, fixed, children }: {
   kicker?: string;
   title: string;
   sub?: string;
   /** The Effort figure, so a caller can animate it. */
   effort: ReactNode;
   expanded: boolean;
+  /** Nothing to open: no Effort, no arrow, no tap (an empty week). */
+  still?: boolean;
+  /** Always open: Effort shown, but no arrow and no tap (the month card). */
+  fixed?: boolean;
   onToggle: () => void;
   /** Past weeks: a little smaller. */
   compact?: boolean;
@@ -30,27 +34,29 @@ export function WeekCard({ kicker, title, sub, effort, expanded, onToggle, compa
   return (
     // A tap anywhere on the card opens or folds it; nothing on it is a
     // button of its own (Ricky, 2026-10-16).
-    <TouchableOpacity style={[s.card, compact && s.cardCompact]} activeOpacity={0.92} onPress={onToggle} accessibilityState={{ expanded }}>
-      <View pointerEvents="none" style={[s.glow, event && s.glowEvent]} />
+    <TouchableOpacity style={[s.card, compact && s.cardCompact]} activeOpacity={0.92} onPress={onToggle} disabled={still || fixed} accessibilityState={{ expanded }}>
+      <View style={[s.glow, event && s.glowEvent, { pointerEvents: 'none' }]} />
       <View style={s.head}>
         <View style={{ flex: 1, minWidth: 0 }}>
           {kicker ? <Text style={[s.kicker, event && s.kickerEvent]}>{kicker}</Text> : null}
-          <Text style={[s.title, compact && s.titleCompact]} numberOfLines={1}>{title}</Text>
+          {title ? <Text style={[s.title, compact && s.titleCompact]} numberOfLines={1}>{title}</Text> : null}
           {sub ? <Text style={s.sub}>{sub}</Text> : null}
         </View>
         {/* Effort sits in the corner with its label centred under it
             (Ricky, 2026-10-16). */}
+        {still ? null : (
         <View style={s.effort}>
           {effort}
           <Text style={s.effortLabel}>Effort</Text>
         </View>
+        )}
       </View>
       {children}
       {/* The open/fold arrow sits centred along the bottom edge, so it
           never pushes Effort in from the corner. */}
-      <View style={s.chevRow}>
+      {still || fixed ? null : <View style={s.chevRow}>
         <RivalIcon name="chevronDown" size={18} color="rgba(255,255,255,0.4)" style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
-      </View>
+      </View>}
     </TouchableOpacity>
   );
 }
@@ -60,6 +66,81 @@ const effortBase = { fontFamily: RivalSerifFamily, fontStyle: 'italic' as const,
 // 2026-10-16: the ember fill was too much of one colour).
 export const weekEffortStyle = { ...effortBase, fontSize: 32, lineHeight: 36 };
 export const weekEffortCompactStyle = { ...effortBase, fontSize: 22, lineHeight: 26 };
+
+/** One line set to fill its row exactly (Ricky, 2026-10-19): the font size
+ *  is worked out from the row's width and the line's measured width, so a
+ *  short line is set larger and a long one smaller. Web measures with a
+ *  canvas in the same font; elsewhere it keeps the base size. */
+function FullWidthLine({ text, style }: { text: string; style: any }) {
+  const [width, setWidth] = useState(0);
+  const base = style.fontSize as number;
+  let size = base;
+  if (width > 0 && Platform.OS === 'web' && typeof document !== 'undefined') {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (ctx) {
+      ctx.font = `${style.fontStyle ?? 'normal'} ${style.fontWeight ?? 400} ${base}px ${style.fontFamily}`;
+      const w = ctx.measureText(text).width;
+      // A hair under the row, so rounding never tips it onto a second line.
+      if (w > 0) size = Math.floor((base * (width - 2) / w) * 10) / 10;
+    }
+  }
+  return (
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <Text style={[style, { fontSize: size, lineHeight: Math.round(size * 1.35) }]} numberOfLines={1}>{text}</Text>
+    </View>
+  );
+}
+
+/** A week with nothing logged yet (Ricky, 2026-10-19, E then H): the week's
+ *  consistency line as the card's main line, then the month so far, instead
+ *  of empty columns and a zero. */
+export function EmptyWeek({ quote, whole, month, count, seconds, meters, dayOfMonth, daysInMonth }: {
+  quote: string;
+  /** Last month, complete: nothing logged this month yet. */
+  whole?: boolean;
+  month: string;
+  count: number;
+  seconds: number;
+  meters: number;
+  dayOfMonth: number;
+  daysInMonth: number;
+}) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  const km = toDisplayDistance(meters / 1000);
+  return (
+    <View style={{ gap: 14 }}>
+      {/* Up under THIS WEEK, where the title sits on a full week, so the
+          label belongs to the line rather than floating above it. */}
+      <View style={{ marginTop: -11 }}><FullWidthLine text={`\u201C\u2009${quote}\u2009\u201D`} style={s.ewQuote} /></View>
+      {/* Nothing at all to look back on (a new account): one quiet line. */}
+      {count === 0 ? <Text style={s.ewNote}>A fresh week. Every activity starts here.</Text> : (
+      <View style={s.ewPanel}>
+        <Text style={s.ewLabel}>{whole ? month : `${month} so far`}</Text>
+        {/* Three even columns, in the weeks' order: time, distance, activities. */}
+        <View style={s.ewCols}>
+          <View style={s.ewCol}>
+            <Text style={s.ewFigures} numberOfLines={1}>{h > 0 ? <>{h}<Text style={s.ewUnit}>h</Text> {String(m).padStart(2, '0')}<Text style={s.ewUnit}>m</Text></> : <>{m}<Text style={s.ewUnit}> min</Text></>}</Text>
+            <Text style={s.ewColLabel}>Time</Text>
+          </View>
+          <View style={[s.ewCol, s.ewColRule]}>
+            <Text style={s.ewFigures} numberOfLines={1}>{km >= 0.1 ? km.toFixed(km >= 100 ? 0 : 1) : '0'}<Text style={s.ewUnit}> {distanceUnit()}</Text></Text>
+            <Text style={s.ewColLabel}>Distance</Text>
+          </View>
+          <View style={[s.ewCol, s.ewColRule]}>
+            <Text style={s.ewFigures} numberOfLines={1}>{count}</Text>
+            <Text style={s.ewColLabel}>{count === 1 ? 'Activity' : 'Activities'}</Text>
+          </View>
+        </View>
+        {whole ? null : <>
+          <View style={s.ewTrack}><View style={[s.ewFill, { width: `${Math.round(dayOfMonth / daysInMonth * 100)}%` as any }]} /></View>
+          <Text style={s.ewNote}>{dayOfMonth} of {daysInMonth} days</Text>
+        </>}
+      </View>
+      )}
+    </View>
+  );
+}
 
 /** The week as columns sized by each day's Effort (Ricky, 2026-10-16,
  *  option A): each trained day labelled with its figure, a day that set a
@@ -86,6 +167,33 @@ export function DayColumns({ effort, bests, today, events }: { effort: number[];
               <View style={[s.colBar, { height: `${Math.round(h * 100)}%` as any }, v > 0 && (pb ? s.colBarPb : ev ? s.colBarEvent : s.colBarOn), isToday && s.colBarToday]} />
             </View>
             <Text style={[s.colDay, v > 0 && s.colDayOn, pb && s.colDayPb, ev && s.colDayEvent]}>{d}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/** The month as a column per week (Ricky, 2026-10-20, A): the same bars as
+ *  This week, one for each Monday-to-Sunday week the month touches, labelled
+ *  with the days it covers. The current week's label is white; no ring, which
+ *  could be mistaken for an event's ivory. */
+export function MonthWeekColumns({ weeks }: { weeks: { label: string; effort: number; current: boolean; best?: boolean; event?: boolean }[] }) {
+  const max = Math.max(0, ...weeks.map((w) => w.effort));
+  return (
+    <View style={s.cols}>
+      {weeks.map((w, i) => {
+        const v = w.effort;
+        const h = v > 0 ? Math.max(0.14, (v / max) * 0.8) : 0.07;
+        return (
+          <View key={i} style={s.col}>
+            <View style={s.colArea}>
+              {v > 0 ? <Text style={[s.colFigure, v === max && s.colFigureTop]}>{Math.round(v)}</Text> : null}
+              {/* A week with a best is gold, with an event ivory; with both,
+                  gold fading into ivory, edged half in each (Ricky, 2026-10-20). */}
+              <View style={[s.colBar, { height: `${Math.round(h * 100)}%` as any }, v > 0 && (w.best && w.event ? s.colBarBoth : w.event ? s.colBarEvent : w.best ? s.colBarPb : s.colBarOn)]} />
+            </View>
+            <Text style={[s.colDay, s.colWeekLabel, (v > 0 || w.current) && s.colDayOn, v > 0 && w.best && !w.event && s.colDayPb, v > 0 && w.event && s.colDayEvent, w.current && { color: '#fff' }]} numberOfLines={1}>{w.label}</Text>
           </View>
         );
       })}
@@ -161,6 +269,8 @@ function durationParts(seconds: number): Array<[string, string]> {
   if (mins < 60) return [[String(mins), 'm']];
   const h = Math.floor(mins / 60);
   const m = mins % 60;
+  // A year's worth of hours: the minutes no longer matter and won't fit.
+  if (h >= 100) return [[Math.round(mins / 60).toLocaleString(), 'h']];
   return m > 0 ? [[String(h), 'h'], [String(m), 'm']] : [[String(h), 'h']];
 }
 
@@ -181,10 +291,13 @@ export function WeekNumbers({ count, seconds, km, prev }: Totals & { prev?: Tota
     const down = diff < -0.0001;
     return <Text style={[s.delta, !up && s.deltaFlat]}>{up ? `+${text}` : down ? `−${text}` : 'Same'}</Text>;
   };
-  const cell = (icon: RivalIconName, label: string, value: ReactNode, change: ReactNode, first?: boolean) => (
-    <View style={[s.cell, !first && s.cellDivided]}>
-      <RivalIcon name={icon} size={17} color={RivalColors.accentFill} style={s.cellIcon} />
-      <Text style={s.value} numberOfLines={1}>{value}</Text>
+  // `chars`: how long the figure reads, units included. Past six it is set a
+  // size down, so "1,042 km" fits its tile instead of being cut off.
+  const cell = (icon: RivalIconName, label: string, value: ReactNode, change: ReactNode, first?: boolean, chars = 0) => (
+    // Each figure in its own tile, no icon (Ricky, 2026-10-20: as on the
+    // past-week cards; the icons made it busy).
+    <View style={s.cell}>
+      <Text style={[s.value, chars > 6 && { fontSize: Math.round(29 * 5.5 / chars) }]} numberOfLines={1}>{value}</Text>
       <Text style={s.label}>{label}</Text>
       {change}
     </View>
@@ -194,16 +307,17 @@ export function WeekNumbers({ count, seconds, km, prev }: Totals & { prev?: Tota
   const kmDiff = prev ? shownKm - toDisplayDistance(prev.km) : 0;
   return (
     <View style={s.numbers}>
-      {cell('stats', count === 1 ? 'Activity' : 'Activities', String(count),
-        prev ? delta(count - prev.count, String(Math.abs(count - prev.count))) : null, true)}
+      {/* Time, distance, activities: the past weeks' order (Ricky, 2026-10-18). */}
       {cell('timerOutline', 'Time', seconds > 0
         ? durationParts(seconds).map(([n, u], i) => (
           <Text key={u}>{i > 0 ? ' ' : ''}{n}<Text style={s.unit}>{u}</Text></Text>
         ))
         : <>0<Text style={s.unit}>m</Text></>,
-        prev ? delta(seconds - prev.seconds, deltaDuration(seconds - prev.seconds)) : null)}
-      {cell('distance', 'Distance', <>{km >= 0.1 ? shownKm.toFixed(1) : '0'}<Text style={s.unit}>{unit}</Text></>,
-        prev ? delta(Math.round(kmDiff * 10) / 10, `${Math.abs(kmDiff).toFixed(1)} ${unit}`) : null)}
+        prev ? delta(seconds - prev.seconds, deltaDuration(seconds - prev.seconds)) : null, true, durationParts(seconds).map(([n, u]) => n + u).join(' ').length)}
+      {cell('distance', 'Distance', <>{km >= 0.1 ? (shownKm >= 100 ? Math.round(shownKm).toLocaleString() : shownKm.toFixed(1)) : '0'}<Text style={s.unit}>{unit}</Text></>,
+        prev ? delta(Math.round(kmDiff * 10) / 10, `${Math.abs(kmDiff).toFixed(1)} ${unit}`) : null, false, (shownKm >= 100 ? Math.round(shownKm).toLocaleString() : shownKm.toFixed(1)).length + unit.length)}
+      {cell('stats', count === 1 ? 'Activity' : 'Activities', String(count),
+        prev ? delta(count - prev.count, String(Math.abs(count - prev.count))) : null)}
     </View>
   );
 }
@@ -363,7 +477,7 @@ export function FilterSheet({ visible, filters, onChange, types, shownCount, dat
               const on = filters.type === t;
               return (
                 <TouchableOpacity key={t} style={[s.tile, on && s.tileOn]} onPress={() => set({ type: t })} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                  <View pointerEvents="none" style={s.tileArt}>
+                  <View style={[s.tileArt, { pointerEvents: 'none' }]}>
                     <RivalIcon name={t === 'All' ? 'apps' : activityIconName(t)} size={38} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                   </View>
                   <Text style={[s.tileText, on && s.tileTextOn]} numberOfLines={1}>{t === 'All' ? 'All' : activityTypeLabel(t)}</Text>
@@ -397,6 +511,20 @@ const s = StyleSheet.create({
   sub: { fontSize: 12.5, color: 'rgba(255,255,255,0.5)', marginTop: 1 },
   effort: { alignItems: 'center' },
   effortLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 1 },
+  // Sized so every line in the pool (27 characters at most) fits on one
+  // line on a small phone (375 wide) with its quotation marks.
+  ewQuote: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18.5, lineHeight: 26, color: '#fff' },
+  ewPanel: { borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.08)' },
+  ewLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: '#fff' },
+  ewCols: { flexDirection: 'row', marginTop: 10 },
+  ewCol: { flex: 1, alignItems: 'center' },
+  ewColRule: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,209,190,0.10)' },
+  ewColLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  ewFigures: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, lineHeight: 24, height: 24, color: '#fff' },
+  ewUnit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  ewTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 14, overflow: 'hidden' },
+  ewFill: { height: 6, borderRadius: 3, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient } as any,
+  ewNote: { fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 6 },
   chevRow: { alignSelf: 'center', marginTop: -8, marginBottom: -10, paddingHorizontal: 14, paddingVertical: 2 },
 
   days: { flexDirection: 'row', gap: 5 },
@@ -423,6 +551,12 @@ const s = StyleSheet.create({
     backgroundColor: '#ffc94d',
     ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #fff4d6, #ffc94d)' } as any : {}),
   },
+  colBarBoth: {
+    backgroundColor: '#ffc94d', borderWidth: 1.5,
+    borderTopColor: '#ffd27a', borderLeftColor: '#ffd27a', borderRightColor: RivalColors.event, borderBottomColor: RivalColors.event,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffd27a, #fbf4e6)' } as any : {}),
+  },
+  colWeekLabel: { fontSize: 9.5, letterSpacing: 0.2 },
   colBarToday: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.28)' },
   colDay: { fontSize: 10.5, fontWeight: '800', color: 'rgba(255,255,255,0.4)' },
   colDayOn: { color: '#ffd3c2' },
@@ -443,15 +577,13 @@ const s = StyleSheet.create({
   pillDone: { backgroundColor: 'rgba(232,131,95,0.16)' },
   pillBest: { backgroundColor: 'rgba(255,201,77,0.14)' },
   pillText: { fontFamily: RivalFontFamily, fontSize: 11.5, fontWeight: '700' },
-  numbers: { flexDirection: 'row', borderRadius: 16, overflow: 'hidden', backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
-  cell: { flex: 1, alignItems: 'center', paddingTop: 10, paddingBottom: 9, paddingHorizontal: 3, overflow: 'hidden' },
-  cellDivided: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.08)' },
+  numbers: { flexDirection: 'row', gap: 8 },
+  cell: { flex: 1, minWidth: 0, alignItems: 'center', paddingTop: 10, paddingBottom: 9, paddingHorizontal: 4, overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.08)' },
   // A fixed line height on the figure and its units, so the labels under
   // all three sit on one line whether or not a figure has units in it.
   value: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 29, lineHeight: 31, height: 31, color: '#fff' },
   // Sans, upright and dim, so the units step back from the serif figures.
   unit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontSize: 13, lineHeight: 31, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
-  cellIcon: { marginBottom: 0, height: 20 },
   delta: { marginTop: 2, fontSize: 11, fontWeight: '700', color: RivalColors.success },
   deltaFlat: { color: 'rgba(255,255,255,0.45)', fontWeight: '600' },
   label: { marginTop: 2, fontSize: 9.5, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
@@ -524,7 +656,7 @@ export function WeekLadder({ effort, checkpoints }: { effort: number; checkpoint
   return (
     <View style={ls.ladder}>
       {rungs.length > 1 ? (
-        <View pointerEvents="none" style={ls.ladderTrack}>
+        <View style={[ls.ladderTrack, { pointerEvents: 'none' }]}>
           <View style={[ls.ladderLit, { height: `${Math.round(lit * 100)}%` as any }]} />
         </View>
       ) : null}

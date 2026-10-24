@@ -13,6 +13,7 @@ import { ROUTE_MAPS_ENABLED } from '../lib/features';
 import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
 import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
+import { buildArchive } from '../lib/archive';
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
@@ -21,6 +22,7 @@ import { BusyText } from '../components/rival/BusyText';
 import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
 import { RivalSerifFamily } from '../constants/rivalTheme';
 import { goToTab } from '../lib/tabNav';
+import { avatarImage } from '../lib/imageUrl';
 
 const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
   { value: 'metric', label: 'Metric', sub: 'Kilometres, metres and kilograms.' },
@@ -146,7 +148,7 @@ export default function ProfileScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<'data' | 'all' | null>(null);
   const [exportMsg, setExportMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
 
@@ -290,25 +292,36 @@ export default function ProfileScreen() {
     setPasswordMsg({ ok: true, text: 'Password updated.' });
   }
 
-  async function downloadData() {
+  // Two choices (Ricky, 2026-10-24): the data alone, a small file that is
+  // quick to save, or the data with every photo and video, as a .zip.
+  async function downloadData(withMedia: boolean) {
     setExportMsg(null);
-    setExporting(true);
+    setExporting(withMedia ? 'all' : 'data');
     try {
       const { data: { user } } = await getAuthUser();
       if (!user) return;
-      const { json, problems } = await buildDataExport(user.id, user.email ?? null);
-      const date = new Date().toISOString().slice(0, 10);
-      if (!saveJsonFile(json, `rival-data-${date}.json`)) {
+      if (Platform.OS !== 'web') {
         setExportMsg({ ok: false, text: 'Downloading is only available in the web app for now.' });
         return;
       }
-      setExportMsg(problems.length
-        ? { ok: false, text: `Downloaded, but ${problems.length} section${problems.length === 1 ? '' : 's'} could not be read. The file lists which.` }
-        : { ok: true, text: 'Downloaded.' });
+      if (!withMedia) {
+        const { json, problems } = await buildDataExport(user.id, user.email ?? null);
+        saveJsonFile(json, `rival-data-${new Date().toISOString().slice(0, 10)}.json`);
+        setExportMsg(problems.length
+          ? { ok: false, text: `Downloaded, but ${problems.length} section${problems.length === 1 ? '' : 's'} could not be read. The file lists which.` }
+          : { ok: true, text: 'Downloaded.' });
+        return;
+      }
+      // The whole archive, photos and videos included, not only the data
+      // (Ricky, 2026-10-24).
+      const c = await buildArchive(user.id, user.email ?? null, (done, total) => setExportMsg({ ok: true, text: `Saving photos and videos: ${done} of ${total}` }));
+      const parts = [`${c.activities.toLocaleString()} ${c.activities === 1 ? 'activity' : 'activities'}`, `${c.photos.toLocaleString()} ${c.photos === 1 ? 'photo' : 'photos'}`];
+      if (c.videos) parts.push(`${c.videos.toLocaleString()} ${c.videos === 1 ? 'video' : 'videos'}`);
+      setExportMsg({ ok: true, text: `Downloaded: ${parts.join(', ')}.` });
     } catch (e: any) {
       setExportMsg({ ok: false, text: `The download could not be prepared: ${e?.message ?? 'unknown error'}` });
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
@@ -546,7 +559,7 @@ export default function ProfileScreen() {
         <TouchableOpacity onPress={uploadAvatar} disabled={uploadingAvatar} style={styles.avatarWrap}>
           <View style={styles.avatar}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              <Image source={{ uri: avatarImage(avatarUrl, 120) }} style={styles.avatarImage} />
             ) : (
               <Text style={styles.avatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>
             )}
@@ -915,8 +928,9 @@ export default function ProfileScreen() {
 
       <View style={styles.subSection}>
         <Text style={styles.subSectionTitle}>YOUR DATA</Text>
-        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, goals, events, teams, messages and recognition, as one file.</Text>
-        <RivalButton busy={exporting} label={exporting ? 'Preparing…' : 'Download my data'} onPress={downloadData} disabled={exporting} variant="secondary" style={styles.actionBtn} />
+        <Text style={styles.optionSample}>A copy of everything RIVAL holds for this account: activities, routes, goals, events, teams, messages and recognition. Data only is one small file. With photos and videos it is a .zip, which can take a few minutes.</Text>
+        <RivalButton busy={exporting === 'data'} label={exporting === 'data' ? 'Preparing…' : 'Download data'} onPress={() => downloadData(false)} disabled={!!exporting} variant="secondary" style={styles.actionBtn} />
+        <RivalButton busy={exporting === 'all'} label={exporting === 'all' ? 'Preparing…' : 'Download data, photos and videos'} onPress={() => downloadData(true)} disabled={!!exporting} variant="secondary" style={styles.actionBtn} />
         {exportMsg && <Text style={exportMsg.ok ? styles.okText : styles.errorText}>{exportMsg.text}</Text>}
       </View>
 
@@ -987,7 +1001,7 @@ export default function ProfileScreen() {
   const phoneMenu = (
     <View>
       <View style={styles.mHead}>
-        <View style={styles.mGlow} pointerEvents="none" />
+        <View style={[styles.mGlow, { pointerEvents: 'none' }]} />
         <Text style={styles.mKicker}>ACCOUNT</Text>
         <Text style={styles.mTitle}>Settings</Text>
         <Text style={styles.mSub}>Profile, preferences and connected apps.</Text>

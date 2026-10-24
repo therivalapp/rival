@@ -17,7 +17,12 @@ export type StravaSharing = { agreedAt: string | null; shareRoutes: boolean };
 // Connect button can decide instantly (opening Strava's window has to happen
 // inside the tap itself, with no waiting first).
 let agreedCache: boolean | null = null;
-supabase.auth.onAuthStateChange(() => { agreedCache = null; });
+// The answer to "does this still need a reply", kept a minute and shared by
+// everyone who asks at once: every copy of the top bar asked on every tab
+// switch, eight requests for one fact (2026-10-21).
+let answerCache: { at: number; value: Promise<boolean> } | null = null;
+const ANSWER_TTL_MS = 60_000;
+supabase.auth.onAuthStateChange(() => { agreedCache = null; answerCache = null; });
 
 /** Connect (or reconnect) Strava. The sharing screen is shown only until the
  *  person has agreed once; after that it goes straight to Strava. */
@@ -29,8 +34,15 @@ export function startStravaConnect(onComplete?: () => void) {
 /** True when Strava is connected but sharing hasn't been agreed yet (people
  *  who connected before the consent step). Shown as a notification that needs
  *  a reply, at the top of the bell and the Notifications page. */
-export async function stravaSharingNeedsAnswer(): Promise<boolean> {
-  if (agreedCache === true) return false;
+export function stravaSharingNeedsAnswer(): Promise<boolean> {
+  if (agreedCache === true) return Promise.resolve(false);
+  if (answerCache && Date.now() - answerCache.at < ANSWER_TTL_MS) return answerCache.value;
+  const value = askStravaSharingNeedsAnswer().catch(() => { answerCache = null; return false; });
+  answerCache = { at: Date.now(), value };
+  return value;
+}
+
+async function askStravaSharingNeedsAnswer(): Promise<boolean> {
   const { data: { user } } = await getAuthUser();
   if (!user) return false;
   const [{ data: conn }, sharing] = await Promise.all([
@@ -68,6 +80,7 @@ export async function agreeToStravaSharing(shareRoutes: boolean): Promise<{ ok: 
     .select('id');
   if (error || !data?.length) return { ok: false, error: 'The choice could not be saved. Try again.' };
   agreedCache = true;
+  answerCache = null;
   inboxChanged();
   return { ok: true };
 }

@@ -9,7 +9,7 @@ export type SkyName = 'dawn' | 'morning' | 'midday' | 'golden' | 'dusk' | 'night
 
 type Sky = { sky: string; glow: string; flat: string };
 
-const SKIES: Record<SkyName, Sky> = {
+export const SKIES: Record<SkyName, Sky> = {
   dawn: {
     sky: 'linear-gradient(180deg, #1f2c4a 0%, #4a4766 45%, #b07a74 80%, #d9a07e 100%)',
     glow: 'radial-gradient(ellipse 80% 45% at 50% 110%, rgba(255,190,140,0.35), rgba(255,190,140,0) 70%)',
@@ -78,7 +78,7 @@ export function SkyBackdrop({ startedAt, utcOffsetSeconds }: { startedAt: string
   const sky = SKIES[name];
   const web = Platform.OS === 'web';
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: sky.flat }, web && ({ backgroundImage: sky.sky } as any)]}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: sky.flat }, web && ({ backgroundImage: sky.sky } as any), { pointerEvents: 'none' }]}>
       {web ? <View style={[StyleSheet.absoluteFill, { backgroundImage: sky.glow } as any]} /> : null}
       {web && name === 'night' ? <View style={[StyleSheet.absoluteFill, { backgroundImage: STARS } as any]} /> : null}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(20,14,10,0.28)' }]} />

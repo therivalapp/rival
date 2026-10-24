@@ -8,6 +8,7 @@ import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamil
 import { sidePageWide } from '../constants/breakpoints';
 import { formatTeamName } from '../lib/identity';
 import { BusyText } from '../components/rival/BusyText';
+import { avatarImage } from '../lib/imageUrl';
 
 // What a stranger sees before joining a public team.
 //
@@ -146,7 +147,7 @@ export default function TeamPreviewScreen() {
       <>
         <View style={[styles.hero, mob && ms.hero]}>
           {preview.logo_url ? (
-            <Image source={{ uri: preview.logo_url }} style={[styles.logo, mob && ms.crest]} />
+            <Image source={{ uri: avatarImage(preview.logo_url, 96) }} style={[styles.logo, mob && ms.crest]} />
           ) : (
             <View style={[styles.logoFallback, mob && ms.crest]}>
               <RivalIcon name="groups" size={34} color={RivalColors.accentText} />

@@ -144,7 +144,7 @@ export default function RecapScreen() {
               {recap.total_elevation_m > 0 && (
                 <View style={[styles.statCard, m && ms.card]}>
                   <Text style={[styles.statValue, m && ms.serifNum, !m && { color: '#AB47BC' }]}>{elevationNumber(recap.total_elevation_m)}</Text>
-                  <Text style={styles.statLabel}>{elevationUnit()} climbed</Text>
+                  <Text style={styles.statLabel}>{elevationUnit()} elevation</Text>
                 </View>
               )}
             </View>

@@ -36,14 +36,17 @@ export type ActivityDetailRow = {
 };
 
 /** Reads one activity's details when `id` is set. */
+// Details already fetched, so opening them again is instant.
+const seen = new Map<string, ActivityDetailRow>();
+
 export function useActivityDetails(id: string | null | undefined): ActivityDetailRow | null {
-  const [row, setRow] = useState<ActivityDetailRow | null>(null);
+  const [row, setRow] = useState<ActivityDetailRow | null>(() => (id ? seen.get(id) ?? null : null));
   useEffect(() => {
-    setRow(null);
+    setRow(id ? seen.get(id) ?? null : null);
     if (!id) return;
     let live = true;
     supabase.from('activities').select(COLUMNS).eq('id', id).maybeSingle()
-      .then(({ data }) => { if (live && data) setRow(data as ActivityDetailRow); });
+      .then(({ data }) => { if (data) seen.set(id, data as ActivityDetailRow); if (live && data) setRow(data as ActivityDetailRow); });
     return () => { live = false; };
   }, [id]);
   return row;
@@ -190,8 +193,18 @@ export function DetailsSheet({ activityId, title, bests, onClose }: {
   onClose: () => void;
 }) {
   const details = useActivityDetails(activityId);
+  // The sheet waits for its details, so it rises once, filled in, rather
+  // than as a grey Loading sheet that then changes (Ricky, 2026-10-24). A
+  // slow connection still gets it, with Loading, after a moment.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    setSlow(false);
+    if (!activityId) return;
+    const t = setTimeout(() => setSlow(true), 700);
+    return () => clearTimeout(t);
+  }, [activityId]);
   return (
-    <Modal visible={!!activityId} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={!!activityId && (!!details || slow)} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <GreySheet

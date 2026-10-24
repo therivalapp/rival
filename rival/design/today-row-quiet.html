@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Shown at the screenshot's own scale (1.25 px per point). The podium is
+   Ricky's real screenshot; only the row under Add activity changes. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;display:flex;flex-direction:column;gap:34px;align-items:center}
+.col{width:490px}
+h2{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.phone{background:#171514;border-radius:22px;overflow:hidden}
+.phone img{display:block;width:490px}
+.under{padding:18px 20px 34px}
+.serif{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.gold{background:linear-gradient(180deg,#ffe6b0,#f5b759);-webkit-background-clip:text;color:transparent}
+.elite{background:linear-gradient(180deg,#e3d4ff,#a98be0);-webkit-background-clip:text;color:transparent;text-transform:uppercase;letter-spacing:1.5px}
+.sal{color:#e8835f}
+/* Now */
+.now{position:relative;display:flex;padding:10px 0;border-radius:20px;background:#282828 radial-gradient(ellipse 70% 55% at 50% 0%,rgba(217,119,87,.17),rgba(217,119,87,.035) 60%,rgba(217,119,87,0) 85%) no-repeat border-box;border:1px solid rgba(255,209,190,.18)}
+.now .c{flex:1;display:flex;flex-direction:column;align-items:center}.now .c+.c{border-left:1px solid rgba(255,209,190,.08)}
+.now .ic{height:24px;color:#D97757;font-size:16px}
+.now .v{font-size:27px;line-height:45px}.now .vb{font-size:35px}
+.now .l{font-size:13px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-top:6px;white-space:nowrap}
+.now .d{font-size:13px;font-weight:600;color:rgba(255,255,255,.55);margin-top:1px}
+/* Quiet row, shared type */
+.q{display:flex}
+.q .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.q .v{font-size:25px;line-height:30px}
+.q .l{font-size:11.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,.5);white-space:nowrap}
+.q .d{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.4)}
+.q1 .c+.c{border-left:1px solid rgba(255,255,255,.07)}
+.q2{padding:14px 0;border-radius:20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.q2 .c+.c{border-left:1px solid rgba(255,255,255,.06)}
+/* One line */
+.chips{display:flex;gap:8px;justify-content:center}
+.chip{display:flex;align-items:baseline;gap:7px;padding:9px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);white-space:nowrap}
+.chip b{font-size:19px;line-height:20px}
+.chip span{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.5)}
+.note{font-size:14px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:20px}
+</style></head><body>
+<script>
+const shot='<img src="today-podium-top.png">';
+const nowRow=`<div class="now">
+<div class="c"><div class="ic">&#9679;</div><div class="v serif">Run</div><div class="l">Last · Yesterday</div><div class="d">+76 Effort</div></div>
+<div class="c"><div class="ic" style="color:#c9b3ff">&#9670;</div><div class="v serif elite">Elite</div><div class="l">2026 Rank</div><div class="d">72 days left</div></div>
+<div class="c"><div class="ic">&#9679;</div><div class="v vb serif sal">1</div><div class="l">Week streak</div><div class="d">1 of 3 this week</div></div></div>`;
+const cells=`<div class="c"><div class="v serif">Run</div><div class="l">Yesterday</div><div class="d">+76 Effort</div></div>
+<div class="c"><div class="v serif elite" style="font-size:22px">Elite</div><div class="l">2026 rank</div><div class="d">72 days left</div></div>
+<div class="c"><div class="v serif sal">1</div><div class="l">Week streak</div><div class="d">1 of 3 this week</div></div>`;
+const opts=[
+ ['Now','', nowRow,'The brightest surface on the screen: lifted grey, glow, lit edge, icons, three large figures, white labels.'],
+ ['Q1 · No card','recommended', `<div class="q q1">${cells}</div>`,'The three figures sit straight on the page, split by faint hairlines. Smaller serif figures keep their colour; labels and detail lines step down to grey. The podium leads, and the row reads as a caption to it.'],
+ ['Q2 · Quiet flat card','', `<div class="q q2">${cells}</div>`,'The same quieter row in a barely-there dark card: no glow, no lit edge.'],
+ ['Q3 · One line of chips','', `<div class="chips"><div class="chip"><b class="serif">Run</b><span>Yesterday</span></div><div class="chip"><b class="serif elite" style="font-size:16px">Elite</b><span>72 days</span></div><div class="chip"><b class="serif sal">1</b><span>week streak</span></div></div>`,'The quietest: one short line. Loses the detail lines (+76 Effort, 1 of 3 this week).'],
+];
+opts.shift();
+document.write(`<div class="col"><h2>Now <span>your screenshot</span></h2><div class="phone"><img src="today-podium-crop.png"></div><div class="note">The brightest surface on the screen: lifted grey, glow, lit edge, icons, three large figures, white labels.</div></div>`+opts.map(([t,r,row,n])=>`<div class="col"><h2>${t}${r?` <span>${r}</span>`:''}</h2><div class="phone">${shot}<div class="under">${row}</div></div><div class="note">${n}</div></div>`).join(''));
+</script></body></html>

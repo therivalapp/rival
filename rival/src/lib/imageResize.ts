@@ -58,11 +58,12 @@ function steppedDraw(img: CanvasImageSource, sx: number, sy: number, sw: number,
   return canvas;
 }
 
-const PHOTO_MAX_EDGE = 1600; // sharp in the feed and full-screen, ~8x smaller than a phone original
+// 2048 at 0.92: 1600 at 0.88 looked soft full-screen on a 3x phone (Ricky, 2026-10-23).
+const PHOTO_MAX_EDGE = 2048; // sharp in the feed and full-screen, ~4x smaller than a phone original
 
 export type UploadFile = { blob: Blob; mimeType: string; ext: string };
 
-/** For activity photos: longest side down to 1600px as a JPEG. Videos, GIFs,
+/** For activity photos: longest side down to 2048px as a JPEG. Videos, GIFs,
  *  photos already that small, and anything the browser can't read (e.g. HEIC
  *  outside Safari) are returned untouched. */
 export async function fitPhoto(file: UploadFile): Promise<UploadFile> {
@@ -76,7 +77,7 @@ export async function fitPhoto(file: UploadFile): Promise<UploadFile> {
     const w = img.naturalWidth, h = img.naturalHeight;
     if (Math.max(w, h) <= PHOTO_MAX_EDGE) return file;
     const canvas = steppedDraw(img, 0, 0, w, h, PHOTO_MAX_EDGE);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
     return blob ? { blob, mimeType: 'image/jpeg', ext: 'jpg' } : file;
   } catch {
     return file;

@@ -12,6 +12,10 @@ import type { RivalIconName } from '../components/rival/RivalIcon';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_TWO_UP_GRID, sidePageWide } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
+import { useSnapState } from '../lib/snapState';
+import { avatarImage } from '../lib/imageUrl';
+import { inChunks, selectAll } from '../lib/selectAll';
+import { liftPbChecker, liftsFromEntries } from '../lib/liftPb';
 
 type MembershipState = 'none' | 'pending' | 'active';
 
@@ -63,9 +67,11 @@ export default function DiscoverLeaguesScreen() {
   // keep their own design.
   const mob = !sidePageWide(windowWidth);
 
-  const [myTeams, setMyTeams] = useState<TeamRow[]>([]);
-  const [publicTeams, setPublicTeams] = useState<TeamRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Remembered between visits (lib/snapState.ts): opening it again shows the
+  // teams at once and refreshes behind them (2026-10-21).
+  const [myTeams, setMyTeams] = useSnapState<TeamRow[]>('discover.myTeams', []);
+  const [publicTeams, setPublicTeams] = useSnapState<TeamRow[]>('discover.publicTeams', []);
+  const [loading, setLoading] = useSnapState('discover.loading', true);
   const [search, setSearch] = useState('');
   const [joining, setJoining] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -133,10 +139,10 @@ export default function DiscoverLeaguesScreen() {
         ? createdDates.reduce((min, d) => (new Date(d) < new Date(min) ? d : min))
         : thirtyDaysAgo.toISOString();
 
-      const [activitiesRes, readsRes, messagesRes, togetherActivitiesRes, profilesRes] = await Promise.all([
+      const [activitiesRes, readsRes, messagesRes, togetherActivitiesRes, profilesRes, liftRows] = await Promise.all([
         allMemberIds.length > 0
           ? supabase.from('activities')
-              .select('user_id, effort_score, exercises, started_at, activity_type')
+              .select('id, user_id, effort_score, exercises, started_at, activity_type')
               .in('user_id', allMemberIds)
               .gte('started_at', thirtyDaysAgo.toISOString())
               .order('started_at', { ascending: false })
@@ -159,7 +165,15 @@ export default function DiscoverLeaguesScreen() {
         allMemberIds.length > 0
           ? supabase.from('users').select('id, display_name').in('id', allMemberIds)
           : Promise.resolve({ data: [] }),
+        // Every logged lift, for "New PB this week" by the real rule
+        // (lib/liftPb.ts); paged, since the database stops at 1,000 rows.
+        allMemberIds.length > 0
+          ? inChunks(allMemberIds, (ids) => selectAll((from, to) => supabase.from('exercise_entries')
+              .select('id, user_id, activity_id, exercise_name, weight_kg, performed_at').in('user_id', ids).order('id').range(from, to)))
+              .catch(() => [])
+          : Promise.resolve([]),
       ]);
+      const liftPb = liftPbChecker(liftsFromEntries(liftRows as any[]));
       const recentActivities = activitiesRes.data;
       const profileById = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
 
@@ -198,7 +212,7 @@ export default function DiscoverLeaguesScreen() {
 
         const pbThisWeek = teamActivities.some((a: any) =>
           new Date(a.started_at).getTime() >= weekStart &&
-          (a.exercises || []).some((ex: any) => ex.prLift)
+          !!liftPb(a.user_id, a.id, a.started_at, a.exercises)
         );
         if (pbThisWeek) {
           heroStatByLeague[teamId] = { icon: 'fire', text: 'New PB this week' };
@@ -337,7 +351,7 @@ export default function DiscoverLeaguesScreen() {
   // beside its name, in grouped rows.
   if (mob) {
     const crest = (team: TeamRow) => team.logo_url ? (
-      <Image source={{ uri: team.logo_url }} style={pm.crest} />
+      <Image source={{ uri: avatarImage(team.logo_url, 96) }} style={pm.crest} />
     ) : (
       <View style={[pm.crest, pm.crestFallback]}>
         <RivalIcon name={fallbackIcon(team.id)} size={17} color={RivalColors.accentText} />
@@ -533,7 +547,7 @@ export default function DiscoverLeaguesScreen() {
                       onPress={() => router.push({ pathname: '/team-preview', params: { id: team.id } })}
                     >
                       {team.logo_url ? (
-                        <Image source={{ uri: team.logo_url }} style={styles.discoverLogo} />
+                        <Image source={{ uri: avatarImage(team.logo_url, 96) }} style={styles.discoverLogo} />
                       ) : (
                         <View style={styles.discoverLogoFallback}>
                           <RivalIcon name="groups" size={22} color={RivalColors.accentText} />
@@ -612,7 +626,7 @@ function TeamGridCard({
     >
       {team.logo_url ? (
         <>
-          <Image source={{ uri: team.logo_url }} style={styles.gridCardBg} resizeMode="cover" />
+          <Image source={{ uri: avatarImage(team.logo_url, 96) }} style={styles.gridCardBg} resizeMode="cover" />
           {showContent && <View style={styles.gridCardBgScrim} />}
         </>
       ) : (

@@ -73,10 +73,10 @@ export const QUOTES: Quote[] = [
   { text: "What you build slowly tends to last.", category: 'longterm', tone: 'balanced' },
   { text: "A decade of small choices outweighs one big one.", category: 'longterm', tone: 'balanced' },
   { text: "The compound effect doesn't care about your timeline.", category: 'longterm', tone: 'balanced' },
-  { text: "Patience is a training variable too.", category: 'longterm', tone: 'balanced' },
+  { text: "Patience is part of the work too.", category: 'longterm', tone: 'balanced' },
   { text: "You have more time than you think.", category: 'longterm', tone: 'encouraging' },
   { text: "The reason you started is still true today.", category: 'longterm', tone: 'encouraging' },
-  { text: "The slow build is still a build.", category: 'longterm', tone: 'encouraging' },
+  { text: "Slow is still forward.", category: 'longterm', tone: 'encouraging' },
   { text: "Nothing about this needs to be rushed.", category: 'longterm', tone: 'encouraging' },
   { text: "You're allowed to take the long way.", category: 'longterm', tone: 'encouraging' },
   { text: "Your future self will thank you.", category: 'longterm', tone: 'encouraging' },
@@ -92,6 +92,9 @@ export const QUOTES: Quote[] = [
   { text: "You don't need a perfect streak. You need a repeated one.", category: 'consistency', tone: 'encouraging' },
   { text: "Every time you show up, you make the next time easier.", category: 'consistency', tone: 'encouraging' },
   { text: "Consistency forgives a bad day. It just asks you to return.", category: 'consistency', tone: 'encouraging' },
+  { text: "Small weeks still count.", category: 'consistency', tone: 'encouraging' },
+  { text: "The habit is the real win.", category: 'consistency', tone: 'balanced' },
+  { text: "Strong habits, strong life.", category: 'consistency', tone: 'balanced' },
   { text: "You've already proven you can keep showing up.", category: 'consistency', tone: 'encouraging' },
   { text: "Motivation isn't coming. Consistency doesn't need it to.", category: 'consistency', tone: 'blunt' },
   { text: "Skipping today makes tomorrow's excuse easier.", category: 'consistency', tone: 'blunt' },
@@ -148,6 +151,9 @@ export const QUOTES: Quote[] = [
   { text: "We make each other better.", category: 'community', tone: 'encouraging' },
   { text: "The right people make you want to raise your own standard.", category: 'community', tone: 'balanced' },
   { text: "Surround yourself with people who expect your best.", category: 'community', tone: 'blunt' },
+  // Ricky, 2026-10-22: the idea behind sharing, and a candidate tagline.
+  { text: "Share your effort. You could be inspiring someone.", category: 'community', tone: 'encouraging' },
+  { text: "Someone out there needed to see you show up today.", category: 'community', tone: 'balanced' },
 
   // ── COMPETITION ───────────────────────────────────────────────
   { text: "Your rival isn't resting today.", category: 'competition', tone: 'blunt' },

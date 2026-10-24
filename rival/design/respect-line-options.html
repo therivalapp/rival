@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Newsreader:ital,wght@1,700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#121010;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:26px}
+.col{width:100%;max-width:361px}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.card{position:relative;overflow:hidden;border-radius:22px;padding:16px 18px;background:#1f1b19;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:14px}
+.card:before{content:'';position:absolute;left:0;right:0;top:0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.card>*{position:relative}
+.top{display:flex}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffd3c2}
+.t{font-family:Newsreader,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px;margin-top:3px}
+.eff{margin-left:auto;text-align:center}.eff b{font-family:Newsreader,serif;font-style:italic;font-size:38px;line-height:42px;display:block}.eff i{font-style:normal;font-size:9.5px;letter-spacing:1.8px;font-weight:800;color:#ffb59e;text-transform:uppercase}
+.tiles{display:flex;gap:8px}.tile{flex:1;text-align:center;border-radius:14px;padding:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.tile b{font-family:Newsreader,serif;font-style:italic;font-size:22px;line-height:26px;display:block}.tile em{font-style:normal;font-size:12px;color:rgba(255,255,255,.55);font-weight:600}
+.tile i{font-style:normal;font-size:9px;letter-spacing:1.3px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.star{color:#f4a98a}
+.av{width:26px;height:26px;border-radius:13px;border:2px solid #1f1b19;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#2a1410}
+.a1{background:#f4a98a}.a2{background:#a9bde8}.a3{background:#9fd8b8}
+.stack{display:flex}.stack .av+.av{margin-left:-8px}
+/* A */
+.rA{display:flex;align-items:center;gap:10px}
+.rA .txt{font-size:13.5px;font-weight:600;color:rgba(255,255,255,.8)}.rA .txt b{color:#fff;font-weight:800}
+/* B */
+.rB{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:rgba(244,169,138,.10);border:1px solid rgba(244,169,138,.22)}
+.rB .big{font-family:Newsreader,serif;font-style:italic;font-weight:700;font-size:26px;line-height:28px;color:#f4a98a}
+.rB .lab{font-size:9.5px;letter-spacing:1.6px;font-weight:800;text-transform:uppercase;color:#f4a98a}
+.rB .who{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.85);margin-top:1px}
+/* C */
+.rC{display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,.08);padding-top:12px}
+.rC .l{display:flex;align-items:center;gap:8px}
+.rC .stars{font-size:15px;letter-spacing:2px;color:#f4a98a}
+.rC .txt{font-size:13px;font-weight:700}
+.rC .r{font-size:12px;color:rgba(255,255,255,.6);font-weight:600}
+</style></head><body>
+<script>
+const head=`<div class="top"><div><div class="k">Sep 21 – 27</div><div class="t">Week 39</div></div><div class="eff"><b>112</b><i>Effort</i></div></div>
+<div class="tiles"><div class="tile"><b>1<em>h</em> 19<em>m</em></b><i>Time</i></div><div class="tile"><b>14.4 <em>km</em></b><i>Distance</i></div><div class="tile"><b>2</b><i>Activities</i></div></div>`;
+document.write(`
+<div class="col"><h2>Now</h2><div class="card">${head}<div style="display:flex;gap:6px;align-items:center;font-size:13.5px;font-weight:700"><span class="star">★</span><span class="star">1</span> Respect received</div></div></div>
+
+<div class="col"><h2>A · Who gave it <span>recommended</span></h2><div class="card">${head}<div class="rA"><div class="stack"><span class="av a1">S</span></div><div class="txt"><b>Sandy</b> gave Respect <span class="star">★</span></div></div></div>
+<div style="height:10px"></div><div class="card" style="padding-top:12px"><div class="rA"><div class="stack"><span class="av a1">S</span><span class="av a2">M</span><span class="av a3">J</span></div><div class="txt"><b>Sandy</b>, <b>Marco</b> and 1 other gave Respect <span class="star">★</span></div></div></div></div>
+
+<div class="col"><h2>B · Respect tile <span>a fourth tile, in its own colour</span></h2><div class="card">${head}<div class="rB"><span class="star" style="font-size:22px">★</span><div style="flex:1"><div style="display:flex;align-items:baseline;gap:8px"><span class="big">3</span><span class="lab">Respect received</span></div><div class="who">From Sandy, Marco and Jo</div></div><div class="stack"><span class="av a1">S</span><span class="av a2">M</span><span class="av a3">J</span></div></div></div></div>
+
+<div class="col"><h2>C · Stars and faces <span>a quieter footer</span></h2><div class="card">${head}<div class="rC"><div class="l"><span class="stars">★★★</span><span class="txt">3 Respect</span></div><div class="stack"><span class="av a1">S</span><span class="av a2">M</span><span class="av a3">J</span></div></div></div></div>
+`);
+</script>
+</body></html>

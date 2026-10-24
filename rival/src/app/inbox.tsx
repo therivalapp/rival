@@ -1,5 +1,5 @@
 import { useSnapState } from '../lib/snapState';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { sidePageWide } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import { RivalBackButton, RivalIcon, RivalTopNav, GreySheet, GreyLabel } from '@
 import { INBOX_ICON_FOR, goToInboxSubject, inboxTimeAgo } from '@/components/rival/NotificationsMenu';
 import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalGhost } from '@/constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
+import { ShortActivityPreview, loadShortActivities, shortActivityLine, type ShortActivity } from '../components/rival/ShortActivityPreview';
 import { goToTab } from '../lib/tabNav';
 import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../lib/stravaSharing';
 
@@ -33,6 +34,15 @@ export default function InboxScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorFor, setErrorFor] = useState<Record<string, string>>({});
   const phone = !sidePageWide(useWindowDimensions().width);
+  // Short activities waiting on a decision: loaded with the list, so the card
+  // can say what it is, and opened in place to show the whole activity.
+  const [shorts, setShorts] = useState<Record<string, ShortActivity>>({});
+  const [expanded, setExpanded] = useState<string | null>(null);
+  useEffect(() => {
+    const ids = items.filter((i) => i.kind === 'short_activity' && isActionable(i) && i.subject_id).map((i) => i.subject_id as string);
+    if (!ids.length) return;
+    loadShortActivities(ids).then(setShorts, () => {});
+  }, [items]);
 
   const load = useCallback(async () => {
     const rows = await fetchInbox();
@@ -125,20 +135,33 @@ export default function InboxScreen() {
                 </View>
               </TouchableOpacity>
             )}
-            {open.map((item) => (
+            {open.map((item) => {
+              const short = item.kind === 'short_activity' && item.subject_id ? shorts[item.subject_id] : undefined;
+              const isOpen = !!short && expanded === item.id;
+              return (
               <View key={item.id} style={[m.card, m.cardOpen]}>
-                <View style={styles.cardMain}>
+                <TouchableOpacity
+                  style={styles.cardMain}
+                  activeOpacity={short ? 0.7 : 1}
+                  disabled={!short}
+                  onPress={() => setExpanded(isOpen ? null : item.id)}
+                  accessibilityRole={short ? 'button' : undefined}
+                  accessibilityLabel={short ? (isOpen ? 'Hide the activity' : 'Show the activity') : undefined}
+                >
                   <View style={m.badge}><RivalIcon name={INBOX_ICON_FOR[item.kind]} size={16} color={RivalColors.accentText} /></View>
                   <View style={styles.textWrap}>
                     <Text style={styles.cardTitle}>{item.title}</Text>
-                    {item.body ? <Text style={styles.cardBody}>{item.body}</Text> : null}
+                    {short ? <Text style={styles.cardBody}>{shortActivityLine(short)}</Text> : item.body ? <Text style={styles.cardBody}>{item.body}</Text> : null}
                     <Text style={styles.cardWhen}>{inboxTimeAgo(item.created_at)}</Text>
                   </View>
-                </View>
+                  {short ? <RivalIcon name={isOpen ? 'chevronUp' : 'chevronDown'} size={20} color="rgba(255,255,255,0.45)" style={{ alignSelf: 'center' }} /> : null}
+                </TouchableOpacity>
+                {isOpen && short ? <ShortActivityPreview a={short} /> : null}
                 {actionsFor(item)}
                 {errorFor[item.id] ? <Text style={styles.error}>{errorFor[item.id]}</Text> : null}
               </View>
-            ))}
+              );
+            })}
 
             {loading ? (
               <Text style={styles.state}>Loading…</Text>

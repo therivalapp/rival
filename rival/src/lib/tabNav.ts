@@ -16,6 +16,9 @@ let currentPath = '';
 export function setCurrentPath(path: string) {
   currentPath = path;
 }
+export function getCurrentPath() {
+  return currentPath;
+}
 
 // Tapping the tab you're already on: the tab closes whatever it has open on
 // top (an activity, a photo) and shows its main page, the usual phone-app

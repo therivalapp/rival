@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Newsreader:ital,wght@1,700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#121010;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:26px}
+.col{width:100%;max-width:361px}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.card{position:relative;overflow:hidden;border-radius:22px;padding:16px 18px;background:#1f1b19;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:14px}
+.card:before{content:'';position:absolute;left:0;right:0;top:0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.card>*{position:relative}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffd3c2}
+.t{font-family:Newsreader,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px;margin-top:3px}
+.days{display:flex;justify-content:space-between}.d{text-align:center;width:36px}.d i{display:block;font-style:normal;font-size:10px;font-weight:800;color:rgba(255,255,255,.45)}
+.d u{display:block;width:8px;height:8px;border-radius:4px;margin:6px auto 0;background:rgba(255,255,255,.14)}.d.today i{color:#fff}.d.today u{background:transparent;border:1.5px solid #e8835f;width:7px;height:7px}
+.panel{border-radius:14px;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.lbl{font-size:9.5px;letter-spacing:1.6px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.big{font-family:Newsreader,serif;font-style:italic;font-weight:700;font-size:20px;line-height:24px;margin-top:4px}
+.big em{font-family:Manrope;font-style:normal;font-size:12px;color:rgba(255,255,255,.55);font-weight:600}
+.line{font-size:13px;color:rgba(255,255,255,.75);line-height:19px;margin-top:4px}
+.line b{color:#fff}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:10px;overflow:hidden}.bar i{display:block;height:6px;background:linear-gradient(90deg,#c4694a,#f2b39c);border-radius:3px}
+.row{display:flex;align-items:center;gap:12px}
+.ic{width:38px;height:38px;border-radius:19px;background:rgba(232,131,95,.16);display:flex;align-items:center;justify-content:center;color:#ffb59e;font-size:18px;flex:none}
+.ring{width:22px;height:22px;border-radius:11px;border:2px solid rgba(255,255,255,.22);display:inline-block}
+.btn{height:52px;border-radius:26px;background:linear-gradient(90deg,#d9805f,#f2b39c);color:#4a1a0c;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;margin-top:12px}
+</style></head><body>
+<script>
+const days=`<div class="days">${'MTWTFSS'.split('').map((l,i)=>`<div class="d ${i===0?'today':''}"><i>${l}</i><u></u></div>`).join('')}</div>`;
+const head=`<div><div class="k">Oct 19 – 25</div><div class="t">This week</div></div>`;
+document.write(`
+<div class="col"><h2>D · This week last year <span>recommended</span></h2>
+<div class="card">${head}${days}
+<div class="panel row"><div class="ic">↺</div><div><div class="lbl">Oct 19 – 25, 2025</div><div class="line"><b>2 activities</b> · 25 km · 2h 18m</div></div></div>
+</div><div class="btn">+ Add activity</div></div>
+
+<div class="col"><h2>E · October so far</h2>
+<div class="card">${head}${days}
+<div class="panel"><div class="lbl">October so far</div><div class="big">8 <em>activities</em> &nbsp;33 <em>km</em> &nbsp;3<em>h</em> 30<em>m</em></div><div class="bar"><i style="width:61%"></i></div><div class="line" style="font-size:11.5px;color:rgba(255,255,255,.5)">19 of 31 days</div></div>
+</div><div class="btn">+ Add activity</div></div>
+
+<div class="col"><h2>F · The usual Monday</h2>
+<div class="card">${head}${days}
+<div class="panel row"><div class="ic">≈</div><div><div class="lbl">Mondays</div><div class="line">Mondays are usually a <b>swim</b>. 22 so far.</div></div></div>
+</div><div class="btn">+ Add activity</div></div>
+
+<div class="col"><h2>G · Streak in the spotlight</h2>
+<div class="card">${head}${days}
+<div class="panel row" style="justify-content:space-between"><div class="row"><div class="ic">🔥</div><div><div class="big" style="margin:0">1 <em>week streak</em></div><div class="line" style="margin-top:0;font-size:12px">3 activities make it a streak week</div></div></div><div style="display:flex;gap:5px"><span class="ring"></span><span class="ring"></span><span class="ring"></span></div></div>
+</div><div class="btn">+ Add activity</div></div>
+`);
+</script></body></html>

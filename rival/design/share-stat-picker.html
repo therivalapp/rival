@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:20px;display:flex;gap:28px}
+.col{width:375px}h2{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+.note{font-size:12px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:17px}
+.ov{width:375px;height:812px;border-radius:28px;background:#0f0d0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:0 24px;box-sizing:border-box}
+.stage{width:260px;height:462px;border-radius:18px;overflow:hidden;position:relative;background:url(file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/candidates/a-small-peloton-of-cyclists-on-a.png) center/cover}
+.stage img{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:240px}
+.strip{display:flex;gap:8px}
+.ch{width:40px;height:56px;border-radius:9px;border:1.5px solid rgba(255,255,255,.12);background:#3a3330}
+.ch.on{border-color:#ffb59e}.ch.card{background:url(file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/candidates/a-small-peloton-of-cyclists-on-a.png) center/cover}
+.lab{font-size:10px;font-weight:800;letter-spacing:1.4px;color:rgba(255,255,255,.5);align-self:flex-start;margin:4px 0 -4px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;align-self:stretch}
+.chip{padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid rgba(255,209,190,.25);color:rgba(255,255,255,.75)}
+.chip.on{background:linear-gradient(135deg,#ffb59e,#D97757);border-color:transparent;color:#2a120a}
+.chip.lock{background:rgba(255,201,77,.16);border-color:rgba(255,201,77,.4);color:#ffe6a8}
+.btn{align-self:stretch;padding:13px 0;border-radius:999px;text-align:center;font-weight:800;font-size:14.5px;color:#2a120a;background:linear-gradient(135deg,#ffb59e,#D97757)}
+.close{font-size:14px;font-weight:700;color:rgba(255,255,255,.6)}
+</style></head><body>
+<script>
+const SERIF='Georgia, serif',SANS='Manrope, sans-serif',S=3;
+const sp=(x,t,px,py,s,c)=>{const ws=[...t].map(ch=>x.measureText(ch).width);const tot=ws.reduce((a,b)=>a+b,0)+s*(t.length-1);let cx=c?px-tot/2:px;x.textAlign='left';[...t].forEach((ch,i)=>{x.fillText(ch,cx,py);cx+=ws[i]+s;});};
+const gold=(x,t,b)=>{const g=x.createLinearGradient(0,t,0,b);g.addColorStop(0,'#fff4d6');g.addColorStop(1,'#ffc94d');return g;};
+function stamp(figs){const n=figs.length,cw=82,w=Math.max(200,n*cw+30);const c=document.createElement('canvas');c.width=w*S;c.height=100*S;const x=c.getContext('2d');x.shadowColor='rgba(0,0,0,.6)';x.shadowBlur=9*S;const C=w/2*S;
+ x.font=`800 ${13*S}px ${SANS}`;const ws=[...'RIVAL'].map(ch=>x.measureText(ch).width);const tot=ws.reduce((a,b)=>a+b,0)+5.2*S*4;const g=x.createLinearGradient(C-tot/2,0,C+tot/2,0);g.addColorStop(0,'#E8906E');g.addColorStop(.45,'#ffb59e');g.addColorStop(1,'#F5B759');x.fillStyle=g;sp(x,'RIVAL',C,24*S,5.2*S,true);
+ const y=64*S;figs.forEach((f,i)=>{const fx=C+(i-(n-1)/2)*cw*S;if(i){x.shadowBlur=0;x.fillStyle='rgba(255,209,190,.4)';x.fillRect(fx-cw/2*S,y-19*S,1.5,29*S);x.shadowBlur=9*S;}
+ x.font=`italic 700 ${19*S}px ${SERIF}`;const vw=x.measureText(f[0]).width;x.font=`600 ${8.5*S}px ${SANS}`;const uw=f[1]?x.measureText(' '+f[1]).width:0;const st=fx-(vw+uw)/2;
+ x.font=`italic 700 ${19*S}px ${SERIF}`;x.fillStyle=f[3]?gold(x,y-19*S,y):'#fff';x.fillText(f[0],st,y);if(f[1]){x.font=`600 ${8.5*S}px ${SANS}`;x.fillStyle='rgba(255,255,255,.78)';x.fillText(' '+f[1],st+vw,y);}
+ x.font=`800 ${8.5*S}px ${SANS}`;x.fillStyle=f[3]?'#ffd27a':'rgba(255,255,255,.78)';sp(x,f[2],fx,y+14*S,1.3*S,true);});return c.toDataURL();}
+const all=[['Distance','162','km'],['Time','5:48:10',''],['Speed','27.9','km/h'],['Climb','1,840','m'],['Elevation gain',null],['Effort','301','',1]];
+function screen(on){const figs=all.filter(a=>a[1]&&on.includes(a[0])).map(a=>[a[1],a[2],a[0].toUpperCase(),a[3]]);
+ const chips=['Distance','Time','Speed','Climb','Effort'].map(k=>`<span class="chip ${on.includes(k)?(k==='Effort'?'lock':'on'):''}">${k}</span>`).join('');
+ return `<div class="ov"><div class="stage"><img src="${stamp(figs)}"></div><div class="strip"><div class="ch card"></div><div class="ch on"></div><div class="ch"></div><div class="ch"></div><div class="ch"></div><div class="ch"></div><div class="ch"></div><div class="ch"></div></div><div class="lab">SHOW</div><div class="chips">${chips}</div><div class="btn">Share</div><div class="close">Close</div></div>`;}
+document.write(`<div class="col"><h2>RIDE · AS IT COMES</h2>${screen(['Distance','Time','Speed','Effort'])}<div class="note">A row of choices under the stamps: tap a stat to show or hide it. Up to four at once. Effort stays on, in gold, so the stamp always says RIVAL.</div></div>
+<div class="col"><h2>RIDE · SPEED OFF, CLIMB ON</h2>${screen(['Distance','Time','Climb','Effort'])}<div class="note">Every stamp and the share card redraw straight away. The choice is remembered for rides, so the next ride starts the same way.</div></div>
+<div class="col"><h2>RIDE · JUST DISTANCE</h2>${screen(['Distance','Effort'])}<div class="note">Fewer stats make a smaller, quieter stamp. Distance on its own, plus Effort.</div></div>`);
+</script></body></html>

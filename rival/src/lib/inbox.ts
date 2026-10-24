@@ -14,7 +14,9 @@ export type InboxKind =
   | 'team_joined'
   | 'activity_tag'
   | 'tag_accepted'
-  | 'pace_review';
+  | 'pace_review'
+  // Ricky only: someone close to or reaching Unrivaled (rank_alerts.sql).
+  | 'rank_alert';
 
 export type InboxItem = {
   id: string;
@@ -97,7 +99,18 @@ export async function fetchInbox(limit = 50): Promise<InboxItem[]> {
 const BADGE_CACHE_MS = 15_000;
 let badgeCache: { at: number; userId: string; count: number } | null = null;
 
-export async function fetchInboxBadgeCount(): Promise<number> {
+// One request shared by everyone asking at once (each mounted tab's top bar
+// asks on every tab switch).
+let badgeInflight: Promise<number> | null = null;
+
+export function fetchInboxBadgeCount(): Promise<number> {
+  if (badgeInflight) return badgeInflight;
+  const p = readInboxBadgeCount().finally(() => { if (badgeInflight === p) badgeInflight = null; });
+  badgeInflight = p;
+  return p;
+}
+
+async function readInboxBadgeCount(): Promise<number> {
   const { data: { user } } = await getAuthUser();
   if (!user) return 0;
   if (badgeCache && badgeCache.userId === user.id && Date.now() - badgeCache.at < BADGE_CACHE_MS) return badgeCache.count;

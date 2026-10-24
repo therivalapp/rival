@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { RivalButtonColors, RivalColors, RivalRadius } from '../../constants/rivalTheme';
+import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
+import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon } from './RivalIcon';
 
 function startOfMonth(d: Date): Date { return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -31,6 +32,10 @@ export function RivalCalendarGrid({ value, onChange }: { value: string | null; o
   const [viewDate, setViewDate] = useState(() => (value ? new Date(value + 'T00:00:00') : startOfMonth(new Date())));
   const weeks = chunkWeeks(monthGridCells(viewDate));
   const hitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
+  // Phones: the Activity calendar's look (Ricky, 2026-10-20): the month in the
+  // serif, square quiet days, today's date in salmon. Desktop keeps its own.
+  const phone = useWindowDimensions().width < BREAKPOINT_MOBILE_NAV;
+  const todayIso = toIsoDate(new Date());
 
   // Swipe left or right to change month (Ricky, 2026-10-16): the corner
   // arrows are hard to reach with a thumb. The month slides out the way it
@@ -69,7 +74,7 @@ export function RivalCalendarGrid({ value, onChange }: { value: string | null; o
             <RivalIcon name="monthBack" size={18} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
         </View>
-        <Text style={styles.monthLabel}>{viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</Text>
+        <Text style={[styles.monthLabel, phone && styles.monthLabelPhone]}>{viewDate.toLocaleDateString(undefined, phone && viewDate.getFullYear() === new Date().getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' })}</Text>
         <View style={styles.navGroup}>
           <TouchableOpacity style={styles.navBtn} onPress={() => changeMonth(1)} hitSlop={hitSlop} accessibilityLabel="Next month">
             <RivalIcon name="monthForward" size={18} color="rgba(255,255,255,0.6)" />
@@ -80,20 +85,21 @@ export function RivalCalendarGrid({ value, onChange }: { value: string | null; o
         </View>
       </View>
       <Animated.View {...pan.panHandlers} style={[styles.grid, { transform: [{ translateX: slide }], opacity: slide.interpolate({ inputRange: [-60, 0, 60], outputRange: [0.4, 1, 0.4] }) }]}>
-      <View style={styles.daysRow}>
+      <View style={[styles.daysRow, phone && styles.daysRowPhone]}>
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-          <Text key={i} style={styles.dayLabel}>{d}</Text>
+          <Text key={i} style={[styles.dayLabel, phone && styles.dayLabelPhone]}>{d}</Text>
         ))}
       </View>
       {weeks.map((week, wi) => (
-        <View key={wi} style={styles.daysRow}>
+        <View key={wi} style={[styles.daysRow, phone && styles.daysRowPhone]}>
           {week.map((day, di) => {
-            if (day === null) return <View key={di} style={styles.dayCell} />;
+            if (day === null) return <View key={di} style={[styles.dayCell, phone && styles.dayCellPhone, phone && { backgroundColor: 'transparent' }]} />;
             const cellIso = toIsoDate(new Date(viewDate.getFullYear(), viewDate.getMonth(), day));
             const isSelected = value === cellIso;
+            const isToday = phone && cellIso === todayIso;
             return (
-              <TouchableOpacity key={di} style={[styles.dayCell, isSelected && styles.dayCellActive]} onPress={() => onChange(cellIso)}>
-                <Text style={[styles.dayNum, isSelected && styles.dayNumActive]}>{day}</Text>
+              <TouchableOpacity key={di} style={[styles.dayCell, phone && styles.dayCellPhone, isSelected && styles.dayCellActive]} onPress={() => onChange(cellIso)}>
+                <Text style={[styles.dayNum, phone && styles.dayNumPhone, isToday && !isSelected && styles.dayNumToday, isSelected && styles.dayNumActive]}>{day}</Text>
               </TouchableOpacity>
             );
           })}
@@ -118,5 +124,11 @@ const styles = StyleSheet.create({
   // button (Ricky, 2026-10-16).
   dayCellActive: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' } as any,
   dayNum: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  monthLabelPhone: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, color: '#fff' },
+  daysRowPhone: { gap: 6 },
+  dayLabelPhone: { fontSize: 9.5, fontWeight: '800', color: 'rgba(255,255,255,0.4)' },
+  dayCellPhone: { borderRadius: 11, borderWidth: 0, backgroundColor: 'rgba(255,255,255,0.035)' },
+  dayNumPhone: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.55)' },
+  dayNumToday: { color: RivalColors.accentText, fontWeight: '900' },
   dayNumActive: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '800' },
 });

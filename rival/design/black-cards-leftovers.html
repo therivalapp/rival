@@ -1,0 +1,74 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Copied from weekly-scan.tsx mobileStyles + mx, scan-workout.tsx
+   mobileStyles.successBanner, GreyPageHead, RivalGhost tokens.
+   "Now" uses RivalColors.surfaceLowest #0e0e0e / surfaceBright #323232;
+   "Change" swaps only those for RivalGhost.fill / RivalGhost.border. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.col{width:375px}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.note{font-size:12px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:17px}
+.page{background:#232120;border-radius:18px;padding:0 16px 22px;position:relative;overflow:hidden}
+.page::before{content:'';position:absolute;left:0;right:0;top:0;height:200px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.16),rgba(217,119,87,0) 70%);pointer-events:none}
+.head{position:relative;display:flex;flex-direction:column;align-items:center;padding:18px 0 10px}
+.back{position:absolute;left:0;top:16px;width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;background:rgba(255,209,190,.06)}
+.kick{font-size:10.5px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}
+.ttl{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;margin-top:4px}
+.sub{position:relative;font-size:13px;color:#A0A0A0;margin-bottom:14px;line-height:18px;text-align:center}
+.days{position:relative;display:flex;gap:6px;margin-bottom:18px}
+.day{flex:1;min-width:0;aspect-ratio:.72;border-radius:14px;border:1px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.now .day{background:#0e0e0e;border-color:#323232}
+.chg .day{background:rgba(255,209,190,.05);border-color:rgba(255,181,158,.22)}
+.day.on{background:rgba(255,209,190,.10)!important;border-color:rgba(255,181,158,.55)!important}
+.day.fut{opacity:.35}
+.dl{font-size:10px;font-weight:800;letter-spacing:.8px;color:rgba(255,255,255,.45)}
+.dd{font-family:Georgia,serif;font-style:italic;font-size:19px;font-weight:700;color:rgba(255,255,255,.6)}
+.on .dl,.on .dd{color:#ffb59e}
+.plus{font-size:16px;color:rgba(255,255,255,.3);font-weight:600}
+.cnt{font-size:11px;font-weight:800;color:#ffb59e;display:flex;align-items:center;gap:3px}
+.card{position:relative;border-radius:16px;border:1px solid;padding:14px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.now .card{background:#0e0e0e;border-color:#323232}
+.chg .card{background:rgba(255,209,190,.05);border-color:rgba(255,181,158,.22)}
+.lab{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#A0A0A0}
+.thumbs{display:flex;gap:8px}
+.th{width:76px;height:76px;border-radius:12px;background:linear-gradient(150deg,#5b4c43,#2e2622)}
+.btn{position:relative;padding:15px 0;border-radius:999px;text-align:center;font-weight:800;font-size:15.5px;color:#2a120a;background:linear-gradient(135deg,#ffb59e,#D97757);margin-top:8px}
+.row{display:flex;align-items:center;gap:10px}
+.nm{font-family:Georgia,serif;font-style:italic;font-size:18px;font-weight:700;flex-shrink:1}
+.tag{padding:3px 8px;border-radius:999px;background:rgba(255,209,190,.12);font-size:11.5px;font-weight:800;color:#ffb59e}
+.ph{margin-left:auto;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,209,190,.28);display:flex}
+.pend{font-size:13px;color:rgba(255,255,255,.45)}
+.top{display:flex;justify-content:space-between;align-items:center}
+.ok{position:relative;border-radius:16px;padding:16px;margin:4px 0 14px;border:1px solid rgba(126,217,149,.35);color:#8fe0a8;font-size:14px;font-weight:700}
+.now .ok{background:#0e0e0e}
+.chg .ok{background:rgba(126,217,149,.06)}
+.enh{margin-top:12px;padding:14px 0;border-radius:999px;text-align:center;font-weight:800;font-size:15px;color:#2a120a;background:linear-gradient(135deg,#ffb59e,#D97757)}
+</style></head><body>
+<script>
+const cam='<svg width="11" height="11" viewBox="0 0 24 24" fill="#ffb59e"><path d="M9 3L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>';
+const addp='<svg width="15" height="15" viewBox="0 0 24 24" fill="#ffb59e"><path d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V8h-3V5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"/></svg>';
+const back='<svg width="18" height="18" viewBox="0 0 24 24" fill="#ffb59e"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>';
+const head=(k,t)=>`<div class="head"><div class="back">${back}</div><div class="kick">${k}</div><div class="ttl">${t}</div></div>`;
+const D=[['MON',19,0],['TUE',20,2],['WED',21,0],['THU',22,1],['FRI',23,0],['SAT',24,'f'],['SUN',25,'f']];
+const days=`<div class="days">${D.map(([l,d,n])=>`<div class="day${n==='f'?' fut':n?' on':''}"><div class="dl">${l}</div><div class="dd">${d}</div>${n==='f'?'<div class="plus">—</div>':n?`<div class="cnt">${cam}${n}</div>`:'<div class="plus">+</div>'}</div>`).join('')}</div>`;
+const pick=(cls)=>`<div class="${cls}"><div class="page">${head('THIS WEEK','Weekly scan')}<div class="sub">Add photos to each day of activity. All days are scanned together.</div>${days}
+<div class="card"><div class="lab">Tuesday</div><div class="thumbs"><div class="th"></div><div class="th"></div></div></div>
+<div class="card"><div class="lab">Thursday</div><div class="thumbs"><div class="th"></div></div></div>
+<div class="btn">Scan and save 2 days</div></div></div>`;
+const res=(cls)=>`<div class="${cls}"><div class="page">${head('THIS WEEK','Weekly scan')}<div class="sub">Add photos to each day of activity. All days are scanned together.</div>
+<div class="card"><div class="top"><div class="lab">Tuesday</div></div><div class="row"><div class="nm">Upper body strength</div><div class="tag">+42 Effort</div><div class="ph">${addp}</div></div></div>
+<div class="card"><div class="top"><div class="lab">Thursday</div><div class="pend">Scanning…</div></div></div>
+</div></div>`;
+const ok=(cls)=>`<div class="${cls}"><div class="page">${head('SCAN','Scan workout')}<div class="ok">Upper body strength saved, +42 Effort<div class="enh">Create share image</div></div></div></div>`;
+const cols=[
+ ['Weekly scan · Now','',pick('now'),'Day boxes and photo rows are near-black (#0e0e0e) on the warm grey.'],
+ ['Weekly scan · Change','',pick('chg'),'Same layout. Boxes become the outlined warm cards from Add an activity. Days with photos keep their lit peach look.'],
+ ['Weekly scan results · Now','',res('now'),'The result card after scanning.'],
+ ['Weekly scan results · Change','',res('chg'),'Same warm outlined card.'],
+ ['Scan workout saved · Now','',ok('now'),'The saved message after a scan.'],
+ ['Scan workout saved · Change','',ok('chg'),'Keeps its green edge and text, with a faint green fill instead of black.'],
+];
+document.write(cols.map(([t,r,c,n])=>`<div class="col"><h2>${t}${r?` <span>${r}</span>`:''}</h2>${c}<div class="note">${n}</div></div>`).join(''));
+</script></body></html>

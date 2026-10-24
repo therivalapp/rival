@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
+import { WeekNumbers } from './WeekCard';
+import type { RivalIconName } from './RivalIcon';
 import { router } from 'expo-router';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { rm, RivalWarm } from './RivalMobile';
@@ -91,6 +94,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
   });
 
   const isThisYear = year === now.getFullYear();
+  const phone = usePhone();
   const level = getLevel(review.effort);
   const progress = xpProgressInLevel(review.effort);
   const nextLevel = level.maxXp !== Infinity ? LEVELS.find((l) => l.level === level.level + 1) ?? null : null;
@@ -133,7 +137,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
       <View style={s.stack}>
         {header}
         {yearSwitcher}
-        <View style={[rm.card, s.empty]}>
+        <View style={[rm.card, phone && s.cardPhone, s.empty]}>
           <RivalIcon name="calendar" size={28} color={RivalColors.accentText} />
           <Text style={rm.serifTitleSm}>{isThisYear ? `${year} starts with the first activity` : `Nothing logged in ${year}`}</Text>
           <Text style={[rm.hint, { textAlign: 'center' }]}>Every activity logged or synced from a connected device builds the year here.</Text>
@@ -153,18 +157,28 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
       {yearSwitcher}
 
       {/* The year in one number, and the rank it earned. */}
-      <View style={[rm.card, s.hero]}>
+      <View style={[rm.card, phone && s.cardPhone, s.hero]}>
+        {phone && Platform.OS === 'web' ? <View style={[s.heroGlow, { pointerEvents: 'none' }]} /> : null}
         <Text style={rm.label}>{year} Effort</Text>
         <Text style={s.heroNum}>{review.effort.toLocaleString()}</Text>
         {/* The rank as Today and Ranks now show it: the rising chevrons and
             the name in serif with its rank's sheen (Ricky, 2026-10-11). */}
         <View style={s.rankLine}>
-          <RivalIcon name="doubleChevronUp" size={16} color={rankSheen(level.level).light} />
+          <RivalIcon name={phone ? (`rank${level.name}` as RivalIconName) : 'doubleChevronUp'} size={16} color={rankSheen(level.level).light} />
           <Text style={[s.rankName, rankTextSheen(level.level)]}>{level.name}</Text>
         </View>
+        {/* Phones: the year's totals in the same tiles as the week and month
+            cards (Ricky, 2026-10-20); active days stays as a quiet line. */}
+        {phone ? (
+          <View style={s.heroTiles}>
+            <WeekNumbers count={review.count} seconds={review.minutes * 60} km={review.km} />
+            <Text style={s.heroDays}>{review.activeDays.toLocaleString()} active {review.activeDays === 1 ? 'day' : 'days'}</Text>
+          </View>
+        ) : (
         <Text style={s.heroMeta}>
           {review.count.toLocaleString()} {review.count === 1 ? 'activity' : 'activities'} · {formatMinutes(review.minutes)} · {review.activeDays.toLocaleString()} active {review.activeDays === 1 ? 'day' : 'days'}
         </Text>
+        )}
         {/* The next rank, laid out like Legacy's Next milestone on Today: a
             label and what's left, the rank's name in its sheen, and a bar in
             that rank's colours. Tapping it opens Ranks (Ricky, 2026-10-11). */}
@@ -189,7 +203,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
       </View>
 
       {/* Month by month. */}
-      <View style={[rm.card, s.cardGap]}>
+      <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
         <Text style={rm.label}>Month by month</Text>
         <View style={s.bars}>
           {months.map((m) => {
@@ -221,7 +235,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
       </View>
 
       {/* Consistency: every week of the year. */}
-      <View style={[rm.card, s.cardGap]}>
+      <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
         <View style={rm.cardHead}>
           <Text style={rm.label}>Active weeks</Text>
           <Text style={s.weeksCount}>{trainedWeeks} of {pastWeeks.length}</Text>
@@ -251,7 +265,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
           ))}
         </View>
         {review.longestWeekStreak > 1 && (
-          <Text style={rm.hint}>Longest run: {review.longestWeekStreak} weeks in a row with at least one activity.</Text>
+          <Text style={rm.hint}>Longest streak: {review.longestWeekStreak} {review.longestWeekStreak === 1 ? 'week' : 'weeks'} in a row with at least one activity.</Text>
         )}
       </View>
 
@@ -272,7 +286,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
       </View>
 
       {/* What the year was made of. */}
-      <View style={[rm.card, s.cardGap]}>
+      <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
         <Text style={rm.label}>By activity</Text>
         {review.byActivity.slice(0, 8).map((b) => (
           <View key={b.type} style={s.typeRow}>
@@ -298,7 +312,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
 
       {/* Personal bests set this year. */}
       {pbGroups.length > 0 && (
-        <View style={[rm.card, s.cardGap]}>
+        <View style={[rm.card, phone && s.cardPhone, s.cardGap]}>
           <Text style={rm.label}>Personal bests</Text>
           {pbGroups.map((group, gi) => {
             const [latest, ...earlier] = group;
@@ -361,6 +375,10 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
   );
 }
 
+// Phones: the year's cards in the week and month cards' grey (Ricky,
+// 2026-10-20); only the top one carries the warm glow.
+function usePhone() { return useWindowDimensions().width < BREAKPOINT_MOBILE_NAV; }
+
 function Highlight({ icon, title, value, note, units = false }: { icon: any; title: string; value: string; note: string; units?: boolean }) {
   // With `units`, the digits stay large and the units ("h", "km", "Effort")
   // are set small and soft, like the By activity totals; a "0m" is dropped.
@@ -368,8 +386,9 @@ function Highlight({ icon, title, value, note, units = false }: { icon: any; tit
     ? value.replace(/ 0m$/, '').split(/(\d[\d.,]*)/).filter(Boolean).map((part, i) =>
       /^\d/.test(part) ? part : <Text key={i} style={s.hlUnit}>{part}</Text>)
     : value;
+  const phone = usePhone();
   return (
-    <View style={[rm.card, s.hl]}>
+    <View style={[rm.card, phone && s.cardPhone, s.hl]}>
       <RivalIcon name={icon} size={18} color={RivalColors.accentFill} />
       <Text style={s.hlTitle}>{title}</Text>
       <Text style={s.hlValue} numberOfLines={1}>{figure}</Text>
@@ -398,6 +417,19 @@ const s = StyleSheet.create({
   },
   rankLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   rankName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.4, fontSize: 18 },
+  // Today's card (home.tsx mFocusLit): lit top edge and a soft glow from the
+  // top centre, in place of the flat warm-grey card (Ricky, 2026-10-22).
+  cardPhone: {
+    backgroundColor: RivalColors.surfaceHigh, borderRadius: 22, overflow: 'hidden',
+    borderWidth: 1, borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
+      backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
+    } as any : {}),
+  },
+  heroGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 120, backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%)' } as any,
+  heroTiles: { alignSelf: 'stretch', gap: 8, marginTop: 6 },
+  heroDays: { fontSize: 12, color: '#fff', textAlign: 'center' },
   heroMeta: { fontSize: 13, color: RivalWarm.soft, textAlign: 'center' },
   next: { alignSelf: 'stretch', gap: 7, marginTop: 8, paddingTop: 12, paddingBottom: 0, borderTopWidth: 1, borderTopColor: 'rgba(255,209,190,0.08)' },
   nextHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },

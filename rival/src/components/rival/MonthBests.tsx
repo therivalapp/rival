@@ -58,7 +58,7 @@ export function MonthBests({ month, bests, onOpen }: { month: string; bests: Mon
   if (!open) {
     return (
       <TouchableOpacity style={[s.card, s.cardFolded]} onPress={() => setOpen(true)} activeOpacity={0.85} accessibilityRole="button" accessibilityState={{ expanded: false }}>
-        <View pointerEvents="none" style={s.glow} />
+        <View style={[s.glow, { pointerEvents: 'none' }]} />
         <RivalIcon name="trophy" size={20} color="#ffd27a" />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.kicker} numberOfLines={1}>{month} bests · {bests.length}</Text>
@@ -73,7 +73,7 @@ export function MonthBests({ month, bests, onOpen }: { month: string; bests: Mon
   return (
     // Open, a tap anywhere but a row folds it; rows open their activity.
     <TouchableOpacity style={s.card} onPress={() => setOpen(false)} activeOpacity={0.95}>
-      <View pointerEvents="none" style={s.glow} />
+      <View style={[s.glow, { pointerEvents: 'none' }]} />
       <View style={s.head}>
         <View style={{ flex: 1 }}>
           <Text style={s.kicker}>Personal bests · {bests.length}</Text>

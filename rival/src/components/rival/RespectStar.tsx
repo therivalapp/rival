@@ -54,7 +54,7 @@ export function RespectStar({ on, size, onColour, offColour, animate, onGradient
         )}
       </View>
       {play ? RAYS.map((deg) => (
-        <View key={`${play}-${deg}`} pointerEvents="none" style={{ position: 'absolute', left: size / 2 - 1, top: size / 2 - 8, width: 2, height: 8, transform: [{ rotate: `${deg}deg` }], transformOrigin: '50% 100%' } as any}>
+        <View key={`${play}-${deg}`} style={[{ position: 'absolute', left: size / 2 - 1, top: size / 2 - 8, width: 2, height: 8, transform: [{ rotate: `${deg}deg` }], transformOrigin: '50% 100%' } as any, { pointerEvents: 'none' }]}>
           <View style={{
             width: 2, height: 8, borderRadius: 2, backgroundColor: onColour, opacity: 0,
             transformOrigin: '50% 100%', animationName: 'rivalStarRay', animationDuration: `${RAY_MS}ms`,

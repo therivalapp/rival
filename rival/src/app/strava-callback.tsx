@@ -148,7 +148,7 @@ function Arriving({ count, seconds, list, photos }: { count: number; seconds: nu
             </View>
           ))}
         </View>
-        <View pointerEvents="none" style={a.fade} />
+        <View style={[a.fade, { pointerEvents: 'none' }]} />
       </View>
       <View style={a.body}>
         <View style={a.liveRow}>

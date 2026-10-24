@@ -108,7 +108,7 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>) {
   // `gap` and pushed the first card down by that gap, opening a dark band
   // between the top nav and the hero image that bleeds up behind it.
   const indicator = pull === 0 && !refreshing ? null : (
-    <View style={[styles.wrap, { height: pull }]} pointerEvents="none">
+    <View style={[styles.wrap, { height: pull }, { pointerEvents: 'none' }]}>
       {pull > 8 ? (
         <ActivityIndicator
           size="small"

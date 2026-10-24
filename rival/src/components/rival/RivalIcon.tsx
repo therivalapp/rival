@@ -37,15 +37,20 @@ const ICONS = {
   chevronRight: 'chevron-right',
   chevronLeft: 'chevron-left',
   send: 'send',
-  respect: 'favorite',
+  // Respect is a star everywhere, like the Respect button; never a heart.
+  respect: 'star',
   reply: 'reply',
   chevronDown: 'keyboard-arrow-down',
+  chevronUp: 'keyboard-arrow-up',
   edit: 'edit',
   more: 'more-vert',
   // Horizontal three dots — the overflow menu on the diary viewer, matching
   // Instagram's post menu.
   moreHoriz: 'more-horiz',
   close: 'close',
+  // Enlarge the share preview to the full screen, and back.
+  enlarge: 'open-in-full',
+  shrink: 'close-fullscreen',
   eye: 'visibility',
   eyeOff: 'visibility-off',
   add: 'add',
@@ -111,10 +116,12 @@ const ICONS = {
   manual: 'edit-note',
   batch: 'calendar-view-week',
   addPhoto: 'add-a-photo',
+  crop: 'crop',
   video: 'videocam',
   brain: 'psychology',
   verified: 'verified',
   ai: 'auto-awesome',
+  share: 'ios-share',
   calendar: 'calendar-today',
   calendarMonth: 'calendar-view-month',
 
@@ -166,6 +173,10 @@ const ICONS = {
   yoga: 'self-improvement',
   ski: 'downhill-skiing',
   workout: 'fitness-center',
+  // The Workout activity type: a flexed arm, so it isn't a second dumbbell
+  // beside Weight training's (Ricky, 2026-10-24). 'workout' stays the
+  // dumbbell for gym goals, lift rows and the unknown-type fallback.
+  bicep: ['mci', 'arm-flex'] as const,
 
   // More activity types, so each has its own icon rather than the generic
   // dumbbell (2026-09-28). Glyphs from MaterialIcons unless a tuple.
@@ -248,6 +259,7 @@ const MCI_PATHS: Record<string, string> = {
   'chat-outline': 'M12 3Q9.28 3 6.98 4.08Q4.69 5.16 3.35 6.98Q2.02 8.81 2.02 11.02Q2.02 12.61 2.74 14.06Q3.47 15.52 4.73 16.5Q4.73 17.16 4.27 18.09Q3.52 19.45 2.02 21Q3.75 20.91 5.41 20.27Q7.08 19.64 8.48 18.52Q10.22 18.98 12 18.98Q14.72 18.98 17.02 17.91Q19.31 16.83 20.65 15Q21.98 13.17 21.98 10.99Q21.98 8.81 20.65 6.98Q19.31 5.16 17.02 4.08Q14.72 3 12 3ZM12 17.02Q9.84 17.02 7.99 16.2Q6.14 15.38 5.06 13.99Q3.98 12.61 3.98 10.99Q3.98 9.38 5.06 7.99Q6.14 6.61 7.99 5.81Q9.84 5.02 12 5.02Q14.16 5.02 16.01 5.81Q17.86 6.61 18.94 7.99Q20.02 9.38 20.02 10.99Q20.02 12.61 18.94 13.99Q17.86 15.38 16.01 16.2Q14.16 17.02 12 17.02Z',
   'crown-outline': 'M12 8.02 15 13.22 18 10.5 17.3 14.02H6.7L6 10.5L9 13.22ZM12 3.98 8.48 9.98 3 5.02 5.02 15.98H18.98L21 5.02L15.52 9.98ZM18.98 18H5.02V18.98Q5.02 19.45 5.27 19.73Q5.53 20.02 6 20.02H18Q18.47 20.02 18.73 19.73Q18.98 19.45 18.98 18.98Z',
   'timer-outline': 'M12 20.02Q10.08 20.02 8.48 19.05Q6.89 18.09 5.95 16.5Q5.02 14.91 5.02 13.01Q5.02 11.11 5.95 9.49Q6.89 7.88 8.48 6.94Q10.08 6 12 6Q13.92 6 15.52 6.94Q17.11 7.88 18.05 9.49Q18.98 11.11 18.98 13.01Q18.98 14.91 18.05 16.5Q17.11 18.09 15.52 19.05Q13.92 20.02 12 20.02ZM19.03 7.41 20.44 5.95Q19.73 5.16 19.03 4.55L17.62 6Q16.45 5.06 15 4.52Q13.55 3.98 12 3.98Q9.56 3.98 7.5 5.2Q5.44 6.42 4.22 8.48Q3 10.55 3 12.98Q3 15.42 4.22 17.51Q5.44 19.59 7.5 20.79Q9.56 21.98 12 21.98Q14.44 21.98 16.52 20.79Q18.61 19.59 19.8 17.53Q21 15.47 21 12.98Q21 11.44 20.48 10.01Q19.97 8.58 19.03 7.41ZM11.02 14.02H12.98V8.02H11.02ZM15 0.98H9V3H15Z',
+  'arm-flex': 'M3 18.33Q3.09 17.44 3.19 16.5Q3.47 14.3 3.89 12.19Q4.41 9.28 5.11 7.12Q5.95 4.41 6.98 3L12 3.98L11.02 7.08H9V14.25H9.98Q10.97 12.75 12.56 11.86Q14.06 10.97 15.73 10.8Q17.39 10.64 18.66 11.2Q20.25 11.91 20.77 13.55Q21.28 15.05 20.7 16.71Q20.11 18.38 18.66 19.36Q17.3 20.3 14.86 20.72Q12.05 21.23 9.19 20.77Q5.77 20.25 3 18.33Z',
   'weight-lifter': 'M12 5.02Q11.16 5.02 10.57 5.6Q9.98 6.19 9.98 7.01Q9.98 7.83 10.57 8.41Q11.16 9 12 9Q12.84 9 13.43 8.41Q14.02 7.83 14.02 7.01Q14.02 6.19 13.43 5.6Q12.84 5.02 12 5.02ZM21.98 0.98V6H20.02V3.98H3.98V6H2.02V0.98H3.98V3H20.02V0.98ZM15 11.25V23.02H12.98V18H11.02V23.02H9V11.25Q7.41 10.41 6.45 8.88Q5.48 7.36 5.48 5.48V5.02H7.5V5.48Q7.5 7.36 8.81 8.67Q10.12 9.98 12 9.98Q13.88 9.98 15.19 8.67Q16.5 7.36 16.5 5.48V5.02H18.52V5.48Q18.52 7.36 17.55 8.88Q16.59 10.41 15 11.25Z',
 };
 
@@ -295,7 +307,7 @@ const ACTIVITY_TYPE_TO_ICON: Record<string, RivalIconName> = {
   Rowing: 'rowing', VirtualRow: 'rowing',
   Kayaking: 'paddle', Canoeing: 'paddle', StandUpPaddling: 'surf',
   Surfing: 'surf', Kitesurf: 'kitesurf', Windsurf: 'surf', Sail: 'sail',
-  WeightTraining: 'weights', Workout: 'workout',
+  WeightTraining: 'weights', Workout: 'bicep',
   CrossFit: 'crossfit',
   Hyrox: 'hyroxRun',
   HIIT: 'hiit',

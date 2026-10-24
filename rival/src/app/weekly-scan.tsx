@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fitPhoto } from '../lib/imageResize';
-import { RivalColors, RivalButtonColors } from '../constants/rivalTheme';
+import { RivalColors, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead, GREY_PAGE_BG } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
@@ -633,7 +633,7 @@ const mobileStyles = {
     floatingErrorText: { color: '#ff8f8f', fontSize: 13, fontWeight: '600' },
 
     daysGrid: { flexDirection: 'row', gap: 6, marginBottom: 18 },
-    dayCard: { flex: 1, minWidth: 0, aspectRatio: 0.72, backgroundColor: RivalColors.surfaceLowest, borderRadius: 14, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+    dayCard: { flex: 1, minWidth: 0, aspectRatio: 0.72, backgroundColor: RivalGhost.fill, borderRadius: 14, borderWidth: 1, borderColor: RivalGhost.border },
     dayCardActive: { backgroundColor: 'rgba(255,209,190,0.10)', borderColor: 'rgba(255,181,158,0.55)' },
     dayCardTouchable: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
     dayLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, color: RivalWarm.muted, textTransform: 'uppercase' },
@@ -643,7 +643,7 @@ const mobileStyles = {
     dayPhotoCount: { fontSize: 11, fontWeight: '800', color: RivalColors.accentText },
 
     thumbsSection: { gap: 10, marginBottom: 18 },
-    thumbsRow: { gap: 8, backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, padding: 14 },
+    thumbsRow: { gap: 8, backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14 },
     thumbsRowLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
     thumb: { width: 76, height: 76, borderRadius: 12, backgroundColor: RivalWarm.field },
     thumbRemove: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 11, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
@@ -653,7 +653,7 @@ const mobileStyles = {
     scanAllBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontSize: 15.5, fontWeight: '800' },
 
     resultsSection: { gap: 10 },
-    resultRowCard: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: RivalColors.surfaceBright, gap: 10 },
+    resultRowCard: { backgroundColor: RivalGhost.fill, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: RivalGhost.border, gap: 10 },
     resultLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
     resultStatusPending: { fontSize: 13, color: RivalWarm.muted },
     resultStatusError: { fontSize: 12.5, color: '#ff8f8f', fontWeight: '600', flexShrink: 1, textAlign: 'right' },

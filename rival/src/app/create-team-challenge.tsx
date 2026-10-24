@@ -14,6 +14,8 @@
 // Either way this writes straight onto the existing `leagues` row
 // (leagues_team_goal.sql columns) team-hub.tsx already reads, so no new
 // schema and team-hub's hero/standings pick it up as-is.
+import { RivalCalendarGrid } from '../components/rival/RivalCalendarGrid';
+import { formatRaceName } from '../lib/identity';
 import React, { useEffect, useState } from 'react';
 import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +23,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyPageHead, rb } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost, rivalTextShadow } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 
 type GoalMetric = 'xp' | 'distance' | 'elevation' | 'duration' | 'activities';
@@ -286,7 +288,7 @@ export default function CreateTeamChallenge() {
             </View>
           ) : (
           <ImageBackground source={HERO_PHOTO} style={styles.hero} resizeMode="cover">
-            <View style={styles.heroShade} pointerEvents="none" />
+            <View style={[styles.heroShade, { pointerEvents: 'none' }]} />
             <View style={styles.topRow}>
               <RivalBackButton onPress={() => router.back()} color="#fff" style={styles.backBtn} />
             </View>
@@ -393,7 +395,7 @@ export default function CreateTeamChallenge() {
                       <Text style={[styles.selectedDateText, !customDate && styles.selectedDateTextEmpty]}>
                         {customDate ? new Date(customDate + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : 'No date selected yet'}
                       </Text>
-                      <MonthCalendarPicker value={customDate} onChange={setCustomDate} />
+                      {mob ? <RivalCalendarGrid value={customDate} onChange={setCustomDate} /> : <MonthCalendarPicker value={customDate} onChange={setCustomDate} />}
                     </View>
                   )}
                 </Step>
@@ -412,7 +414,7 @@ export default function CreateTeamChallenge() {
                       >
                         <RivalIcon name="flag" size={16} color={selectedRaceId === r.id ? (mob ? ms.onGradient.color as string : '#1a1411') : RivalColors.accentText} />
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.raceRowName, selectedRaceId === r.id && styles.raceRowTextActive, mob && selectedRaceId === r.id && ms.onGradient]}>{r.name}</Text>
+                          <Text style={[styles.raceRowName, selectedRaceId === r.id && styles.raceRowTextActive, mob && selectedRaceId === r.id && ms.onGradient]}>{formatRaceName(r.name)}</Text>
                           <Text style={[styles.raceRowDate, selectedRaceId === r.id && styles.raceRowTextActive, mob && selectedRaceId === r.id && ms.onGradient]}>
                             {new Date(r.race_date + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                           </Text>
@@ -454,7 +456,7 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 11, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText },
   heroTitle: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 28, color: '#fff', marginTop: 4, textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+    ...rivalTextShadow('rgba(0,0,0,0.6)', 0, 1, 4),
   },
   heroSub: { fontSize: 13.5, color: 'rgba(255,255,255,0.8)', marginTop: 6, textAlign: 'center' },
 

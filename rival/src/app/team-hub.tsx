@@ -45,7 +45,7 @@ import { SessionCard } from '../components/rival/SessionCard';
 import { TeamChallengesTab, ChallengeTeammateSheet } from '../components/rival/team/TeamChallengesTab';
 import { WeeklyStandings } from '../components/rival/team/WeeklyStandings';
 import { EncourageSheet, loadEncouragedToday } from '../components/rival/team/EncourageSheet';
-import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost, rivalTextShadow } from '../constants/rivalTheme';
 import { matchCanonicalLift } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
 import { RespectStar } from '../components/rival/RespectStar';
@@ -53,7 +53,11 @@ import { InspiredBolt } from '../components/rival/InspiredBolt';
 import { CommentThread } from '../components/rival/team/CommentThread';
 import { titleFit } from '../lib/titleFit';
 import { goToTab } from '../lib/tabNav';
+import { requestShare } from '../lib/shareRequest';
+import { markTeamOpened } from '../lib/recentTeams';
+import { liftPbChecker, liftsFromEntries } from '../lib/liftPb';
 import { selectAll, inChunks } from '../lib/selectAll';
+import { avatarImage, cardPhoto } from '../lib/imageUrl';
 
 // Matches chat.tsx's SESSION_GRACE_MS — a session stays "upcoming" for 12
 // hours past its start, since sessions carry no duration.
@@ -266,13 +270,17 @@ type SessionRow = {
   location: string | null;
 };
 
+// The latest tap on each post's reactions, so a refused save only puts
+// back the state when nothing newer has happened.
+const reactionTaps: Record<string, number> = {};
+
 export default function TeamHub() {
   const winWidth = useWindowDimensions().width;
   const phone = !sidePageWide(winWidth);
   const wideWindow = winWidth >= BREAKPOINT_WIDE_LAYOUT;
   const styles = phone ? phoneHubStyles : desktopHubStyles;
   const { id } = useLocalSearchParams<{ id: string }>();
-  useEffect(() => { setOpenTeam(id ?? null); }, [id]);
+  useEffect(() => { setOpenTeam(id ?? null); if (id) markTeamOpened(id); }, [id]);
   // The data below is remembered per team (lib/snapState.ts), so returning to
   // a team draws its last state at once and refreshes behind it.
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
@@ -349,22 +357,24 @@ export default function TeamHub() {
   // a session is over.
   async function loadSessions() {
     const cutoff = new Date(Date.now() - SESSION_GRACE_MS).toISOString();
-    const { data } = await supabase
-      .from('league_messages')
-      .select('id, user_id, activity_type, body, scheduled_at, location')
-      .eq('league_id', id)
-      .eq('kind', 'session')
-      .gte('scheduled_at', cutoff)
-      .order('scheduled_at', { ascending: true })
-      .limit(3);
+    // The next three and the total together, not one after the other.
+    const [{ data }, { count }] = await Promise.all([
+      supabase
+        .from('league_messages')
+        .select('id, user_id, activity_type, body, scheduled_at, location')
+        .eq('league_id', id)
+        .eq('kind', 'session')
+        .gte('scheduled_at', cutoff)
+        .order('scheduled_at', { ascending: true })
+        .limit(3),
+      supabase
+        .from('league_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('league_id', id)
+        .eq('kind', 'session'),
+    ]);
     const rows = (data ?? []) as SessionRow[];
     setSessions(rows);
-
-    const { count } = await supabase
-      .from('league_messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('league_id', id)
-      .eq('kind', 'session');
     setSessionTotal(count ?? 0);
 
     if (rows.length > 0) {
@@ -462,6 +472,20 @@ export default function TeamHub() {
     // A refresh of the team already on screen keeps it there; only opening a
     // different team (or the first open) shows the loading state.
     if (!league || league.id !== id) setLoading(true);
+    // What needs only the team's id starts at once, alongside the team and
+    // its members, rather than waiting for them (Ricky, 2026-10-21: the hub
+    // was slow to open). Sessions fill in on their own and never hold the page.
+    const boardP = supabase
+      .from('league_messages')
+      .select('id, user_id, title, body, pinned, created_at')
+      .eq('league_id', id)
+      .eq('kind', 'board')
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20)
+      // A query only runs once something awaits it; this starts it now.
+      .then((r) => r);
+    loadSessions();
     const [{ data: { user } }, { data: leagueData }, { data: membersData }] = await Promise.all([
       getAuthUser(),
       // select('*'): a named column the database doesn't have yet fails the whole
@@ -512,7 +536,7 @@ export default function TeamHub() {
           .order('started_at', { ascending: false })
           .limit(30),
         inChunks(memberIds, (slice) => selectAll((a, b) => supabase.from('exercise_entries')
-          .select('id, user_id, exercise_name, weight_kg').in('user_id', slice).order('id').range(a, b)))
+          .select('id, user_id, activity_id, exercise_name, weight_kg, performed_at').in('user_id', slice).order('id').range(a, b)))
           .then((data) => ({ data, error: null })),
         // The database stops at 1,000 rows without saying so; these three are
         // paged (and the member list sliced) so a big team counts everything.
@@ -545,36 +569,17 @@ export default function TeamHub() {
           .order('started_at')
           .order('id')
           .range(from, to))).then((data) => ({ data })),
-        supabase
-          .from('league_messages')
-          .select('id, user_id, title, body, pinned, created_at')
-          .eq('league_id', id)
-          .eq('kind', 'board')
-          .order('pinned', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(20),
-        loadSessions(),
+        boardP,
       ]);
 
-      const maxMap = new Map<string, number>();
-      (liftEntries || []).forEach((e: any) => {
-        const key = `${e.user_id}|${e.exercise_name}`;
-        maxMap.set(key, Math.max(maxMap.get(key) ?? 0, e.weight_kg));
-      });
-      function findPbLift(userId: string, exercises: any[] | null): string | null {
-        if (!exercises) return null;
-        for (const ex of exercises) {
-          const canonical = matchCanonicalLift(ex.name) || ex.prLift;
-          if (!canonical || !ex.weight) continue;
-          if (ex.weight >= (maxMap.get(`${userId}|${canonical}`) ?? 0)) return canonical;
-        }
-        return null;
-      }
+      // One rule everywhere (lib/liftPb.ts): beats the heaviest earlier lift,
+      // or a first-time lift the person marked as a personal best.
+      const liftPb = liftPbChecker(liftsFromEntries((liftEntries || []) as any[]));
       const insightHistoryByUser: Record<string, InsightActivity[]> = {};
       (insightHistory || []).forEach((a: any) => { (insightHistoryByUser[a.user_id] ??= []).push(a); });
 
       const feedList: ActivityRow[] = ((activities || []) as any[]).map((a) => {
-        const pbLift = findPbLift(a.user_id, a.exercises);
+        const pbLift = liftPb(a.user_id, a.id, a.started_at, a.exercises)?.lift ?? null;
         const insight = computeActivityInsight(
           { activity_type: a.activity_type, started_at: a.started_at, duration_seconds: a.duration_seconds, distance_meters: a.distance_meters },
           insightHistoryByUser[a.user_id] || [],
@@ -807,24 +812,28 @@ export default function TeamHub() {
     return `${days}d ago`;
   }
 
+  // Shown at once, saved behind; put back only if the save is refused and no
+  // later tap has moved it on (as on the team feed).
   async function toggleReaction(targetId: string, emoji: string) {
     if (!currentUserId || !id) return;
     const key = feedTargetKey(targetId);
-    const existing = (reactionsMap[key] || []).find(r => r.user_id === currentUserId);
-    if (existing && existing.emoji === emoji) {
-      const { error } = await supabase.from('feed_reactions').delete().eq('target_type', 'activity').eq('target_id', targetId).eq('user_id', currentUserId);
-      if (error) return;
-      setReactionsMap(prev => ({ ...prev, [key]: (prev[key] || []).filter(r => r.user_id !== currentUserId) }));
-    } else {
-      const { error } = await supabase.from('feed_reactions').upsert(
+    const before = reactionsMap[key] || [];
+    const existing = before.find(r => r.user_id === currentUserId);
+    const removing = !!existing && existing.emoji === emoji;
+    const tap = (reactionTaps[key] = (reactionTaps[key] || 0) + 1);
+    setReactionsMap(prev => ({
+      ...prev,
+      [key]: removing
+        ? (prev[key] || []).filter(r => r.user_id !== currentUserId)
+        : [...(prev[key] || []).filter(r => r.user_id !== currentUserId), { user_id: currentUserId, emoji }],
+    }));
+    const { error } = removing
+      ? await supabase.from('feed_reactions').delete().eq('target_type', 'activity').eq('target_id', targetId).eq('user_id', currentUserId)
+      : await supabase.from('feed_reactions').upsert(
         { league_id: id, target_type: 'activity', target_id: targetId, user_id: currentUserId, emoji },
         { onConflict: 'target_type,target_id,user_id' }
       );
-      setReactionsMap(prev => ({
-        ...prev,
-        [key]: [...(prev[key] || []).filter(r => r.user_id !== currentUserId), { user_id: currentUserId, emoji }],
-      }));
-    }
+    if (error && reactionTaps[key] === tap) setReactionsMap(prev => ({ ...prev, [key]: before }));
   }
 
   function toggleComments(key: string) {
@@ -931,7 +940,7 @@ export default function TeamHub() {
 
             <View style={styles.headerTitleBlock}>
               {league.logo_url ? (
-                <Image source={{ uri: league.logo_url }} style={styles.teamLogo} />
+                <Image source={{ uri: avatarImage(league.logo_url, 96) }} style={styles.teamLogo} />
               ) : (
                 <View style={styles.teamLogoPlaceholder}>
                   <RivalIcon name="groups" size={26} color={RivalColors.accentText} />
@@ -1731,6 +1740,7 @@ export default function TeamHub() {
 // Same post card as team-feed.tsx's PostCard, minus the multi-team tag
 // (this feed is already scoped to one team) and the race-signup variant
 // (this tab only ever shows activities).
+
 function ActivityPostCard({
   activity: a, name, avatarUrl, currentUserId, reactions, comments, nameForUser,
   isCommentsOpen, onToggleComments, commentDraft, onChangeCommentDraft, onPostComment, onReact, onDeleted,
@@ -1819,7 +1829,7 @@ function ActivityPostCard({
 
       <View style={styles.postHeader}>
         <TouchableOpacity onPress={() => router.push(`/stats?userId=${a.user_id}` as any)} style={[styles.postAvatar, { backgroundColor: tint.bg, borderColor: tint.color }]}>
-          {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.postAvatarImg} /> : <Text style={[styles.postAvatarText, { color: tint.color }]}>{initials}</Text>}
+          {avatarUrl ? <Image source={{ uri: avatarImage(avatarUrl, 36) }} style={styles.postAvatarImg} /> : <Text style={[styles.postAvatarText, { color: tint.color }]}>{initials}</Text>}
         </TouchableOpacity>
         {/* The name opens their profile too, not just the small avatar. */}
         <TouchableOpacity style={{ flex: 1, minWidth: 0 }} activeOpacity={0.7} onPress={() => router.push(`/stats?userId=${a.user_id}` as any)}>
@@ -1828,20 +1838,22 @@ function ActivityPostCard({
         </TouchableOpacity>
         {a.user_id === currentUserId && (
           <View style={styles.postMoreWrap}>
-            <TouchableOpacity style={styles.postMoreBtn} onPress={() => setMenuOpen(v => !v)} disabled={deleting}>
+            <TouchableOpacity style={[styles.postMoreBtn, menuOpen && styles.postMoreBtnOn]} onPress={() => setMenuOpen(v => !v)} disabled={deleting}>
               <RivalIcon name="more" size={20} color={RivalColors.textSecondary} />
             </TouchableOpacity>
             {menuOpen && (
               <>
                 <TouchableOpacity style={styles.postMoreBackdrop} onPress={() => setMenuOpen(false)} />
-                <View style={styles.postMoreMenu}>
+                <View style={[styles.postMoreMenu, Platform.OS === 'web' ? ({ animationName: 'rivalMenuIn', animationDuration: '160ms', animationTimingFunction: 'ease-out' } as any) : null]}>
+                  {/* A small point up to the ⋯ button, so the menu reads as coming from it. */}
+                  <View style={styles.postMoreArrow} />
                   <TouchableOpacity style={styles.postMoreMenuItem} onPress={() => { setMenuOpen(false); router.push(`/manual-entry?editId=${a.id}` as any); }}>
                     <RivalIcon name="edit" size={16} color={RivalColors.onSurface} />
                     <Text style={styles.postMoreMenuText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.postMoreMenuItem} onPress={() => { setMenuOpen(false); router.push(`/ai-share?activityId=${a.id}` as any); }}>
-                    <RivalIcon name="camera" size={16} color={RivalColors.onSurface} />
-                    <Text style={styles.postMoreMenuText}>Save as image</Text>
+                  <TouchableOpacity style={styles.postMoreMenuItem} onPress={() => { setMenuOpen(false); requestShare(a.id); }}>
+                    <RivalIcon name="share" size={16} color={RivalColors.onSurface} />
+                    <Text style={styles.postMoreMenuText}>Share</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.postMoreMenuItem} onPress={deleteThisActivity}>
                     <RivalIcon name="delete" size={16} color={RivalColors.danger} />
@@ -1875,14 +1887,14 @@ function ActivityPostCard({
 
       {a.photo_url ? (
         <View style={[styles.postPhotoWrap, isPb && styles.postPhotoWrapPb]}>
-          <Image source={{ uri: a.photo_url }} style={styles.postPhoto} />
+          <Image source={{ uri: cardPhoto(a.photo_url) }} style={styles.postPhoto} />
         </View>
       ) : (
         reactPhone ? (
           // Phones: the sky for the hour it started, as on the team feed (Ricky, 2026-10-14).
           <View style={[styles.noPhotoPanel, { minHeight: 150, justifyContent: 'center' }]}>
             <SkyBackdrop startedAt={a.started_at} utcOffsetSeconds={(a as any).utc_offset_seconds} />
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
+            <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, { pointerEvents: 'none' }]}>
               <RivalIcon name={activityIconName(a.activity_type)} size={132} color="rgba(255,255,255,0.16)" />
             </View>
             <Text style={styles.noPhotoBody}>No photo this time, still counts.</Text>
@@ -2014,8 +2026,8 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   teamLogo: { width: 112, height: 112, borderRadius: 32, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   teamLogoPlaceholder: { width: 112, height: 112, borderRadius: 32, marginBottom: 8, backgroundColor: 'rgba(20,20,20,0.55)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   teamLogoPlaceholderText: { fontSize: 24 },
-  teamName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  memberCount: { fontSize: 13, color: '#d8d4d2', marginTop: 2, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  teamName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff', textAlign: 'center', ...rivalTextShadow('rgba(0,0,0,0.5)', 0, 1, 4) },
+  memberCount: { fontSize: 13, color: '#d8d4d2', marginTop: 2, ...rivalTextShadow('rgba(0,0,0,0.5)', 0, 1, 4) },
 
   tabs: { flexDirection: 'row', gap: 4, backgroundColor: 'rgba(20,20,20,0.55)', borderRadius: 14, padding: 4, marginHorizontal: 20, marginTop: 14 },
   tab: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
@@ -2030,7 +2042,7 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   heroTextBlockNoGoalFit: { marginTop: 16, alignItems: 'flex-start' },
   boardWrap: { marginTop: 24, paddingHorizontal: 20, gap: 10 },
   boardHeadRow: { alignItems: 'center' },
-  boardTitle: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  boardTitle: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', ...rivalTextShadow('rgba(0,0,0,0.6)', 0, 1, 3) },
   // 60% of the original tile (48.5% wide, 150 tall). The label is 13px, not
   // scaled down with the tile — thin serif italic is hard to read any smaller.
   boardAddNote: { width: '29%', minHeight: 90, alignSelf: 'flex-start', borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center', gap: 4 },
@@ -2152,9 +2164,9 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   boardCommentInput: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, color: '#fff', fontSize: 10.5, borderWidth: 1, borderColor: cardBorder },
   startChallengeBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(20,20,20,0.55)', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: `${RivalColors.accentText}55` },
   startChallengeBtnText: { fontSize: 13.5, fontWeight: '700', color: '#fff' },
-  eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: RivalColors.accentText, textTransform: 'uppercase', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
-  heroTitle: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: RivalColors.accentText, textTransform: 'uppercase', ...rivalTextShadow('rgba(0,0,0,0.6)', 0, 1, 3) },
+  heroTitle: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff', marginTop: 4, ...rivalTextShadow('rgba(0,0,0,0.6)', 0, 1, 4) },
+  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4, ...rivalTextShadow('rgba(0,0,0,0.6)', 0, 1, 3) },
 
   ringWrap: { alignItems: 'center', marginTop: 20 },
   ringValue: { fontSize: 38, fontWeight: '800', color: '#fff', letterSpacing: -1 },
@@ -2259,15 +2271,22 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
 
   postHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, zIndex: 5 },
   postMoreWrap: { marginLeft: 'auto', position: 'relative' },
-  postMoreBtn: { padding: 4 },
+  postMoreBtn: { padding: 4, borderRadius: 999 },
+  // Lit while its menu is open, the menu's own grey.
+  postMoreBtnOn: { backgroundColor: RivalColors.surfaceHigh },
   postMoreBackdrop: { position: Platform.OS === 'web' ? ('fixed' as any) : 'absolute', top: -1000, left: -1000, right: -1000, bottom: -1000 },
+  // The pop-ups' grey (GreySheet), opening down out of the ⋯ button.
   postMoreMenu: {
-    position: 'absolute', top: 30, right: 0, zIndex: 10, minWidth: 168,
-    borderRadius: 12, paddingVertical: 6, backgroundColor: '#2a221e',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 8px 20px rgba(0,0,0,0.45)' } as any : {
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+    position: 'absolute', top: 36, right: 0, zIndex: 10, minWidth: 168,
+    borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {
+      boxShadow: '0px 4px 10px rgba(0,0,0,0.4)', elevation: 8,
     }),
+  },
+  postMoreArrow: {
+    position: 'absolute', top: -6, right: 9, width: 11, height: 11, backgroundColor: RivalColors.surfaceHigh,
+    borderTopWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(255,255,255,0.08)', transform: [{ rotate: '45deg' }],
   },
   postMoreMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 14 },
   postMoreMenuText: { fontSize: 13.5, fontWeight: '600', color: RivalColors.onSurface },

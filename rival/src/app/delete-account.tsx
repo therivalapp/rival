@@ -189,6 +189,7 @@ export default function DeleteAccountScreen() {
                   <View style={s.fact}><Text style={s.factLabel}>Activities</Text><Text style={s.factValue}>{saved.activities.toLocaleString()}</Text></View>
                   <View style={[s.fact, s.factDivided]}><Text style={s.factLabel}>Routes</Text><Text style={s.factValue}>{saved.routes.toLocaleString()}</Text></View>
                   <View style={[s.fact, s.factDivided]}><Text style={s.factLabel}>Photos</Text><Text style={s.factValue}>{saved.photos.toLocaleString()}</Text></View>
+                  {saved.videos > 0 ? <View style={[s.fact, s.factDivided]}><Text style={s.factLabel}>Videos</Text><Text style={s.factValue}>{saved.videos.toLocaleString()}</Text></View> : null}
                   <View style={[s.fact, s.factDivided]}><Text style={s.factLabel}>Can be imported</Text><Text style={s.factPlain}>Into RIVAL later</Text></View>
                 </View>
               ) : null}

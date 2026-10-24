@@ -18,10 +18,10 @@ const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }>
 function TileArt({ icon, primary }: { icon: RivalIconName; primary?: boolean }) {
   return (
     <>
-      <View style={ms.tileArt} pointerEvents="none">
+      <View style={[ms.tileArt, { pointerEvents: 'none' }]}>
         <RivalIcon name={icon} size={118} color={primary ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.24)'} />
       </View>
-      <View style={[ms.tileFade, primary ? ms.tileFadePrimary : ms.tileFadeGhost]} pointerEvents="none" />
+      <View style={[ms.tileFade, primary ? ms.tileFadePrimary : ms.tileFadeGhost, { pointerEvents: 'none' }]} />
     </>
   );
 }

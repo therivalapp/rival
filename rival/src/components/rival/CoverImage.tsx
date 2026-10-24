@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Image, StyleProp, ViewStyle } from 'react-native';
+import { cardPhoto, fullPhoto } from '../../lib/imageUrl';
 
 // True "cover" crop with a custom focal point, computed by hand instead of
 // via CSS object-fit/object-position — verified this RNW build doesn't
@@ -10,24 +11,44 @@ import { View, Image, StyleProp, ViewStyle } from 'react-native';
 // two ratios (so neither axis ever shows a gap), then shifts the oversized
 // image by -focal fraction of its overflow — pure box-model math, so it
 // works regardless of whether object-fit ever gets fixed underneath.
+//
+// Sizes already measured are kept, and the next activity's photo is measured
+// ahead (preloadCover), so stepping to it draws at once rather than showing
+// the black frame while it loads (Ricky, 2026-10-23).
+const sizes = new Map<string, { w: number; h: number }>();
+
+/** Fetches and measures a full-screen photo ahead of showing it. */
+export function preloadCover(original: string | null | undefined) {
+  const uri = fullPhoto(original);
+  if (!uri || sizes.has(uri) || /\.(mp4|mov|m4v|webm)(\?|$)/i.test(uri)) return;
+  Image.getSize(uri, (w, h) => { sizes.set(uri, { w, h }); }, () => {});
+}
+
 export function CoverImage({
-  uri,
+  uri: original,
   focalX = 0.5,
   focalY = 0.5,
   style,
+  full = false,
 }: {
   uri: string;
+  /** Fills the screen: fetched larger than a card's photo. */
+  full?: boolean;
   focalX?: number | null;
   focalY?: number | null;
   style?: StyleProp<ViewStyle>;
 }) {
+  // A stored photo at the size it is drawn (lib/imageUrl.ts).
+  const uri = full ? fullPhoto(original) : cardPhoto(original);
   const [frame, setFrame] = useState({ w: 0, h: 0 });
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(() => sizes.get(uri) ?? null);
 
   useEffect(() => {
     let cancelled = false;
-    setNatural(null);
-    Image.getSize(uri, (w, h) => { if (!cancelled) setNatural({ w, h }); }, () => {});
+    const known = sizes.get(uri);
+    setNatural(known ?? null);
+    if (known) return;
+    Image.getSize(uri, (w, h) => { sizes.set(uri, { w, h }); if (!cancelled) setNatural({ w, h }); }, () => {});
     return () => { cancelled = true; };
   }, [uri]);
 

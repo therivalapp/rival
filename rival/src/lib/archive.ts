@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { gunzipSync, strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { supabase } from './supabase';
+import { fitPhoto } from './imageResize';
 import { buildDataExport } from './exportData';
 import { encodePolyline } from './polyline';
 import { getSeasonStartISO } from './season';
@@ -9,11 +10,15 @@ import { getSeasonStartISO } from './season';
 // account, and reading a RIVAL or Strava archive back in.
 //
 // A RIVAL archive is a .zip: data.json (everything "Download my data" holds),
-// routes.json (activity id → encoded route) and photos/<activity id>.<ext>.
+// routes.json (activity id → encoded route), photos/<activity id>.<ext> (each
+// activity's cover, which is what reading an archive back in uses), and
+// media/<activity id>/<n>.<ext>, every other photo and video in posting
+// order, listed in media.json (Ricky, 2026-10-24: nobody should lose their
+// photos the way an Instagram lockout loses them).
 // It is built in the app and saved straight away, so nothing waits on email
 // and the archive exists before any deletion can start.
 
-export type ArchiveCounts = { activities: number; photos: number; routes: number };
+export type ArchiveCounts = { activities: number; photos: number; videos: number; routes: number };
 
 function saveBlob(data: Uint8Array, filename: string, type: string): boolean {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return false;
@@ -44,24 +49,59 @@ export async function buildArchive(userId: string, email: string | null, onProgr
     'data.json': strToU8(json),
     'routes.json': strToU8(JSON.stringify(routes)),
   };
-  const withPhotos = activities.filter((a) => a.photo_url);
-  let photos = 0;
-  for (let i = 0; i < withPhotos.length; i++) {
-    const a = withPhotos[i];
-    try {
-      const res = await fetch(a.photo_url);
-      if (res.ok) {
-        const ext = (res.headers.get('content-type') || '').includes('png') ? 'png' : 'jpg';
-        // Photos are already compressed: stored, not re-compressed.
-        files[`photos/${a.id}.${ext}`] = [new Uint8Array(await res.arrayBuffer()), { level: 0 }];
-        photos++;
-      }
-    } catch { /* a missing photo never stops the archive */ }
-    onProgress?.(i + 1, withPhotos.length);
+  // Every photo and video on the person's activities, read by activity id in
+  // batches (a long id list doesn't fit one request's URL).
+  const ids = activities.map((a) => a.id).filter(Boolean);
+  const media: any[] = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data: rows } = await supabase.from('activity_media')
+      .select('activity_id, media_url, media_type, position, focal_x, focal_y, created_at')
+      .in('activity_id', ids.slice(i, i + 150));
+    media.push(...(rows ?? []));
   }
+  const coverOf = new Map(activities.filter((a) => a.photo_url).map((a) => [a.id, a.photo_url]));
+  // The cover is saved once, in photos/; the rest go in media/.
+  const extra = media
+    .filter((m) => m.media_url !== coverOf.get(m.activity_id))
+    .sort((a, b) => (a.activity_id < b.activity_id ? -1 : a.activity_id > b.activity_id ? 1 : (a.position ?? 1e9) - (b.position ?? 1e9)));
+
+  const jobs: { url: string; path: (ext: string) => string; video: boolean; entry?: any }[] = [
+    ...[...coverOf].map(([id, url]) => ({ url, path: (ext: string) => `photos/${id}.${ext}`, video: false })),
+  ];
+  const listing: any[] = [];
+  const perActivity = new Map<string, number>();
+  for (const m of extra) {
+    const n = (perActivity.get(m.activity_id) ?? 0) + 1;
+    perActivity.set(m.activity_id, n);
+    const entry: any = { activity_id: m.activity_id, type: m.media_type, position: m.position, focal_x: m.focal_x, focal_y: m.focal_y, file: null };
+    listing.push(entry);
+    jobs.push({ url: m.media_url, path: (ext: string) => `media/${m.activity_id}/${n}.${ext}`, video: m.media_type === 'video', entry });
+  }
+
+  let photos = 0;
+  let videos = 0;
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    try {
+      const res = await fetch(job.url);
+      if (res.ok) {
+        const type = res.headers.get('content-type') || '';
+        const ext = job.video
+          ? (/quicktime/.test(type) ? 'mov' : /webm/.test(type) ? 'webm' : 'mp4')
+          : (type.includes('png') ? 'png' : 'jpg');
+        const path = job.path(ext);
+        // Photos and videos are already compressed: stored, not re-compressed.
+        files[path] = [new Uint8Array(await res.arrayBuffer()), { level: 0 }];
+        if (job.entry) job.entry.file = path;
+        if (job.video) videos++; else photos++;
+      }
+    } catch { /* a missing file never stops the archive */ }
+    onProgress?.(i + 1, jobs.length);
+  }
+  files['media.json'] = strToU8(JSON.stringify(listing, null, 2));
   const zip = zipSync(files, { level: 6 });
   saveBlob(zip, `rival-archive-${new Date().toISOString().slice(0, 10)}.zip`, 'application/zip');
-  return { activities: activities.length, photos, routes: Object.keys(routes).length };
+  return { activities: activities.length, photos, videos, routes: Object.keys(routes).length };
 }
 
 // ---- Reading an archive -------------------------------------------------
@@ -87,7 +127,27 @@ export type ReadArchive = {
   items: ImportItem[];
   /** item key → photo bytes, uploaded only for items that turn out new. */
   photos: Map<string, { bytes: Uint8Array; ext: string }>;
+  /** item key → the activity's other photos and videos, in posting order. */
+  extras: Map<string, ArchiveMedia[]>;
+  /** item key → the cover's position, from a RIVAL archive. */
+  coverFocal: Map<string, { x: number | null; y: number | null }>;
 };
+
+export type ArchiveMedia = { bytes: Uint8Array; ext: string; type: 'photo' | 'video'; focalX: number | null; focalY: number | null };
+
+// Same as MediaPicker's MAX_VIDEO_MB (the bucket's per-file limit); not
+// imported, so this file stays free of React Native for its tests.
+const MAX_VIDEO_MB = 50;
+const VIDEO_EXT = /\.(mp4|mov|m4v|webm)$/i;
+const extOf = (name: string) => (name.match(/\.([a-z0-9]+)$/i)?.[1] ?? 'jpg').toLowerCase();
+function mimeOf(ext: string): string {
+  if (ext === 'png') return 'image/png';
+  if (ext === 'heic') return 'image/heic';
+  if (ext === 'mov') return 'video/quicktime';
+  if (ext === 'webm') return 'video/webm';
+  if (ext === 'mp4' || ext === 'm4v') return 'video/mp4';
+  return 'image/jpeg';
+}
 
 /** One CSV line set into rows, handling quoted fields with commas and newlines. */
 export function parseCsv(text: string): string[][] {
@@ -152,12 +212,14 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
   const entries = unzipSync(buf, {
     // Only what is needed: the activity list, routes and photos. FIT files
     // (binary) are skipped; their activity still imports, without a route.
-    filter: (f) => /(^|\/)(activities\.csv|data\.json|routes\.json)$/.test(f.name)
+    filter: (f) => /(^|\/)(activities\.csv|data\.json|routes\.json|media\.json)$/.test(f.name)
       || /\.(gpx|gpx\.gz)$/i.test(f.name)
-      || /\.(jpe?g|png|heic)$/i.test(f.name),
+      || /\.(jpe?g|png|heic|mp4|mov|m4v|webm)$/i.test(f.name),
   });
   const find = (name: string) => Object.keys(entries).find((k) => k === name || k.endsWith(`/${name}`));
   const photos = new Map<string, { bytes: Uint8Array; ext: string }>();
+  const extras = new Map<string, ArchiveMedia[]>();
+  const coverFocal = new Map<string, { x: number | null; y: number | null }>();
 
   const csvName = find('activities.csv');
   if (csvName) {
@@ -190,8 +252,14 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
         }
       }
       const media = (r[iMedia] ?? '').split('|').map((m) => m.trim()).filter(Boolean);
-      const photoEntry = media.map((m) => find(m.replace(/^\.?\//, ''))).find(Boolean);
+      const found = media.map((m) => find(m.replace(/^\.?\//, ''))).filter(Boolean) as string[];
+      // The first photo is the cover; everything else comes back with it.
+      const photoEntry = found.find((f) => !VIDEO_EXT.test(f));
       if (photoEntry) photos.set(key, { bytes: entries[photoEntry], ext: /png$/i.test(photoEntry) ? 'png' : 'jpg' });
+      const rest = found.filter((f) => f !== photoEntry).map((f) => ({
+        bytes: entries[f], ext: extOf(f), type: (VIDEO_EXT.test(f) ? 'video' : 'photo') as 'photo' | 'video', focalX: null, focalY: null,
+      }));
+      if (rest.length) extras.set(key, rest);
       items.push({
         key, provider: 'strava', providerId: String(id),
         name: r[iName] || null,
@@ -203,7 +271,7 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
         polyline,
       });
     }
-    return { source: 'strava', items, photos };
+    return { source: 'strava', items, photos, extras, coverFocal };
   }
 
   const dataName = find('data.json');
@@ -211,12 +279,28 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
     const data = JSON.parse(strFromU8(entries[dataName]));
     const routesName = find('routes.json');
     const routes: Record<string, string> = routesName ? JSON.parse(strFromU8(entries[routesName])) : {};
+    // media.json: every photo and video besides the cover (archives from
+    // 2026-10-24 on; older ones have covers only).
+    const mediaName = find('media.json');
+    const listing: any[] = mediaName ? JSON.parse(strFromU8(entries[mediaName])) : [];
+    const byActivity = new Map<string, any[]>();
+    for (const m of listing) {
+      if (!m?.activity_id || !m.file) continue;
+      const entry = find(m.file);
+      if (!entry) continue;
+      const list = byActivity.get(m.activity_id) ?? [];
+      list.push({ bytes: entries[entry], ext: extOf(entry), type: m.type === 'video' ? 'video' : 'photo', focalX: m.focal_x ?? null, focalY: m.focal_y ?? null, position: m.position ?? 1e9 });
+      byActivity.set(m.activity_id, list);
+    }
     const items: ImportItem[] = [];
     for (const a of (data.activities ?? []) as any[]) {
       if (!a?.id || !a.started_at) continue;
       const key = `r${a.id}`;
       const photoEntry = Object.keys(entries).find((k) => k.includes(`photos/${a.id}.`));
       if (photoEntry) photos.set(key, { bytes: entries[photoEntry], ext: /png$/i.test(photoEntry) ? 'png' : 'jpg' });
+      if (a.photo_focal_x != null || a.photo_focal_y != null) coverFocal.set(key, { x: a.photo_focal_x ?? null, y: a.photo_focal_y ?? null });
+      const rest = byActivity.get(a.id);
+      if (rest?.length) extras.set(key, rest.sort((x, y) => x.position - y.position).map(({ position, ...m }) => m));
       items.push({
         key,
         // Strava activities keep their Strava id, so they match a Strava sync.
@@ -229,7 +313,7 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
         notes: a.notes ?? null, polyline: routes[a.id] ?? null,
       });
     }
-    return { source: 'rival', items, photos };
+    return { source: 'rival', items, photos, extras, coverFocal };
   }
   throw new Error('not_an_archive');
 }
@@ -273,16 +357,52 @@ export async function runImport(userId: string, read: ReadArchive, items: Import
     for (const it of batch) {
       const photo = read.photos.get(it.key);
       if (!photo) continue;
-      const path = `${userId}/import/${it.providerId}.${photo.ext}`;
+      // Capped like every other activity photo (lib/imageResize.ts).
+      const type = photo.ext === 'png' ? 'image/png' : 'image/jpeg';
+      const up = await fitPhoto({ blob: new Blob([photo.bytes as BlobPart], { type }), mimeType: type, ext: photo.ext });
+      const path = `${userId}/import/${it.providerId}.${up.ext}`;
       const { error } = await supabase.storage.from('activity-photos')
-        .upload(path, photo.bytes, { contentType: photo.ext === 'png' ? 'image/png' : 'image/jpeg', upsert: true });
+        .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
       if (!error) it.photoPath = path;
     }
     const { results } = await callImport({ items: batch });
     out.push(...(results ?? []));
+    // Each new activity gets back the rest of its photos and videos, and
+    // the cover's position. Linked or skipped ones already exist and are
+    // left as they are.
+    for (const r of (results ?? []) as ImportResult[]) {
+      if (r.status !== 'imported' || !r.id) continue;
+      const it = batch.find((b) => b.key === r.key);
+      if (!it) continue;
+      const focal = read.coverFocal.get(it.key);
+      if (focal) await supabase.from('activities').update({ photo_focal_x: focal.x, photo_focal_y: focal.y }).eq('id', r.id);
+      await attachExtras(userId, r.id, it.providerId, read.extras.get(it.key) ?? []);
+    }
     onProgress?.(Math.min(items.length, i + 10));
   }
   return out;
+}
+
+// Uploads an imported activity's other photos and videos and records them
+// after the cover, in order. A file that fails is skipped, never the import.
+async function attachExtras(userId: string, activityId: string, providerId: string, extras: ArchiveMedia[]) {
+  let position = 1;
+  for (let n = 0; n < extras.length; n++) {
+    const m = extras[n];
+    const mime = mimeOf(m.ext);
+    const blob = new Blob([m.bytes as BlobPart], { type: mime });
+    // The same caps as adding them by hand (MediaPicker, imageResize).
+    if (m.type === 'video' && blob.size > MAX_VIDEO_MB * 1024 * 1024) continue;
+    const up = m.type === 'photo' ? await fitPhoto({ blob, mimeType: mime, ext: m.ext }) : { blob, mimeType: mime, ext: m.ext };
+    const path = `${userId}/import/${providerId}-${n + 1}.${up.ext}`;
+    const { error } = await supabase.storage.from('activity-photos').upload(path, up.blob, { contentType: up.mimeType, upsert: true });
+    if (error) continue;
+    const url = supabase.storage.from('activity-photos').getPublicUrl(path).data.publicUrl;
+    const { error: rowErr } = await supabase.from('activity_media').insert({
+      activity_id: activityId, media_url: url, media_type: m.type, position, focal_x: m.focalX, focal_y: m.focalY,
+    });
+    if (!rowErr) position++;
+  }
 }
 
 /** This year's Effort, which sets the rank (same definition as Today). */

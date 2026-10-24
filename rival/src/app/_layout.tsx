@@ -1,3 +1,4 @@
+import { startTextFit } from '../lib/textFit';
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
 // The Manrope webfont lives here. It used to be imported only by
 // constants/theme.ts, a starter-template module whose consumers were deleted --
@@ -21,6 +22,19 @@ import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 
 // Screens that make sense without an account.
 const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/strava-callback', '/confirm-delete']);
+
+// Scrolls the nearest scrolling box so the focused field sits in the upper
+// part of what the keyboard leaves visible. Web only.
+function revealFocusedField(visibleHeight: number) {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || !/^(INPUT|TEXTAREA)$/.test(el.tagName)) return;
+  let box: HTMLElement | null = el.parentElement;
+  while (box && !(/(auto|scroll)/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight)) box = box.parentElement;
+  if (!box) return;
+  const r = el.getBoundingClientRect();
+  if (r.top >= 60 && r.bottom <= visibleHeight - 90) return;
+  box.scrollTop += r.top - visibleHeight * 0.3;
+}
 
 export default function RootLayout() {
   // Native registers Manrope from bundled .ttf files; web is a no-op because
@@ -127,12 +141,32 @@ export default function RootLayout() {
     const update = () => {
       // Only clamp when the visual viewport is genuinely smaller than the
       // layout viewport — i.e. the keyboard is up. Otherwise let 100vh win.
-      setViewportHeight(vv.height < window.innerHeight ? vv.height : undefined);
+      const keyboard = vv.height < window.innerHeight;
+      setViewportHeight(keyboard ? vv.height : undefined);
+      // With the keyboard up, iOS also scrolls the whole page to bring the
+      // field into view. The app is pinned to the top, so that slid it up
+      // under the screen: the bottom bar at the top and black below it, the
+      // field itself out of sight (Ricky, 2026-10-24, Manual entry's Time).
+      // Put the page back, and scroll the field into view inside the app's
+      // own scrolling list instead.
+      if (keyboard && (window.scrollY > 0 || vv.offsetTop > 0)) {
+        window.scrollTo(0, 0);
+        requestAnimationFrame(() => revealFocusedField(vv.height));
+      }
     };
     update();
     vv.addEventListener('resize', update);
-    return () => vv.removeEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
   }, []);
+
+  // No "…" anywhere: overflowing text shrinks a little or wraps (lib/textFit).
+  useEffect(() => (Platform.OS === 'web' ? startTextFit() : undefined), []);
+  // The loading wordmark (+html.tsx) stops for good once the app is running.
+  useEffect(() => { if (Platform.OS === 'web') document.documentElement.classList.add('rival-ready'); }, []);
 
   // SafeAreaProvider is what supplies the real device insets (notch, status bar, home
   // indicator) to every SafeAreaView in the app. Without it they silently report zero,

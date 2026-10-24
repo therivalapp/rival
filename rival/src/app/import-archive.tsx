@@ -83,7 +83,11 @@ export default function ImportArchiveScreen() {
   }
 
   const routes = fresh.filter((i) => i.polyline).length;
-  const photos = fresh.filter((i) => read?.photos.has(i.key)).length;
+  // Covers plus every other photo; videos counted on their own.
+  const extrasOf = (i: ImportItem) => read?.extras.get(i.key) ?? [];
+  const photos = fresh.filter((i) => read?.photos.has(i.key)).length
+    + fresh.reduce((n, i) => n + extrasOf(i).filter((m) => m.type === 'photo').length, 0);
+  const videos = fresh.reduce((n, i) => n + extrasOf(i).filter((m) => m.type === 'video').length, 0);
   const linked = (read?.items.length ?? 0) - fresh.length;
   const span = fresh.length
     ? `${monthYear(fresh.reduce((a, b) => (a.startedAt < b.startedAt ? a : b)).startedAt)} – ${monthYear(fresh.reduce((a, b) => (a.startedAt > b.startedAt ? a : b)).startedAt)}`
@@ -167,6 +171,7 @@ export default function ImportArchiveScreen() {
               <View style={s.facts}>
                 <Fact label="Already in RIVAL, linked" value={linked.toLocaleString()} first />
                 <Fact label="Photos" value={photos.toLocaleString()} />
+                {videos > 0 ? <Fact label="Videos" value={videos.toLocaleString()} /> : null}
                 <Fact label="Routes" value={routes.toLocaleString()} />
               </View>
             </View>
@@ -185,7 +190,7 @@ export default function ImportArchiveScreen() {
               <View style={s.coin}><RivalIcon name="upload" size={20} color={RivalButtonColors.label(RivalColors.onAccentFill)} /></View>
               <View style={{ flex: 1 }}>
                 <Text style={s.serif}>{done.toLocaleString()} of {fresh.length.toLocaleString()}</Text>
-                <Text style={s.body}>Adding activities, routes and photos</Text>
+                <Text style={s.body}>Adding activities, routes, photos and videos</Text>
               </View>
             </View>
             <View style={s.track}><View style={[s.trackFill, { width: `${fresh.length ? Math.round((done / fresh.length) * 100) : 0}%` as any }]} /></View>

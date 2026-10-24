@@ -12,6 +12,7 @@ import { copyText } from '../lib/clipboard';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 import { useSnapState } from '../lib/snapState';
+import { avatarImage } from '../lib/imageUrl';
 
 // A crest (and the name baked into it) can change once every 6 months —
 // often enough to fix a bad first attempt or reflect a real team change,
@@ -471,7 +472,7 @@ export default function LeagueSettingsScreen() {
                 <View style={ms.pickRow}>
                   {crestCandidates.map((url, i) => (
                     <TouchableOpacity key={i} style={ms.pickFrame} onPress={() => chooseCrest(url)} disabled={confirmingCrest} activeOpacity={0.85}>
-                      <Image source={{ uri: url }} style={ms.pickImg} resizeMode="contain" />
+                      <Image source={{ uri: avatarImage(url, 120) }} style={ms.pickImg} resizeMode="contain" />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -482,7 +483,7 @@ export default function LeagueSettingsScreen() {
                 {logoUrl ? (
                   // Contain, not cover: the team name is painted into the
                   // artwork, and cover was cropping it off both edges.
-                  <Image source={{ uri: logoUrl }} style={ms.crestImg} resizeMode="contain" />
+                  <Image source={{ uri: avatarImage(logoUrl, 120) }} style={ms.crestImg} resizeMode="contain" />
                 ) : (
                   <View style={ms.crestEmpty}>
                     <RivalIcon name="groups" size={34} color={RivalColors.accentText} />
@@ -730,7 +731,7 @@ export default function LeagueSettingsScreen() {
                   onPress={() => chooseCrest(url)}
                   disabled={confirmingCrest}
                 >
-                  <Image source={{ uri: url }} style={styles.crestPickImg} />
+                  <Image source={{ uri: avatarImage(url, 120) }} style={styles.crestPickImg} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -740,7 +741,7 @@ export default function LeagueSettingsScreen() {
           <>
             <View style={styles.logoCard}>
               {logoUrl ? (
-                <Image source={{ uri: logoUrl }} style={styles.logoImage} />
+                <Image source={{ uri: avatarImage(logoUrl, 120) }} style={styles.logoImage} />
               ) : (
                 <View style={styles.logoPlaceholder}>
                   <RivalIcon name="groups" size={36} color={RivalColors.textSecondary} />

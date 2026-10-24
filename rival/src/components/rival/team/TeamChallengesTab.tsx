@@ -10,6 +10,7 @@ import { RivalIcon, type RivalIconName } from '../RivalIcon';
 import { sheet, sheetPhone } from './sheetStyles';
 import { BusyText } from '../BusyText';
 import { selectAll, inChunks } from '../../../lib/selectAll';
+import { useSnapState } from '../../../lib/snapState';
 
 // Team Hub's Challenges tab: 1v1 challenges between teammates, and Team vs
 // Team. Ported from the old team page (league.tsx), which was the only place
@@ -147,16 +148,19 @@ export function TeamChallengesTab({
   onEndTeamGoal?: () => void;
 }) {
   const phone = !sidePageWide(useWindowDimensions().width);
-  const [loading, setLoading] = useState(true);
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [scores, setScores] = useState<Record<string, Score>>({});
-  const [teamChallenges, setTeamChallenges] = useState<TeamChallenge[]>([]);
-  const [teamScores, setTeamScores] = useState<Record<string, Score>>({});
-  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
+  // Remembered per team (lib/snapState.ts): coming back to the tab shows the
+  // last challenges at once and refreshes behind them, instead of a spinner
+  // on every visit (Ricky, 2026-10-21: the hub's tabs were slow to show).
+  const k = `challenges.${leagueId}`;
+  const [loading, setLoading] = useSnapState(`${k}.loading`, true);
+  const [challenges, setChallenges] = useSnapState<Challenge[]>(`${k}.list`, []);
+  const [scores, setScores] = useSnapState<Record<string, Score>>(`${k}.scores`, {});
+  const [teamChallenges, setTeamChallenges] = useSnapState<TeamChallenge[]>(`${k}.teams`, []);
+  const [teamScores, setTeamScores] = useSnapState<Record<string, Score>>(`${k}.teamScores`, {});
+  const [teamNames, setTeamNames] = useSnapState<Record<string, string>>(`${k}.teamNames`, {});
   const [teamSheetOpen, setTeamSheetOpen] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     const [{ data: oneVone }, { data: vsTeams }] = await Promise.all([
       supabase.from('league_challenges').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }),
       supabase.from('league_vs_league_challenges').select('*')
@@ -222,7 +226,7 @@ export function TeamChallengesTab({
     setTeamScores(teamScoreMap);
     setTeamNames(names);
     setLoading(false);
-  }, [leagueId]);
+  }, [leagueId, setLoading, setChallenges, setScores, setTeamChallenges, setTeamScores, setTeamNames]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -543,7 +547,7 @@ export function ChallengeTeammateSheet({
           <View style={sheet.grabber} />
           <View style={sheet.head}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={sheet.title}>Challenge {opponent?.name ?? ''}</Text>
+              <Text style={sheet.title}>Challenge {formatTeamName(opponent?.name)}</Text>
               <Text style={sheet.sub}>The higher total at the end wins.</Text>
             </View>
             {/* Phone pop-ups close by tapping outside, no X. */}
@@ -636,7 +640,7 @@ function ChallengeTeamSheet({
             <View style={{ height: 8 }} />
             <GreyRows>
               {shown.slice(0, 8).map((t) => (
-                <GreyRow key={t.id} icon="groups" label={t.name} onPress={() => setTarget(t.id)}>
+                <GreyRow key={t.id} icon="groups" label={formatTeamName(t.name)} onPress={() => setTarget(t.id)}>
                   {target === t.id ? <RivalIcon name="check" size={17} color={RivalColors.accentText} /> : null}
                 </GreyRow>
               ))}
@@ -679,7 +683,7 @@ function ChallengeTeamSheet({
             <View style={[s.teamList, phoneSheet && sheetPhone.list]}>
               {shown.map(t => (
                 <TouchableOpacity key={t.id} style={[s.teamRow, target === t.id && s.teamRowOn]} onPress={() => setTarget(t.id)}>
-                  <Text style={[s.teamRowText, target === t.id && { color: '#fff' }]} numberOfLines={1}>{t.name}</Text>
+                  <Text style={[s.teamRowText, target === t.id && { color: '#fff' }]} numberOfLines={1}>{formatTeamName(t.name)}</Text>
                   {target === t.id && <RivalIcon name="check" size={16} color={RivalColors.accentText} />}
                 </TouchableOpacity>
               ))}

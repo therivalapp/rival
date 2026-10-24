@@ -98,20 +98,49 @@ export async function fetchTeammates(): Promise<Teammate[]> {
   });
 }
 
-export async function fetchParticipants(activityId: string): Promise<Participant[]> {
-  const { data, error } = await supabase
-    .from('activity_participants')
-    .select('id, user_id, status, users:user_id(display_name, avatar_url)')
-    .eq('activity_id', activityId)
-    .order('created_at');
-  if (error) return [];
-  return (data ?? []).map((r: any) => ({
-    id: r.id,
-    userId: r.user_id,
-    name: r.users?.display_name || 'A teammate',
-    avatarUrl: r.users?.avatar_url ?? null,
-    status: r.status as ParticipantStatus,
-  }));
+// Asked for together: a feed draws a card per activity and each card asks for
+// its own partners, which was one request per card. Asks made within a few
+// milliseconds of each other go out as one (2026-10-21).
+let batch: Map<string, Array<(rows: Participant[]) => void>> | null = null;
+
+export function fetchParticipants(activityId: string): Promise<Participant[]> {
+  return new Promise((resolve) => {
+    if (!batch) {
+      batch = new Map();
+      setTimeout(sendParticipantBatch, 10);
+    }
+    const waiting = batch.get(activityId);
+    if (waiting) waiting.push(resolve); else batch.set(activityId, [resolve]);
+  });
+}
+
+async function sendParticipantBatch() {
+  const asked = batch!;
+  batch = null;
+  const ids = [...asked.keys()];
+  const byActivity = new Map<string, Participant[]>();
+  // A dropped connection throws rather than returning an error; every card
+  // waiting must still hear back (with no partners) instead of waiting forever.
+  try { for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await supabase
+      .from('activity_participants')
+      .select('id, activity_id, user_id, status, users:user_id(display_name, avatar_url)')
+      .in('activity_id', ids.slice(i, i + 100))
+      .order('created_at');
+    if (error) continue;
+    (data ?? []).forEach((r: any) => {
+      const list = byActivity.get(r.activity_id) ?? [];
+      list.push({
+        id: r.id,
+        userId: r.user_id,
+        name: r.users?.display_name || 'A teammate',
+        avatarUrl: r.users?.avatar_url ?? null,
+        status: r.status as ParticipantStatus,
+      });
+      byActivity.set(r.activity_id, list);
+    });
+  } } catch { /* answered below with what arrived */ }
+  asked.forEach((resolvers, id) => resolvers.forEach((r) => r(byActivity.get(id) ?? [])));
 }
 
 // Tagging asks; it does not grant. Nothing about the tagged person's Effort,

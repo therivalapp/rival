@@ -14,7 +14,8 @@ import { RivalColors, RivalType } from '../../constants/rivalTheme';
 import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 import { RivalIcon, RivalIconName } from './RivalIcon';
 import Svg, { Path } from 'react-native-svg';
-import { goToTab, type TabRoute } from '../../lib/tabNav';
+import { goToTab, getCurrentPath, type TabRoute } from '../../lib/tabNav';
+import { avatarImage } from '../../lib/imageUrl';
 
 // Shared persistent top navigation, matching the Stitch mockups. Drop it in at
 // the top of a screen (outside the ScrollView so it stays put) and pass the
@@ -46,6 +47,20 @@ let navIdentity: {
 
 export function invalidateNavIdentity() {
   navIdentity = null;
+}
+
+// Tapping the tab whose page you're on takes it back to the top, as on iOS
+// apps (Ricky, 2026-10-21) — so a double tap on any tab opens it at the top.
+// A tap that only stops a scroll isn't a press, so a scroll won't jump.
+function scrollPageToTop() {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  let best: HTMLElement | null = null;
+  document.querySelectorAll<HTMLElement>('div').forEach((el) => {
+    if (el.scrollTop <= 0 || el.clientHeight < window.innerHeight * 0.5) return;
+    if (!/auto|scroll/.test(getComputedStyle(el).overflowY)) return;
+    if (!best || el.clientHeight > best.clientHeight) best = el;
+  });
+  (best as HTMLElement | null)?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 export function RivalTopNav({ active, centerSlot, hideBar, action }: {
@@ -164,6 +179,11 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   const [displayName, setDisplayName] = useState(navIdentity?.displayName ?? '');
   const [rankName, setRankName] = useState<string | null>(navIdentity?.rankName ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // A phone has no hover: a tap on the photo used to open the menu (the tap
+  // counts as hovering) and go to Settings in the same moment, so the menu
+  // was never usable. There the tap opens and closes the menu instead
+  // (Ricky, 2026-10-21); a mouse still hovers for it and clicks through.
+  const canHover = Platform.OS === 'web' && typeof window !== 'undefined' && !!window.matchMedia?.('(hover: hover)').matches;
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   async function handleSignOut() {
@@ -243,13 +263,20 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
         } as any,
       ]}
     >
-      <View style={[styles.bottomNav, navShrunk && styles.bottomNavShrunk]}>
+      <View nativeID="rival-bottom-nav" style={[styles.bottomNav, navShrunk && styles.bottomNavShrunk]}>
         {LINKS.map((l) => {
           const isActive = active === l.key;
           return (
             <TouchableOpacity
               key={l.key}
-              onPress={() => goToTab(l.route as TabRoute)}
+              onPress={() => {
+                // Always goes to the tab: from a page opened above it (a team,
+                // an activity) it closes back down to the tab's own page.
+                // Already on that page, it also scrolls back to the top.
+                const onTabPage = getCurrentPath() === l.route;
+                goToTab(l.route as TabRoute);
+                if (onTabPage) scrollPageToTop();
+              }}
               style={[styles.bottomNavItem, isActive && styles.bottomNavItemActive, navShrunk && styles.bottomNavItemShrunk]}
             >
               <View>
@@ -387,14 +414,18 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           </TouchableOpacity>
           <View
             style={styles.avatarWrap}
-            {...(Platform.OS === 'web'
+            {...(canHover
               ? { onMouseEnter: () => setMenuOpen(true), onMouseLeave: () => setMenuOpen(false) } as any
               : {})}
           >
+            {/* Phones: a tap anywhere else closes the menu. */}
+            {Platform.OS === 'web' && !canHover && menuOpen ? (
+              <TouchableOpacity style={styles.avatarMenuDismiss} activeOpacity={1} onPress={() => setMenuOpen(false)} accessibilityLabel="Close menu" />
+            ) : null}
             <View style={[styles.avatarRing, narrow && styles.avatarRingNarrow]}>
-              <TouchableOpacity onPress={() => router.push('/profile')} style={[styles.avatar, narrow && styles.avatarNarrow]}>
+              <TouchableOpacity onPress={() => (Platform.OS !== 'web' || canHover ? router.push('/profile') : setMenuOpen((v) => !v))} style={[styles.avatar, narrow && styles.avatarNarrow]} accessibilityLabel={canHover ? 'Settings' : 'Account menu'}>
                 {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={[styles.avatarImg, narrow && styles.avatarImgNarrow]} />
+                  <Image source={{ uri: avatarImage(avatarUrl, 48) }} style={[styles.avatarImg, narrow && styles.avatarImgNarrow]} />
                 ) : (
                   <Text style={[styles.avatarInitial, narrow && styles.avatarInitialNarrow]}>{initial}</Text>
                 )}
@@ -417,14 +448,13 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
                     transform: [{ scaleY: menuOpen ? 1 : 0 }],
                     opacity: menuOpen ? 1 : 0,
                     transition: 'transform 0.16s ease, opacity 0.12s ease',
-                  } as any,
+                  } as any, { pointerEvents: menuOpen ? 'auto' : 'none' }
                 ]}
-                pointerEvents={menuOpen ? 'auto' : 'none'}
               >
                 <View style={styles.avatarMenuHeader}>
                   <View style={styles.avatarMenuHeaderAvatar}>
                     {avatarUrl ? (
-                      <Image source={{ uri: avatarUrl }} style={styles.avatarMenuHeaderImg} />
+                      <Image source={{ uri: avatarImage(avatarUrl, 48) }} style={styles.avatarMenuHeaderImg} />
                     ) : (
                       <Text style={styles.avatarInitial}>{initial}</Text>
                     )}
@@ -585,7 +615,11 @@ const styles = StyleSheet.create({
     // unaffected (it paints outside the border box regardless of overflow).
     overflow: 'hidden',
     ...(Platform.OS === 'web'
-      ? { backdropFilter: 'blur(20px)', transition: 'transform 0.22s ease, opacity 0.22s ease' } as any
+      // No backdrop blur: the pill is opaque (#1c1c1c), so the blur never
+      // showed, but the phone still re-blurred everything scrolling under it
+      // on every frame — about half the cost of scrolling (measured in the
+      // Simulator, Ricky 2026-10-21).
+      ? { transition: 'transform 0.22s ease, opacity 0.22s ease' } as any
       : {}),
   },
   // Instagram-style shrink while scrolling down — scales the whole pill down
@@ -668,6 +702,7 @@ const styles = StyleSheet.create({
   // strip of the photo) but this taller panel does. Only the bottom
   // corners are rounded. scaleY + transformOrigin 'top' (set in the inline
   // style above) makes it unfurl from the bar instead of popping in.
+  avatarMenuDismiss: { position: Platform.OS === 'web' ? ('fixed' as any) : 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   avatarMenu: {
     position: 'absolute', top: 53, right: -20, minWidth: 220,
     backgroundColor: 'rgba(14,14,14,0.55)',

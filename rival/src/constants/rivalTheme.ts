@@ -195,3 +195,12 @@ export const RivalGhost = {
 
 // Phone cards that sit on a page: the ghost fill.
 export const PHONE_CARD_BG = RivalGhost.fill;
+
+// A text shadow on any platform. The web wants one `textShadow` string (the
+// three separate props are deprecated there); iOS and Android only understand
+// the three separate props.
+export function rivalTextShadow(color: string, x: number, y: number, radius: number): any {
+  return Platform.OS === 'web'
+    ? { textShadow: `${x}px ${y}px ${radius}px ${color}` }
+    : { textShadowColor: color, textShadowOffset: { width: x, height: y }, textShadowRadius: radius };
+}

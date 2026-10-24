@@ -87,6 +87,11 @@ export default function Root({ children }: { children: React.ReactNode }) {
             animation: rivalBootPulse 1.6s ease-in-out infinite;
           }
           body:has(#root:not(:empty))::before { display: none; }
+          /* The app also switches it off itself once it starts (_layout.tsx):
+             the rule above didn't always take on iOS, and the wordmark kept
+             pulsing unseen behind the whole app, redrawing the page about
+             60 times a second (Ricky, 2026-10-21: the app felt laggy). */
+          html.rival-ready body::before { display: none; animation: none; content: none; }
           @keyframes rivalBootPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
           /* Expo's reset gives html/body/#root height:100%, which resolves
              against the LAYOUT viewport. On iOS standalone that is 59px

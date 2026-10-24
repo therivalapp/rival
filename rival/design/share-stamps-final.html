@@ -1,0 +1,56 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:20px;display:flex;flex-wrap:wrap;gap:28px 22px;width:1000px}
+.col{width:300px}h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+.note{font-size:12px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:17px}
+.ph{width:300px;height:534px;border-radius:20px;overflow:hidden;position:relative;background:url(file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/candidates/ridge-runners-hazy-backlit.png) center/cover}
+.ph.b2{background-image:url(file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/candidates/a-single-runner-crossing-a-vast.png)}
+.chk{width:300px;height:250px;border-radius:14px;margin-top:12px;background-color:#ddd;background-image:linear-gradient(45deg,#bbb 25%,transparent 25%),linear-gradient(-45deg,#bbb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#bbb 75%),linear-gradient(-45deg,transparent 75%,#bbb 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;display:flex;align-items:center;justify-content:center}
+.ph img{position:absolute}.chk img{max-width:270px;max-height:230px}
+</style></head><body>
+<script>
+const SERIF='Georgia, serif',SANS='Manrope, sans-serif',S=2.4;
+const figs=[['7.1','km','DISTANCE'],['43:13','','TIME'],['6:05','/km','PACE']];
+function mk(w,h,draw){const c=document.createElement('canvas');c.width=w*S;c.height=h*S;const x=c.getContext('2d');x.shadowColor='rgba(0,0,0,0.6)';x.shadowBlur=9*S;x.textBaseline='alphabetic';draw(x);return c.toDataURL();}
+const sp=(x,t,px,py,s,center)=>{const ws=[...t].map(c=>x.measureText(c).width);const tot=ws.reduce((a,b)=>a+b,0)+s*(t.length-1);let cx=center?px-tot/2:px;x.textAlign='left';[...t].forEach((c,i)=>{x.fillText(c,cx,py);cx+=ws[i]+s;});};
+const gold=(x,t,b)=>{const g=x.createLinearGradient(0,t,0,b);g.addColorStop(0,'#fff4d6');g.addColorStop(1,'#ffc94d');return g;};
+const fig=(x,f,fx,y,size,center)=>{x.font=`italic 700 ${size*S}px ${SERIF}`;const vw=x.measureText(f[0]).width;x.font=`600 ${size*0.45*S}px ${SANS}`;const uw=f[1]?x.measureText(' '+f[1]).width:0;const start=center?fx-(vw+uw)/2:fx;
+ x.font=`italic 700 ${size*S}px ${SERIF}`;x.fillStyle=f[3]?gold(x,y-size*S,y):'#fff';x.textAlign='left';x.fillText(f[0],start,y);if(f[1]){x.font=`600 ${size*0.45*S}px ${SANS}`;x.fillStyle='rgba(255,255,255,0.78)';x.fillText(' '+f[1],start+vw,y);}
+ x.font=`800 ${8.5*S}px ${SANS}`;x.fillStyle=f[3]?'#ffd27a':'rgba(255,255,255,0.78)';sp(x,f[2],center?fx:fx,y+14*S,1.3*S,center);};
+const line=(x,px,py,h)=>{const sb=x.shadowBlur;x.shadowBlur=0;x.fillStyle='rgba(255,209,190,0.4)';x.fillRect(px,py,Math.max(1,S*0.5),h);x.shadowBlur=sb;};
+
+
+const rgrad=(x,px,y,sz,spc,center)=>{x.font=`800 ${sz*S}px ${SANS}`;const ws=[...'RIVAL'].map(c=>x.measureText(c).width);const tot=ws.reduce((a,b)=>a+b,0)+spc*4;const x0=center?px-tot/2:px;
+ const g=x.createLinearGradient(x0,0,x0+tot,0);g.addColorStop(0,'#E8906E');g.addColorStop(0.45,'#ffb59e');g.addColorStop(1,'#F5B759');x.fillStyle=g;sp(x,'RIVAL',px,y,spc,center);};
+const four=[['7.1','km','DISTANCE'],['43:13','','TIME'],['6:05','/km','PACE'],['68','','EFFORT',1]];
+const CW=80*S, L0=14*S;
+const row=(x,y,size)=>four.forEach((f,i)=>{const fx=L0+i*CW;if(i)line(x,fx-9*S,y-size*S,size*1.55*S);fig(x,f,fx,y,size,false);});
+const rowMid=()=>L0+2*CW-9*S;
+const rival=(x,px,y,center)=>rgrad(x,px,y,13,5*S,center);
+const title=(x,y)=>{x.font=`italic 700 ${28*S}px ${SERIF}`;x.fillStyle='#fff';x.textAlign='left';x.fillText('Sunset ridge run',L0,y);};
+const A=mk(340,150,x=>{let y=24*S;rival(x,L0,y);y+=36*S;title(x,y);y+=48*S;row(x,y,19);});
+const A1=mk(340,150,x=>{let y=24*S;rival(x,rowMid(),y,true);y+=36*S;title(x,y);y+=48*S;row(x,y,19);});
+const A2=mk(340,100,x=>{const C=170*S;let y=24*S;rival(x,C,y,true);y+=40*S;four.forEach((f,i)=>{const fx=C+(i-1.5)*CW;if(i)line(x,fx-CW/2,y-19*S,19*1.55*S);fig(x,f,fx,y,19,true);});});
+const E=mk(340,110,x=>{let y=40*S;row(x,y,19);y+=46*S;rival(x,L0,y);});
+const E2=mk(340,100,x=>{let y=24*S;rival(x,L0,y);y+=40*S;row(x,y,19);});
+const F=mk(340,80,x=>{const C=170*S;let y=34*S;x.font=`italic 700 ${16*S}px ${SERIF}`;x.textAlign='left';const parts=['7.1 km','43:13','6:05 /km'];const sep='  ·  ';
+ const txt=parts.join(sep)+sep;const w1=x.measureText(txt).width;x.font=`italic 700 ${17*S}px ${SERIF}`;const w2=x.measureText('68').width;x.font=`800 ${9*S}px ${SANS}`;const w3=x.measureText(' EFFORT').width+6*S;
+ let cx=C-(w1+w2+w3)/2;x.font=`italic 700 ${16*S}px ${SERIF}`;x.fillStyle='#fff';x.fillText(txt,cx,y);cx+=w1;x.font=`italic 700 ${17*S}px ${SERIF}`;x.fillStyle=gold(x,y-15*S,y);x.fillText('68',cx,y);cx+=w2+5*S;x.font=`800 ${9*S}px ${SANS}`;x.fillStyle='#ffd27a';sp(x,'EFFORT',cx,y-1*S,1.3*S);
+ y+=30*S;rgrad(x,C,y,12,5*S,true);});
+const G=mk(160,350,x=>{const C=80*S;let y=24*S;rgrad(x,C,y,14,5.5*S,true);y+=36*S;
+ const st=[['DISTANCE','7.1','km'],['TIME','43:13',''],['PACE','6:05','/km'],['EFFORT','68','',1]];
+ st.forEach(([l,v,u,g])=>{x.font=`800 ${9*S}px ${SANS}`;x.fillStyle=g?'#ffd27a':'rgba(255,255,255,0.8)';sp(x,l,C,y,1.6*S,true);y+=30*S;
+  x.font=`italic 700 ${28*S}px ${SERIF}`;const vw=x.measureText(v).width;x.font=`600 ${12.5*S}px ${SANS}`;const uw=u?x.measureText(' '+u).width:0;let cx=C-vw/2;
+  x.font=`italic 700 ${28*S}px ${SERIF}`;x.fillStyle=g?gold(x,y-26*S,y):'#fff';x.textAlign='left';x.fillText(v,cx,y);if(u){x.font=`600 ${12.5*S}px ${SANS}`;x.fillStyle='rgba(255,255,255,0.78)';x.fillText(' '+u,cx+vw,y);}y+=38*S;});});
+const cols=[
+ ['A · RIVAL on the left','',A,'left:8px;bottom:8px;width:286px','Four figures in the row, Effort in gold as the fourth.'],
+ ['A1 · RIVAL over the middle','',A1,'left:8px;bottom:8px;width:286px','RIVAL on top, centred over the middle of the four figures.'],
+ ['A2 · RIVAL above the figures','',A2,'left:7px;bottom:20px;width:286px','No name, all centred: RIVAL over the middle, each figure centred in its column with its label under it.'],
+ ['E · One row','',E,'left:8px;bottom:20px;width:286px','Four figures and RIVAL. No name.'],
+ ['E2 · RIVAL on top','',E2,'left:8px;bottom:20px;width:286px','Same as E, with RIVAL above the figures instead of under them.'],
+ ['F · One line','',F,'left:10px;bottom:36px;width:280px','One serif line ending in Effort in gold, RIVAL below.'],
+ ['G · Labels on top','',G,'left:70px;bottom:20px;width:160px','RIVAL at the top, then the numbers stacked on one centre line; units hang to the right, outside the centring. Effort last, in gold.'],
+];
+document.write(cols.map(([t,cl,src,pos,n])=>`<div class="col"><h2>${t}</h2><div class="ph ${cl}"><img src="${src}" style="${pos}"></div><div class="chk"><img src="${src}"></div><div class="note">${n}</div></div>`).join(''));
+</script></body></html>

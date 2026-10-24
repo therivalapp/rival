@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, GestureResponderEvent, PanResponderGestureState, PanResponder, Platform } from 'react-native';
 import { RivalColors, RivalType, RivalRadius, RivalButtonColors } from '../../constants/rivalTheme';
 import { computeCoverLayout } from './CoverImage';
+import { fullPhoto } from '../../lib/imageUrl';
 
 const FRAME_W = 300;
 const FRAME_H = 400;
@@ -100,15 +101,14 @@ export function PhotoPositioner({
             // the frame. A plain View with a CSS background image has no
             // such built-in drag behavior. Same fix CoverImage already uses.
             <View
-              pointerEvents="none"
-              style={{
+              style={[{
                 position: 'absolute', width: layout.renderW, height: layout.renderH, left: layout.left, top: layout.top,
                 backgroundImage: `url("${photoUrl}")`, backgroundSize: '100% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
-              } as any}
+              } as any, { pointerEvents: 'none' }]}
             />
           ) : (
             <Image
-              source={{ uri: photoUrl }}
+              source={{ uri: fullPhoto(photoUrl) }}
               style={{ position: 'absolute', width: layout.renderW, height: layout.renderH, left: layout.left, top: layout.top }}
             />
           )

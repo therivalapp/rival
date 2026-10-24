@@ -1,4 +1,7 @@
 import { getMyTeamRows } from '../../lib/myTeams';
+import { requestShare } from '../../lib/shareRequest';
+import { byRecentlyOpened } from '../../lib/recentTeams';
+import { liftPbChecker, liftsFromEntries } from '../../lib/liftPb';
 import { bandFit } from '../../lib/titleFit';
 import { formatDurationClock } from '../../lib/format';
 import { formatElevation } from '../../lib/units';
@@ -7,7 +10,7 @@ import { fitPhoto } from '../../lib/imageResize';
 import { ROUTE_MAPS_ENABLED } from '../../lib/features';
 import { formatActivityDistance } from '../../lib/units';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, Platform, ScrollView, Image, ImageBackground, TouchableOpacity, TextInput } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, Platform, ScrollView, Image, ImageBackground, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { buildDayRollups, mergeRollups, rollsUpIntoDayCard, type DayRollup, type RollupRow } from '@/lib/dayRollup';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,9 +34,11 @@ import { CommentThread } from '../../components/rival/team/CommentThread';
 import { titleFit } from '../../lib/titleFit';
 import { InspiredBolt } from '../../components/rival/InspiredBolt';
 import { DetailsSheet } from '../../components/rival/ActivityDetails';
+import { GreySheet, GreyRows, GreyRow } from '../../components/rival/RivalGreySheet';
 import { RUN_TYPES, STACKED_BESTS, fastestBests, fastestRest, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
 import { inChunks, selectAll } from '../../lib/selectAll';
 import { getPrefs } from '../../lib/prefs';
+import { avatarImage, cardPhoto } from '../../lib/imageUrl';
 
 // Combined multi-team activity feed — separate destination from league.tsx's
 // existing per-team feed tab (per the Team architecture split: Feed = watch,
@@ -180,6 +185,7 @@ type FeedPost =
       name: string;
       count: number;
       totalSeconds: number;
+      totalMeters: number;
       xp: number;
       typeLabel: string;
       ts: string;
@@ -224,7 +230,7 @@ type FeedContext = {
   teamsForUser: Record<string, string[]>;
   teamNameById: Record<string, string>;
   nameMap: Record<string, string>;
-  liftMaxMap: Map<string, number>;
+  liftPb: ReturnType<typeof liftPbChecker>;
   insightHistoryByUser: Record<string, InsightActivity[]>;
   fastestById: Record<string, FastestBest[]>;
   // False while the lift and history data are still on their way: posts show
@@ -233,14 +239,10 @@ type FeedContext = {
   ready: boolean;
 };
 
-function findPbLift(ctx: FeedContext, userId: string, exercises: any[] | null): string | null {
-  if (!exercises) return null;
-  for (const ex of exercises) {
-    const canonical = matchCanonicalLift(ex.name) || ex.prLift;
-    if (!canonical || !ex.weight) continue;
-    if (ex.weight >= (ctx.liftMaxMap.get(`${userId}|${canonical}`) ?? 0)) return canonical;
-  }
-  return null;
+// One rule everywhere (lib/liftPb.ts): beats the heaviest earlier lift, or a
+// first-time lift the person marked as a personal best.
+function findPbLift(ctx: FeedContext, a: any): string | null {
+  return ctx.liftPb(a.user_id, a.id, a.started_at, a.exercises)?.lift ?? null;
 }
 
 // Rollup grouping, merging and the walk/auto-sync rule live in
@@ -269,6 +271,7 @@ function rollupToPost(ctx: FeedContext, r: DayRollup): FeedPost {
     name: ctx.nameMap[r.userId] ?? 'Athlete',
     count: r.count,
     totalSeconds: r.totalSeconds,
+    totalMeters: r.totalMeters,
     xp: r.xp,
     typeLabel: r.typeLabel,
     ts: r.ts,
@@ -280,7 +283,7 @@ function rollupToPost(ctx: FeedContext, r: DayRollup): FeedPost {
 function activityRowToPost(ctx: FeedContext, a: any): FeedPost | null {
   const posterTeams = ctx.teamsForUser[a.user_id];
   if (!a.started_at || !posterTeams?.length) return null;
-  const pbLift = ctx.ready ? findPbLift(ctx, a.user_id, a.exercises) : null;
+  const pbLift = ctx.ready ? findPbLift(ctx, a) : null;
   const insight = ctx.ready ? computeActivityInsight(
     { activity_type: a.activity_type, started_at: a.started_at, duration_seconds: a.duration_seconds, distance_meters: a.distance_meters },
     ctx.insightHistoryByUser[a.user_id] || [],
@@ -357,6 +360,10 @@ type FeedSnapshot = {
   cursor: string | null;
 };
 let feedSnap: FeedSnapshot | null = null;
+
+// The latest tap on each post's reactions, so a refused save only puts
+// back the state when nothing newer has happened.
+const reactionTaps: Record<string, number> = {};
 
 export default function TeamFeedScreen() {
   const { width } = useWindowDimensions();
@@ -491,7 +498,7 @@ export default function TeamFeedScreen() {
     });
     setAvatarMap(avatars);
     setNameMap(nameMap);
-    setTeams(myTeams.map((t) => ({ ...t, memberCount: memberCountByTeam[t.id] || 0 })));
+    setTeams(byRecentlyOpened(myTeams.map((t) => ({ ...t, memberCount: memberCountByTeam[t.id] || 0 }))));
     const memberIds = Array.from(memberIdSet);
 
     const oneYearAgo = new Date();
@@ -508,7 +515,9 @@ export default function TeamFeedScreen() {
     // maxima and a year of history (for PB badges and insights) are larger
     // downloads, so they follow and the posts are rebuilt when they land.
     const extrasP = Promise.all([
-      supabase.from('exercise_entries').select('user_id, exercise_name, weight_kg').in('user_id', memberIds),
+      // Paged: the database stops at 1,000 rows without saying so.
+      inChunks(memberIds, (ids) => selectAll((from, to) => supabase.from('exercise_entries')
+        .select('id, user_id, activity_id, exercise_name, weight_kg, performed_at').in('user_id', ids).order('id').range(from, to))),
       supabase.from('activities')
         .select('user_id, activity_type, started_at, duration_seconds, distance_meters, elevation_meters')
         .in('user_id', memberIds)
@@ -542,7 +551,7 @@ export default function TeamFeedScreen() {
       return built;
     };
 
-    const partial: FeedContext = { memberIds, teamsForUser, teamNameById, nameMap, liftMaxMap: new Map(), insightHistoryByUser: {}, fastestById: {}, ready: false };
+    const partial: FeedContext = { memberIds, teamsForUser, teamNameById, nameMap, liftPb: liftPbChecker([]), insightHistoryByUser: {}, fastestById: {}, ready: false };
     // A revisit already has a full feed on screen; keep it until the full
     // rebuild below rather than briefly dropping its badges.
     const revisit = !!ctxRef.current?.ready;
@@ -554,17 +563,13 @@ export default function TeamFeedScreen() {
       loadSocialFor(built, true);
     }
 
-    const [liftEntriesRes, insightHistoryRes, runRows] = await extrasP;
+    const [liftRows, insightHistoryRes, runRows] = await extrasP;
     const insightHistoryByUser: Record<string, InsightActivity[]> = {};
     (insightHistoryRes.data || []).forEach((a: any) => { (insightHistoryByUser[a.user_id] ??= []).push(a); });
 
-    const liftMaxMap = new Map<string, number>();
-    (liftEntriesRes.data || []).forEach((e: any) => {
-      const key = `${e.user_id}|${e.exercise_name}`;
-      liftMaxMap.set(key, Math.max(liftMaxMap.get(key) ?? 0, e.weight_kg));
-    });
+    const liftPb = liftPbChecker(liftsFromEntries(liftRows as any[]));
 
-    const ctx: FeedContext = { ...partial, liftMaxMap, insightHistoryByUser, fastestById: fastestBests(runRows, getPrefs().units === 'imperial'), ready: true };
+    const ctx: FeedContext = { ...partial, liftPb, insightHistoryByUser, fastestById: fastestBests(runRows, getPrefs().units === 'imperial'), ready: true };
     ctxRef.current = ctx;
 
     const { more, nextCursor } = firstPage;
@@ -614,27 +619,30 @@ export default function TeamFeedScreen() {
 
   useFocusEffect(useCallback(() => { loadFeed(); }, [loadFeed]));
 
+  // A tap shows at once; the save follows behind (a second's wait on the
+  // round trip made the star feel broken, Ricky 2026-10-22). If the save is
+  // refused, the reaction goes back to what it was, unless a later tap on the
+  // same post has already moved it on.
   async function toggleReaction(targetType: 'activity' | 'race' | 'day_roll', targetId: string, teamId: string, emoji: 'respect' | 'inspired') {
     if (!currentUserId) return;
     const key = feedTargetKey(targetType, targetId);
-    const existing = (reactionsMap[key] || []).find((r) => r.user_id === currentUserId);
-    if (existing?.emoji === emoji) {
-      const { error } = await supabase.from('feed_reactions').delete().eq('target_type', targetType).eq('target_id', targetId).eq('user_id', currentUserId);
-      // A rejected tap on a reaction isn't worth a dialog, but the UI must not
-      // keep asserting a state the server refused.
-      if (error) return;
-      setReactionsMap((prev) => ({ ...prev, [key]: (prev[key] || []).filter((r) => r.user_id !== currentUserId) }));
-    } else {
-      const { error } = await supabase.from('feed_reactions').upsert(
+    const before = reactionsMap[key] || [];
+    const existing = before.find((r) => r.user_id === currentUserId);
+    const removing = existing?.emoji === emoji;
+    const tap = (reactionTaps[key] = (reactionTaps[key] || 0) + 1);
+    setReactionsMap((prev) => ({
+      ...prev,
+      [key]: removing
+        ? (prev[key] || []).filter((r) => r.user_id !== currentUserId)
+        : [...(prev[key] || []).filter((r) => r.user_id !== currentUserId), { user_id: currentUserId, emoji }],
+    }));
+    const { error } = removing
+      ? await supabase.from('feed_reactions').delete().eq('target_type', targetType).eq('target_id', targetId).eq('user_id', currentUserId)
+      : await supabase.from('feed_reactions').upsert(
         { league_id: teamId, target_type: targetType, target_id: targetId, user_id: currentUserId, emoji },
         { onConflict: 'target_type,target_id,user_id' },
       );
-      if (error) return;
-      setReactionsMap((prev) => ({
-        ...prev,
-        [key]: [...(prev[key] || []).filter((r) => r.user_id !== currentUserId), { user_id: currentUserId, emoji }],
-      }));
-    }
+    if (error && reactionTaps[key] === tap) setReactionsMap((prev) => ({ ...prev, [key]: before }));
   }
 
   function toggleComments(key: string) {
@@ -719,7 +727,7 @@ export default function TeamFeedScreen() {
                     >
                       {t.logoUrl ? (
                         <View style={styles.teamLogoFrame}>
-                          <Image source={{ uri: t.logoUrl }} style={styles.teamLogoImgFull} resizeMode="cover" />
+                          <Image source={{ uri: avatarImage(t.logoUrl, 48) }} style={styles.teamLogoImgFull} resizeMode="cover" />
                         </View>
                       ) : (
                         <View style={[styles.teamLogoFallback, { backgroundColor: tint.bg }]}>
@@ -787,6 +795,51 @@ export default function TeamFeedScreen() {
   );
 }
 
+// One figure per walk, smaller as there are more, so five still fit.
+const WALK_FIGURE_SIZE = [132, 104, 88, 72, 62];
+
+type DayRollPost = Extract<FeedPost, { kind: 'dayRoll' }>;
+
+// The day's walks, one row each; a row opens that walk's details. One walk
+// goes straight to its details.
+function WalksSheet({ post, onClose, onPick }: {
+  post: DayRollPost;
+  onClose: () => void;
+  onPick: (walk: { id: string; title: string }) => void;
+}) {
+  const walks = Object.entries(post.rollup.parts)
+    .map(([id, p]) => ({ id, ...p }))
+    .sort((a, b) => (a.startedAt || '').localeCompare(b.startedAt || ''));
+  const single = walks.length === 1 ? walks[0] : null;
+  useEffect(() => { if (single) onPick({ id: single.id, title: single.name || 'Walk' }); }, []);
+  if (single) return null;
+  const day = new Date(post.ts).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetBackdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <GreySheet kicker="WALKS" title={day} onClose={onClose} footer={null}>
+          <GreyRows>
+            {walks.map((w) => {
+              const time = w.startedAt ? new Date(w.startedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
+              const dist = (w.meters || 0) >= 100 ? formatActivityDistance(w.meters!, 'Walk', 100) : null;
+              return (
+                <GreyRow
+                  key={w.id}
+                  icon="walk"
+                  label={time}
+                  value={[dist, formatDurationClock(w.seconds), `${Math.round(w.xp * 10) / 10} Effort`].filter(Boolean).join(' · ')}
+                  onPress={() => onPick({ id: w.id, title: w.name || 'Walk' })}
+                />
+              );
+            })}
+          </GreyRows>
+        </GreySheet>
+      </View>
+    </Modal>
+  );
+}
+
 // A big faint icon filling an empty photo panel, under its words.
 // On phones the panel is the sky for the hour the activity started, with the
 // icon faint in white over it (Ricky, 2026-10-14).
@@ -794,10 +847,10 @@ function PanelArt({ icon, startedAt, utcOffset }: { icon: RivalIconName; started
   return (
     <>
       {startedAt ? <SkyBackdrop startedAt={startedAt} utcOffsetSeconds={utcOffset} /> : null}
-      <View style={styles.panelArt} pointerEvents="none">
+      <View style={[styles.panelArt, { pointerEvents: 'none' }]}>
         <RivalIcon name={icon} size={132} color={startedAt ? 'rgba(255,255,255,0.16)' : 'rgba(255,181,158,0.24)'} />
       </View>
-      {startedAt ? null : <View style={styles.panelArtFade} pointerEvents="none" />}
+      {startedAt ? null : <View style={[styles.panelArtFade, { pointerEvents: 'none' }]} />}
     </>
   );
 }
@@ -828,6 +881,9 @@ function PostCard({
   const reactPhone = bigArt;
   const [menuOpen, setMenuOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // The day card's list of walks, and the walk picked from it.
+  const [walksOpen, setWalksOpen] = useState(false);
+  const [walkDetails, setWalkDetails] = useState<{ id: string; title: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -908,8 +964,12 @@ function PostCard({
       ? formatDuration(post.totalSeconds)
       : '';
 
+  // Phones: a coloured edge only when it means something (Ricky, 2026-10-21):
+  // gold for a best, ivory for an event, salmon for your own posts. Everyone
+  // else's everyday posts have none.
+  const showBars = !reactPhone || accent !== 'default' || post.userId === currentUserId;
   return (
-    <View style={styles.post}>
+    <View style={[styles.post, reactPhone && styles.postPhone]}>
       {post.kind === 'activity' && detailsOpen ? (
         <DetailsSheet
           activityId={post.id}
@@ -918,13 +978,19 @@ function PostCard({
           onClose={() => setDetailsOpen(false)}
         />
       ) : null}
+      {post.kind === 'dayRoll' && walksOpen ? (
+        <WalksSheet post={post} onClose={() => setWalksOpen(false)} onPick={(w) => { setWalksOpen(false); setWalkDetails(w); }} />
+      ) : null}
+      {walkDetails ? (
+        <DetailsSheet activityId={walkDetails.id} title={walkDetails.title} onClose={() => setWalkDetails(null)} />
+      ) : null}
       {deleting && (
         <View style={styles.postDeleting} accessibilityLiveRegion="polite">
           <ActivityIndicator color={RivalColors.accentText} />
           <Text style={styles.postDeletingText}>Deleting activity…</Text>
         </View>
       )}
-      {Platform.OS === 'web' ? (
+      {!showBars ? null : Platform.OS === 'web' ? (
         <>
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
           <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
@@ -938,7 +1004,7 @@ function PostCard({
 
       <View style={styles.postHeader}>
         <TouchableOpacity onPress={() => router.push(`/stats?userId=${post.userId}` as any)} style={[styles.postAvatar, { backgroundColor: tint.bg, borderColor: tint.color }]}>
-          {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.postAvatarImg} /> : <Text style={[styles.postAvatarText, { color: tint.color }]}>{initials}</Text>}
+          {avatarUrl ? <Image source={{ uri: avatarImage(avatarUrl, 36) }} style={styles.postAvatarImg} /> : <Text style={[styles.postAvatarText, { color: tint.color }]}>{initials}</Text>}
         </TouchableOpacity>
         {/* The name opens their profile too, not just the small avatar — but
             only the name. This used to be one flex:1 touchable holding the name
@@ -953,7 +1019,7 @@ function PostCard({
             {post.kind === 'race'
               ? 'Signed up for an event · '
               : post.kind === 'dayRoll'
-                ? `${post.count} ${post.typeLabel} · `
+                ? (reactPhone ? null : `${post.count} ${post.typeLabel} · `)
                 : reactPhone && post.kind === 'activity'
                   ? null
                   : <>{post.activityName || post.activityType} · </>}{timeAgo(post.ts)}
@@ -964,7 +1030,7 @@ function PostCard({
         </View>
         {post.kind === 'activity' && post.userId === currentUserId && (
           <View style={styles.postMoreWrap}>
-            <TouchableOpacity style={styles.postMoreBtn} onPress={() => setMenuOpen((v) => !v)} disabled={deleting}>
+            <TouchableOpacity style={[styles.postMoreBtn, menuOpen && styles.postMoreBtnOn]} onPress={() => setMenuOpen((v) => !v)} disabled={deleting}>
               <RivalIcon name="more" size={20} color={RivalColors.textSecondary} />
             </TouchableOpacity>
             {menuOpen && (
@@ -972,7 +1038,9 @@ function PostCard({
                 {/* Full-screen tap-catcher to close the menu on outside press —
                     sits below the menu itself in z-order. */}
                 <TouchableOpacity style={styles.postMoreBackdrop} onPress={() => setMenuOpen(false)} />
-                <View style={styles.postMoreMenu}>
+                <View style={[styles.postMoreMenu, Platform.OS === 'web' ? ({ animationName: 'rivalMenuIn', animationDuration: '160ms', animationTimingFunction: 'ease-out' } as any) : null]}>
+                  {/* A small point up to the ⋯ button, so the menu reads as coming from it. */}
+                  <View style={styles.postMoreArrow} />
                   <TouchableOpacity
                     style={styles.postMoreMenuItem}
                     onPress={() => { setMenuOpen(false); router.push(`/manual-entry?editId=${post.id}` as any); }}
@@ -982,10 +1050,10 @@ function PostCard({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.postMoreMenuItem}
-                    onPress={() => { setMenuOpen(false); router.push(`/ai-share?activityId=${post.id}` as any); }}
+                    onPress={() => { setMenuOpen(false); requestShare(post.id); }}
                   >
-                    <RivalIcon name="camera" size={16} color={RivalColors.onSurface} />
-                    <Text style={styles.postMoreMenuText}>Save as image</Text>
+                    <RivalIcon name="share" size={16} color={RivalColors.onSurface} />
+                    <Text style={styles.postMoreMenuText}>Share</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.postMoreMenuItem} onPress={deleteThisActivity}>
                     <RivalIcon name="delete" size={16} color={RivalColors.danger} />
@@ -1000,6 +1068,12 @@ function PostCard({
 
       {/* Journal card layout (phone, Ricky 2026-10-05): the activity name is
           the card's title, on its own line under the person. */}
+      {reactPhone && post.kind === 'dayRoll' ? (
+        // The day's walks get a title like any other post (Ricky, 2026-10-21, B).
+        <View style={styles.titleRowPhone}>
+          <Text style={[styles.postTitlePhone, { marginTop: 0, paddingHorizontal: 0 }]}>{post.count > 1 ? 'Walks' : 'Walk'}</Text>
+        </View>
+      ) : null}
       {reactPhone && post.kind === 'activity' ? (
         // Layout C: title and distance on the left, Effort on the right, all
         // above the photo, so Respect and Inspired sit straight under it.
@@ -1012,7 +1086,20 @@ function PostCard({
         </View>
       ) : null}
 
-      {post.kind === 'dayRoll' ? (
+      {post.kind === 'dayRoll' && reactPhone ? (
+        // The sky for the hour of the first walk, one big faint figure per
+        // walk (Ricky, 2026-10-21, B).
+        <View style={[styles.noPhotoPanel, styles.panelBigArt]}>
+          <SkyBackdrop startedAt={post.ts} />
+          <View style={[styles.panelArt, styles.walkFigures, { pointerEvents: 'none' }]}>
+            {Array.from({ length: Math.min(post.count, 5) }, (_, i) => (
+              <RivalIcon key={i} name="walk" size={WALK_FIGURE_SIZE[Math.min(post.count, 5) - 1]} color="rgba(255,255,255,0.16)" />
+            ))}
+          </View>
+          <Text style={[styles.rollupCount, styles.rollupCountSky]}>{post.count} {post.typeLabel}</Text>
+          <Text style={[styles.noPhotoBody, styles.noPhotoBodySky]}>{formatDuration(post.totalSeconds)} of movement</Text>
+        </View>
+      ) : post.kind === 'dayRoll' ? (
         <View style={styles.noPhotoPanel}>
           <RivalIcon name="walk" size={28} color={RivalColors.accentText} />
           <Text style={styles.rollupCount}>{post.count} {post.typeLabel}</Text>
@@ -1027,7 +1114,7 @@ function PostCard({
         </View>
       ) : post.photoUrl ? (
         <View style={[styles.postPhotoWrap, isPb && styles.postPhotoWrapPb]}>
-          <Image source={{ uri: post.photoUrl }} style={styles.postPhoto} />
+          <Image source={{ uri: cardPhoto(post.photoUrl) }} style={styles.postPhoto} />
         </View>
       ) : routePolyline ? (
         <View style={styles.routeWrap}>
@@ -1060,9 +1147,31 @@ function PostCard({
 
       {(post.kind === 'activity' || post.kind === 'dayRoll') && (
         <>
-          {reactPhone && post.kind === 'activity' ? (
+          {reactPhone && post.kind === 'dayRoll' ? (
+            // The same numbers card as a run's. Tapping it lists the day's
+            // walks, each opening its own details (Ricky, 2026-10-21).
+            <TouchableOpacity
+              style={[styles.fcStats, styles.fcRow]}
+              activeOpacity={0.85}
+              onPress={() => setWalksOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={post.count > 1 ? 'Show walks' : 'Show details'}
+            >
+              <View style={styles.fcCell}><Text style={styles.fcLabel}>Time</Text><Text style={styles.fcValue}>{formatDurationClock(post.totalSeconds)}</Text></View>
+              {post.totalMeters >= 100 ? (
+                <View style={[styles.fcCell, styles.fcDivided]}><Text style={styles.fcLabel}>Distance</Text><Text style={styles.fcValue}>{formatActivityDistance(post.totalMeters, 'Walk', 100)}</Text></View>
+              ) : null}
+              {post.count > 1 ? (
+                <View style={[styles.fcCell, styles.fcDivided]}><Text style={styles.fcLabel}>Walks</Text><Text style={styles.fcValue}>{post.count}</Text></View>
+              ) : null}
+              <View style={[styles.fcCell, styles.fcDivided]}>
+                <Text style={styles.fcLabel}>Effort</Text>
+                <Text style={[styles.fcValue, styles.fcEffort, effortGoldText]}>{post.xp}</Text>
+              </View>
+            </TouchableOpacity>
+          ) : reactPhone && post.kind === 'activity' ? (
             // The activity page's numbers card: the streak or personal-best
-            // line as a band across its top, then Time, Distance, Climb and
+            // line as a band across its top, then Time, Distance, Elevation and
             // Effort (Ricky, 2026-10-14, option A).
             // Tapping the numbers opens the finer details (Ricky, 2026-10-14).
             <TouchableOpacity
@@ -1104,7 +1213,7 @@ function PostCard({
                   <View style={[styles.fcCell, post.durationSeconds > 0 && styles.fcDivided]}><Text style={styles.fcLabel}>Distance</Text><Text style={styles.fcValue}>{formatActivityDistance(post.distanceMeters, post.activityType, 100)}</Text></View>
                 ) : null}
                 {post.elevationMeters > 0 ? (
-                  <View style={[styles.fcCell, styles.fcDivided]}><Text style={styles.fcLabel}>Climb</Text><Text style={styles.fcValue}>{formatElevation(post.elevationMeters)}</Text></View>
+                  <View style={[styles.fcCell, styles.fcDivided]}><Text style={styles.fcLabel}>Elevation</Text><Text style={styles.fcValue}>{formatElevation(post.elevationMeters)}</Text></View>
                 ) : null}
                 <View style={[styles.fcCell, (post.durationSeconds > 0 || post.distanceMeters >= 100 || post.elevationMeters > 0) && styles.fcDivided]}>
                   <Text style={styles.fcLabel}>Effort</Text>
@@ -1296,6 +1405,18 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 11,
   },
+  // Phones: the Add activity grey with Today's soft top glow and lit edge
+  // (Ricky, 2026-10-21, option A), in place of the brown gradient.
+  postPhone: {
+    backgroundColor: RivalColors.surfaceHigh,
+    ...(Platform.OS === 'web' ? {
+      // The lit edge as border colours, not a masked overlay: one layer per
+      // post made the phone leave black patches while scrolling.
+      borderWidth: 1, borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
+      backgroundImage: 'radial-gradient(ellipse 70% 220px at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
+      backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
+    } as any : {}),
+  },
   postAccentBar: { position: 'absolute', top: 6, bottom: 6, width: 3 },
   postAccentBarNative: { position: 'absolute', top: 6, bottom: 6, width: 3, opacity: 0.7 },
   postAccentBarLeft: { left: -1, borderTopLeftRadius: 3, borderBottomLeftRadius: 3 },
@@ -1307,18 +1428,22 @@ const styles = StyleSheet.create({
   // the menu's own zIndex.
   postHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, zIndex: 5 },
   postMoreWrap: { marginLeft: 'auto', position: 'relative' },
-  postMoreBtn: { padding: 4 },
-  postMoreBackdrop: {
-    position: Platform.OS === 'web' ? ('fixed' as any) : 'absolute',
-    top: -1000, left: -1000, right: -1000, bottom: -1000,
-  },
+  postMoreBtn: { padding: 4, borderRadius: 999 },
+  // Lit while its menu is open, the menu's own grey.
+  postMoreBtnOn: { backgroundColor: RivalColors.surfaceHigh },
+  postMoreBackdrop: { position: Platform.OS === 'web' ? ('fixed' as any) : 'absolute', top: -1000, left: -1000, right: -1000, bottom: -1000 },
+  // The pop-ups' grey (GreySheet), opening down out of the ⋯ button.
   postMoreMenu: {
-    position: 'absolute', top: 30, right: 0, zIndex: 10, minWidth: 168,
-    borderRadius: 12, paddingVertical: 6, backgroundColor: '#2a221e',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 8px 20px rgba(0,0,0,0.45)' } as any : {
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+    position: 'absolute', top: 36, right: 0, zIndex: 10, minWidth: 168,
+    borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {
+      boxShadow: '0px 4px 10px rgba(0,0,0,0.4)', elevation: 8,
     }),
+  },
+  postMoreArrow: {
+    position: 'absolute', top: -6, right: 9, width: 11, height: 11, backgroundColor: RivalColors.surfaceHigh,
+    borderTopWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(255,255,255,0.08)', transform: [{ rotate: '45deg' }],
   },
   postMoreMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 14 },
   postMoreMenuText: { fontSize: 13.5, fontWeight: '600', color: RivalColors.onSurface },
@@ -1410,6 +1535,10 @@ const styles = StyleSheet.create({
   addPhotoCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: RivalColors.accentText, alignItems: 'center', justifyContent: 'center' },
   // Same weight as the event label but in the app's own accent rather than
   // race red — a day of walks is ordinary training, not an occasion.
+  walkFigures: { flexDirection: 'row' },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  rollupCountSky: { color: '#fff' },
+  noPhotoBodySky: { color: 'rgba(255,255,255,0.92)' },
   rollupCount: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: RivalColors.accentText },
   // Offered, never insisted on: the same muted weight as the stats line rather
   // than anything that reads as a warning, and only the owner ever sees it.

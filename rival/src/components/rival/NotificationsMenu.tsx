@@ -22,6 +22,7 @@ export const INBOX_ICON_FOR: Record<InboxItem['kind'], RivalIconName> = {
   activity_tag: 'groups',
   tag_accepted: 'verified',
   pace_review: 'bolt',
+  rank_alert: 'rankUnrivaled',
 };
 
 export function inboxTimeAgo(iso: string): string {
@@ -40,6 +41,7 @@ export function goToInboxSubject(item: InboxItem) {
   if (item.kind === 'reaction' || item.kind === 'comment') goToTab('/team-feed');
   else if (item.kind === 'team_joined' || item.kind === 'join_request') router.push('/team-hub');
   else if (item.kind === 'tag_accepted') goToTab('/my-activities');
+  else if (item.kind === 'rank_alert') router.push('/ranks');
 }
 
 const SHOWN = 6;

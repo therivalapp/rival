@@ -66,7 +66,12 @@ export default function ConfirmDeleteScreen() {
   }
 
   async function keep() {
-    if (userId) await supabase.from('deletion_requests').delete().eq('user_id', userId);
+    if (userId) {
+      // Cancelling the request is the point of this button; if it didn't go
+      // through, the emailed link would still work, so say so.
+      const { error } = await supabase.from('deletion_requests').delete().eq('user_id', userId);
+      if (error) { setMsg('The deletion request could not be cancelled. Try again.'); return; }
+    }
     goToTab('/home');
   }
 

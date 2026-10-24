@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Newsreader:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#121010;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:26px}
+.col{width:100%;max-width:361px}
+h2{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+h2 span{color:rgba(255,255,255,.5);letter-spacing:0;text-transform:none;font-weight:600;margin-left:6px}
+.card{position:relative;overflow:hidden;border-radius:22px;padding:16px 18px;background:#1f1b19;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:14px}
+.card:before{content:'';position:absolute;left:0;right:0;top:0;height:120px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.22),rgba(232,131,95,0) 70%)}
+.card>*{position:relative}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffd3c2}
+.t{font-family:Newsreader,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px;margin-top:3px}
+.q{font-family:Newsreader,serif;font-style:italic;font-weight:600;font-size:18px;line-height:25px;color:rgba(255,255,255,.88)}
+.prompt{font-size:14px;line-height:20px;color:rgba(255,255,255,.8)}
+.prompt b{color:#fff}
+.panel{border-radius:14px;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.lbl{font-size:9.5px;letter-spacing:1.6px;font-weight:800;color:#fff;text-transform:uppercase}
+.cols{display:flex;margin-top:10px}.c{flex:1;text-align:center}.c+.c{border-left:1px solid rgba(255,209,190,.1)}
+.c b{font-family:Newsreader,serif;font-style:italic;font-size:20px;line-height:24px;display:block}.c b em{font-family:Manrope;font-style:normal;font-size:12px;color:rgba(255,255,255,.55);font-weight:600}
+.c i{font-style:normal;font-size:9px;letter-spacing:1.3px;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:14px;overflow:hidden}.bar i{display:block;height:6px;width:61%;background:linear-gradient(90deg,#c4694a,#f2b39c);border-radius:3px}
+.note{font-size:11.5px;color:rgba(255,255,255,.5);margin-top:6px}
+.go{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;border:1px dashed rgba(255,181,158,.45);color:#ffb59e;font-weight:800;font-size:14px}
+.go .p{width:28px;height:28px;border-radius:14px;background:rgba(232,131,95,.2);display:flex;align-items:center;justify-content:center;font-size:18px}
+.btn{height:52px;border-radius:26px;background:linear-gradient(90deg,#d9805f,#f2b39c);color:#4a1a0c;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;margin-top:12px}
+</style></head><body>
+<script>
+const head=`<div><div class="k">Oct 19 – 25</div><div class="t">This week</div></div>`;
+const month=`<div class="panel"><div class="lbl">October so far</div><div class="cols"><div class="c"><b>3<em>h</em> 28<em>m</em></b><i>Time</i></div><div class="c"><b>33.4 <em>km</em></b><i>Distance</i></div><div class="c"><b>8</b><i>Activities</i></div></div><div class="bar"><i></i></div><div class="note">19 of 31 days</div></div>`;
+document.write(`
+<div class="col"><h2>H · A consistency line <span>recommended</span></h2>
+<div class="card">${head}<div class="q">“You don't need a perfect streak. You need a repeated one.”</div>${month}</div><div class="btn">+ Add activity</div></div>
+
+<div class="col"><h2>I · A prompt to start</h2>
+<div class="card">${head}<div class="prompt">Nothing logged yet. <b>One activity gets the week started.</b></div>${month}</div><div class="btn">+ Add activity</div></div>
+
+<div class="col"><h2>J · The start inside the card <span>replaces the button below</span></h2>
+<div class="card">${head}<div class="go"><span class="p">+</span>Log the first activity of the week</div>${month}</div></div>
+`);
+</script></body></html>

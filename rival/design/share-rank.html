@@ -1,0 +1,50 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Rank sharing: the share card's layout (shareCard.ts) and the stamp style
+   (shareStamp.ts), with the rank in its material from constants/rankSheen.ts
+   (Elite sapphire #9fb6e6/#3f5d9c, Unrivaled gold #fff0b0/#c4932a). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:20px 16px;display:flex;gap:24px;justify-content:center}
+.col{width:300px}h2{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 10px;font-weight:800}
+.note{font-size:12px;color:rgba(255,255,255,.55);margin:10px 4px 0;line-height:17px}
+.serif{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.card{width:300px;height:533px;border-radius:20px;overflow:hidden;position:relative;background-size:cover;background-position:center}
+.card.shade::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 40%,rgba(10,8,7,.9) 100%)}
+.edge{position:absolute;inset:9px;border-radius:14px;border:1.5px solid;z-index:2}
+.top{position:absolute;top:20px;left:0;right:0;text-align:center;z-index:3;font-size:13px;font-weight:800;letter-spacing:6px}
+.rg{background:linear-gradient(90deg,#E8906E,#ffb59e 45%,#F5B759);-webkit-background-clip:text;color:transparent}
+.bot{position:absolute;left:20px;right:20px;bottom:22px;z-index:3}
+.k{font-size:10px;font-weight:800;letter-spacing:1.6px}
+.rank{font-size:52px;line-height:56px;text-transform:uppercase;letter-spacing:2px;margin-top:4px}
+.lvl{font-size:12px;color:rgba(255,255,255,.72);margin-top:2px}
+.badge{width:46px;height:46px;border-radius:23px;margin-bottom:12px;display:flex;align-items:center;justify-content:center}
+.figs{display:flex;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,209,190,.22)}
+.figs>div{flex:1}.figs>div+div{padding-left:10px;border-left:1px solid rgba(255,209,190,.16);margin-left:10px}
+.v{font-size:19px;white-space:nowrap}.u{font-size:11px;font-family:Manrope;font-style:normal;color:rgba(255,255,255,.6);font-weight:600}
+.l{font-size:9px;font-weight:800;letter-spacing:1.3px;color:rgba(255,255,255,.55);margin-top:3px}
+.gold{background:linear-gradient(180deg,#fff4d6,#ffc94d);-webkit-background-clip:text;color:transparent}
+.stamp{position:absolute;left:0;right:0;bottom:30px;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6));z-index:3}
+.stamp .top2{font-size:13px;font-weight:800;letter-spacing:6px}
+.stamp .rk{font-size:40px;line-height:44px;letter-spacing:2px;text-transform:uppercase;margin-top:6px}
+.stamp .row{display:flex;gap:0;margin-top:10px}
+.stamp .row>div{padding:0 14px;text-align:center}.stamp .row>div+div{border-left:1px solid rgba(255,209,190,.4)}
+</style></head><body>
+<script>
+const ph=n=>`url(file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/candidates/${n})`;
+const sheen=(l)=>`background:linear-gradient(180deg,#fff 10%,${l} 120%);-webkit-background-clip:text;color:transparent`;
+const gem=(l,d)=>`background:radial-gradient(circle at 35% 30%,${l},${d});box-shadow:0 0 0 1px ${l}55 inset`;
+const diamond='<svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,.9)"><path d="M19 3H5L2 9l10 12L22 9l-3-6zM9.62 8l1.5-3h1.76l1.5 3H9.62zM11 10v6.68L5.44 10H11zm2 0h5.56L13 16.68V10zm6.26-2h-2.65l-1.5-3h2.65l1.5 3zM6.24 5h2.65l-1.5 3H4.74l1.5-3z"/></svg>';
+const trophy='<svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(60,40,0,.85)"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 0 0 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z"/></svg>';
+const card=(p,l,d,name,lvl,icon,figs)=>`<div class="card shade" style="background-image:${ph(p)}"><div class="edge" style="border-color:${l}aa"></div><div class="top rg">RIVAL</div><div class="bot">
+<div class="badge" style="${gem(l,d)}">${icon}</div><div class="k" style="color:${l}">NEW RANK · ${lvl}</div><div class="rank serif" style="${sheen(l)};font-size:${name.length>7?33:52}px">${name}</div><div class="lvl">Reached 22 October</div>
+<div class="figs">${figs.map(([v,u,lb,g])=>`<div><div class="v serif ${g?'gold':''}">${v}${u?`<span class="u"> ${u}</span>`:''}</div><div class="l" ${g?'style="color:#ffd27a"':''}>${lb}</div></div>`).join('')}</div></div></div>`;
+const stamp=(p,l,name,figs)=>`<div class="card" style="background-image:${ph(p)}"><div class="stamp"><div class="top2" style="color:#fff">RIVAL</div><div class="rk serif" style="${sheen(l)};font-size:${name.length>7?30:40}px">${name}</div>
+<div class="row">${figs.map(([v,u,lb,g])=>`<div><div class="v serif ${g?'gold':''}">${v}${u?`<span class="u"> ${u}</span>`:''}</div><div class="l" ${g?'style="color:#ffd27a"':''}>${lb}</div></div>`).join('')}</div></div></div>`;
+const f=[['12,650','','EFFORT',1],['239','','ACTIVITIES'],['1,507','km','DISTANCE']];
+const cols=[
+ ['Rank card · Elite',card('a-single-runner-crossing-a-vast.png','#9fb6e6','#3f5d9c','Elite','LEVEL 4 OF 10',diamond,f),'The share card for a rank: the frame and the rank name in the rank\'s own material (sapphire for Elite), its badge, the day it was reached, then the year so far.'],
+ ['Rank stamp · Elite',stamp('ridge-runners-hazy-backlit.png','#9fb6e6','Elite',f),'The see-through version: RIVAL in white (one colour less to clash with the rank), the rank large in its material, and three figures.'],
+ ['Rank card · Unrivaled',card('a-single-solo-athlete-standing-on.png','#fff0b0','#c4932a','Unrivaled','LEVEL 10 OF 10',trophy,[['39,240','','EFFORT',1],['612','','ACTIVITIES'],['4,880','km','DISTANCE']]),'The top rank in gold. Each rank looks different (stone, copper, bronze, sapphire, emerald, ruby, amethyst, opal, platinum, gold), so every one is worth sharing.'],
+];
+document.write(cols.map(([t,c,n])=>`<div class="col"><h2>${t.toUpperCase()}</h2>${c}<div class="note">${n}</div></div>`).join(''));
+</script></body></html>
