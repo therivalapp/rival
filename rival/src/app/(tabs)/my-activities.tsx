@@ -1,16 +1,15 @@
 import { JournalYearView } from '../../components/rival/JournalYearView';
 import { SkyBackdrop } from '../../components/rival/SkyBackdrop';
-import { WeekSummaryCard } from '../../components/rival/WeekSummaryCard';
 import { GoldStar } from '../../components/rival/RespectStar';
-import { goToTab, onTabReselect } from '../../lib/tabNav';
+import { arrivedFromTab, goToTab, onTabReselect } from '../../lib/tabNav';
 import { clearShareRequest, onShareRequest, pendingShare } from '../../lib/shareRequest';
 import { onActivityDeleted } from '../../lib/activityEvents';
 import { liftPbChecker, loggedLifts, type LiftPb } from '../../lib/liftPb';
 import { fetchReactionsOn } from '../../lib/reactions';
 import { useSnapState } from '../../lib/snapState';
 import { distanceUnit, formatActivityDistance, formatElevation, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
+import { useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -201,6 +200,11 @@ function CountUpNumber({ value, style }: { value: number; style: any }) {
 // Activity cards rise in one after another (web; keyframes in global.css).
 // The mask keeps Safari clipping the rounded corners while a card animates
 // or the page re-lays out; without it they could flash square.
+// This week's Effort, a little smaller on the shorter card.
+const thisWeekEffortStyle = { ...weekEffortStyle, fontSize: 28, lineHeight: 32 };
+// A card's width in a week row: two to a phone's width, as the grid was.
+const ROW_CARD_W = 160;
+
 const cardIn = (i: number): any => (Platform.OS === 'web' ? {
   WebkitMaskImage: '-webkit-radial-gradient(white, black)', isolation: 'isolate',
   animationName: 'rivalRowIn', animationDuration: '450ms', animationTimingFunction: 'ease-out',
@@ -373,7 +377,7 @@ export default function MyActivitiesScreen() {
   const [hasTeam, setHasTeam] = useSnapState('journal.hasTeam', false);
   const [hasFocus, setHasFocus] = useSnapState('journal.hasFocus', false);
   // Every event (race) by id, so an event week can be headlined by it.
-  const [races, setRaces] = useSnapState<Record<string, { name: string; race_type: string }>>('journal.races', {});
+  const [races, setRaces] = useSnapState<Record<string, { name: string; race_type: string; actual_finish_time?: string | null }>>('journal.races', {});
   const [nextEvent, setNextEvent] = useSnapState<{ name: string; race_date: string; location: string | null } | null>('journal.nextEvent', null);
   const [uploading, setUploading] = useState<string | null>(null);
   // Files done / total while new photos and videos upload, for the overlay
@@ -425,6 +429,8 @@ export default function MyActivitiesScreen() {
   // With nothing open, it goes back to the start: this week, this month, the
   // top of the year (Ricky, 2026-10-14).
   const weekPagerRef = useRef<ScrollView>(null);
+  // This week's row, opened at today (renderWeekRow).
+  const thisWeekRowRef = useRef<ScrollView | null>(null);
   const monthScrollRef = useRef<ScrollView>(null);
   const yearScrollRef = useRef<ScrollView>(null);
   const somethingOpen = useRef(false);
@@ -538,7 +544,8 @@ export default function MyActivitiesScreen() {
   // Bumped on every visit; keys the week's Effort so it counts up each time.
   const [journalVisit, setJournalVisit] = useState(0);
   useFocusEffect(useCallback(() => {
-    setJournalVisit((v) => v + 1);
+    // Only arriving from another tab: closing a page over Activity leaves it as it was.
+    if (arrivedFromTab('/my-activities')) setJournalVisit((v) => v + 1);
     loadActivities();
   }, []));
 
@@ -557,11 +564,11 @@ export default function MyActivitiesScreen() {
     supabase.from('races').select('name, race_date, location').eq('user_id', user.id)
       .gte('race_date', todayIso).order('race_date', { ascending: true }).limit(1).maybeSingle()
       .then(({ data }) => setNextEvent(data ?? null));
-    supabase.from('races').select('id, name, race_type').eq('user_id', user.id)
+    supabase.from('races').select('id, name, race_type, actual_finish_time').eq('user_id', user.id)
       .then(({ data }) => {
         if (!data) return;
-        const map: Record<string, { name: string; race_type: string }> = {};
-        data.forEach((r) => { map[r.id] = { name: r.name, race_type: r.race_type }; });
+        const map: Record<string, { name: string; race_type: string; actual_finish_time?: string | null }> = {};
+        data.forEach((r) => { map[r.id] = { name: r.name, race_type: r.race_type, actual_finish_time: r.actual_finish_time }; });
         setRaces(map);
       });
 
@@ -1020,7 +1027,7 @@ export default function MyActivitiesScreen() {
 
   // A PB card on the Activity tab: the current record in full gold, one
   // that has since been beaten in faded gold (Ricky, 2026-10-24).
-  function renderJournalCard(activity: Activity, ci: number) {
+  function renderJournalCard(activity: Activity, ci: number, inRow = false) {
     const pbLabel = pbs[activity.id];
     // Fastest times are PBs too, and get the same ring.
     const badgeKind: 'pb' | 'race' | null = pbLabel || fastest[activity.id]?.length ? 'pb' : activity.race_id ? 'race' : null;
@@ -1030,12 +1037,19 @@ export default function MyActivitiesScreen() {
     const ringColor = badgeKind === 'pb' ? (currentPb ? RivalColors.rankAnchors.unrivaled : 'rgba(255,215,0,0.32)') : badgeKind === 'race' ? (mobileNav ? RivalColors.event : '#ff5c5c') : 'transparent';
     const race = mobileNav && activity.race_id ? races[activity.race_id] : undefined;
     const raceTag = race ? (['Triathlon', 'HYROX', 'CrossFit'].includes(race.race_type) ? race.race_type : 'Event') : null;
+    // Phones: a personal best gets a small gold PB label in the corner, as an
+    // event does in ivory. A race that was also a PB has both, event on top,
+    // and its edge runs ivory into gold (Ricky, 2026-10-27). Beaten since:
+    // faded gold, as its ring.
+    const pbTag = mobileNav && badgeKind === 'pb';
+    const cornerTag = !!raceTag || pbTag;
+    const eventPb = !!raceTag && pbTag;
     const cardDistance = formatDistance(activity.distance_meters, activity.activity_type);
     const cardStat = cardDistance || (activity.duration_seconds > 0 ? formatDurationClock(activity.duration_seconds) : '');
     return (
       <TouchableOpacity
         key={activity.id}
-        style={[styles.jGridCard, cardIn(ci)]}
+        style={[styles.jGridCard, inRow && styles.jRowCard, cardIn(ci)]}
         activeOpacity={0.85}
         onPress={() => openDiary(flatOrdered, activity.id)}
       >
@@ -1057,16 +1071,26 @@ export default function MyActivitiesScreen() {
           </View>
         )}
         <View style={[styles.jCardScrim, { pointerEvents: 'none' }]} />
-        {raceTag ? (
-          <View style={[styles.jCardEventTag, { pointerEvents: 'none' }]}>
-            <RivalIcon name="flag" size={10} color="#2a2116" />
-            <Text style={styles.jCardEventTagText}>{raceTag}</Text>
+        {cornerTag ? (
+          <View style={[styles.jCardTags, { pointerEvents: 'none' }]}>
+            {raceTag ? (
+              <View style={styles.jCardEventTag}>
+                <RivalIcon name="flag" size={10} color="#2a2116" />
+                <Text style={styles.jCardEventTagText}>{raceTag}</Text>
+              </View>
+            ) : null}
+            {pbTag ? (
+              <View style={[styles.jCardEventTag, styles.jCardPbTag, !currentPb && styles.jCardPbTagFaded]}>
+                <RivalIcon name="trophy" size={10} color={currentPb ? '#2a2116' : RivalColors.rankAnchors.unrivaled} />
+                <Text style={[styles.jCardEventTagText, !currentPb && { color: RivalColors.rankAnchors.unrivaled }]}>PB</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
-        <View style={[styles.jCardDayBadge, raceTag && [styles.jCardDayBadgeSide, activity.pinned && { right: 36 }], { pointerEvents: 'none' }]}>
+        <View style={[styles.jCardDayBadge, cornerTag && [styles.jCardDayBadgeSide, activity.pinned && { right: 36 }], { pointerEvents: 'none' }]}>
           <Text style={styles.jCardDayText}>{filtering
             ? new Date(activity.started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-            : raceTag ? dayOfWeekLabel(activity.started_at).slice(0, 3) : dayOfWeekLabel(activity.started_at)}</Text>
+            : cornerTag ? dayOfWeekLabel(activity.started_at).slice(0, 3) : dayOfWeekLabel(activity.started_at)}</Text>
         </View>
         {activity.pinned && (
           <View style={styles.jCardPin}>
@@ -1090,7 +1114,7 @@ export default function MyActivitiesScreen() {
             {wide ? <Text style={styles.jCardEffortLabel}>Effort</Text> : null}
           </View>
         </View>
-        {badgeKind && <View style={[styles.jCardRing, { borderColor: ringColor }, { pointerEvents: 'none' }]} />}
+        {badgeKind && <View style={[styles.jCardRing, eventPb ? styles.jCardRingEventPb : { borderColor: ringColor }, { pointerEvents: 'none' }]} />}
       </TouchableOpacity>
     );
   }
@@ -1509,6 +1533,7 @@ export default function MyActivitiesScreen() {
       .sort((x, y) => new Date(x.started_at).getTime() - new Date(y.started_at).getTime());
     return {
       name: formatRaceName(races[raceId].name),
+      tag: ['Triathlon', 'HYROX', 'CrossFit'].includes(races[raceId].race_type) ? races[raceId].race_type : 'Event',
       legs: legs.map((a) => ({
         key: a.id, type: a.activity_type,
         text: formatDistance(a.distance_meters, a.activity_type) || formatDurationClock(a.duration_seconds),
@@ -1546,7 +1571,11 @@ export default function MyActivitiesScreen() {
   };
 
   // Past weeks: stats only, no cover photo (Ricky, 2026-10-18).
-  const renderWeekCover = (group: WeekGroup, label: string) => {
+  // A week with a personal best, by the same test as the gold ring on its
+  // cards (renderJournalCard).
+  const weekHasPb = (acts: Activity[]) => acts.some((a) => !!pbs[a.id] || !!fastest[a.id]?.length);
+
+  const renderWeekCover = (group: WeekGroup, label: string, afterGap = false) => {
     const acts = group.activities;
     const seconds = acts.reduce((s, a) => s + (a.duration_seconds || 0), 0);
     const meters = acts.reduce((s, a) => s + (a.distance_meters || 0), 0);
@@ -1580,20 +1609,265 @@ export default function MyActivitiesScreen() {
       ...(dist ? [{ parts: [{ value: dist[0], unit: dist[1] }], label: 'Distance' }] : []),
       { parts: [{ value: String(acts.length) }], label: acts.length === 1 ? 'Activity' : 'Activities' },
     ];
+    // Week rows (Ricky, 2026-10-27): no card around a past week, just its
+    // heading, Effort and three tiles in the Add an activity pop-up's grey,
+    // then its days as one row underneath (renderWeekRow).
+    void days; void chip;
     return (
-      <WeekSummaryCard
-        // An event week leads with the event; the week moves into the kicker
-        // (Ricky, 2026-10-19: events are rare and matter most).
-        kicker={ev ? `${label} · ${formatWeekRangeCompact(group.weekStart)}` : formatWeekRangeCompact(group.weekStart)}
-        title={ev ? ev.name : label}
-        event={!!ev}
-        days={days}
-        effort={group.total}
-        totals={totals}
-        note={chip}
-      />
+      <View style={[styles.pwHead, afterGap && styles.pwHeadAfterGap]}>
+        <View style={styles.pwHeadRow}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.pwKicker, ev && { color: RivalColors.event }]}>{ev ? `${label} · ${formatWeekRangeCompact(group.weekStart)}` : formatWeekRangeCompact(group.weekStart)}</Text>
+            <Text style={styles.pwTitle}>{ev ? ev.name : label}</Text>
+            {/* Phones: an event's label and a PB label under the week's
+                name, as on their cards; PB solid while one of its records
+                still stands (Ricky, 2026-10-27). */}
+            {!wide && (ev || weekHasPb(acts)) ? <View style={styles.pwTitleRow}>
+              {ev ? (
+                <View style={styles.pwEventTag}>
+                  <RivalIcon name="flag" size={10} color="#2a2116" />
+                  <Text style={styles.jCardEventTagText}>{ev.tag}</Text>
+                </View>
+              ) : null}
+              {weekHasPb(acts) ? (() => {
+                const standing = acts.some((a) => currentPbIds.has(a.id));
+                return (
+                  <View style={[styles.pwPbTag, !standing && styles.jCardPbTagFaded]}>
+                    <RivalIcon name="trophy" size={10} color={standing ? '#2a2116' : RivalColors.rankAnchors.unrivaled} />
+                    <Text style={[styles.jCardEventTagText, !standing && { color: RivalColors.rankAnchors.unrivaled }]}>PB</Text>
+                  </View>
+                );
+              })() : null}
+            </View> : null}
+          </View>
+          <View style={styles.pwEffort}>
+            <Text style={styles.pwEffortNum}>{Math.round(group.total).toLocaleString()}</Text>
+            <Text style={styles.pwEffortLabel}>Effort</Text>
+          </View>
+        </View>
+        <View style={styles.pwTiles}>
+          {totals.map((t) => (
+            <View key={t.label} style={styles.pwTile}>
+              <Text style={styles.pwTileFig}>
+                {(t.parts as { value: string; unit?: string }[]).map((p, pi) => (
+                  <Text key={pi}>{p.value}{p.unit ? <Text style={styles.pwTileUnit}>{p.unit}</Text> : null}{pi < t.parts.length - 1 ? ' ' : ''}</Text>
+                ))}
+              </Text>
+              <Text style={styles.pwTileLabel}>{t.label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
     );
   };
+
+  // A week as one row in day order, Monday first (Ricky, 2026-10-27, Week
+  // rows): each day's activities as the usual cards, a day with nothing as a
+  // thin, darker card with its date, which opens Add an activity for that day.
+  // This week runs to today and ends with today's card.
+  const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const DAY_SHORT_UP = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  function renderWeekRow(acts: Activity[], weekStart: number, current: boolean) {
+    const dayOf = (a: Activity) => (new Date(a.started_at).getDay() + 6) % 7;
+    const sorted = [...acts].sort((x, y) => new Date(x.started_at).getTime() - new Date(y.started_at).getTime());
+    // Phones: an event's activities leave the row for one full-width card
+    // under it, and each of its days is marked in the row (Ricky, 2026-10-27,
+    // option 3).
+    const events: { raceId: string; legs: Activity[]; pb: boolean }[] = [];
+    if (mobileNav) {
+      sorted.forEach((a) => {
+        if (!a.race_id || !races[a.race_id]) return;
+        let ev = events.find((e) => e.raceId === a.race_id);
+        if (!ev) { ev = { raceId: a.race_id, legs: [], pb: false }; events.push(ev); }
+        ev.legs.push(a);
+        if (pbs[a.id] || fastest[a.id]?.length) ev.pb = true;
+      });
+    }
+    const eventDay = new Map<number, (typeof events)[number]>();
+    events.forEach((ev) => ev.legs.forEach((a) => { if (!eventDay.has(dayOf(a))) eventDay.set(dayOf(a), ev); }));
+    const byDay: Activity[][] = [[], [], [], [], [], [], []];
+    sorted.filter((a) => !(mobileNav && a.race_id && races[a.race_id])).forEach((a) => byDay[dayOf(a)].push(a));
+    const lastDay = current ? todayIdx : 6;
+    const cells: ReactNode[] = [];
+    let ci = 0;
+    for (let i = 0; i <= lastDay; i++) {
+      // By the calendar, not by adding hours, so a clock change can't shift it.
+      const day = new Date(weekStart + 12 * 3600000);
+      day.setDate(day.getDate() + i);
+      const ev = eventDay.get(i);
+      if (ev) {
+        cells.push(
+          <TouchableOpacity
+            key={`event-${i}`}
+            style={[styles.restDay, styles.eventDay]}
+            activeOpacity={0.8}
+            onPress={() => openDiary(flatOrdered, ev.legs[0].id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${formatRaceName(races[ev.raceId].name)}, ${day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`}
+          >
+            <RivalIcon name="flag" size={12} color={RivalColors.event} />
+            <Text style={[styles.restDayNum, { color: RivalColors.event }]}>{day.getDate()}</Text>
+            <Text style={[styles.restDayName, { color: RivalColors.event }]}>{DAY_SHORT_UP[i]}</Text>
+            <View style={[styles.eventDayEdge, ev.pb ? styles.eventEdgePb : null, { pointerEvents: 'none' }]} />
+          </TouchableOpacity>,
+        );
+      }
+      if (byDay[i].length) {
+        byDay[i].forEach((a) => cells.push(renderJournalCard(a, ci++, true)));
+      } else if (ev) {
+        continue;
+      } else if (current && i === todayIdx) {
+        continue;
+      } else {
+        const iso = isoOf(day);
+        cells.push(
+          <Pressable
+            key={`rest-${iso}`}
+            style={({ pressed }) => [styles.restDay, pressed && styles.restDayPressed]}
+            onPress={() => router.push(`/add-workout?date=${iso}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Add an activity on ${day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`}
+          >
+            {({ pressed }) => (
+              <>
+                <RivalIcon name="add" size={16} color={pressed ? 'rgba(255,181,158,0.8)' : 'transparent'} style={styles.restDayPlus} />
+                <Text style={styles.restDayNum}>{day.getDate()}</Text>
+                <Text style={styles.restDayName}>{DAY_SHORT_UP[i]}</Text>
+              </>
+            )}
+          </Pressable>,
+        );
+      }
+    }
+    if (current) {
+      const now = new Date();
+      cells.push(
+        <TouchableOpacity key="today" style={styles.todayCard} activeOpacity={0.85} onPress={() => router.push('/add-workout')} accessibilityRole="button" accessibilityLabel="Add an activity today">
+          <Text style={styles.todayLabel}>{now.toLocaleDateString(undefined, { weekday: 'long' }).toUpperCase()}</Text>
+          <Text style={styles.todayNum}>{now.getDate()}</Text>
+          <Text style={[styles.todayLabel, { color: 'rgba(255,255,255,0.55)' }]}>TODAY</Text>
+          <View style={styles.todayPlus}><RivalIcon name="add" size={22} color={RivalButtonColors.label(RivalColors.onAccentFill)} /></View>
+        </TouchableOpacity>,
+      );
+    }
+    const row = (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.weekRow}
+        contentContainerStyle={styles.weekRowInner}
+        // This week opens at today, at the end of the row.
+        onContentSizeChange={current ? () => thisWeekRowRef.current?.scrollToEnd({ animated: false }) : undefined}
+        ref={current ? (r) => { thisWeekRowRef.current = r; } : undefined}
+      >
+        {cells}
+      </ScrollView>
+    );
+    if (!events.length) return row;
+    return (
+      <>
+        {row}
+        {events.map((ev) => renderEventCard(ev))}
+      </>
+    );
+  }
+
+  // An event in one full-width card under its week's row: its photo on the
+  // left; its legs (one day) or its days (several) on the right; the finish
+  // time and its Effort added up. Its edge is ivory, running into gold when
+  // one of its activities was a PB (Ricky, 2026-10-27, option 3).
+  function renderEventCard(ev: { raceId: string; legs: Activity[]; pb: boolean }) {
+    const race = races[ev.raceId];
+    const tag = ['Triathlon', 'HYROX', 'CrossFit'].includes(race.race_type) ? race.race_type : 'Event';
+    const legs = ev.legs;
+    const cover = legs.find((a) => a.photo_url);
+    const dayIdx = (a: Activity) => (new Date(a.started_at).getDay() + 6) % 7;
+    const days = [...new Set(legs.map(dayIdx))];
+    const multiDay = days.length > 1;
+    const dayName = (i: number) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i];
+    const effort = Math.round(legs.reduce((t, a) => t + (Number(a.effort_score) || 0), 0) * 10) / 10;
+    const seconds = legs.reduce((t, a) => t + (a.duration_seconds || 0), 0);
+    const result = !multiDay && race.actual_finish_time ? race.actual_finish_time
+      : multiDay ? `${legs.length} ${legs.length === 1 ? 'activity' : 'activities'}`
+      : formatDurationClock(seconds);
+    const shownLegs = legs.slice(0, 3);
+    const shownDays = days.slice(0, 4);
+    return (
+      <TouchableOpacity
+        key={`eventcard-${ev.raceId}`}
+        style={styles.eventCard}
+        activeOpacity={0.88}
+        onPress={() => openDiary(flatOrdered, legs[0].id)}
+        accessibilityRole="button"
+        accessibilityLabel={formatRaceName(race.name)}
+      >
+        <View style={styles.eventPhoto}>
+          {cover?.photo_url ? (
+            <CoverImage uri={cover.photo_url} focalX={cover.photo_focal_x} focalY={cover.photo_focal_y} style={styles.jCardPhoto} />
+          ) : (
+            <View style={styles.jCardArt}>
+              <SkyBackdrop startedAt={legs[0].started_at} utcOffsetSeconds={legs[0].utc_offset_seconds} />
+              <RivalIcon name="flag" size={72} color="rgba(255,255,255,0.16)" />
+            </View>
+          )}
+        </View>
+        <View style={styles.eventPanel}>
+          <View style={styles.eventTop}>
+            <View style={styles.eventTags}>
+              <View style={styles.jCardEventTag}>
+                <RivalIcon name="flag" size={10} color="#2a2116" />
+                <Text style={styles.jCardEventTagText}>{tag}</Text>
+              </View>
+              {ev.pb ? (
+                <View style={[styles.jCardEventTag, styles.jCardPbTag]}>
+                  <RivalIcon name="trophy" size={10} color="#2a2116" />
+                  <Text style={styles.jCardEventTagText}>PB</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.eventWhen}>{multiDay ? `${dayName(days[0])} – ${dayName(days[days.length - 1])}` : dayName(days[0])}</Text>
+          </View>
+          {multiDay ? (
+            <View style={styles.eventChips}>
+              {shownDays.map((d) => {
+                const dayLegs = legs.filter((a) => dayIdx(a) === d);
+                const dayEffort = Math.round(dayLegs.reduce((t, a) => t + (Number(a.effort_score) || 0), 0));
+                return (
+                  <View key={d} style={styles.eventChip}>
+                    <Text style={styles.eventChipDay}>{dayName(d).toUpperCase()}</Text>
+                    <Text style={styles.eventChipNum}>{dayEffort}</Text>
+                    <Text style={styles.eventChipSub}>{dayLegs.length === 1 ? '1 activity' : `${dayLegs.length} activities`}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.eventLegs}>
+              {shownLegs.map((a) => (
+                <View key={a.id} style={styles.eventLeg}>
+                  <RivalIcon name={activityIconName(a.activity_type)} size={13} color={RivalColors.accentText} />
+                  <Text style={styles.eventLegDist} numberOfLines={1}>{formatDistance(a.distance_meters, a.activity_type) || activityTypeLabel(a.activity_type)}</Text>
+                  <Text style={styles.eventLegTime}>{a.duration_seconds > 0 ? formatDurationClock(a.duration_seconds) : ''}</Text>
+                </View>
+              ))}
+              {legs.length > shownLegs.length ? <Text style={styles.eventMore}>{`${legs.length - shownLegs.length} more`}</Text> : null}
+            </View>
+          )}
+          <View style={styles.eventFoot}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.eventName}>{formatRaceName(race.name)}</Text>
+              <Text style={styles.eventResult}>{result}</Text>
+            </View>
+            <View style={styles.jCardEffort}>
+              <Text style={styles.jCardEffortLabel}>Effort</Text>
+              <Text style={styles.jCardEffortNum}>{effort}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={[styles.eventEdge, ev.pb ? styles.eventEdgePb : null, { pointerEvents: 'none' }]} />
+      </TouchableOpacity>
+    );
+  }
 
   // For past week cards: the week's bests.
   const weekBests = (acts: Activity[]) => {
@@ -1621,7 +1895,7 @@ export default function MyActivitiesScreen() {
   // whichever container gap it's sitting in, jWeekPage vs jContent). One
   // shared function to avoid the triplication (and drift) that came from
   // copy-pasting this into all three layout blocks previously.
-  function renderJournalToggle(wide: boolean) {
+  function renderJournalToggle(wide: boolean, withAdd = false) {
     // Filter sits beside Week, Month and Year; what is on shows underneath
     // (Ricky, 2026-10-16, option A).
     return (
@@ -1643,7 +1917,17 @@ export default function MyActivitiesScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        <FilterButton count={filterCount(activityFilters)} onPress={() => setFilterSheetOpen(true)} />
+        {withAdd ? (
+          // Filter drops its word so the + fits beside it (Ricky, 2026-10-27).
+          <View style={styles.toggleRight}>
+            <FilterButton count={filterCount(activityFilters)} onPress={() => setFilterSheetOpen(true)} iconOnly />
+            <TouchableOpacity style={styles.addRound} activeOpacity={0.85} onPress={() => router.push('/add-workout')} accessibilityRole="button" accessibilityLabel="Add activity">
+              <RivalIcon name="add" size={20} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FilterButton count={filterCount(activityFilters)} onPress={() => setFilterSheetOpen(true)} />
+        )}
       </View>
       <ShowingLine filters={activityFilters} onChange={setActivityFilters} />
       </View>
@@ -1803,10 +2087,15 @@ export default function MyActivitiesScreen() {
                         kicker={thisWeekEvent ? `Event week · ${formatWeekRangeCompact(currentWeekStartForHero)}` : thisWeekCount === 0 ? 'This week' : formatWeekRangeCompact(currentWeekStartForHero)}
                         title={thisWeekEvent ? thisWeekEvent.name : thisWeekCount === 0 ? '' : 'This week'}
                         event={!!thisWeekEvent}
-                        effort={<CountUpNumber key={journalVisit} value={thisWeekTotal} style={weekEffortStyle} />}
+                        effort={<CountUpNumber key={journalVisit} value={thisWeekTotal} style={thisWeekEffortStyle} />}
                         expanded={heroExpanded}
                         onToggle={() => setHeroExpanded((v) => !v)}
                         still={thisWeekCount === 0}
+                        // Week rows: shorter, in the pop-up's grey, no arrow
+                        // (Ricky, 2026-10-27: "looks very sad on a Monday").
+                        compact
+                        popup
+                        noArrow
                       >
                         {thisWeekCount === 0 ? (() => {
                           // Nothing logged yet: the month so far instead of empty columns.
@@ -1831,7 +2120,7 @@ export default function MyActivitiesScreen() {
                           );
                         })() : <>
                         {thisWeekEvent ? <EventLegs legs={thisWeekEvent.legs} /> : null}
-                        <DayColumns effort={weekDayEffort} bests={weekPbDays} today={todayIdx} events={thisWeekEvent?.days} />
+                        <DayColumns effort={weekDayEffort} bests={weekPbDays} today={todayIdx} events={thisWeekEvent?.days} short />
                         {heroExpanded && (
                           <>
                             {/* Each figure carries its own change on last week, so
@@ -1842,10 +2131,8 @@ export default function MyActivitiesScreen() {
                         )}
                         </>}
                       </WeekCard>
-                      <TouchableOpacity style={styles.weekHeroAdd} activeOpacity={0.85} onPress={() => router.push('/add-workout')}>
-                        <RivalIcon name="add" size={18} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
-                        <Text style={styles.weekHeroAddText}>Add activity</Text>
-                      </TouchableOpacity>
+                      {/* Add activity is the + beside Filter, today's card
+                          and each empty day now (Week rows, 2026-10-27). */}
                       {/* Training toward: the next event (or Add event), then
                           Personal bests. Your own goals-to-come, kept off Today. */}
                       {SHOW_TRAINING_TOWARD && <>
@@ -1896,14 +2183,14 @@ export default function MyActivitiesScreen() {
                         </TouchableOpacity>
                       </View>
                       </>}
-                      {renderJournalToggle(false)}
+                      {renderJournalToggle(false, true)}
 
                       <MonthBests month={monthName} bests={monthBestsShown} onOpen={(id) => openDiary(allActivities, id)} />
                     </>
                   ) : (
                     <>
                     {filterCount(activityFilters) === 0 && weeksOff(group.weekStart, 1) > 0 ? (
-                      <View style={[styles.weeksOff, !wide && styles.weeksOffCentred]}>
+                      <View style={[styles.weeksOff, !wide && styles.weeksOffRows]}>
                         <View style={styles.weeksOffRule} />
                         <Text style={styles.weeksOffText}>{weeksOffText(group.weekStart, weeksOff(group.weekStart, 1))}</Text>
                         <View style={styles.weeksOffRule} />
@@ -1911,12 +2198,17 @@ export default function MyActivitiesScreen() {
                     ) : null}
                     {/* Every past week the same, one activity or several: the
                         week card, then its activities (Ricky, 2026-10-18, A). */}
-                    {renderWeekCover(group, group.weekStart === lastWeekStart ? 'Last week' : `Week ${getWeekNumber(new Date(group.weekStart))}`)}
+                    {renderWeekCover(
+                      group,
+                      group.weekStart === lastWeekStart ? 'Last week' : `Week ${getWeekNumber(new Date(group.weekStart))}`,
+                      !wide && filterCount(activityFilters) === 0 && weeksOff(group.weekStart, 1) > 0,
+                    )}
                     </>
                   )}
 
                   {/* Card grid — scrolls together with the hero/header above as
                       one continuous page (not a separately-clipped region). */}
+                  {!filtering ? renderWeekRow(group.activities, group.weekStart, isCurrentWeek) : (
                   <View style={styles.jGridContent}>
                     {isCurrentWeek && gridActs.length === 0 ? (
                       // Monday (or any day before the first activity lands) —
@@ -1936,34 +2228,9 @@ export default function MyActivitiesScreen() {
                           // (Ricky, 2026-10-24).
                           <Text style={styles.jWeekEmptySub}>No activities match the filter.</Text>
                         ) : lastWeekActs.length > 0 ? (
-                          // A pointer to last week, not a copy of it (Ricky,
-                          // 2026-10-20, Slim): its photos and its dates; a tap
-                          // goes on to last week's page below.
-                          <TouchableOpacity
-                            style={styles.lwCard}
-                            activeOpacity={0.85}
-                            onPress={() => weekPagerRef.current?.scrollTo({ y: weekTops.current[lastWeekStart] ?? pagerHeight, animated: true })}
-                            accessibilityRole="button"
-                            accessibilityLabel="Go to last week"
-                          >
-                            {Platform.OS === 'web' ? <View style={[styles.lwGlow, { pointerEvents: 'none' }]} /> : null}
-                            <View style={styles.lwPhotos}>
-                              {[0, 1, 2].map((k) => {
-                                const withPhoto = lastWeekActs.filter((a) => a.photo_url);
-                                const p = withPhoto[k];
-                                return (
-                                  <View key={k} style={[styles.lwPhoto, k > 0 && styles.lwPhotoOverlap, !p && styles.lwSky]}>
-                                    {p ? <Image source={{ uri: cardPhoto(p.photo_url!) }} style={styles.lwPhotoImg} /> : null}
-                                  </View>
-                                );
-                              })}
-                            </View>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                              <Text style={styles.lwKicker}>Last week</Text>
-                              <Text style={styles.lwDates}>{formatWeekRangeCompact(lastWeekStart)}</Text>
-                            </View>
-                            <RivalIcon name="chevronDown" size={18} color="rgba(255,255,255,0.45)" />
-                          </TouchableOpacity>
+                          // Nothing here: last week's page follows below, so
+                          // the card pointing to it went (Ricky, 2026-10-26).
+                          null
                         ) : (
                           <Text style={styles.jWeekEmptySub}>Every activity you add or sync appears here, week by week.</Text>
                         )}
@@ -1991,6 +2258,7 @@ export default function MyActivitiesScreen() {
                     </View>
                     )}
                   </View>
+                  )}
                 </View>
               );
             })}
@@ -2936,12 +3204,6 @@ const styles = StyleSheet.create({
   } as any,
   weekDotToday: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.6)' },
   weekDotLabel: { fontSize: 9.5, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
-  weekHeroAdd: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 13, borderRadius: 999,
-    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
-  } as any,
-  weekHeroAddText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   scrim: { position: 'fixed' as any, top: 0, left: 0, right: 0, height: '100vh' as any, backgroundColor: 'rgba(14,14,14,0.55)' },
   // Solid backing behind just the top nav strip on mobile — see the comment
   // where this is rendered. Matches home.tsx's mobile flat-background color
@@ -3317,6 +3579,97 @@ const styles = StyleSheet.create({
   // the last line used to flexGrow:1 and stretch to fill the row, which read
   // as inconsistent card sizing (and threw off jAddCard sharing that line).
   jGridCard: { flexBasis: '48%', flexGrow: 0, flexShrink: 0, minWidth: 140, aspectRatio: 3 / 4, borderRadius: 20, overflow: 'hidden', backgroundColor: '#211c19', position: 'relative' },
+  // Week rows (Ricky, 2026-10-27): each week one sideways row in day order.
+  jRowCard: { flexBasis: 'auto', width: ROW_CARD_W, minWidth: 0 },
+  weekRow: { marginHorizontal: -20, flexGrow: 0 },
+  weekRowInner: { paddingHorizontal: 20, gap: 8, alignItems: 'flex-start' },
+  // A day with nothing logged: thin and darker, with its date.
+  restDay: {
+    width: 30, height: ROW_CARD_W * 4 / 3, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.32)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
+  },
+  // A day of an event: the same thin card, marked in ivory (Ricky,
+  // 2026-10-27, option 3).
+  eventDay: { backgroundColor: '#1c1a17', borderColor: 'transparent', position: 'relative' },
+  eventDayEdge: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 14, borderWidth: 1.5, borderColor: RivalColors.event },
+  // The event's edge: ivory, or ivory running into gold with a PB. On web the
+  // gradient fills the ring and the mask keeps only its border.
+  eventEdgePb: Platform.OS === 'web' ? {
+    borderColor: 'transparent',
+    backgroundImage: `linear-gradient(160deg, ${RivalColors.event} 0%, ${RivalColors.event} 35%, ${RivalColors.rankAnchors.unrivaled} 75%)`,
+    backgroundOrigin: 'border-box', backgroundClip: 'border-box',
+    WebkitMask: 'linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0)',
+    WebkitMaskComposite: 'xor', maskComposite: 'exclude',
+  } as any : { borderColor: RivalColors.rankAnchors.unrivaled },
+  eventCard: {
+    flexDirection: 'row', height: ROW_CARD_W * 4 / 3, marginTop: 10, borderRadius: 20, overflow: 'hidden',
+    backgroundColor: RivalColors.surfaceHigh, position: 'relative',
+  },
+  eventEdge: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20, borderWidth: 2, borderColor: RivalColors.event },
+  eventPhoto: { width: '45%', position: 'relative', overflow: 'hidden', backgroundColor: '#211c19' },
+  eventPanel: { flex: 1, paddingHorizontal: 12, paddingVertical: 11, gap: 8 },
+  eventTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 },
+  eventTags: { alignItems: 'flex-start', gap: 4 },
+  eventWhen: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '500', fontSize: 13, color: 'rgba(255,255,255,0.8)' },
+  eventLegs: { gap: 4 },
+  eventLeg: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  eventLegDist: { flex: 1, minWidth: 0, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
+  eventLegTime: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  eventMore: { fontSize: 11, fontWeight: '600', color: RivalColors.textSecondary },
+  eventChips: { flexDirection: 'row', gap: 5 },
+  eventChip: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 12, backgroundColor: RivalColors.surfaceBright },
+  eventChipDay: { fontSize: 8.5, fontWeight: '800', letterSpacing: 0.8, color: RivalColors.event },
+  eventChipNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 15, lineHeight: 19, color: '#fff' },
+  eventChipSub: { fontSize: 8, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+  eventFoot: { marginTop: 'auto', flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
+  eventName: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  eventResult: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '800', fontSize: 20, lineHeight: 24, color: '#fff' },
+  restDayPressed: { backgroundColor: 'rgba(255,181,158,0.08)', borderColor: 'rgba(255,181,158,0.35)' },
+  restDayPlus: { position: 'absolute', top: 10 },
+  restDayNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 14, color: 'rgba(255,255,255,0.3)' },
+  restDayName: {
+    fontSize: 9, fontWeight: '800', letterSpacing: 0.6, color: 'rgba(255,255,255,0.25)',
+    ...(Platform.OS === 'web' ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)' } as any : {}),
+  },
+  // Today, waiting at the end of this week's row: one tap to log it.
+  todayCard: {
+    width: ROW_CARD_W, aspectRatio: 3 / 4, borderRadius: 20, alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: RivalColors.surfaceHigh, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.6)',
+  },
+  todayLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: RivalColors.accentText },
+  todayNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 64, lineHeight: 70, color: 'rgba(255,255,255,0.9)' },
+  todayPlus: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginTop: 8,
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+  } as any,
+  // A past week's heading: a rule above, then dates, title and Effort, and
+  // three tiles in the Add an activity pop-up's grey.
+  pwHead: { paddingTop: 22, marginTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', gap: 12 },
+  // After a weeks-off line, that line is the divider: no rule of its own
+  // (Ricky, 2026-10-27).
+  pwHeadAfterGap: { borderTopWidth: 0, paddingTop: 0, marginTop: 0 },
+  pwHeadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  pwKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: RivalColors.accentText, marginBottom: 2 },
+  // The event and PB pills, always on their own line under the week's name
+  // (Ricky, 2026-10-27).
+  pwTitleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 6 },
+  pwEventTag: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, paddingHorizontal: 7, borderRadius: 999, backgroundColor: RivalColors.event },
+  pwPbTag: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, paddingHorizontal: 7, borderRadius: 999, backgroundColor: RivalColors.rankAnchors.unrivaled },
+  pwTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, lineHeight: 26, color: '#fff' },
+  pwEffort: { alignItems: 'center' },
+  pwEffortNum: { ...weekEffortStyle, fontSize: 28, lineHeight: 32 },
+  pwEffortLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 1 },
+  pwTiles: { flexDirection: 'row', gap: 6 },
+  pwTile: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 14, backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: RivalColors.surfaceBright },
+  pwTileFig: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, lineHeight: 24, color: '#fff' },
+  pwTileUnit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontWeight: '600', fontSize: 12, color: RivalColors.accentText },
+  pwTileLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  // Activity's + beside Filter, in place of the Add activity bar.
+  addRound: {
+    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
+  } as any,
+  toggleRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // Occupies a full grid column (matches jGridCard's flexBasis) so the
   // narrower jAddCard centers within whichever column the wrap naturally
   // puts it in, instead of hugging the left edge of a shared row.
@@ -3440,12 +3793,26 @@ const styles = StyleSheet.create({
   // Phones: midway between the week above and the card below (Ricky,
   // 2026-10-21). 60 above it otherwise (grid 32 + page 14 + page 14), 16 under.
   weeksOffCentred: { marginTop: -19, marginBottom: 21 },
+  // Week rows: clear of the row above, before the next week's rule.
+  weeksOffRows: { marginTop: 10, marginBottom: 24 },
   weeksOffRule: { flex: 1, borderTopWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.35)' },
   weeksOffText: { fontSize: 11.5, fontWeight: '700', color: '#fff' },
-  jCardEventTag: { position: 'absolute', top: 9, left: 9, zIndex: 3, flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, paddingHorizontal: 7, borderRadius: 999, backgroundColor: RivalColors.event },
+  jCardTags: { position: 'absolute', top: 9, left: 9, zIndex: 3, alignItems: 'flex-start', gap: 4 },
+  jCardEventTag: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, paddingHorizontal: 7, borderRadius: 999, backgroundColor: RivalColors.event },
   jCardEventTagText: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: '#2a2116' },
+  jCardPbTag: { backgroundColor: RivalColors.rankAnchors.unrivaled },
+  jCardPbTagFaded: { backgroundColor: 'rgba(255,215,0,0.18)', borderWidth: 1, borderColor: 'rgba(255,215,0,0.45)' },
   jCardDayBadgeSide: { left: undefined, right: 12, alignItems: 'flex-end' },
   jCardRing: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2.5, borderRadius: 20 },
+  // A race that was also a PB: the edge runs ivory into gold. On web the
+  // gradient fills the ring and the mask keeps only its border.
+  jCardRingEventPb: Platform.OS === 'web' ? {
+    borderColor: 'transparent',
+    backgroundImage: `linear-gradient(160deg, ${RivalColors.event} 0%, ${RivalColors.event} 35%, ${RivalColors.rankAnchors.unrivaled} 75%)`,
+    backgroundOrigin: 'border-box', backgroundClip: 'border-box',
+    WebkitMask: 'linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0)',
+    WebkitMaskComposite: 'xor', maskComposite: 'exclude',
+  } as any : { borderColor: RivalColors.rankAnchors.unrivaled },
   jCardCurrent: { position: 'absolute', top: 32, left: 0, right: 0, alignItems: 'center' },
   jCardCurrentText: { overflow: 'hidden', backgroundColor: RivalColors.rankAnchors.unrivaled, color: '#2a2116', fontSize: 8.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
   pbSection: { width: '100%', marginBottom: 22 },

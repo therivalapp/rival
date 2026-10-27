@@ -126,7 +126,7 @@ export default function RecapScreen() {
             <View style={styles.statsGrid}>
               <View style={[styles.statCard, m && ms.card]}>
                 <Text style={[styles.statValue, m && ms.serifNum]}>{recap.total_workouts}</Text>
-                <Text style={styles.statLabel}>Workouts</Text>
+                <Text style={styles.statLabel}>Activities</Text>
                 {recap.prev_total_workouts !== null && (
                   <Text style={styles.statTrend}>{formatTrend(recap.total_workouts, recap.prev_total_workouts, 'activities')}</Text>
                 )}

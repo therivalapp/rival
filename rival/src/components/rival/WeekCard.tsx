@@ -13,7 +13,7 @@ import { activityTypeLabel } from './EffortBreakdownSheet';
 // Week, Month and Year, which opens a grey pop-up.
 
 /** The card itself. Tapping the header opens and folds it. */
-export function WeekCard({ kicker, title, sub, effort, expanded, onToggle, compact, event, still, fixed, children }: {
+export function WeekCard({ kicker, title, sub, effort, expanded, onToggle, compact, event, still, fixed, popup, noArrow, children }: {
   kicker?: string;
   title: string;
   sub?: string;
@@ -29,12 +29,16 @@ export function WeekCard({ kicker, title, sub, effort, expanded, onToggle, compa
   compact?: boolean;
   /** An event week: ivory kicker and glow, the event as the title. */
   event?: boolean;
+  /** The Add an activity pop-up's grey (Activity's This week, 2026-10-27). */
+  popup?: boolean;
+  /** No open/fold arrow; a tap still opens it. */
+  noArrow?: boolean;
   children?: ReactNode;
 }) {
   return (
     // A tap anywhere on the card opens or folds it; nothing on it is a
     // button of its own (Ricky, 2026-10-16).
-    <TouchableOpacity style={[s.card, compact && s.cardCompact]} activeOpacity={0.92} onPress={onToggle} disabled={still || fixed} accessibilityState={{ expanded }}>
+    <TouchableOpacity style={[s.card, compact && s.cardCompact, popup && s.cardPopup]} activeOpacity={0.92} onPress={onToggle} disabled={still || fixed} accessibilityState={{ expanded }}>
       <View style={[s.glow, event && s.glowEvent, { pointerEvents: 'none' }]} />
       <View style={s.head}>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -54,7 +58,7 @@ export function WeekCard({ kicker, title, sub, effort, expanded, onToggle, compa
       {children}
       {/* The open/fold arrow sits centred along the bottom edge, so it
           never pushes Effort in from the corner. */}
-      {still || fixed ? null : <View style={s.chevRow}>
+      {still || fixed || noArrow ? null : <View style={s.chevRow}>
         <RivalIcon name="chevronDown" size={18} color="rgba(255,255,255,0.4)" style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
       </View>}
     </TouchableOpacity>
@@ -145,11 +149,11 @@ export function EmptyWeek({ quote, whole, month, count, seconds, meters, dayOfMo
 /** The week as columns sized by each day's Effort (Ricky, 2026-10-16,
  *  option A): each trained day labelled with its figure, a day that set a
  *  personal best in gold, today dashed until something is logged. */
-export function DayColumns({ effort, bests, today, events }: { effort: number[]; bests: Set<number>; today: number | null; events?: Set<number> }) {
+export function DayColumns({ effort, bests, today, events, short }: { effort: number[]; bests: Set<number>; today: number | null; events?: Set<number>; /** Half height, so a quiet week doesn't fill the screen. */ short?: boolean }) {
   const max = Math.max(0, ...effort);
   const top = max > 0 ? effort.indexOf(max) : -1;
   return (
-    <View style={s.cols}>
+    <View style={[s.cols, short && s.colsShort]}>
       {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => {
         const v = effort[i] ?? 0;
         const pb = v > 0 && bests.has(i);
@@ -354,12 +358,12 @@ export function filterCount(f: ActivityFilters): number {
 }
 
 /** The Filter button beside Week, Month and Year. */
-export function FilterButton({ count, onPress }: { count: number; onPress: () => void }) {
+export function FilterButton({ count, onPress, iconOnly }: { count: number; onPress: () => void; /** A round button with no word, beside Activity's +. */ iconOnly?: boolean }) {
   return (
-    <TouchableOpacity style={[s.fbtn, count > 0 && s.fbtnOn]} onPress={onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={count ? `Filter, ${count} on` : 'Filter'}>
+    <TouchableOpacity style={[s.fbtn, iconOnly && s.fbtnRound, count > 0 && s.fbtnOn]} onPress={onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={count ? `Filter, ${count} on` : 'Filter'}>
       <RivalIcon name="tune" size={15} color={count > 0 ? '#ffffff' : 'rgba(255,255,255,0.75)'} />
-      <Text style={[s.fbtnText, count > 0 && s.fbtnTextOn]}>Filter</Text>
-      {count > 0 ? <View style={s.cnt}><Text style={s.cntText}>{count}</Text></View> : null}
+      {iconOnly ? null : <Text style={[s.fbtnText, count > 0 && s.fbtnTextOn]}>Filter</Text>}
+      {count > 0 ? <View style={[s.cnt, iconOnly && s.cntCorner]}><Text style={s.cntText}>{count}</Text></View> : null}
     </TouchableOpacity>
   );
 }
@@ -497,6 +501,7 @@ const s = StyleSheet.create({
     backgroundColor: RivalGhost.ground, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
   },
   cardCompact: { paddingVertical: 13, gap: 12 },
+  cardPopup: { backgroundColor: RivalColors.surfaceHigh, borderColor: RivalColors.surfaceBright, gap: 8 },
   // The warm glow from the top edge, as on the Add an activity pop-up.
   glow: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 120,
@@ -514,17 +519,19 @@ const s = StyleSheet.create({
   // Sized so every line in the pool (27 characters at most) fits on one
   // line on a small phone (375 wide) with its quotation marks.
   ewQuote: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18.5, lineHeight: 26, color: '#fff' },
-  ewPanel: { borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.08)' },
-  ewLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: '#fff' },
-  ewCols: { flexDirection: 'row', marginTop: 10 },
+  // Sized so Week, Month and Year sit where Month puts them (Ricky,
+  // 2026-10-26): the toggle no longer jumps between Week and Month.
+  ewPanel: { borderRadius: 14, paddingVertical: 16, paddingHorizontal: 15, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.08)' },
+  ewLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.7, textTransform: 'uppercase', color: '#fff' },
+  ewCols: { flexDirection: 'row', marginTop: 13 },
   ewCol: { flex: 1, alignItems: 'center' },
   ewColRule: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,209,190,0.10)' },
-  ewColLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  ewFigures: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, lineHeight: 24, height: 24, color: '#fff' },
-  ewUnit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  ewTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 14, overflow: 'hidden' },
-  ewFill: { height: 6, borderRadius: 3, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient } as any,
-  ewNote: { fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 6 },
+  ewColLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginTop: 4 },
+  ewFigures: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, lineHeight: 29, height: 29, color: '#fff' },
+  ewUnit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontSize: 13.5, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  ewTrack: { height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 16, overflow: 'hidden' },
+  ewFill: { height: 7, borderRadius: 3.5, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient } as any,
+  ewNote: { fontSize: 12.5, color: 'rgba(255,255,255,0.5)', marginTop: 8 },
   chevRow: { alignSelf: 'center', marginTop: -8, marginBottom: -10, paddingHorizontal: 14, paddingVertical: 2 },
 
   days: { flexDirection: 'row', gap: 5 },
@@ -537,6 +544,7 @@ const s = StyleSheet.create({
   dayTextPb: { color: '#ffe6a8' },
 
   cols: { flexDirection: 'row', gap: 6, height: 104, alignItems: 'flex-end' },
+  colsShort: { height: 62 },
   col: { flex: 1, height: '100%', alignItems: 'center', gap: 4 },
   colArea: { flex: 1, alignSelf: 'stretch', justifyContent: 'flex-end' },
   // Every trained day shows its Effort; the biggest a touch brighter.
@@ -600,6 +608,8 @@ const s = StyleSheet.create({
   fbtnOn: { borderColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.1)' },
   fbtnText: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
   fbtnTextOn: { color: '#fff' },
+  fbtnRound: { width: 38, height: 38, paddingHorizontal: 0, justifyContent: 'center', gap: 0 },
+  cntCorner: { position: 'absolute', top: -4, right: -4 },
   cnt: { minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   cntText: { fontSize: 10, fontWeight: '800', color: '#1c1a19' },
 

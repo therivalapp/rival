@@ -105,6 +105,8 @@ serve(async (req) => {
     const prefixesByBucket: Record<string, string[]> = {
       'activity-photos': [userId, `strava/${userId}`],
       'avatars': [userId],
+      // Saved workouts' photos (saved_workouts_photos.sql).
+      'workout-photos': [userId],
     }
     for (const [bucket, prefixes] of Object.entries(prefixesByBucket)) {
       for (const prefix of prefixes) {

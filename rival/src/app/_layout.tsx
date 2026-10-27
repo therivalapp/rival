@@ -11,6 +11,7 @@ import { AppState, AppStateStatus, Platform, View, useWindowDimensions } from 'r
 import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGES_USE_PHONE_DESIGN } from '../constants/breakpoints';
 import { Stack, router, usePathname } from 'expo-router';
 import { setCurrentPath } from '../lib/tabNav';
+import { revealApp } from '../lib/appReveal';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAppFonts } from '../lib/useAppFonts';
@@ -23,8 +24,8 @@ import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 // Screens that make sense without an account.
 const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/strava-callback', '/confirm-delete']);
 
-// Scrolls the nearest scrolling box so the focused field sits in the upper
-// part of what the keyboard leaves visible. Web only.
+// Scrolls the nearest scrolling box so the focused field sits just above
+// the keyboard, where the thumbs are (Ricky, 2026-10-24). Web only.
 function revealFocusedField(visibleHeight: number) {
   const el = document.activeElement as HTMLElement | null;
   if (!el || !/^(INPUT|TEXTAREA)$/.test(el.tagName)) return;
@@ -32,8 +33,8 @@ function revealFocusedField(visibleHeight: number) {
   while (box && !(/(auto|scroll)/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight)) box = box.parentElement;
   if (!box) return;
   const r = el.getBoundingClientRect();
-  if (r.top >= 60 && r.bottom <= visibleHeight - 90) return;
-  box.scrollTop += r.top - visibleHeight * 0.3;
+  const shift = r.bottom - (visibleHeight - 16);
+  if (Math.abs(shift) > 4) box.scrollTop += shift;
 }
 
 export default function RootLayout() {
@@ -149,24 +150,40 @@ export default function RootLayout() {
       // field itself out of sight (Ricky, 2026-10-24, Manual entry's Time).
       // Put the page back, and scroll the field into view inside the app's
       // own scrolling list instead.
-      if (keyboard && (window.scrollY > 0 || vv.offsetTop > 0)) {
-        window.scrollTo(0, 0);
-        requestAnimationFrame(() => revealFocusedField(vv.height));
-      }
+      if (keyboard && (window.scrollY > 0 || vv.offsetTop > 0)) window.scrollTo(0, 0);
+      // After the app has shrunk to the space left (next frame).
+      if (keyboard) requestAnimationFrame(() => requestAnimationFrame(() => revealFocusedField(vv.height)));
+    };
+    // Moving to another field while the keyboard is up: bring that one
+    // down to the keyboard too.
+    const onFocus = () => {
+      if (vv.height < window.innerHeight) setTimeout(() => { window.scrollTo(0, 0); revealFocusedField(vv.height); }, 50);
     };
     update();
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
+    document.addEventListener('focusin', onFocus);
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
+      document.removeEventListener('focusin', onFocus);
     };
   }, []);
 
   // No "…" anywhere: overflowing text shrinks a little or wraps (lib/textFit).
   useEffect(() => (Platform.OS === 'web' ? startTextFit() : undefined), []);
-  // The loading wordmark (+html.tsx) stops for good once the app is running.
-  useEffect(() => { if (Platform.OS === 'web') document.documentElement.classList.add('rival-ready'); }, []);
+  // The app fades in over the loading wordmark once the first page has
+  // drawn (lib/appReveal.ts). The fade is CSS (data-rival-fade, +html.tsx).
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    // Pages other than Today and the welcome page reveal straight away; a
+    // slow Today still appears after a moment.
+    const first = window.location.pathname;
+    if (first !== '/' && first !== '/home') revealApp();
+    const t = setTimeout(revealApp, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
 
   // SafeAreaProvider is what supplies the real device insets (notch, status bar, home
   // indicator) to every SafeAreaView in the app. Without it they silently report zero,
@@ -189,6 +206,7 @@ export default function RootLayout() {
           100vh, not 100dvh: on iOS standalone dvh resolves to that same short
           793 viewport; 100vh is the one that reaches the true 852. */}
       <View
+        {...(Platform.OS === 'web' ? { dataSet: { rivalFade: '1' } } : {})}
         style={Platform.OS === 'web'
           ? { position: 'fixed', top: 0, left: 0, right: 0, height: viewportHeight ?? '100vh', overflow: 'hidden' } as any
           : { flex: 1 }}

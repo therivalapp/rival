@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body { margin:0; background:#151413; font-family:Manrope,sans-serif; }
+  .row { display:flex; gap:24px; padding:22px; align-items:flex-start; }
+  .col { width:393px; }
+  .tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+  .desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:54px; }
+  .phone { background:#232120; border-radius:28px; padding:24px 20px; box-sizing:border-box; display:flex; flex-direction:column; gap:10px; }
+  .boardTitle { text-align:center; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; color:#fff; }
+  .compose { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:4px; }
+  .cTitle { color:#ffb59e; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:4px 0; }
+  .rule { width:60px; height:1px; margin:2px 0 8px; background:linear-gradient(90deg,rgba(217,119,87,0),rgba(217,119,87,0.6) 25%,rgba(217,119,87,0.6) 75%,rgba(217,119,87,0)); }
+  .cBody { font-family:Georgia,serif; font-style:italic; color:rgba(255,255,255,0.85); font-size:14px; line-height:20px; min-height:50px; }
+  .until { margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,209,190,0.08); }
+  .uLabel { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#A0A0A0; margin-bottom:8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { padding:6px 11px; border-radius:999px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); color:rgba(255,255,255,0.7); font-size:12px; font-weight:700; }
+  .chip.on { background:rgba(217,119,87,0.18); border-color:rgba(217,119,87,0.45); color:#ffb59e; }
+  .uHint { font-size:11.5px; color:rgba(255,255,255,0.4); margin-top:8px; }
+  .btns { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+  .discard { border-radius:8px; padding:5px 12px; border:1px solid rgba(255,92,92,0.4); color:#ff5c5c; font-size:11px; font-weight:600; }
+  .post { border-radius:8px; padding:5px 12px; background:rgba(217,119,87,0.18); border:1px solid rgba(217,119,87,0.35); color:#ffb59e; font-size:11px; font-weight:700; }
+  .grid { display:flex; flex-wrap:wrap; column-gap:3%; row-gap:10px; margin-top:6px; }
+  .note { width:48.5%; box-sizing:border-box; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:10px; display:flex; flex-direction:column; gap:4px; position:relative; }
+  .pin { position:absolute; top:-5px; left:50%; margin-left:-5px; width:10px; height:10px; border-radius:5px; }
+  .nHead { display:flex; align-items:center; gap:6px; margin-top:4px; }
+  .av { width:24px; height:24px; border-radius:12px; background:#6b5a4f; color:#fff; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .nName { font-size:11.5px; font-weight:700; color:#fff; }
+  .nTime { font-size:9.5px; color:rgba(255,255,255,0.4); }
+  .nTitle { font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:#ffb59e; }
+  .nBody { font-family:Georgia,serif; font-style:italic; font-size:12.5px; color:rgba(255,255,255,0.85); line-height:17px; }
+  .foot { display:flex; gap:12px; margin-top:2px; align-items:center; }
+  .stat { display:flex; align-items:center; gap:4px; font-size:11px; color:rgba(255,255,255,0.5); }
+  .stat .mi { font-size:13px; }
+  .mi { font-family:'Material Icons'; line-height:1; }
+  .untilTag { margin-left:auto; display:flex; align-items:center; gap:3px; font-size:10px; font-weight:800; color:rgba(255,255,255,0.55); }
+  .untilTag .mi { font-size:12px; }
+  .untilTag.soon { color:#ffb59e; }
+  .addNote { width:29%; min-height:90px; border-radius:10px; background:rgba(255,255,255,0.04); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-family:Georgia,serif; font-style:italic; font-size:13px; color:rgba(255,255,255,0.6); }
+  .past { margin-top:6px; text-align:center; font-size:12.5px; font-weight:700; color:rgba(255,255,255,0.55); }
+</style></head><body><div class="row">
+
+<div class="col">
+  <div class="tag">1 · Posting a note</div>
+  <div class="desc">Under the note, an optional "Show until". No end is the default, so nothing changes unless it's chosen.</div>
+  <div class="phone">
+    <div class="boardTitle">Team Board</div>
+    <div class="compose">
+      <div class="cTitle">Saturday long run</div>
+      <div class="rule"></div>
+      <div class="cBody">Meeting at the pier, 7am. 18 km easy, coffee after.</div>
+      <div class="until">
+        <div class="uLabel">Show until</div>
+        <div class="chips"><span class="chip">No end</span><span class="chip">1 day</span><span class="chip">1 week</span><span class="chip on">Sat 1 Nov</span><span class="chip"><span class="mi" style="font-size:13px; vertical-align:-2px">event</span> Date</span></div>
+        <div class="uHint">Comes off the board after Saturday. Comments and Respect are kept.</div>
+      </div>
+      <div class="btns"><span class="discard">Discard</span><span class="post">Post</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="tag">2 · On the board</div>
+  <div class="desc">Notes with an end date say so. Ending today, it shows in orange. Once it passes, it leaves the board and moves to Past notes.</div>
+  <div class="phone">
+    <div class="boardTitle">Team Board</div>
+    <div class="grid">
+      <div class="note"><div class="pin" style="background:#F5B759"></div>
+        <div class="nHead"><div class="av">RJ</div><div><div class="nName">Ricky</div><div class="nTime">2h ago</div></div></div>
+        <div class="nTitle">Saturday long run</div>
+        <div class="nBody">Meeting at the pier, 7am. 18 km easy, coffee after.</div>
+        <div class="foot"><span class="stat"><span class="mi">chat_bubble_outline</span>3</span><span class="stat"><span class="mi">star_outline</span>5</span><span class="untilTag"><span class="mi">schedule</span>Until Sat</span></div>
+      </div>
+      <div class="note"><div class="pin" style="background:#D97757"></div>
+        <div class="nHead"><div class="av">SM</div><div><div class="nName">Sandy</div><div class="nTime">1d ago</div></div></div>
+        <div class="nTitle">Wetsuit for sale</div>
+        <div class="nBody">Size M, worn twice. $150 or best offer.</div>
+        <div class="foot"><span class="stat"><span class="mi">chat_bubble_outline</span>1</span><span class="stat"><span class="mi">star_outline</span>2</span></div>
+      </div>
+      <div class="note"><div class="pin" style="background:#D97757"></div>
+        <div class="nHead"><div class="av">TK</div><div><div class="nName">Tom</div><div class="nTime">3d ago</div></div></div>
+        <div class="nTitle">Ride tonight</div>
+        <div class="nBody">Anyone keen for the hills loop at 6?</div>
+        <div class="foot"><span class="stat"><span class="mi">chat_bubble_outline</span>4</span><span class="stat"><span class="mi">star_outline</span>1</span><span class="untilTag soon"><span class="mi">schedule</span>Ends today</span></div>
+      </div>
+      <div class="addNote"><span class="mi" style="font-size:14px">add</span>Pin Note</div>
+    </div>
+    <div class="past">Past notes · 2 <span class="mi" style="font-size:14px; vertical-align:-2px">chevron_right</span></div>
+  </div>
+</div>
+
+</div></body></html>

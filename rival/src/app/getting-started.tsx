@@ -23,7 +23,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   {
     icon: 'bolt',
     title: 'Every activity earns Effort',
-    body: 'Distance sports score mostly on distance, everything else on time, with credit for climbing. A gym workout, a swim and a long run all count.',
+    body: 'Distance sports score mostly on distance, everything else on time, with credit for climbing. Weights, a swim and a long run all count.',
   },
   {
     icon: 'groups',
@@ -82,7 +82,7 @@ export default function GettingStartedScreen() {
         <ScrollView contentContainerStyle={[rb.content, { paddingBottom: 120 }]}>
           <GreyPageHead
             kicker={isWelcome ? 'WELCOME TO RIVAL' : 'HOW RIVAL WORKS'}
-            title={isWelcome && firstName ? `Welcome, ${firstName}` : 'We make each other better'}
+            title={isWelcome && firstName ? `Welcome, ${firstName}` : 'Fitness is better shared'}
             sub="RIVAL turns every activity into Effort, alongside the people who keep you going."
             onBack={isWelcome ? undefined : back}
           />
@@ -132,7 +132,7 @@ export default function GettingStartedScreen() {
             <Text style={s.ruleText}>{isWelcome ? 'Welcome to RIVAL' : 'How RIVAL works'}</Text>
             <View style={[s.rule, s.ruleRight]} />
           </View>
-          <Text style={s.title}>{isWelcome && firstName ? `Welcome, ${firstName}` : 'We make each other better'}</Text>
+          <Text style={s.title}>{isWelcome && firstName ? `Welcome, ${firstName}` : 'Fitness is better shared'}</Text>
           <Text style={s.lead}>
             RIVAL turns your training into Effort, and puts it alongside the people who keep you going.
           </Text>
@@ -171,7 +171,7 @@ export default function GettingStartedScreen() {
         <RivalRowLink
           icon="add"
           title="Add an activity yourself"
-          body="Log a workout by hand or scan a screenshot."
+          body="Log an activity by hand or scan a screenshot."
           onPress={() => router.push('/add-workout')}
         />
         {!inTeam && readPendingInvite() ? (

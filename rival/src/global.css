@@ -1,7 +1,6 @@
-/* Manrope — RIVAL's "Refined Ember" design system typeface (see
-   src/constants/rivalTheme.ts). Loaded here for web; native loads it via
+/* Manrope, RIVAL's typeface (src/constants/rivalTheme.ts), is loaded for web
+   in +html.tsx, without holding up the first frame; native loads it via
    @expo-google-fonts/manrope in _layout.tsx. */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
 
 /* React Native Web renders TextInput to a plain <input>/<textarea>, and
    TouchableOpacity to a div/button, both of which get the browser's own

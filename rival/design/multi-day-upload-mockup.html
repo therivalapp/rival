@@ -1,0 +1,144 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+  .row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+  .col { width:393px; flex-shrink:0; }
+  .tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+  .desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:72px; }
+  .phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#232120; }
+  .status { height:50px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; font-weight:700; font-size:16px; }
+  .mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; letter-spacing:normal; display:inline-block; }
+  .serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+
+  /* Page bits (manual-entry.tsx, phone) */
+  .pad { padding:0 16px; }
+  .pills { display:flex; gap:8px; margin:4px 0 14px; overflow:hidden; }
+  .pill { padding:9px 15px; border-radius:14px; border:1px solid rgba(255,181,158,0.22); font-size:14px; font-weight:800; white-space:nowrap; }
+  .pill.on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; border-color:transparent; }
+  .pill.dash { border-style:dashed; color:#ffb59e; }
+  .card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px; }
+  .cardLabel { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#A0A0A0; }
+  .hint { font-size:11.5px; color:rgba(255,255,255,0.4); }
+  .rows { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:0 13px; }
+  .r { display:flex; align-items:center; gap:10px; min-height:44px; border-top:1px solid rgba(255,209,190,0.08); font-size:13.5px; font-weight:600; color:#A0A0A0; }
+  .r:first-child { border-top:none; }
+  .r .mi { font-size:18px; color:#ffb59e; width:18px; }
+  .r b { margin-left:auto; color:#fff; font-weight:500; font-size:15px; }
+  .r b.ph { color:rgba(255,255,255,0.35); }
+
+  .wName { display:flex; align-items:center; gap:10px; }
+  .wName .field { flex:1; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; padding:4px 0; border-bottom:1px solid rgba(255,181,158,0.35); }
+  .chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip { display:flex; align-items:center; gap:5px; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); font-size:12.5px; font-weight:700; color:rgba(255,255,255,0.8); }
+  .chip .mi { font-size:14px; color:#ffb59e; }
+  .chip.on { background:rgba(255,181,158,0.14); border-color:rgba(255,181,158,0.6); color:#fff; }
+  .unit { display:flex; align-self:flex-start; background:rgba(255,255,255,0.05); border-radius:999px; padding:3px; gap:2px; }
+  .unit span { padding:6px 16px; border-radius:999px; font-size:12.5px; font-weight:800; color:#A0A0A0; }
+  .unit span.on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; }
+  .lift { background:rgba(255,255,255,0.04); border-radius:14px; padding:10px 12px; display:flex; align-items:center; gap:10px; }
+  .idx { width:22px; height:22px; border-radius:11px; text-align:center; line-height:22px; font-size:11px; font-weight:800; color:#ffb59e; background:rgba(255,209,190,0.10); flex-shrink:0; }
+  .lname { flex:1; min-width:0; }
+  .lname b { display:block; font-size:14px; font-weight:700; }
+  .lname span { font-size:11.5px; color:rgba(255,255,255,0.45); }
+  .lname span.ghost { color:rgba(255,255,255,0.28); }
+  .nums { display:flex; gap:5px; }
+  .num { width:46px; text-align:center; background:rgba(0,0,0,0.18); border-radius:9px; padding:5px 0 4px; }
+  .num i { display:block; font-style:normal; font-size:8.5px; font-weight:800; letter-spacing:0.5px; color:rgba(255,255,255,0.45); }
+  .num em { font-style:normal; font-size:16px; font-weight:300; }
+  .num em.ghost { color:rgba(255,255,255,0.3); }
+  .pbDot { font-size:9px; font-weight:800; color:#FFD700; letter-spacing:0.4px; }
+  .add { display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 0; border-radius:999px; border:1px dashed rgba(255,209,190,0.35); color:#ffb59e; font-size:13.5px; font-weight:700; }
+  .bar { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:14px; padding:12px 16px 30px; background:#232120; border-top:1px solid rgba(255,209,190,0.08); }
+  .bar .l { color:#A0A0A0; font-size:12px; font-weight:700; width:110px; line-height:1.35; }
+  .bar .b { flex:1; text-align:center; padding:15px 0; border-radius:999px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; font-weight:800; font-size:16px; }
+  .head { display:flex; align-items:center; justify-content:space-between; padding:6px 16px 10px; }
+  .back { width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:#ffb59e; }
+  .ptitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:24px; }
+
+  /* Sheet (RivalGreySheet + add-workout.tsx) */
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,0.72); }
+  .under { position:absolute; inset:0; padding:60px 16px; opacity:0.5; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#282828; border-top:1px solid #323232; border-radius:22px 22px 0 0; padding:10px 18px 30px; overflow:hidden; }
+  .sheet .glow { position:absolute; top:0; left:0; right:0; height:150px; background:radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+  .grab { width:38px; height:4px; border-radius:2px; background:#323232; margin:0 auto 14px; position:relative; }
+  .kick { font-size:9.5px; font-weight:800; letter-spacing:1.3px; color:#ffb59e; text-align:center; position:relative; }
+  .stitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:24px; text-align:center; margin-top:3px; position:relative; }
+  .tiles { display:flex; gap:10px; position:relative; }
+  .tile { flex:1; min-height:132px; border-radius:18px; padding:16px; display:flex; flex-direction:column; justify-content:flex-end; gap:3px; position:relative; overflow:hidden; }
+  .tile.p { background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; }
+  .tile.g { border:1px solid rgba(255,181,158,0.35); background:rgba(255,209,190,0.05); }
+  .tile .art { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:118px; }
+  .tile.p .art { color:rgba(255,255,255,0.32); }
+  .tile.g .art { color:rgba(255,181,158,0.24); }
+  .tile .fade { position:absolute; inset:0; }
+  .tile.p .fade { background:linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%); }
+  .tile.g .fade { background:linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%); }
+  .tile b { position:relative; font-size:17px; font-weight:800; }
+  .tile span { position:relative; font-size:12px; font-weight:500; color:#A0A0A0; }
+  .tile.p span { color:#5c1902; opacity:0.75; }
+  .glabel { font-size:10px; font-weight:800; letter-spacing:1px; color:#A0A0A0; text-transform:uppercase; margin:18px 0 8px; display:flex; justify-content:space-between; position:relative; }
+  .glabel a { color:#ffb59e; letter-spacing:0.4px; text-transform:none; font-size:12px; }
+  .wrow { display:flex; gap:9px; position:relative; }
+  .wcard { flex:1; min-width:0; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); overflow:hidden; }
+  .wcard.today { border-color:rgba(255,181,158,0.6); background:rgba(255,181,158,0.10); }
+  .thumb { height:58px; position:relative; background-size:cover; background-position:center; }
+  .thumb .day { position:absolute; left:7px; top:7px; padding:2px 7px; border-radius:999px; background:rgba(0,0,0,0.55); font-size:9.5px; font-weight:800; letter-spacing:0.5px; color:#ffb59e; }
+  .wbody { padding:8px 9px 9px; }
+  .wbody b { display:block; font-size:12.5px; font-weight:800; line-height:15px; }
+  .wbody span { font-size:10.5px; color:rgba(255,255,255,0.45); }
+  .note { font-size:12px; color:#A0A0A0; text-align:center; margin-top:16px; position:relative; }
+  /* A whiteboard-ish photo stand-in for a scanned routine. */
+  .paper { background:#e9e3d6; color:#2b2722; font-family:'Bradley Hand','Segoe Print','Comic Sans MS',cursive; }
+
+  /* Library page */
+  .libItem { display:flex; gap:12px; align-items:center; padding:10px; border-radius:16px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+  .libThumb { width:64px; height:64px; border-radius:12px; flex-shrink:0; overflow:hidden; position:relative; }
+  .libItem b { font-size:15px; font-weight:800; display:block; }
+  .libItem .sub { font-size:11.5px; color:rgba(255,255,255,0.45); margin-top:2px; }
+  .libItem .ex { font-size:11.5px; color:rgba(255,255,255,0.7); margin-top:4px; }
+  .more { width:28px; height:28px; border-radius:14px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.6); margin-left:auto; flex-shrink:0; }
+  .ghostBtn { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 0; border-radius:999px; border:1px solid rgba(255,181,158,0.35); color:#ffb59e; font-size:14px; font-weight:700; flex:1; }
+  .primBtn { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 0; border-radius:999px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; font-size:14px; font-weight:800; flex:1; }
+  .field2 { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.6); border-radius:14px; padding:13px 14px; font-size:16px; font-weight:500; }
+  .dayPills { display:flex; gap:6px; }
+  .dayPills span { flex:1; text-align:center; padding:8px 0; border-radius:10px; background:rgba(255,255,255,0.05); font-size:12px; font-weight:800; color:#A0A0A0; }
+  .dayPills span.on { background:rgba(255,181,158,0.14); color:#fff; box-shadow: inset 0 0 0 1px rgba(255,181,158,0.6); }
+
+  .backBtn { position:absolute; left:18px; top:38px; width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; color:#fff; z-index:2; }
+  .backBtn .mi { font-size:24px; }
+  .center { text-align:center; position:relative; }
+  .tap { position:absolute; width:46px; height:46px; border-radius:23px; border:2px solid rgba(255,255,255,0.85); background:rgba(255,255,255,0.18); z-index:5; }
+  /* iOS photo picker, roughly */
+  .picker { position:absolute; left:0; right:0; bottom:0; top:56px; background:#1c1c1e; border-radius:12px 12px 0 0; }
+  .pkHead { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; font-size:16px; }
+  .pkHead .c { color:#0a84ff; } .pkHead b { font-weight:700; } .pkHead .a { color:#0a84ff; font-weight:700; }
+  .seg { margin:0 16px 10px; background:#2c2c2e; border-radius:9px; display:flex; padding:2px; font-size:13px; font-weight:600; }
+  .seg span { flex:1; text-align:center; padding:6px 0; border-radius:7px; color:#ddd; } .seg span.on { background:#636366; color:#fff; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; }
+  .grid div { aspect-ratio:1; position:relative; }
+  .grid div.sel::after { content:attr(data-n); position:absolute; right:5px; bottom:5px; width:22px; height:22px; border-radius:11px; background:#0a84ff; color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1.5px solid #fff; }
+  .grid div.sel { outline:3px solid #0a84ff; outline-offset:-3px; }
+  .dayLbl { font-size:12px; color:#8e8e93; padding:10px 16px 6px; font-weight:600; }
+  .dayList { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:0 13px; position:relative; }
+  .dl { display:flex; align-items:center; gap:10px; min-height:54px; border-top:1px solid rgba(255,209,190,0.08); }
+  .dl:first-child { border-top:none; }
+  .dl .dd { width:40px; text-align:center; }
+  .dl .dd i { display:block; font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:0.8px; color:#A0A0A0; }
+  .dl .dd em { display:block; font-style:italic; font-family:Georgia,serif; font-weight:700; font-size:19px; }
+  .dl .ph { display:flex; gap:4px; }
+  .dl .ph i { width:30px; height:36px; border-radius:6px; display:block; }
+  .dl .t { flex:1; min-width:0; }
+  .dl .t b { display:block; font-size:14px; font-weight:700; }
+  .dl .t span { font-size:11.5px; color:rgba(255,255,255,0.45); }
+  .dl .t span.warn { color:#ffb59e; }
+  .eff { text-align:center; margin-right:4px; }
+  .eff b { display:block; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:18px; color:#FFD700; }
+  .eff span { font-size:9px; font-weight:800; color:#A0A0A0; letter-spacing:0.5px; }
+  .chev { color:rgba(255,255,255,0.35); font-size:20px; }
+  .sub2 { text-align:center; font-size:13px; color:#A0A0A0; margin-top:4px; position:relative; }
+  .scanning { opacity:0.55; }
+</style></head><body><div class="row"><div class="col"><div class="tag">1 · Tap Upload</div><div class="desc">Add an activity as it will be, with the Saved workouts tile. Upload opens the photo library straight away, as now.</div><div class="phone"><div class="status"><span>9:03</span><span>89</span></div><div class="dim"></div><div class="sheet"><div class="glow"></div><div class="grab"></div><div class="kick">LOG</div><div class="stitle">Add an activity</div><div class="tiles" style="margin-top:14px"><div class="tile p"><div class="art mi">photo_camera</div><div class="fade"></div><b>Take photo</b><span>Use the camera</span></div><div class="tile g" style="position:relative"><div class="art mi">upload</div><div class="fade"></div><b>Upload</b><span>One day or several</span><div class="tap" style="right:50px; top:40px"></div></div></div><div class="tiles" style="margin-top:10px"><div class="tile g"><div class="art mi">edit_note</div><div class="fade"></div><b>Manual entry</b><span>Type in the details</span></div><div class="tile g"><div class="art mi">replay</div><div class="fade"></div><b>Saved workouts</b><span>Monday session today</span></div></div><div class="note">Details are read automatically. Review before saving.</div></div></div></div><div class="col"><div class="tag">2 · Pick the photos</div><div class="desc">The phone's own photo library. Pick every photo to log at once, from one day or several. Nothing else to choose first.</div><div class="phone"><div class="status"><span>9:03</span><span>89</span></div><div class="dim" style="background:rgba(0,0,0,0.5)"></div><div class="picker"><div class="pkHead"><span class="c">Cancel</span><b>4 Selected</b><span class="a">Add</span></div><div class="seg"><span class="on">Photos</span><span>Collections</span></div><div class="dayLbl">Today</div><div class="grid"><div style="background:#5b6670"></div><div class="sel" data-n="1" style="background:#e9e3d6"></div><div class="sel" data-n="2" style="background:#7a6a5c"></div><div style="background:#3d4a3f"></div></div><div class="dayLbl">Thursday</div><div class="grid"><div style="background:#6b5a4f"></div><div class="sel" data-n="3" style="background:#dfe6e9"></div><div style="background:#2f3b47"></div><div style="background:#8a7d70"></div></div><div class="dayLbl">Tuesday</div><div class="grid"><div style="background:#4a4038"></div><div class="sel" data-n="4" style="background:#cfc7b8"></div><div style="background:#55606a"></div><div style="background:#3a3431"></div></div></div></div></div><div class="col"><div class="tag">3 · Photos from 3 days</div><div class="desc">Only when the photos were taken on different days, going by each photo's date. One day skips this and goes straight to the scan. Back returns to Add an activity.</div><div class="phone"><div class="status"><span>9:03</span><span>89</span></div><div class="dim"></div><div class="sheet"><div class="backBtn"><span class="mi">chevron_left</span></div><div class="glow"></div><div class="grab"></div><div class="kick">UPLOAD</div><div class="stitle">Photos from 3 days</div><div class="sub2">Sorted by when each photo was taken.</div><div class="dayList" style="margin-top:16px"><div class="dl"><div class="dd"><i>TUE</i><em>20</em></div><span class="ph"><i style="background:#cfc7b8"></i></span><div class="t"></div><span style="font-size:12px;color:rgba(255,255,255,0.45)">1 photo</span></div><div class="dl"><div class="dd"><i>THU</i><em>22</em></div><span class="ph"><i style="background:#dfe6e9"></i></span><div class="t"></div><span style="font-size:12px;color:rgba(255,255,255,0.45)">1 photo</span></div><div class="dl"><div class="dd"><i>TODAY</i><em>25</em></div><span class="ph"><i style="background:#e9e3d6"></i><i style="background:#7a6a5c"></i></span><div class="t"></div><span style="font-size:12px;color:rgba(255,255,255,0.45)">2 photos</span></div></div><div style="display:flex;flex-direction:column;gap:8px;margin-top:20px;position:relative"><div class="primBtn" style="flex:none;padding:14px 0">Scan as 3 activities</div><div class="ghostBtn" style="flex:none;padding:13px 0">Scan as one activity</div></div><div class="note">A photo on the wrong day can be moved after the scan.</div></div></div></div><div class="col"><div class="tag">4 · Check and save</div><div class="desc">The multi-day review that exists today: one row per day, read from its photos. Tap a day to change it, its date included. Back returns to the photos.</div><div class="phone"><div class="status"><span>9:03</span><span>89</span></div><div class="dim"></div><div class="sheet"><div class="backBtn"><span class="mi">chevron_left</span></div><div class="glow"></div><div class="grab"></div><div class="kick">REVIEW</div><div class="stitle">Multi-day scan</div><div class="sub2">Check each day before saving. Tap one to change it.</div><div class="dayList" style="margin-top:16px"><div class="dl"><div class="dd"><i>TUE</i><em>20</em></div><div class="t"><b>Run</b><span>Run · 8.2 km · 44 min</span></div><div class="eff"><b>52</b><span>EFFORT</span></div><span class="mi chev">chevron_right</span></div><div class="dl"><div class="dd"><i>THU</i><em>22</em></div><div class="t"><b>Leg day</b><span>Weights · 5 exercises · 55 min</span></div><div class="eff"><b>41</b><span>EFFORT</span></div><span class="mi chev">chevron_right</span></div><div class="dl"><div class="dd"><i>TODAY</i><em>25</em></div><div class="t"><b>Upper body</b><span class="warn">Add a time to see Effort</span></div><span class="mi chev">chevron_right</span></div></div><div class="note" style="text-align:left;margin:10px 4px 0">Days marked in orange are left out of Save all until they're fixed or removed.</div><div style="display:flex;gap:8px;margin-top:18px;position:relative"><div class="ghostBtn">Back to photos</div><div class="primBtn">Save 2 activities</div></div></div></div></div></div></body></html>

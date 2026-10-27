@@ -1,11 +1,15 @@
-import { StyleSheet, TouchableOpacity, View, Text, ScrollView, ImageBackground, useWindowDimensions, Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, ImageBackground, useWindowDimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, rb, GreyPageHead, GreyRows, GreyRow, GreySheet } from '../components/rival';
 import { goToTab } from '../lib/tabNav';
-import { pickScanFiles, setPendingScanFiles } from '../lib/scanHandoff';
-import { RivalButtonColors, RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { pickScanFiles, setPendingScanDays, setPendingScanFiles } from '../lib/scanHandoff';
+import { groupByDay, takenAt } from '../lib/photoDates';
+import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalType } from '../constants/rivalTheme';
 import { sidePageWide } from '../constants/breakpoints';
+import { SaveChoiceTile, SavedWorkoutTiles } from '../components/rival/SavedWorkoutTiles';
+import { loadSavedWorkouts, photoUrls, todaysWorkout, type SavedWorkoutRow } from '../lib/savedWorkouts';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
   { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a fitness app screen, gym whiteboard or workout card.' },
@@ -29,6 +33,48 @@ function TileArt({ icon, primary }: { icon: RivalIconName; primary?: boolean }) 
 export default function AddWorkoutScreen() {
   const { width } = useWindowDimensions();
   const wide = sidePageWide(width);
+  // Saved workouts (lib/savedWorkouts.ts): the fourth tile, and the tiles
+  // the pop-up swaps to when it's tapped.
+  const [view, setView] = useState<'tiles' | 'saved' | 'savedNew' | 'days'>('tiles');
+  // Opened from an empty day on Activity: the activity is for that date, so
+  // each way in carries it (Ricky, 2026-10-27, Week rows).
+  const { date: forDate } = useLocalSearchParams<{ date?: string }>();
+  const withDate = (path: string) => (forDate ? `${path}${path.includes('?') ? '&' : '?'}date=${forDate}` : path) as Href;
+  const forDateText = forDate ? new Date(`${forDate}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : undefined;
+  // Upload's photos when they were taken on more than one day.
+  const [days, setDays] = useState<{ date: Date; files: File[]; thumbs: string[] }[]>([]);
+  const [picked, setPicked] = useState<File[]>([]);
+  const [saved, setSaved] = useState<SavedWorkoutRow[] | null>(null);
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (wide) return;
+    loadSavedWorkouts().then(async (list) => {
+      setSaved(list);
+      setUrls(await photoUrls(list.map((w) => w.imagePath)));
+    }).catch(() => setSaved([]));
+  }, [wide]);
+  // A new saved workout from a photo of the routine: the library opens from
+  // the tap; the scan saves it and logs nothing.
+  const saveFromPhoto = () => (Platform.OS === 'web'
+    ? pickScanFiles('gallery', (files) => { setPendingScanFiles(files); router.push('/scan-workout?source=picked&saveOnly=1'); })
+    : router.push('/scan-workout?source=gallery&saveOnly=1'));
+  const now = new Date();
+  const forToday = saved ? todaysWorkout(saved, now) : null;
+  // The two ways to save an activity, in the empty state and Save activity.
+  const saveWays = (
+    <>
+      <TouchableOpacity style={[ms.primary, ms.emptyBtn]} onPress={saveFromPhoto} activeOpacity={0.85} accessibilityRole="button">
+        <RivalIcon name="camera" size={17} color={ms.primaryText.color as string} />
+        <Text style={ms.primaryText}>Scan a photo</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[ms.ghost, ms.emptyBtn]} onPress={() => router.push('/saved-workouts?new=1')} activeOpacity={0.85} accessibilityRole="button">
+        <RivalIcon name="manual" size={17} color={RivalColors.accentText} />
+        <Text style={ms.ghostText}>Enter manually</Text>
+      </TouchableOpacity>
+    </>
+  );
+  const saveNote = 'A photo, screenshot or gym whiteboard can be scanned.';
+  const savedSub = forToday ? `${forToday.name} today` : saved?.length ? `${saved.length} saved` : 'Repeat a routine';
 
   const card = (
     icon: RivalIconName,
@@ -57,18 +103,129 @@ export default function AddWorkoutScreen() {
     // scan page then reads what was chosen (lib/scanHandoff.ts). Cancelling
     // leaves you here.
     const scan = (source: 'camera' | 'gallery') => {
-      if (Platform.OS !== 'web') { router.push(`/scan-workout?source=${source}`); return; }
-      pickScanFiles(source, (files) => {
+      if (Platform.OS !== 'web') { router.push(withDate(`/scan-workout?source=${source}`)); return; }
+      pickScanFiles(source, async (files) => {
+        // Taken on different days: asked once whether to log one activity a
+        // day (Ricky, 2026-10-25). One day goes straight to the scan.
+        if (source === 'gallery' && files.length > 1) {
+          const dated = await Promise.all(files.map(async (f) => ({ f, at: await takenAt(f) })));
+          const groups = groupByDay(dated, (x) => x.at);
+          if (groups.length > 1) {
+            setPicked(files);
+            setDays(groups.map((g) => ({
+              date: g.date,
+              files: g.items.map((x) => x.f),
+              thumbs: g.items.filter((x) => !x.f.type.startsWith('video/')).slice(0, 3).map((x) => URL.createObjectURL(x.f)),
+            })));
+            setView('days');
+            return;
+          }
+        }
         setPendingScanFiles(files);
-        router.push('/scan-workout?source=picked');
-      });
+        router.push(withDate('/scan-workout?source=picked'));
+      }, true);
     };
     return (
       <View style={ms.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+        {view === 'days' ? (
+          <GreySheet
+            kicker="UPLOAD"
+            title={`Photos from ${days.length} days`}
+            onClose={close}
+            onBack={() => setView('tiles')}
+            footer={
+              <View style={{ gap: 8 }}>
+                <TouchableOpacity
+                  style={ms.primary}
+                  onPress={() => { setPendingScanDays(days.map((d) => ({ date: d.date, files: d.files }))); router.replace('/weekly-scan?from=add'); }}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                >
+                  <Text style={ms.primaryText}>{`Scan as ${days.length} activities`}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={ms.ghost}
+                  onPress={() => { setPendingScanFiles(picked); router.push(withDate('/scan-workout?source=picked')); }}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                >
+                  <Text style={ms.ghostText}>Scan as one activity</Text>
+                </TouchableOpacity>
+              </View>
+            }
+          >
+            <Text style={[ms.tileNote, { marginTop: 4 }]}>Sorted by when each photo was taken.</Text>
+            <View style={ms.dayList}>
+              {days.map((d, i) => {
+                const today = new Date();
+                const isToday = d.date.toDateString() === today.toDateString();
+                return (
+                  <View key={d.date.getTime()} style={[ms.dayRow, i > 0 && ms.dayRule]}>
+                    <View style={ms.dayDate}>
+                      <Text style={ms.dayName}>{isToday ? 'TODAY' : d.date.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase()}</Text>
+                      <Text style={ms.dayNum}>{d.date.getDate()}</Text>
+                    </View>
+                    <View style={ms.dayThumbs}>
+                      {d.thumbs.map((t) => <Image key={t} source={{ uri: t }} style={ms.dayThumb} />)}
+                    </View>
+                    <Text style={ms.dayCount}>{`${d.files.length} ${d.files.length === 1 ? 'photo' : 'photos'}`}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            <Text style={[ms.tileNote, { marginTop: 10 }]}>Days can be changed before saving.</Text>
+          </GreySheet>
+        ) : view === 'savedNew' ? (
+          // Save activity: scanned from a photo, or typed in.
+          <GreySheet
+            kicker="SAVED ACTIVITIES"
+            title="Save activity"
+            onClose={close}
+            onBack={() => setView('saved')}
+            footer={null}
+          >
+            {/* The same tiles as Saved activities, so the choice keeps its look. */}
+            <View style={ms.choiceRow}>
+              <SaveChoiceTile icon="camera" title="Scan photo" onPress={saveFromPhoto} />
+              <SaveChoiceTile icon="manual" title="Enter manually" onPress={() => router.push('/saved-workouts?new=1')} />
+            </View>
+          </GreySheet>
+        ) : view === 'saved' ? (
+          <GreySheet
+            kicker="LOG"
+            title="Saved activities"
+            onClose={close}
+            onBack={() => setView('tiles')}
+            footer={saved && saved.length ? (
+              <TouchableOpacity onPress={() => router.push('/saved-workouts')} accessibilityRole="button">
+                <Text style={ms.manage}>Manage saved activities</Text>
+              </TouchableOpacity>
+            ) : <Text style={ms.tileNote}>{saveNote}</Text>}
+          >
+            {saved && saved.length ? (
+              <SavedWorkoutTiles
+                workouts={saved}
+                urls={urls}
+                today={now.getDay()}
+                onPick={(w) => router.push(withDate(`/manual-entry?saved=${w.id}`))}
+                onNew={() => setView('savedNew')}
+              />
+            ) : (
+              // Before the first one: what it is, and the two ways to start.
+              <View style={ms.empty}>
+                <View style={ms.emptyIcon}><RivalIcon name="replay" size={28} color={RivalColors.accentText} /></View>
+                <Text style={ms.emptyTitle}>Save a routine</Text>
+                <Text style={ms.emptyBody}>Save an activity that repeats, such as a Monday gym routine, once. Next time it opens filled in, with last time's numbers.</Text>
+                {saveWays}
+              </View>
+            )}
+          </GreySheet>
+        ) : (
         <GreySheet
           kicker="LOG"
           title="Add an activity"
+          sub={forDateText}
           onClose={close}
           footer={<Text style={ms.tileNote}>Details are read automatically. Review before saving.</Text>}
         >
@@ -85,22 +242,26 @@ export default function AddWorkoutScreen() {
             <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => scan('gallery')} activeOpacity={0.85} accessibilityRole="button">
               <TileArt icon="upload" />
               <Text style={ms.tileTitle}>Upload</Text>
-              <Text style={ms.tileSub}>From the photo library</Text>
+              <Text style={ms.tileSub}>One day or several</Text>
             </TouchableOpacity>
           </View>
           <View style={[ms.tiles, { marginTop: 10 }]}>
-            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.push('/manual-entry')} activeOpacity={0.85} accessibilityRole="button">
+            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.push(withDate('/manual-entry'))} activeOpacity={0.85} accessibilityRole="button">
               <TileArt icon="manual" />
               <Text style={ms.tileTitle}>Manual entry</Text>
               <Text style={ms.tileSub}>Type in the details</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => router.replace('/weekly-scan')} activeOpacity={0.85} accessibilityRole="button">
-              <TileArt icon="batch" />
-              <Text style={ms.tileTitle}>Multi-day scan</Text>
-              <Text style={ms.tileSub}>Several days at once</Text>
+            {/* Saved workouts took Multi-day scan's place (Ricky, 2026-10-25):
+                several days are now picked through Upload, and Multi-day scan
+                stays in the Activity menu. */}
+            <TouchableOpacity style={[ms.tile, ms.tileGhost]} onPress={() => setView('saved')} activeOpacity={0.85} accessibilityRole="button">
+              <TileArt icon="replay" />
+              <Text style={ms.tileTitle}>Saved activities</Text>
+              <Text style={ms.tileSub} numberOfLines={1}>{savedSub}</Text>
             </TouchableOpacity>
           </View>
         </GreySheet>
+        )}
       </View>
     );
   }
@@ -209,6 +370,8 @@ const styles = StyleSheet.create({
 
 // Phone only — the blend (see RivalGreySheet's rb).
 const ms = StyleSheet.create({
+  // Save activity's two tiles, placed as the Saved activities strip is.
+  choiceRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   stepNumText: { fontSize: 12, fontWeight: '800', color: RivalColors.accentText },
@@ -240,4 +403,19 @@ const ms = StyleSheet.create({
   tileTitle: { fontSize: 17, fontWeight: '800', color: RivalColors.textPrimary },
   tileSub: { fontSize: 12, fontWeight: '500', color: RivalColors.textSecondary },
   tileNote: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
+  dayList: { marginTop: 14, backgroundColor: 'rgba(255,209,190,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,181,158,0.22)', paddingHorizontal: 13 },
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56, paddingVertical: 8 },
+  dayRule: { borderTopWidth: 1, borderTopColor: 'rgba(255,209,190,0.08)' },
+  dayDate: { width: 44, alignItems: 'center' },
+  dayName: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.8, color: RivalColors.textSecondary },
+  dayNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: '#fff' },
+  dayThumbs: { flexDirection: 'row', gap: 4, flex: 1 },
+  dayThumb: { width: 30, height: 38, borderRadius: 6 },
+  dayCount: { fontSize: 12, color: 'rgba(255,255,255,0.45)' },
+  manage: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText, textAlign: 'center' },
+  empty: { alignItems: 'center', paddingTop: 18, paddingHorizontal: 6, gap: 6 },
+  emptyIcon: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,209,190,0.10)', marginBottom: 6 },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: RivalColors.textPrimary },
+  emptyBody: { fontSize: 13, lineHeight: 19, color: RivalColors.textSecondary, textAlign: 'center', marginBottom: 14 },
+  emptyBtn: { alignSelf: 'stretch' },
 });

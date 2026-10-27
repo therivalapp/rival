@@ -41,14 +41,18 @@ serve(async (req) => {
       })
     }
 
-    const imageBlocks = images.map((img) => ({
-      type: 'image',
-      source: {
-        type: 'base64',
-        media_type: img.mediaType || 'image/jpeg',
-        data: img.base64Image,
+    // Each image numbered, so imageRoles below can say which is which.
+    const imageBlocks = images.flatMap((img, i) => [
+      { type: 'text', text: `Image ${i + 1}:` },
+      {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: img.mediaType || 'image/jpeg',
+          data: img.base64Image,
+        },
       },
-    }))
+    ])
 
     const multiPhotoNote = images.length > 1
       ? `These ${images.length} photos all belong to the SAME workout (e.g. multiple pages of a workout card, or a whiteboard plus a results sheet). Combine information across all of them into ONE single workout JSON object — merge exercises, don't duplicate, and use whichever photo has the most complete data for each field.\n\n`
@@ -85,10 +89,13 @@ serve(async (req) => {
     }
   ],
   "intensity": 75,
-  "notes": "Any additional details"
+  "notes": "Any additional details",
+  "imageRoles": ["details"]
 }
 
-duration is in seconds. distance is in km (null if not applicable). elevation is total elevation gain in meters (null if not applicable, e.g. "Elev Gain" on a Garmin/Strava card). intensity is 0-100. For distance-based exercises like Run/Row/Ski/Bike within a workout (e.g. "400m Run"), set distanceMeters to the distance in meters and leave reps/sets/weight null. weight is in kg and represents what the athlete actually did.
+imageRoles has one entry per image, in order (Image 1 first): "details" when the image shows workout information to read (an app or watch screenshot, a whiteboard, a workout card or sheet, written sets and reps), or "moment" when it is a photo or video still of the session itself (people training, the gym, a view, a selfie) with no workout information to read. Read workout details only from "details" images. If no image has workout information, return the other fields as null and exercises as [].
+
+duration is in seconds, and only when a time is actually shown (a timer, a "Time" or "Duration" line, a moving or elapsed time, a watch or app summary); never estimate it from the exercises, sets, intervals or rest periods, and use null when no time is shown. distance is in km (null if not applicable). elevation is total elevation gain in meters (null if not applicable, e.g. "Elev Gain" on a Garmin/Strava card). intensity is 0-100. For distance-based exercises like Run/Row/Ski/Bike within a workout (e.g. "400m Run"), set distanceMeters to the distance in meters and leave reps/sets/weight null. weight is in kg and represents what the athlete actually did.
 
 Only fill in a "prescribed*" field when the image EXPLICITLY and LITERALLY shows a separate prescribed/Rx standard next to the actual result — e.g. the text "Rx:" or "Prescribed:" or "Target:" followed by a number that differs from what the athlete actually logged. Do NOT infer a prescribed value from a workout's name or title (e.g. a workout named "40km Benchmark" does NOT mean the prescribed distance is 40km — that is just the workout's name, not a stated target). If there is no explicit Rx/Prescribed/Target label visible in the image, leave all "prescribed*" fields null. Be strict with JSON format. If a field is unknown use null.`,
               },

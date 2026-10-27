@@ -119,6 +119,8 @@ const ICONS = {
   crop: 'crop',
   // Repeat a workout on Log an activity.
   replay: 'replay',
+  swapVert: 'swap-vert',
+  photoLibrary: 'photo-library',
   video: 'videocam',
   brain: 'psychology',
   verified: 'verified',

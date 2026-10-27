@@ -12,9 +12,27 @@ export type TabRoute = '/home' | '/my-activities' | '/team-feed' | '/messages';
 const TAB_ROUTES = new Set<string>(['/home', '/my-activities', '/team-feed', '/messages']);
 
 let currentPath = '';
+let previousPath = '';
+let pathChangedAt = 0;
 /** Kept up to date by the root layout. */
 export function setCurrentPath(path: string) {
-  currentPath = path;
+  if (path !== currentPath) { previousPath = currentPath; currentPath = path; pathChangedAt = Date.now(); }
+}
+/** Milliseconds since the page last changed: a page sliding in or out. */
+export function sincePathChange(): number {
+  return Date.now() - pathChangedAt;
+}
+/**
+ * Whether a tab was arrived at from another tab (or is opening for the
+ * first time), not uncovered by closing a page that was open over it. A tab
+ * replays its opening animation only then: closing a pop-up should leave
+ * the page as it was (Ricky, 2026-10-24).
+ */
+export function arrivedFromTab(self: TabRoute): boolean {
+  // The tab's focus can run before the layout has recorded the new path, so
+  // the page being left is whichever of the two isn't this tab.
+  const from = currentPath === self ? previousPath : currentPath;
+  return !from || TAB_ROUTES.has(from);
 }
 export function getCurrentPath() {
   return currentPath;

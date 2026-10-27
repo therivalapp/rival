@@ -16,6 +16,11 @@ import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 import { useSheetDrag } from '../components/rival/useSheetDrag';
 
+// An event's name is the week's title on the Activity page, beside its
+// Effort. 20 letters is about what fits on that line on a phone, so a name
+// never runs into the number (Ricky, 2026-10-27).
+const EVENT_NAME_MAX = 20;
+
 const RACE_TYPES = ['Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Custom', 'Other'];
 const EVENT_TYPE_ICONS: Record<string, RivalIconName> = {
   Run: 'run', Ride: 'ride', Swim: 'swim', Triathlon: 'eventTriathlon',
@@ -447,7 +452,7 @@ export default function RacesScreen() {
               <SheetGroup m={m}>
               {m && <Text style={rm.label}>The event</Text>}
               <Text style={m ? rm.fieldLabel : styles.modalLabel}>{m ? 'Name' : 'Event name'}</Text>
-              <TextInput style={inp} placeholder="Auckland Half Marathon" placeholderTextColor={RivalColors.textSecondary} value={raceName} onChangeText={setRaceName} />
+              <TextInput style={inp} placeholder="Auckland Marathon" placeholderTextColor={RivalColors.textSecondary} value={raceName} onChangeText={setRaceName} maxLength={EVENT_NAME_MAX} />
 
               <Text style={m ? rm.fieldLabel : styles.modalLabel}>Type</Text>
               {m ? (
@@ -625,7 +630,7 @@ export default function RacesScreen() {
       ) : null}
     >
       <GreyLabel>Event</GreyLabel>
-      <GreyField placeholder="Event name" value={raceName} onChangeText={setRaceName} />
+      <GreyField placeholder="Event name" value={raceName} onChangeText={setRaceName} maxLength={EVENT_NAME_MAX} />
 
       <GreyLabel>Type</GreyLabel>
       <GreyTiles
@@ -646,7 +651,7 @@ export default function RacesScreen() {
         <>
           <GreyLabel>Format</GreyLabel>
           <GreyTiles options={CROSSFIT_FORMATS.map((f) => ({ value: f, label: f }))} value={crossfitFormat} onChange={setCrossfitFormat} columns={2} />
-          <GreyNote>Multiple workouts over the event. Add a registration link for teammates.</GreyNote>
+          <GreyNote>Multiple activities over the event. Add a registration link for teammates.</GreyNote>
         </>
       )}
 

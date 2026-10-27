@@ -1,0 +1,100 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body { margin:0; background:#151413; font-family:Manrope,sans-serif; }
+  .row { display:flex; gap:28px; padding:22px; }
+  .col { width:393px; }
+  .tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+  .desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:54px; }
+  .phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#232120; }
+  .status { height:54px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; color:#fff; font-weight:700; font-size:16px; background:#232120; }
+  .content { padding:0 16px; }
+  .card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
+  .lift { background:rgba(255,255,255,0.04); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .name { font-size:15.5px; font-weight:700; color:#fff; padding:0 4px; }
+  .fields { display:flex; gap:8px; }
+  .f { flex:1; text-align:center; background:rgba(0,0,0,0.18); border-radius:10px; padding:8px 0; }
+  .fl { font-size:10px; font-weight:800; letter-spacing:0.6px; color:rgba(255,255,255,0.45); }
+  .fv { font-size:22px; font-weight:300; color:#fff; }
+  .add { display:flex; align-items:center; justify-content:center; gap:6px; padding:12px 0; border-radius:999px; border:1px dashed rgba(255,209,190,0.35); color:#ffb59e; font-size:13.5px; font-weight:700; }
+  .saveRow { display:flex; gap:8px; align-items:center; }
+  .input { flex:1; padding:11px 12px; border-radius:12px; background:rgba(0,0,0,0.18); color:rgba(255,255,255,0.35); font-size:14px; }
+  .input.focus { box-shadow: inset 0 0 0 1.5px rgba(255,181,158,0.6); color:#fff; }
+  .caret { display:inline-block; width:2px; height:17px; background:#ffb59e; vertical-align:-3px; margin-right:1px; }
+  .btn { padding:7px 12px; border-radius:999px; background:rgba(255,209,190,0.10); color:#ffb59e; font-size:12.5px; font-weight:800; }
+  .media { height:120px; border-radius:16px; border:1px solid rgba(255,181,158,0.22); background:rgba(255,209,190,0.05); color:#fff; font-weight:800; font-size:17px; padding:20px; box-sizing:border-box; display:flex; align-items:flex-end; }
+  .bar { position:absolute; left:0; right:0; display:flex; align-items:center; gap:14px; padding:10px 16px 14px; background:#232120; border-top:1px solid rgba(255,209,190,0.08); }
+  .barL { color:#A0A0A0; font-size:12px; font-weight:700; width:110px; }
+  .barB { flex:1; text-align:center; padding:15px 0; border-radius:999px; background:linear-gradient(90deg,#d97757,#f4a88c); color:#5c1902; font-weight:800; font-size:16px; }
+  .gap { position:absolute; left:0; right:0; background:#121212; }
+  .kb { position:absolute; left:0; right:0; bottom:0; height:336px; background:#1b1b1d; }
+  .acc { margin:8px 10px 0; height:48px; border-radius:24px; background:#141416; border:1px solid #2c2c2e; display:flex; align-items:center; justify-content:space-between; padding:0 16px; color:#fff; font-size:15px; }
+  .keys { padding:10px 4px; display:flex; flex-direction:column; gap:10px; }
+  .kr { display:flex; justify-content:center; gap:5px; }
+  .k { width:33px; height:42px; border-radius:6px; background:#3a3a3c; color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; }
+  .k.w { width:200px; }
+  .k.m { width:44px; font-size:14px; }
+  .note { position:absolute; left:16px; right:16px; color:#ffd27a; font-size:11.5px; font-weight:800; text-align:center; letter-spacing:0.4px; }
+  .arrow { color:#ffd27a; }
+.r { display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid rgba(255,209,190,0.08); color:#cfc6b8; font-size:15px; font-weight:700; } .r b { color:#fff; font-weight:500; }
+</style></head><body><div class="row">
+
+<div class="col">
+  <div class="tag">Now</div>
+  <div class="desc">The field sits high on the screen, then the Log activity bar, then an empty strip, then the keyboard. What you type is far from your thumbs.</div>
+  <div class="phone">
+    <div class="status"><span>2:03</span><span>LTE 43</span></div>
+    <div class="content">
+      <div class="card">
+        <div class="add"><span class="material-icons" style="font-size:16px">add</span>Add another exercise</div>
+        <div class="saveRow"><div class="input focus"><span class="caret"></span>Workout name, e.g. Push day</div><div class="btn">Save</div></div>
+      </div>
+      <div class="media">Add photos or a video</div>
+    </div>
+    <div class="bar" style="top:326px"><div class="barL">Add a time to see Effort</div><div class="barB">Log activity</div></div>
+    <div class="gap" style="top:404px; height:112px"></div>
+    <div class="note" style="top:450px">EMPTY STRIP</div>
+    <div class="kb">
+      <div class="acc"><span>⌃ &nbsp; ⌄</span><span style="color:#fff">AutoFill Contact</span><span>✓</span></div>
+      <div class="keys">
+        <div class="kr"><div class="k">Q</div><div class="k">W</div><div class="k">E</div><div class="k">R</div><div class="k">T</div><div class="k">Y</div><div class="k">U</div><div class="k">I</div><div class="k">O</div><div class="k">P</div></div>
+        <div class="kr"><div class="k">A</div><div class="k">S</div><div class="k">D</div><div class="k">F</div><div class="k">G</div><div class="k">H</div><div class="k">J</div><div class="k">K</div><div class="k">L</div></div>
+        <div class="kr"><div class="k m">⇧</div><div class="k">Z</div><div class="k">X</div><div class="k">C</div><div class="k">V</div><div class="k">B</div><div class="k">N</div><div class="k">M</div><div class="k m">⌫</div></div>
+        <div class="kr"><div class="k m">123</div><div class="k w"></div><div class="k m">⏎</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="tag">Proposed</div>
+  <div class="desc">While typing, the Log activity bar steps aside and the empty strip is gone. The field you're typing in sits just above the keyboard. When the keyboard closes, the bar comes back.</div>
+  <div class="phone">
+    <div class="status"><span>2:03</span><span>LTE 43</span></div>
+    <div class="content" style="padding-top:6px">
+      <div class="card" style="gap:0; padding:4px 14px">
+        <div class="r"><span>Date</span><b>Today</b></div>
+        <div class="r"><span>Start time</span><b>1:58 pm</b></div>
+        <div class="r" style="border:none"><span>Lifts</span><b>1 lift</b></div>
+      </div>
+      <div class="card">
+        <div class="lift"><div class="name">Bench press</div><div class="fields"><div class="f"><div class="fl">SETS</div><div class="fv">3</div></div><div class="f"><div class="fl">REPS</div><div class="fv">5</div></div><div class="f"><div class="fl">KG</div><div class="fv">126</div></div></div></div>
+        <div class="add"><span class="material-icons" style="font-size:16px">add</span>Add another exercise</div>
+        <div class="saveRow"><div class="input focus">Chest d<span class="caret"></span></div><div class="btn">Save</div></div>
+      </div>
+    </div>
+    <div class="kb">
+      <div class="acc"><span>⌃ &nbsp; ⌄</span><span></span><span>✓</span></div>
+      <div class="keys">
+        <div class="kr"><div class="k">Q</div><div class="k">W</div><div class="k">E</div><div class="k">R</div><div class="k">T</div><div class="k">Y</div><div class="k">U</div><div class="k">I</div><div class="k">O</div><div class="k">P</div></div>
+        <div class="kr"><div class="k">A</div><div class="k">S</div><div class="k">D</div><div class="k">F</div><div class="k">G</div><div class="k">H</div><div class="k">J</div><div class="k">K</div><div class="k">L</div></div>
+        <div class="kr"><div class="k m">⇧</div><div class="k">Z</div><div class="k">X</div><div class="k">C</div><div class="k">V</div><div class="k">B</div><div class="k">N</div><div class="k">M</div><div class="k m">⌫</div></div>
+        <div class="kr"><div class="k m">123</div><div class="k w"></div><div class="k m">⏎</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div></body></html>

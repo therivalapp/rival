@@ -103,3 +103,44 @@ export function repeatOptions(history: LiftActivity[], saved: SavedWorkout[], no
   recent.forEach((a) => push({ key: `a${a.id}`, title: shortDate(a.startedAt), detail: names(a.exercises), exercises: a.exercises }));
   return out;
 }
+
+// Saved workouts in Add an activity (lib/savedWorkouts.ts).
+
+/**
+ * The order they are offered in: today's first (its usual day is today), then
+ * the most recently used.
+ */
+export function orderSaved<T extends { usualDay: number | null; lastUsedAt: string }>(list: T[], now = new Date()): T[] {
+  const today = now.getDay();
+  return [...list].sort((a, b) => {
+    const at = a.usualDay === today ? 1 : 0;
+    const bt = b.usualDay === today ? 1 : 0;
+    if (at !== bt) return bt - at;
+    return new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime();
+  });
+}
+
+/** The one for today, if a saved workout's usual day is today. */
+export function todaysWorkout<T extends { usualDay: number | null; lastUsedAt: string }>(list: T[], now = new Date()): T | null {
+  return orderSaved(list, now).find((w) => w.usualDay === now.getDay()) ?? null;
+}
+
+export function exerciseCount(w: { exercises: LiftLine[] }): string {
+  const n = w.exercises.filter((e) => e?.name?.trim()).length;
+  return `${n} ${n === 1 ? 'exercise' : 'exercises'}`;
+}
+
+/** "last done 7 days ago" from when it was last used. */
+export function lastDoneText(lastUsedAt: string, createdAt: string, now = new Date()): string {
+  // Saving one sets last_used_at too; one never logged since reads as new.
+  if (Math.abs(new Date(lastUsedAt).getTime() - new Date(createdAt).getTime()) < 60_000) return 'not done yet';
+  const days = Math.floor((startOfDay(now) - startOfDay(new Date(lastUsedAt))) / 86_400_000);
+  if (days <= 0) return 'last done today';
+  if (days === 1) return 'last done yesterday';
+  return `last done ${days} days ago`;
+}
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+

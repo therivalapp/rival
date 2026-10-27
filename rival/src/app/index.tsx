@@ -7,6 +7,7 @@ import { RivalButton } from '../components/rival';
 import { RivalColors, RivalType, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { rm } from '../components/rival/RivalMobile';
+import { revealApp } from '../lib/appReveal';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 
@@ -23,22 +24,30 @@ export default function WelcomeScreen() {
       })
       .catch(() => setChecked(true));
   }, []);
+  // Shown once the smoke has loaded, so the page fades in whole rather than
+  // the picture arriving after the words (lib/appReveal.ts; Ricky,
+  // 2026-10-24). A slow picture still shows after a moment.
+  useEffect(() => {
+    if (!checked) return;
+    const t = setTimeout(revealApp, 1500);
+    return () => clearTimeout(t);
+  }, [checked]);
 
   if (!checked) return <View style={styles.pending} />;
 
   return (
     <View style={styles.page}>
       <View style={styles.hero}>
-        <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" />
+        <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" onLoad={revealApp} onError={revealApp} />
         <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" />
         <SafeAreaView style={styles.content}>
           <Text style={styles.logo}>RIVAL</Text>
 
           <View style={styles.taglineWrap}>
-            <Text style={[styles.tagline, mobile && ms.tagline]}>We make each other better</Text>
+            <Text style={[styles.tagline, mobile && ms.tagline]}>Fitness is better shared</Text>
             {/* The one place the name is explained. Everywhere else the
                 product carries it: rivals as the people who lift you. */}
-            <Text style={styles.taglineSub}>A rival isn't someone you're against. It's someone who brings out your best.</Text>
+            <Text style={styles.taglineSub}>A rival is someone who brings out your best.</Text>
           </View>
 
           {mobile ? (

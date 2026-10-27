@@ -456,7 +456,7 @@ export default function PlanScreen() {
 
         {/* Planned activities */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Planned workouts</Text>
+          <Text style={styles.sectionTitle}>Planned activities</Text>
           <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
             <Text style={styles.addBtnText}>+ Add</Text>
           </TouchableOpacity>
@@ -464,8 +464,8 @@ export default function PlanScreen() {
 
         {plannedActivities.length === 0 && (
           <View style={styles.emptyPlanned}>
-            <Text style={styles.emptyPlannedText}>No workouts planned.</Text>
-            <Text style={styles.emptyPlannedSub}>Add a workout to see the projected standing.</Text>
+            <Text style={styles.emptyPlannedText}>No activities planned.</Text>
+            <Text style={styles.emptyPlannedSub}>Add an activity to see the projected standing.</Text>
           </View>
         )}
 
@@ -558,7 +558,7 @@ export default function PlanScreen() {
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalCard} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Plan workouts</Text>
+              <Text style={styles.modalTitle}>Plan activities</Text>
               <TouchableOpacity style={styles.doneBtn} onPress={closeAddModal}>
                 <Text style={styles.doneBtnText}>Done</Text>
               </TouchableOpacity>

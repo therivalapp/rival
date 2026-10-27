@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { GreySheet, GreyLabel, GreyNote, GreyPrimary, GreyRows, GreyRow, GreyRowInput, rb } from './RivalGreySheet';
 import { RivalIcon } from './RivalIcon';
@@ -10,6 +10,9 @@ import { calculateEffortScore, loadScoringConfig, type ScoringConfig } from '../
 import { findMatchingRaceId } from '../../lib/raceMatch';
 import { matchCanonicalLift } from '../../lib/lifts';
 import { goToTab } from '../../lib/tabNav';
+import { takePendingScanDays } from '../../lib/scanHandoff';
+import { fitPhoto } from '../../lib/imageResize';
+import { dayKey } from '../../lib/photoDates';
 
 // Multi-day scan on phone (Ricky, 2026-10-02): a pop-up with one row of days
 // to swipe back through, ending on today, always showing six whole days. Two
@@ -17,7 +20,11 @@ import { goToTab } from '../../lib/tabNav';
 // lists what was found per day, any row can be changed or removed, and
 // "Save all" saves them and goes to the Activity page.
 
-type Photo = { uri: string; base64: string; mimeType: string };
+type Photo = {
+  uri: string; base64: string; mimeType: string;
+  /** Kept to post it with the activity: Upload's photos (scanHandoff.ts). */
+  blob?: Blob; ext?: string; video?: boolean;
+};
 type Day = { date: Date; photos: Photo[] };
 type Draft = {
   date: Date;
@@ -29,6 +36,9 @@ type Draft = {
   exercises: any[] | null;
   /** Set when the photos couldn't be read. */
   error?: string;
+  /** Photos and videos of the session, posted with the activity: the scan
+   *  sorts them from the ones read for details (Ricky, 2026-10-25). */
+  posted: Photo[];
 };
 
 const DAYS_BACK = 42; // six weeks to swipe back through
@@ -36,12 +46,6 @@ const VISIBLE = 6;
 const GAP = 6;
 const WEEKDAY = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-// Class formats are almost always a full class even when the board only shows
-// the timed part, as in the single scan.
-const CLASS_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
-const classFloor = (type: string, seconds: number) =>
-  CLASS_TYPES.has(type) && seconds > 0 && seconds < 30 * 60 ? 45 * 60 : seconds;
 
 function lastDays(): Day[] {
   const today = new Date();
@@ -98,7 +102,46 @@ export function MultiDayScan() {
 
   useEffect(() => { loadScoringConfig().then(setConfig).catch(() => {}); }, []);
 
+  // From Upload, photos already grouped by the day they were taken: placed
+  // on their days and read straight away (Ricky, 2026-10-25).
+  const [autoScan, setAutoScan] = useState(false);
+  useEffect(() => {
+    const handed = takePendingScanDays();
+    if (!handed?.length) return;
+    (async () => {
+      const read = (file: File) => new Promise<Photo>((done) => {
+        const video = file.type.startsWith('video/');
+        const ext = (file.name.split('.').pop() || (video ? 'mp4' : 'jpg')).toLowerCase();
+        if (video) { done({ uri: URL.createObjectURL(file), base64: '', mimeType: file.type || 'video/mp4', blob: file, ext, video: true }); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const uri = e.target?.result as string;
+          done({ uri, base64: uri.split(',')[1], mimeType: file.type || 'image/jpeg', blob: file, ext });
+        };
+        reader.readAsDataURL(file);
+      });
+      const byDay = new Map<string, Photo[]>();
+      for (const g of handed) byDay.set(dayKey(g.date), await Promise.all(g.files.map(read)));
+      // Older than the six weeks shown: on the earliest day, to move in review.
+      const oldest = dayKey(lastDays()[0].date);
+      setDays((prev) => prev.map((d) => {
+        const key = dayKey(d.date);
+        const extra = [...byDay.entries()].filter(([k]) => k === key || (key === oldest && k < oldest)).flatMap(([, p]) => p);
+        return extra.length ? { ...d, photos: [...d.photos, ...extra] } : d;
+      }));
+      setAutoScan(true);
+    })();
+  }, []);
+  useEffect(() => {
+    if (!autoScan || withPhotos.length === 0) return;
+    setAutoScan(false);
+    scan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoScan, days]);
+
   const close = () => (router.canGoBack() ? router.back() : goToTab('/my-activities'));
+  // Opened from Add an activity, which it took the place of: back goes there.
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const cardW = stripW > 0 ? (stripW - GAP * (VISIBLE - 1)) / VISIBLE : 0;
   const step = cardW + GAP;
   const withPhotos = days.filter((d) => d.photos.length > 0);
@@ -133,7 +176,11 @@ export function MultiDayScan() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setPhase('photos'); setError('Sign in to continue.'); return; }
     const found = await Promise.all(withPhotos.map(async (day): Promise<Draft> => {
-      const blank: Draft = { date: day.date, name: '', type: 'Workout', minutes: '', km: '', elevation: 0, exercises: null };
+      const videos = day.photos.filter((p) => p.video);
+      const images = day.photos.filter((p) => !p.video);
+      const blank: Draft = { date: day.date, name: '', type: 'Workout', minutes: '', km: '', elevation: 0, exercises: null, posted: videos };
+      // Only videos that day: nothing to read; the details are typed in.
+      if (images.length === 0) return blank;
       try {
         const res = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/scan-workout`, {
           method: 'POST',
@@ -142,13 +189,15 @@ export function MultiDayScan() {
             Authorization: `Bearer ${session.access_token}`,
             apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
           },
-          body: JSON.stringify({ images: day.photos.map((p) => ({ base64Image: p.base64, mediaType: p.mimeType })) }),
+          body: JSON.stringify({ images: images.map((p) => ({ base64Image: p.base64, mediaType: p.mimeType })) }),
         });
         const data = await res.json();
         if (!res.ok || !data.workout) return { ...blank, error: 'The photos could not be read.' };
         const w = data.workout;
+        const roles: unknown[] = Array.isArray(w.imageRoles) && w.imageRoles.length === images.length ? w.imageRoles : [];
+        const posted = [...images.filter((_, i) => roles[i] === 'moment'), ...videos];
         const type = w.workoutType || 'Workout';
-        const seconds = classFloor(type, w.duration || 0);
+        const seconds = w.duration || 0;
         return {
           date: day.date,
           name: type,
@@ -157,6 +206,7 @@ export function MultiDayScan() {
           km: w.distance ? String(Math.round(w.distance * 100) / 100) : '',
           elevation: w.elevation || 0,
           exercises: w.exercises?.length > 0 ? w.exercises : null,
+          posted,
         };
       } catch {
         return { ...blank, error: 'The photos could not be read.' };
@@ -216,6 +266,22 @@ export function MultiDayScan() {
         .filter((m: any) => m.canonical && m.ex.weight)
         .map((m: any) => ({ user_id: user.id, activity_id: row.id, exercise_name: m.canonical, weight_kg: m.ex.weight, reps: m.ex.reps ?? null, performed_at: startedAt }));
       if (lifts.length > 0) await supabase.from('exercise_entries').insert(lifts);
+      // Its photos and videos, as the single scan posts them: the first photo
+      // is the cover. Best effort: the activity is already saved.
+      let cover: string | null = null;
+      for (const p of d.posted) {
+        try {
+          const blob = p.blob ?? await (await fetch(p.uri)).blob();
+          const up = p.video ? { blob, mimeType: p.mimeType, ext: p.ext || 'mp4' } : await fitPhoto({ blob, mimeType: p.mimeType, ext: p.ext || 'jpg' });
+          const path = `${user.id}/${row.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${up.ext}`;
+          const { error: upErr } = await supabase.storage.from('activity-photos').upload(path, up.blob, { contentType: up.mimeType, upsert: true });
+          if (upErr) continue;
+          const url = supabase.storage.from('activity-photos').getPublicUrl(path).data.publicUrl;
+          const { error: mErr } = await supabase.from('activity_media').insert({ activity_id: row.id, media_url: url, media_type: p.video ? 'video' : 'photo' });
+          if (!mErr && !p.video && !cover) cover = url;
+        } catch {}
+      }
+      if (cover) await supabase.from('activities').update({ photo_url: cover }).eq('id', row.id);
     }
     if (failed.length > 0) {
       // Keep only what didn't save, so nothing is saved twice on retry.
@@ -287,6 +353,11 @@ export function MultiDayScan() {
         kicker={reviewing ? 'REVIEW' : 'SEVERAL DAYS'}
         title="Multi-day scan"
         onClose={close}
+        onBack={
+          phase === 'review' ? () => { setPhase('photos'); setEditing(null); }
+          : phase === 'photos' && from === 'add' ? () => router.replace('/add-workout')
+          : undefined
+        }
         footer={footer}
         overlay={overlay}
       >
@@ -379,6 +450,15 @@ export function MultiDayScan() {
                   <View style={{ flex: 1 }}>
                     <Text style={s.rowTitle} numberOfLines={1}>{d.error ? 'Not read' : (d.name.trim() || d.type)}</Text>
                     <Text style={[s.rowSub, issue && s.rowIssue]} numberOfLines={1}>{issue ?? details}</Text>
+                    {d.posted.length ? (
+                      <View style={s.posted}>
+                        {d.posted.slice(0, 4).map((p, pi) => (
+                          p.video
+                            ? <View key={pi} style={[s.postedThumb, s.postedVideo]}><RivalIcon name="video" size={13} color={RivalColors.accentText} /></View>
+                            : <Image key={pi} source={{ uri: p.uri }} style={s.postedThumb} />
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
                   {effort !== null && (
                     <View style={s.rowEffort}>
@@ -407,6 +487,10 @@ const SCAN_PULSE: any = Platform.OS === 'web'
   : null;
 
 const s = StyleSheet.create({
+  // A day's photos and videos to be posted, in the review (Ricky, 2026-10-25).
+  posted: { flexDirection: 'row', gap: 4, marginTop: 6 },
+  postedThumb: { width: 28, height: 36, borderRadius: 6 },
+  postedVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,209,190,0.10)' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   sub: { fontSize: 12.5, lineHeight: 17, color: RivalColors.textSecondary, textAlign: 'center', marginBottom: 16, marginTop: -4 },
   error: { fontSize: 12.5, color: RivalColors.accentText, textAlign: 'center', marginBottom: 12 },
