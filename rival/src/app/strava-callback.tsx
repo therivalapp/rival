@@ -62,7 +62,7 @@ export default function StravaCallbackScreen() {
 
       if (!response.ok || data.error) {
         console.error('Edge function error:', data);
-        setStatus(response.status === 409 && data.error ? data.error : "Couldn't connect Strava. Try again.");
+        setStatus((response.status === 409 || response.status === 403) && data.error ? data.error : "Couldn't connect Strava. Try again.");
         setTimeout(() => window.close(), response.status === 409 ? 4000 : 2000);
         return;
       }

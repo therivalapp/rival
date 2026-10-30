@@ -1,0 +1,112 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}
+.col{width:393px;flex-shrink:0}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;min-height:38px}
+.phone{position:relative;width:393px;height:1300px;border-radius:40px;overflow:hidden;background:#232120}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;text-transform:none}
+.serif{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:700}
+.glw{position:absolute;top:-60px;left:0;right:0;height:300px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(217,119,87,.22) 0%,rgba(217,119,87,.07) 45%,rgba(217,119,87,0) 100%)}
+.status{height:50px}
+.back{position:absolute;left:16px;top:54px;width:36px;height:36px;border-radius:18px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px}
+.content{position:relative;padding:0 16px;display:flex;flex-direction:column;gap:10px}
+.person{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 8px}
+.av{width:92px;height:92px;border-radius:46px;border:2.5px solid #9fd9bd;background:url(../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg) 60% 40%/260%}
+.nm{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;line-height:34px;margin-top:4px}
+.sub{font-size:12.5px;color:#A0A0A0}
+.quote{font-family:Georgia,serif;font-style:italic;font-size:15px;line-height:21px;text-align:center;padding:4px 20px 0}
+.mat{position:relative;overflow:hidden;border-radius:20px;border:1px solid #9fd9bd;padding:14px 16px;background:linear-gradient(160deg,#9fd9bd 0%,#2f7a5b 100%);display:flex;flex-direction:column;gap:6px}
+.mat .ic{position:absolute;right:-14px;top:-18px;font-size:130px;color:rgba(16,14,12,.13)}
+.cap{font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(16,14,12,.62)}
+.matn{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:34px;line-height:40px;color:#1a1210}
+.mbar{height:8px;border-radius:4px;background:rgba(16,14,12,.2);overflow:hidden}.mbar i{display:block;height:8px;width:62%;background:#1a1210;border-radius:4px}
+.msub{font-size:12.5px;color:rgba(16,14,12,.75)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.t{display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 4px;background:#2c2a28;border:1px solid rgba(255,255,255,.08);border-radius:14px}
+.tv{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:22px}
+.tl{font-size:9.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.lab{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#A0A0A0;margin:8px 4px -2px}
+.lab span{letter-spacing:.3px;text-transform:none;font-size:12.5px;font-weight:700;color:#ffb59e}
+.ph{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;border-radius:16px;overflow:hidden}
+.p{position:relative;aspect-ratio:1;background-size:cover}
+.p b{position:absolute;left:7px;bottom:6px;font-size:10.5px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.card{background:#2c2a28;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px}
+.hm{display:grid;grid-template-columns:16px repeat(12,1fr);gap:4px}
+.d{aspect-ratio:1;border-radius:5px;background:rgba(255,255,255,.05)}
+.d.a{background:rgba(217,119,87,.4)}.d.b{background:#D97757}.d.c{background:#ffb59e}.d.x{outline:1.5px solid #fff;outline-offset:-1.5px}
+.wd{font-size:9px;font-weight:800;color:rgba(255,255,255,.4);display:flex;align-items:center}
+.mo{font-size:9.5px;font-weight:800;color:rgba(255,255,255,.45);height:14px;white-space:nowrap}
+.stats3{display:flex;margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.08)}
+.stats3 div{flex:1;text-align:center}
+.stats3 p{margin:0;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:19px;color:#ffb59e}
+.stats3 span{font-size:9.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.usual{display:flex;gap:6px;margin-top:11px;justify-content:space-between;align-items:center;font-size:12.5px;color:#A0A0A0}
+.usual i{font-style:normal;display:inline-flex;gap:4px}
+.usual u{text-decoration:none;width:24px;height:24px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;background:rgba(255,255,255,.06);color:rgba(255,255,255,.4)}
+.usual u.on{background:linear-gradient(135deg,#ffb59e,#D97757);color:#2a1408}
+.ms{display:flex;gap:7px}
+.m{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 2px 9px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:10.5px;font-weight:700;color:rgba(255,255,255,.45);white-space:nowrap}
+.m.on{border-color:rgba(255,181,158,.5);background:rgba(217,119,87,.1);color:#fff}
+.bd{width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);font-size:15px;color:rgba(255,255,255,.4)}
+.on .bd{background:linear-gradient(135deg,#ffb59e,#D97757);color:#1a1210}
+.imp{display:flex;padding:0}.imp div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:13px 0}.imp div+div{border-left:1px solid rgba(255,255,255,.08)}
+.imp .mi{font-size:15px;color:#ffb59e}
+.ra{display:flex;align-items:center;gap:12px;padding:10px 0}.ra+.ra{border-top:1px solid rgba(255,255,255,.08)}
+.ra .bd{color:#ffb59e}.ra h4{margin:0;font-size:14px;font-weight:700}.ra p{margin:2px 0 0;font-size:12px;color:#A0A0A0}
+.ra em{margin-left:auto;font-family:Georgia,serif;font-weight:700;font-size:17px;color:#ffb59e}
+.more{text-align:center;font-size:13px;font-weight:700;color:#ffb59e;padding:10px 0 2px}
+</style></head><body><div class="row">
+<div class="col"><p class="tag">Top of the profile</p><p class="desc">Who they are first: photo, name, rank, their quote. Then the year and lifetime numbers, then their chosen photos.</p>
+<div class="phone"><div class="glw"></div><div class="status"></div><div class="back mi">chevron_left</div>
+<div class="content">
+<div class="person"><div class="av"></div><div class="nm">Ricky James</div><div class="sub">Member since Jan 2026 · 3 teams</div><div class="quote">“Unrivaled is built one ordinary day at a time.”</div></div>
+<div class="mat"><span class="mi ic">emoji_events</span><span class="cap">2026 rank</span><span class="matn">Champion</span><div class="mbar"><i></i></div><span class="msub">1,720 Effort to Legend · 62 days left</span></div>
+<div class="grid">
+<div class="t"><span class="tv">15,780</span><span class="tl">This year</span></div><div class="t"><span class="tv">41,206</span><span class="tl">Lifetime</span></div><div class="t"><span class="tv">486</span><span class="tl">Activities</span></div>
+<div class="t"><span class="tv">612h</span><span class="tl">Time earned</span></div><div class="t"><span class="tv">3,940</span><span class="tl">km</span></div><div class="t"><span class="tv">61,200</span><span class="tl">m climbed</span></div></div>
+<div class="lab">Highlights<span>12 starred</span></div>
+<div class="ph" id="ph"></div>
+<div class="lab">Activity<span>Last 12 weeks</span></div>
+<div class="card"><div class="hm" id="hm"></div>
+<div class="stats3"><div><p>52</p><span>Days active</span></div><div><p>4.3</p><span>Per week</span></div><div><p>6w</p><span>Streak</span></div></div>
+<div class="usual">Usual days<i><u class="on">M</u><u>T</u><u class="on">W</u><u>T</u><u class="on">F</u><u class="on">S</u><u>S</u></i></div></div>
+<div style="text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);padding-top:2px">Powered by Strava</div>
+</div></div></div>
+
+<div class="col"><p class="tag">Further down</p><p class="desc">What they have earned, what others think of them, then the activity list for anyone who wants the full picture.</p>
+<div class="phone"><div class="status"></div>
+<div class="content">
+<div class="lab">Milestones<span>All 14</span></div>
+<div class="ms"><div class="m on"><div class="bd mi">workspace_premium</div>100 hours</div><div class="m on"><div class="bd mi">bolt</div>500 hours</div><div class="m"><div class="bd mi">lock</div>1,000 hours</div><div class="m"><div class="bd mi">lock</div>5,000 hours</div></div>
+<div class="lab">Personal bests</div>
+<div class="card" style="padding:4px 14px">
+<div class="ra"><div class="bd mi">fitness_center</div><div><h4>Bench Press</h4><p>Sep 2026</p></div><em>126 kg</em></div>
+<div class="ra"><div class="bd mi">directions_run</div><div><h4>Half marathon</h4><p>Jun 2026</p></div><em>1:48:12</em></div>
+<div class="ra"><div class="bd mi">flag</div><div><h4>HYROX Vancouver</h4><p>Apr 2026</p></div><em>1:21:40</em></div></div>
+<div class="lab">Impact</div>
+<div class="card imp"><div><span class="mi">back_hand</span><span class="tv">1,204</span><span class="tl">Respect</span></div><div><span class="mi">auto_awesome</span><span class="tv">318</span><span class="tl">Inspired</span></div><div><span class="mi">groups</span><span class="tv">27</span><span class="tl">People</span></div></div>
+<div class="lab">Recent activities</div>
+<div class="card" style="padding:4px 14px">
+<div class="ra"><div class="bd mi">fitness_center</div><div><h4>Evening Weights</h4><p>Yesterday · 1h 05m</p></div><em>88</em></div>
+<div class="ra"><div class="bd mi">directions_run</div><div><h4>Morning Run</h4><p>Wed · 10.2 km · 52:18</p></div><em>121</em></div>
+<div class="ra"><div class="bd mi">sports_gymnastics</div><div><h4>Evening CrossFit</h4><p>Mon · 1h 00m</p></div><em>97.5</em></div>
+<div class="more">See all activities</div></div>
+<div class="lab">Past years</div>
+<div class="card" style="padding:4px 14px"><div class="ra"><div class="bd mi">calendar_month</div><div><h4>2025</h4></div><span style="margin-left:auto;font-size:14px;color:#A0A0A0">Warrior · 8,410</span></div></div>
+</div></div></div>
+</div>
+<script>
+const B='../assets/images/backgrounds/optimized/';
+const pics=[['coastal-highway-triathlete-dusk-3.jpg','50% 50%','Half marathon'],['team-feed-hero-dusk-ridge-2.jpg','30% 60%','Ridge run'],['coastal-highway-triathlete-dusk-1.png','70% 40%','Race day'],['coastal-highway-triathlete-dusk-2.png','40% 60%','HYROX'],['team-feed-hero-dusk-ridge.png','60% 40%','Long ride'],['coastal-highway-triathlete-dusk-4.png','50% 50%','New PB']];
+ph.innerHTML=pics.map(p=>`<div class="p" style="background-image:url(${B}${p[0]});background-position:${p[1]}"><b>${p[2]}</b></div>`).join('');
+let h='<div></div>';const mos={0:'Aug',4:'Sep',9:'Oct'};
+for(let w=0;w<12;w++)h+=`<div class="mo">${mos[w]||''}</div>`;
+const days=['M','','W','','F','','S'];const pat=['bab..cb','a.b.c.b','b.b.bb.','c..b.ba','b.a.b.c','bb.c.a.','b.b..c.','a.b.bb.','b.c.a.b','b..b.c.','c.b.b.a','b.b.b..'];
+for(let d=0;d<7;d++){h+=`<div class="wd">${days[d]}</div>`;for(let w=0;w<12;w++){const c=pat[w][d];const today=w==11&&d==4;h+=`<div class="d ${c=='.'?'':c}${today?' x':''}"></div>`}}
+hm.innerHTML=h;
+</script></body></html>

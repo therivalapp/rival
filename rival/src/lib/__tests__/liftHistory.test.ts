@@ -55,6 +55,14 @@ describe('repeatOptions', () => {
     expect(o.map((x) => x.title)).toEqual(['Same as last Friday', 'Squat day', expect.any(String)]);
     expect(o[2].detail).toBe('Squat');
   });
+  it("puts today's usual saved workout ahead, and yesterday's last", () => {
+    const saved = [
+      { id: 'leg', name: 'Leg day', activityType: null, exercises: [{ name: 'Squat' }], lastUsedAt: '2026-07-02T08:00:00', usualDay: null },
+      { id: 'fri', name: 'Friday pull', activityType: null, exercises: [{ name: 'Row' }], lastUsedAt: '2026-06-01T08:00:00', usualDay: 5 },
+    ];
+    const o = repeatOptions([], saved, friday);
+    expect(o.map((x) => x.title)).toEqual(['Friday pull', 'Leg day']);
+  });
 });
 
 describe('saved workouts order', () => {

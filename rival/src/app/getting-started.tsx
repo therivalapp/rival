@@ -105,7 +105,7 @@ export default function GettingStartedScreen() {
 
           <Text style={rb.section}>Get set up</Text>
           <GreyRows>
-            {setupRow('link', strava ? 'Device connected' : 'Connect a device', !!strava, () => router.push({ pathname: '/profile', params: { tab: 'apps' } }))}
+            {setupRow('link', strava ? 'Device connected' : 'Import activity history', !!strava, () => router.push(strava ? { pathname: '/profile', params: { tab: 'apps' } } : '/import-archive'))}
             {setupRow('add', 'Add an activity', false, () => router.push('/add-workout'))}
             {!inTeam && readPendingInvite() ? setupRow('groups', 'Join the team that invited you', false, () => router.push('/join-league')) : null}
             {inTeam ? setupRow('groups', 'In a team', true, () => {}) : setupRow('search', 'Find a team', false, () => router.push('/discover-leagues'))}
@@ -163,9 +163,9 @@ export default function GettingStartedScreen() {
         ) : (
           <RivalRowLink
             icon="refresh"
-            title="Connect a device"
-            body="New activities sync automatically."
-            onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}
+            title="Import activity history"
+            body="Bring past activities in from an archive file."
+            onPress={() => router.push('/import-archive')}
           />
         )}
         <RivalRowLink

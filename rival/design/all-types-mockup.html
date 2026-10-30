@@ -1,0 +1,145 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+* { box-sizing:border-box; }
+body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+.row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+.col { width:393px; flex-shrink:0; }
+.tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+.desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:56px; }
+.phone { position:relative; width:393px; height:1180px; border-radius:40px; overflow:hidden; background:#232120; }
+.mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; display:inline-block; text-transform:none; }
+.serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+.glw { position:absolute; top:-60px; left:0; right:0; height:260px; background:radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+.status { height:50px; }
+.phead { position:relative; text-align:center; padding:6px 60px 14px; }
+.back { position:absolute; left:16px; top:4px; width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; font-size:22px; }
+.kick { font-size:10px; font-weight:800; letter-spacing:2px; color:#ffb59e; }
+.ptitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:28px; line-height:34px; margin-top:3px; }
+.content { position:relative; padding:0 16px; display:flex; flex-direction:column; gap:12px; }
+.name { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:13px 15px; font-size:16px; font-weight:500; color:rgba(255,255,255,0.35); }
+.tiles { display:flex; flex-wrap:wrap; gap:8px; }
+.tile { width:calc(25% - 6px); height:62px; border-radius:16px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.3); position:relative; overflow:hidden; display:flex; align-items:flex-end; padding:0 9px 8px; font-size:12.5px; font-weight:800; }
+.tile .art { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:44px; color:rgba(255,181,158,0.2); }
+.tile.on { background:linear-gradient(135deg,#D97757,#ffb59e); border-color:transparent; color:#3a1a0e; }
+.tile.on .art { color:rgba(255,255,255,0.32); }
+.tile.all { border-style:dashed; border-color:rgba(255,181,158,0.45); color:#ffb59e; }
+.card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:18px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+.lab { font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#A0A0A0; display:flex; justify-content:space-between; align-items:center; }
+.lab .r { color:#ffb59e; letter-spacing:.6px; text-transform:none; font-size:12.5px; font-weight:700; }
+.big { display:flex; align-items:baseline; justify-content:center; gap:6px; }
+.big .n { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:58px; line-height:1; }
+.big .u { font-size:13px; font-weight:800; color:rgba(255,255,255,0.45); letter-spacing:.8px; text-transform:uppercase; margin-right:10px; }
+.chips { display:flex; gap:8px; flex-wrap:wrap; }
+.chips.scroll { flex-wrap:nowrap; overflow:hidden; margin-right:-16px; }
+.chip { flex-shrink:1; white-space:nowrap; display:flex; align-items:center; gap:6px; padding:10px 15px; border-radius:999px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); font-size:14px; font-weight:700; color:#A0A0A0; }
+.chip .mi { font-size:16px; color:#ffb59e; }
+.chip.on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#3a1a0e; border-color:transparent; }
+.chip.on .mi { color:#3a1a0e; }
+.chip.last { color:#fff; }
+.search { display:flex; align-items:center; gap:10px; height:56px; border-radius:16px; background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,181,158,0.45); padding:0 16px; font-size:17px; font-weight:600; color:rgba(255,255,255,0.4); }
+.search .mi { color:#ffb59e; font-size:22px; }
+.ex { background:rgba(255,255,255,0.035); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+.exh { display:flex; align-items:center; justify-content:space-between; }
+.exn { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:21px; }
+.exlast { font-size:12px; color:rgba(255,255,255,0.45); }
+.boxes { display:flex; gap:8px; }
+.box { flex:1; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); padding:10px 0 9px; text-align:center; }
+.box .v { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:30px; line-height:1.1; }
+.box .v.ghost { color:rgba(255,255,255,0.28); }
+.box .k { font-size:10px; font-weight:800; letter-spacing:1px; color:rgba(255,255,255,0.45); margin-top:2px; }
+.box.focus { border-color:#ffb59e; background:rgba(255,181,158,0.12); }
+.mini { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:14px; background:rgba(255,255,255,0.035); }
+.mini .t { flex:1; font-size:15px; font-weight:700; }
+.mini .s { font-size:13.5px; color:#A0A0A0; font-variant-numeric:tabular-nums; }
+.mini .mi { color:rgba(255,255,255,0.35); font-size:18px; }
+.repeat { display:flex; align-items:center; gap:12px; padding:13px 14px; border-radius:16px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+.repeat .ic { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:#ffb59e; font-size:20px; }
+.repeat .t { font-size:15px; font-weight:700; } .repeat .s { font-size:12.5px; color:#A0A0A0; margin-top:2px; }
+.repeat .use { margin-left:auto; color:#ffb59e; font-weight:800; font-size:14px; }
+.half { display:flex; gap:10px; }
+.half > div { flex:1; }
+.tbig { border-radius:18px; padding:14px; min-height:132px; display:flex; flex-direction:column; justify-content:space-between; }
+.tbig.time { background:rgba(255,209,190,0.05); border:1.5px solid rgba(255,181,158,0.45); }
+.tbig.rep { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+.tbig .n { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:42px; line-height:1; }
+.tbig .n small { font-family:Manrope; font-style:normal; font-size:13px; font-weight:800; color:rgba(255,255,255,0.45); margin-left:3px; }
+.tbig .sub { font-size:12px; color:#A0A0A0; }
+.tbig .rn { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; line-height:1.15; }
+.step { display:flex; align-items:center; justify-content:space-between; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); padding:6px; }
+.step .b { width:46px; height:46px; border-radius:12px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:24px; color:#ffb59e; }
+.step .mid { text-align:center; }
+.step .v { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:30px; line-height:1; }
+.step .k { font-size:10px; font-weight:800; letter-spacing:1px; color:rgba(255,255,255,0.45); margin-top:3px; }
+.add { height:50px; border-radius:16px; border:1.5px dashed rgba(255,181,158,0.4); display:flex; align-items:center; justify-content:center; gap:8px; color:#ffb59e; font-weight:800; font-size:15px; }
+.unit { display:inline-flex; border-radius:999px; background:rgba(255,255,255,0.06); padding:3px; font-size:12px; font-weight:800; }
+.unit span { padding:4px 10px; border-radius:999px; color:#A0A0A0; }
+.unit .on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#3a1a0e; }
+.foot { position:absolute; left:0; right:0; bottom:0; padding:14px 16px 30px; background:#1c1b1a; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:14px; }
+.foot .eff { font-size:12px; color:#A0A0A0; line-height:1.35; } .foot .eff b { display:block; font-family:Georgia,serif; font-style:italic; font-size:24px; color:#fff; }
+.primary { flex:1; height:56px; border-radius:999px; background:linear-gradient(90deg,#D97757,#ffb59e); color:#3a1a0e; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; }
+.sec { font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#A0A0A0; margin:4px 0 -4px 2px; }
+.n1 { position:absolute; left:-2px; width:20px; height:20px; border-radius:10px; background:#ffb59e; color:#3a1a0e; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+.done { display:flex; align-items:center; gap:8px; justify-content:center; height:46px; border-radius:14px; background:rgba(255,255,255,0.06); color:#ffb59e; font-weight:800; font-size:14.5px; }
+.mini .ck { color:#ffb59e; font-size:18px; }
+.namefield { display:flex; align-items:center; gap:8px; }
+.namefield .mi { color:rgba(255,255,255,0.35); font-size:20px; }
+.chips.scroll .chip { flex-shrink:0; }
+.lt { display:flex; gap:8px; }
+.ltile { flex:1; min-width:0; height:62px; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.3); position:relative; overflow:hidden; display:flex; align-items:flex-end; padding:0 8px 8px; font-size:12px; line-height:14px; font-weight:800; }
+.ltile .lart { position:absolute; top:6px; right:6px; font-size:22px; color:rgba(255,181,158,0.35); }
+
+.rows { border-radius:16px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+.rw { display:flex; align-items:center; gap:12px; padding:14px 16px; font-size:15px; font-weight:600; color:#A0A0A0; }
+.rw + .rw { border-top:1px solid rgba(255,255,255,0.07); }
+.rw .mi { color:#ffb59e; font-size:19px; }
+.rw .v { margin-left:auto; color:#fff; font-weight:600; }
+.rw .ph { margin-left:auto; color:rgba(255,255,255,0.3); font-weight:500; }
+.pace { display:flex; align-items:center; gap:8px; padding:12px 14px; border-radius:14px; background:rgba(255,255,255,0.035); font-size:14px; font-weight:600; }
+.pace .mi { color:#ffb59e; font-size:17px; }
+.pace .s { margin-left:auto; color:#A0A0A0; font-weight:500; font-size:12.5px; }
+.lifts { display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px; border:1.5px dashed rgba(255,181,158,0.4); }
+.lifts .ic { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:#ffb59e; font-size:20px; }
+.lifts .t { font-size:15px; font-weight:700; } .lifts .s { font-size:12.5px; color:#A0A0A0; margin-top:2px; }
+.lifts .plus { margin-left:auto; color:#ffb59e; font-size:22px; }
+.qt { display:flex; gap:8px; }
+.q { flex:1; height:60px; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.3); display:flex; flex-direction:column; justify-content:center; align-items:center; padding:9px 0 0; }
+.q b { font-family:Georgia,serif; font-style:italic; font-size:25px; line-height:1; }
+.q span { font-size:10.5px; font-weight:800; color:rgba(255,255,255,0.45); letter-spacing:.6px; margin-top:3px; }
+.q.on { background:linear-gradient(135deg,#D97757,#ffb59e); border-color:transparent; color:#3a1a0e; }
+.q.on span { color:rgba(58,26,14,0.7); }
+.q { position:relative; }
+.q .u { position:absolute; top:5px; left:0; right:0; text-align:center; font-size:9px; font-weight:800; letter-spacing:.8px; color:rgba(255,255,255,0.45); margin:0; }
+.q.on .u { color:rgba(58,26,14,0.7); }
+.tbig .n.ghost { color:rgba(255,255,255,0.28); }
+.foot2 { position:absolute; left:0; right:0; bottom:0; padding:14px 16px 30px; background:#1c1b1a; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:14px; }
+.tc { background:rgba(255,209,190,0.05); border:1.5px solid rgba(255,181,158,0.45); border-radius:18px; padding:14px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.tc .lab { align-self:stretch; }
+.tc .n { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:64px; line-height:1; margin-top:2px; }
+.tc .n small { font-family:Manrope; font-style:normal; font-size:14px; font-weight:800; color:rgba(255,255,255,0.45); margin-left:4px; letter-spacing:.6px; }
+.tc .sub { font-size:12.5px; color:#A0A0A0; margin-bottom:8px; }
+.tc .qt { align-self:stretch; }
+.tbig .rn2 { font-size:15px; font-weight:700; line-height:1.3; }
+.tbig.when .bigt { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:30px; line-height:1; }
+
+.tile .lbl { position:relative; line-height:1.15; }
+.search2 { display:flex; align-items:center; gap:10px; height:48px; border-radius:16px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,181,158,0.22); padding:0 14px; font-size:15.5px; font-weight:600; color:rgba(255,255,255,0.4); }
+.search2.on { border:1.5px solid rgba(255,181,158,0.55); color:#fff; }
+.search2 .mi { color:#ffb59e; font-size:20px; }
+.search2 .x { margin-left:auto; color:rgba(255,255,255,0.4); font-size:18px; }
+.grp { font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#A0A0A0; margin:6px 0 -4px 2px; display:flex; justify-content:space-between; }
+.grp span { color:rgba(255,255,255,0.3); letter-spacing:.6px; }
+.cursor { display:inline-block; width:1.5px; height:18px; background:#ffb59e; margin-left:1px; vertical-align:-3px; }
+.note { font-size:12.5px; color:#A0A0A0; text-align:center; margin-top:2px; }
+</style></head><body><div class="row"><div class="col"><div class="tag">1 · See all</div><div class="desc">Every type RIVAL scores (65 in all), under short group headings. Your seven tiles stay on top; a search sits above the groups. Long names wrap to two lines.</div><div class="phone" style="height:1900px"><div class="glw"></div><div class="status"></div>
+<div class="phead"><div class="back mi">chevron_left</div><div class="kick">LOG</div><div class="ptitle">Log an activity</div></div>
+<div class="content"><div class="name">Morning Run</div><div class="tiles"><div class="tile on"><div class="art mi">directions_run</div><span class="lbl">Run</span></div><div class="tile"><div class="art mi">pool</div><span class="lbl">Swim</span></div><div class="tile"><div class="art mi">directions_bike</div><span class="lbl">Ride</span></div><div class="tile"><div class="art mi">directions_run</div><span class="lbl">HYROX</span></div><div class="tile"><div class="art mi">accessibility_new</div><span class="lbl">Workout</span></div><div class="tile"><div class="art mi">fitness_center</div><span class="lbl">Weights</span></div><div class="tile"><div class="art mi">sports_gymnastics</div><span class="lbl">CrossFit</span></div><div class="tile all"><div class="art mi" style="color:rgba(255,181,158,0.3)">apps</div><span class="lbl">Fewer</span></div></div><div class="search2"><span class="mi">search</span>Search 65 activities</div><div class="grp">Run and walk<span>5</span></div><div class="tiles"><div class="tile"><div class="art mi">terrain</div><span class="lbl">Trail run</span></div><div class="tile"><div class="art mi">directions_run</div><span class="lbl">Treadmill</span></div><div class="tile"><div class="art mi">directions_walk</div><span class="lbl">Walk</span></div><div class="tile"><div class="art mi">hiking</div><span class="lbl">Hike</span></div><div class="tile"><div class="art mi">stadium</div><span class="lbl">Track and field</span></div></div><div class="grp">Ride<span>7</span></div><div class="tiles"><div class="tile"><div class="art mi">pedal_bike</div><span class="lbl">Indoor ride</span></div><div class="tile"><div class="art mi">pedal_bike</div><span class="lbl">Mountain bike</span></div><div class="tile"><div class="art mi">directions_bike</div><span class="lbl">Gravel ride</span></div><div class="tile"><div class="art mi">electric_bike</div><span class="lbl">E-bike</span></div><div class="tile"><div class="art mi">electric_bike</div><span class="lbl">E-MTB</span></div><div class="tile"><div class="art mi">accessible_forward</div><span class="lbl">Handcycle</span></div><div class="tile"><div class="art mi">pedal_bike</div><span class="lbl">Velomobile</span></div></div><div class="grp">Gym and classes<span>7</span></div><div class="tiles"><div class="tile"><div class="art mi">bolt</div><span class="lbl">HIIT</span></div><div class="tile"><div class="art mi">groups</div><span class="lbl">Bootcamp</span></div><div class="tile"><div class="art mi">self_improvement</div><span class="lbl">Yoga</span></div><div class="tile"><div class="art mi">self_improvement</div><span class="lbl">Pilates</span></div><div class="tile"><div class="art mi">directions_walk</div><span class="lbl">Elliptical</span></div><div class="tile"><div class="art mi">stairs</div><span class="lbl">Stair stepper</span></div><div class="tile"><div class="art mi">rowing</div><span class="lbl">Indoor row</span></div></div><div class="grp">Water<span>8</span></div><div class="tiles"><div class="tile"><div class="art mi">rowing</div><span class="lbl">Rowing</span></div><div class="tile"><div class="art mi">kayaking</div><span class="lbl">Kayaking</span></div><div class="tile"><div class="art mi">kayaking</div><span class="lbl">Canoeing</span></div><div class="tile"><div class="art mi">surfing</div><span class="lbl">Paddle board</span></div><div class="tile"><div class="art mi">surfing</div><span class="lbl">Surfing</span></div><div class="tile"><div class="art mi">kitesurfing</div><span class="lbl">Kitesurf</span></div><div class="tile"><div class="art mi">surfing</div><span class="lbl">Windsurf</span></div><div class="tile"><div class="art mi">sailing</div><span class="lbl">Sailing</span></div></div><div class="grp">Racket sports<span>6</span></div><div class="tiles"><div class="tile"><div class="art mi">sports_tennis</div><span class="lbl">Tennis</span></div><div class="tile"><div class="art mi">sports_tennis</div><span class="lbl">Squash</span></div><div class="tile"><div class="art mi">sports_tennis</div><span class="lbl">Pickleball</span></div><div class="tile"><div class="art mi">sports_tennis</div><span class="lbl">Badminton</span></div><div class="tile"><div class="art mi">sports_tennis</div><span class="lbl">Table tennis</span></div><div class="tile"><div class="art mi">sports_tennis</div><span class="lbl">Racquetball</span></div></div><div class="grp">Team sports<span>11</span></div><div class="tiles"><div class="tile"><div class="art mi">sports_basketball</div><span class="lbl">Basketball</span></div><div class="tile"><div class="art mi">sports_football</div><span class="lbl">Football</span></div><div class="tile"><div class="art mi">sports_soccer</div><span class="lbl">Soccer</span></div><div class="tile"><div class="art mi">sports_rugby</div><span class="lbl">Rugby</span></div><div class="tile"><div class="art mi">sports_cricket</div><span class="lbl">Cricket</span></div><div class="tile"><div class="art mi">sports_volleyball</div><span class="lbl">Volleyball</span></div><div class="tile"><div class="art mi">sports_handball</div><span class="lbl">Handball</span></div><div class="tile"><div class="art mi">sports_hockey</div><span class="lbl">Field hockey</span></div><div class="tile"><div class="art mi">sports_hockey</div><span class="lbl">Ice hockey</span></div><div class="tile"><div class="art mi">sports_hockey</div><span class="lbl">Lacrosse</span></div><div class="tile"><div class="art mi">sports</div><span class="lbl">Frisbee</span></div></div><div class="grp">Winter<span>6</span></div><div class="tiles"><div class="tile"><div class="art mi">downhill_skiing</div><span class="lbl">Alpine ski</span></div><div class="tile"><div class="art mi">downhill_skiing</div><span class="lbl">Ski touring</span></div><div class="tile"><div class="art mi">nordic_walking</div><span class="lbl">Nordic ski</span></div><div class="tile"><div class="art mi">snowboarding</div><span class="lbl">Snowboard</span></div><div class="tile"><div class="art mi">snowshoeing</div><span class="lbl">Snowshoe</span></div><div class="tile"><div class="art mi">ice_skating</div><span class="lbl">Ice skate</span></div></div><div class="grp">Other<span>8</span></div><div class="tiles"><div class="tile"><div class="art mi">golf_course</div><span class="lbl">Golf</span></div><div class="tile"><div class="art mi">sports_martial_arts</div><span class="lbl">Martial arts</span></div><div class="tile"><div class="art mi">sports_kabaddi</div><span class="lbl">Fencing</span></div><div class="tile"><div class="art mi">landscape</div><span class="lbl">Rock climbing</span></div><div class="tile"><div class="art mi">roller_skating</div><span class="lbl">Inline skate</span></div><div class="tile"><div class="art mi">nordic_walking</div><span class="lbl">Roller ski</span></div><div class="tile"><div class="art mi">skateboarding</div><span class="lbl">Skateboard</span></div><div class="tile"><div class="art mi">accessible</div><span class="lbl">Wheelchair</span></div></div></div></div></div><div class="col"><div class="tag">2 · Search</div><div class="desc">Typing narrows the list to matching tiles, without the headings. Clear (×) brings the groups back.</div><div class="phone" style="height:980px"><div class="glw"></div><div class="status"></div>
+<div class="phead"><div class="back mi">chevron_left</div><div class="kick">LOG</div><div class="ptitle">Log an activity</div></div>
+<div class="content"><div class="name">Morning Run</div><div class="tiles"><div class="tile on"><div class="art mi">directions_run</div><span class="lbl">Run</span></div><div class="tile"><div class="art mi">pool</div><span class="lbl">Swim</span></div><div class="tile"><div class="art mi">directions_bike</div><span class="lbl">Ride</span></div><div class="tile"><div class="art mi">directions_run</div><span class="lbl">HYROX</span></div><div class="tile"><div class="art mi">accessibility_new</div><span class="lbl">Workout</span></div><div class="tile"><div class="art mi">fitness_center</div><span class="lbl">Weights</span></div><div class="tile"><div class="art mi">sports_gymnastics</div><span class="lbl">CrossFit</span></div><div class="tile all"><div class="art mi" style="color:rgba(255,181,158,0.3)">apps</div><span class="lbl">Fewer</span></div></div><div class="search2 on"><span class="mi">search</span>ski<span class="cursor"></span><span class="mi x">close</span></div><div class="tiles"><div class="tile"><div class="art mi">downhill_skiing</div><span class="lbl">Alpine ski</span></div><div class="tile"><div class="art mi">downhill_skiing</div><span class="lbl">Ski touring</span></div><div class="tile"><div class="art mi">nordic_walking</div><span class="lbl">Nordic ski</span></div><div class="tile"><div class="art mi">nordic_walking</div><span class="lbl">Roller ski</span></div></div><div class="note">4 activities</div></div><div class="foot"><div class="eff"><b>&ndash;</b>Effort</div><div class="primary">Log activity</div></div></div></div><div class="col"><div class="tag">3 · Picked</div><div class="desc">The pick takes the eighth tile and See all closes. Nordic ski is scored on distance, so it opens the Distance layout with its own quick distances.</div><div class="phone" style="height:980px"><div class="glw"></div><div class="status"></div>
+<div class="phead"><div class="back mi">chevron_left</div><div class="kick">LOG</div><div class="ptitle">Log an activity</div></div>
+<div class="content"><div class="name">Morning Nordic Ski</div><div class="tiles"><div class="tile"><div class="art mi">directions_run</div><span class="lbl">Run</span></div><div class="tile"><div class="art mi">pool</div><span class="lbl">Swim</span></div><div class="tile"><div class="art mi">directions_bike</div><span class="lbl">Ride</span></div><div class="tile"><div class="art mi">directions_run</div><span class="lbl">HYROX</span></div><div class="tile"><div class="art mi">accessibility_new</div><span class="lbl">Workout</span></div><div class="tile"><div class="art mi">fitness_center</div><span class="lbl">Weights</span></div><div class="tile"><div class="art mi">sports_gymnastics</div><span class="lbl">CrossFit</span></div><div class="tile on"><div class="art mi">nordic_walking</div><span class="lbl">Nordic ski</span></div></div><div class="half"><div class="tbig time"><div class="lab">Time</div><div class="n">48<small>min</small></div><div class="sub">Last time 52:10</div></div>
+<div class="tbig time"><div class="lab">Distance</div><div class="n">9.4<small>km</small></div><div class="sub">Last time 10.2 km</div></div></div>
+<div class="pace"><span class="mi">speed</span>Pace 5:06 /km</div>
+<div class="qt"><div class="q"><b>5</b><span>KM</span></div><div class="q"><b>10</b><span>KM</span></div><div class="q"><b>15</b><span>KM</span></div><div class="q"><b>20</b><span>KM</span></div></div>
+<div class="rows"><div class="rw"><span class="mi">landscape</span>Elevation<span class="v" style="color:rgba(255,255,255,0.35)">Optional</span></div><div class="rw"><span class="mi">calendar_today</span>Date<span class="v">Today</span></div><div class="rw"><span class="mi">schedule</span>Start time<span class="v">6:30 am</span></div></div></div><div class="foot"><div class="eff"><b>&ndash;</b>Effort</div><div class="primary">Log activity</div></div></div></div></div></body></html>

@@ -4,7 +4,8 @@ import { GoldStar } from '../../components/rival/RespectStar';
 import { arrivedFromTab, goToTab, onTabReselect } from '../../lib/tabNav';
 import { clearShareRequest, onShareRequest, pendingShare } from '../../lib/shareRequest';
 import { onActivityDeleted } from '../../lib/activityEvents';
-import { liftPbChecker, loggedLifts, type LiftPb } from '../../lib/liftPb';
+import { type LiftPb } from '../../lib/liftPb';
+import { activityPbs, DISTANCE_SPORTS } from '../../lib/activityPbs';
 import { fetchReactionsOn } from '../../lib/reactions';
 import { useSnapState } from '../../lib/snapState';
 import { distanceUnit, formatActivityDistance, formatElevation, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
@@ -93,11 +94,6 @@ type MonthGroup = {
   km: number;
 };
 
-const DISTANCE_SPORTS = new Set([
-  'Run', 'Ride', 'Swim', 'Walk', 'Hike', 'Rowing',
-  'VirtualRun', 'VirtualRide', 'NordicSki', 'AlpineSki',
-  'Kayaking', 'StandUpPaddling', 'Surfing',
-]);
 
 // Sports where distances rarely clear 1km — showing metres reads better than
 // a stunted "0.4 km".
@@ -586,42 +582,7 @@ export default function MyActivitiesScreen() {
 
       const currentWeekStart = getMondayStart(new Date());
 
-      const byType = new Map<string, Activity[]>();
-      for (const activity of data) {
-        if (!byType.has(activity.activity_type)) byType.set(activity.activity_type, []);
-        byType.get(activity.activity_type)!.push(activity);
-      }
-
-      const pbMap: Record<string, string> = {};
-      const prevMap: Record<string, number> = {};
-      // Every PB stays a PB (Ricky, 2026-10-24): each activity that went
-      // further (or longer) than every earlier one of its type was a PB that
-      // day, and keeps it after it is beaten, the way lifts and fastest
-      // times already did. The first of a type has nothing to beat.
-      for (const [type, acts] of byType) {
-        const useDistance = DISTANCE_SPORTS.has(type);
-        const metricOf = (a: Activity) => (useDistance ? (a.distance_meters || 0) : (a.duration_seconds || 0));
-        const inOrder = acts.slice().sort((x, y) => new Date(x.started_at).getTime() - new Date(y.started_at).getTime());
-        let best = -1;
-        for (const a of inOrder) {
-          const v = metricOf(a);
-          if (best >= 0 && v > best && v > 0) {
-            pbMap[a.id] = useDistance ? `Farthest ${type}` : `Longest ${type}`;
-            prevMap[a.id] = best;
-          }
-          if (v > best) best = v;
-        }
-      }
-      // A lift PB is the activity's best: it takes the place of "longest".
-      const liftCheck = liftPbChecker(loggedLifts(data.map((a) => ({ ...a, user_id: user!.id }))));
-      const liftMap: Record<string, LiftPb> = {};
-      for (const a of data) {
-        const lp = liftCheck(user!.id, a.id, a.started_at, a.exercises);
-        if (!lp) continue;
-        liftMap[a.id] = lp;
-        pbMap[a.id] = `Heaviest ${lp.lift}`;
-        delete prevMap[a.id];
-      }
+      const { pbs: pbMap, prev: prevMap, lifts: liftMap } = activityPbs(data, user.id);
       setPbs(pbMap);
       setPbPrev(prevMap);
       setLiftPbs(liftMap);
@@ -824,7 +785,7 @@ export default function MyActivitiesScreen() {
   // full page), or add one by scan or by hand; then a three-step list.
   function renderFirstVisit() {
     const steps = [
-      { key: 'first', title: 'Add the first activity', sub: 'Connect a device, scan or type it in', done: false, onPress: () => router.push('/add-workout') },
+      { key: 'first', title: 'Add the first activity', sub: 'Scan it or type it in', done: false, onPress: () => router.push('/add-workout') },
       { key: 'team', title: 'Join a team', sub: 'Train alongside friends', done: hasTeam, onPress: () => router.push('/discover-leagues') },
       { key: 'focus', title: 'Set a focus', sub: 'One goal for the next 4 weeks', done: hasFocus, onPress: () => router.push({ pathname: '/goals', params: { add: 'true' } }) },
     ];
@@ -834,7 +795,7 @@ export default function MyActivitiesScreen() {
         <View style={styles.fvHero}>
           {Platform.OS === 'web' && <View style={[styles.fvHeroGlow, { pointerEvents: 'none' }]} />}
           <Text style={styles.fvTitle}>Past activities count.</Text>
-          <Text style={styles.fvSub}>Connect a device to import it, with Effort.</Text>
+          <Text style={styles.fvSub}>Import an archive to bring it in, with Effort.</Text>
           <View style={styles.fvStats}>
             {['Effort', 'Activities', 'Hours'].map((l) => (
               <View key={l} style={styles.fvStat}>
@@ -843,8 +804,8 @@ export default function MyActivitiesScreen() {
               </View>
             ))}
           </View>
-          <TouchableOpacity style={styles.fvCta} activeOpacity={0.85} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
-            <Text style={styles.fvCtaText}>Connect a device</Text>
+          <TouchableOpacity style={styles.fvCta} activeOpacity={0.85} onPress={() => router.push('/import-archive')}>
+            <Text style={styles.fvCtaText}>Import activity history</Text>
           </TouchableOpacity>
         </View>
 
@@ -1065,9 +1026,13 @@ export default function MyActivitiesScreen() {
             {/* Phones: the sky for the hour it started, with the icon
                 large and faint over it (Ricky, 2026-10-14). */}
             {wide ? null : <SkyBackdrop startedAt={activity.started_at} utcOffsetSeconds={activity.utc_offset_seconds} />}
-            {wide
-              ? <RivalIcon name={activityIconName(activity.activity_type)} size={48} color={RivalColors.accentText} />
-              : <RivalIcon name={activityIconName(activity.activity_type)} size={128} color="rgba(255,255,255,0.16)" />}
+            {/* In a View: a drawn icon (CrossFit, HYROX) is a bare <svg> on
+                web, which painted under the positioned sky and vanished. */}
+            <View>
+              {wide
+                ? <RivalIcon name={activityIconName(activity.activity_type)} size={48} color={RivalColors.accentText} />
+                : <RivalIcon name={activityIconName(activity.activity_type)} size={128} color="rgba(255,255,255,0.16)" />}
+            </View>
           </View>
         )}
         <View style={[styles.jCardScrim, { pointerEvents: 'none' }]} />
@@ -2030,12 +1995,12 @@ export default function MyActivitiesScreen() {
                   <View style={[rm.card, styles.firstEmpty]}>
                     <View style={rm.iconCircle}><RivalIcon name="pulse" size={20} color={RivalColors.accentText} /></View>
                     <Text style={rm.serifTitleSm}>No activities yet</Text>
-                    <Text style={[rm.hint, { textAlign: 'center' }]}>Every activity you add or sync appears here, week by week, with the Effort it earned.</Text>
+                    <Text style={[rm.hint, { textAlign: 'center' }]}>Every activity you add appears here, week by week, with the Effort it earned.</Text>
                     <TouchableOpacity style={[rm.primary, styles.firstEmptyBtn]} onPress={() => router.push('/add-workout')}>
                       <Text style={rm.primaryText}>Add activity</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[rm.ghost, styles.firstEmptyBtn]} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
-                      <Text style={rm.ghostText}>Connect a device</Text>
+                    <TouchableOpacity style={[rm.ghost, styles.firstEmptyBtn]} onPress={() => router.push('/import-archive')}>
+                      <Text style={rm.ghostText}>Import activity history</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -2701,7 +2666,7 @@ export default function MyActivitiesScreen() {
 
         {!loading && groups.length === 0 && (
           <Text style={styles.emptyText}>
-            {allActivities.length === 0 ? 'No activities yet. Add an activity or connect a device.' : 'No activities match this filter.'}
+            {allActivities.length === 0 ? 'No activities yet. Add an activity to begin.' : 'No activities match this filter.'}
           </Text>
         )}
 

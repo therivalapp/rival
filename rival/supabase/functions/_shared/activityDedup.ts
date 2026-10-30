@@ -81,7 +81,7 @@ export async function resolveCanonicalActivityId(
     if (candidate.rawPayload) {
       await linkNewActivitySource(supabase, candidate.userId, existingSource.activity_id, candidate.provider, candidate.providerActivityId, candidate.rawPayload)
     }
-    return { canonicalId: existingSource.activity_id, discard: false }
+    return await decideBetweenRecordings(supabase, candidate, existingSource.activity_id)
   }
 
   // Slow path: has some OTHER source already recorded the same physical workout
@@ -155,9 +155,11 @@ export async function resolveCanonicalActivityId(
       // Either way the source is recorded, so a re-sync takes the fast path
       // instead of re-deciding this every time.
       await linkNewActivitySource(supabase, candidate.userId, clash.id, candidate.provider, candidate.providerActivityId, candidate.rawPayload)
-      return candidate.durationSeconds > (clash.duration_seconds as number)
-        ? { canonicalId: clash.id, discard: false }
-        : { canonicalId: null, discard: true }
+      if (candidate.durationSeconds > (clash.duration_seconds as number)) {
+        await takeOver(supabase, clash.id, candidate)
+        return { canonicalId: clash.id, discard: false }
+      }
+      return { canonicalId: null, discard: true }
     }
   }
 
@@ -176,10 +178,77 @@ export async function resolveCanonicalActivityId(
       await supabase.from('activities').update(backfill).eq('id', match.id)
     }
 
-    return { canonicalId: match.id, discard: false }
+    return await decideBetweenRecordings(supabase, candidate, match.id)
   }
 
   return { canonicalId: null, discard: false }
+}
+
+// Two recordings of one session from the same provider (a phone and a watch
+// both uploading to Strava) share one activities row. Callers overwrite that
+// row with whatever they pass in, so without this the recording saved LAST won,
+// even when it was the shorter one: a watch started late replaced the phone's
+// full run. The row's own provider_activity_id marks the recording it currently
+// shows. That recording can always update it (an edit or trim in Strava still
+// lands). Any other recording replaces it only if it is longer, the same rule
+// the overlap guard uses, and is refused otherwise.
+async function decideBetweenRecordings(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  candidate: ActivityCandidate,
+  activityId: string,
+): Promise<ResolveResult> {
+  const { data: row } = await supabase
+    .from('activities')
+    .select('provider, provider_activity_id, duration_seconds, distance_meters')
+    .eq('id', activityId)
+    .maybeSingle()
+  // A different provider (a manual entry, a scan) keeps the existing behaviour:
+  // the import fills it in.
+  if (!row || row.provider !== candidate.provider) return { canonicalId: activityId, discard: false }
+  if (String(row.provider_activity_id) === candidate.providerActivityId) return { canonicalId: activityId, discard: false }
+  // The athlete picked the recording shown (activity-recordings): it stays,
+  // however long the other one is.
+  const { data: shown } = await supabase
+    .from('activity_sources')
+    .select('raw_payload')
+    .eq('user_id', candidate.userId)
+    .eq('provider', candidate.provider)
+    .eq('provider_activity_id', String(row.provider_activity_id))
+    .maybeSingle()
+  if (shown?.raw_payload?.chosen) return { canonicalId: null, discard: true }
+  if (isLonger(candidate, row)) {
+    await takeOver(supabase, activityId, candidate)
+    return { canonicalId: activityId, discard: false }
+  }
+  return { canonicalId: null, discard: true }
+}
+
+// Moving time decides, as in the overlap guard; distance breaks a tie.
+export function isLonger(
+  candidate: { durationSeconds: number | null; distanceMeters: number | null },
+  row: { duration_seconds: number | null; distance_meters: number | null },
+): boolean {
+  const cd = candidate.durationSeconds ?? 0
+  const rd = row.duration_seconds ?? 0
+  if (cd !== rd) return cd > rd
+  return (candidate.distanceMeters ?? 0) > (row.distance_meters ?? 0)
+}
+
+// Points the row at the recording that now shows, so later re-syncs of it are
+// treated as edits and detail fetches read the right Strava activity.
+async function takeOver(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  activityId: string,
+  candidate: ActivityCandidate,
+): Promise<void> {
+  const { error } = await supabase
+    .from('activities')
+    .update({ provider_activity_id: candidate.providerActivityId })
+    .eq('id', activityId)
+    .eq('provider', candidate.provider)
+  if (error) console.log('Recording takeover error:', JSON.stringify(error))
 }
 
 // Records which source an activity came from. Call once right after inserting a
@@ -195,6 +264,17 @@ export async function linkNewActivitySource(
   rawPayload?: Record<string, unknown> | null,
 ): Promise<void> {
   const row: Record<string, unknown> = { user_id: userId, activity_id: activityId, provider, provider_activity_id: providerActivityId }
-  if (rawPayload) row.raw_payload = rawPayload
+  if (rawPayload) {
+    // A re-sync refreshes provenance but keeps the athlete's pick of the
+    // recording shown (raw_payload.chosen, set by activity-recordings).
+    const { data: existing } = await supabase
+      .from('activity_sources')
+      .select('raw_payload')
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .eq('provider_activity_id', providerActivityId)
+      .maybeSingle()
+    row.raw_payload = existing?.raw_payload?.chosen ? { ...rawPayload, chosen: true } : rawPayload
+  }
   await supabase.from('activity_sources').upsert(row, { onConflict: 'user_id,provider,provider_activity_id' })
 }

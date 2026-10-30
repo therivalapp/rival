@@ -158,3 +158,20 @@ export function goalContributions(goal: GoalRow, activities: ActivityRow[]): { s
     .filter((c) => c.amount > 0)
     .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
 }
+
+/**
+ * What is left of a goal and the pace that gets there, in display units:
+ * "44.4 km to go · 1.6 km a day", or "9.2 km to go today" on the final day.
+ * Null once it is reached. Shared by the Focus cards on Today and Goals.
+ */
+export function goalToGoLine(progress: number, target: number, unit: string, daysLeft: number): string | null {
+  const remaining = target - progress;
+  if (!(remaining > 0)) return null;
+  const count = unit.startsWith('activit');
+  const whole = count || unit === 'm' || unit === 'ft';
+  const fmt = (n: number) => (whole ? Math.ceil(n) : Math.round(n * 10) / 10).toLocaleString();
+  const amount = (n: number) => (count ? `${fmt(n)} ${Math.ceil(n) === 1 ? 'activity' : 'activities'}` : `${fmt(n)} ${unit}`);
+  if (daysLeft <= 1) return `${amount(remaining)} to go today`;
+  if (count) return `${amount(remaining)} to go`;
+  return `${amount(remaining)} to go · ${amount(remaining / daysLeft)} a day`;
+}

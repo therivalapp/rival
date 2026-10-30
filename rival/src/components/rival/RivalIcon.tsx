@@ -150,6 +150,7 @@ const ICONS = {
   // measuring-tool rather than distance-traveled.
   distance: 'route',
   timer: 'timer',
+  speed: 'speed',
   // MaterialIcons' plain "timer" renders with a solid-filled button/hand —
   // this outline variant for spots that need a lighter, unfilled stopwatch.
   timerOutline: ['mci', 'timer-outline'] as const,

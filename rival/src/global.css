@@ -197,3 +197,11 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   100% { transform: scale(2.6); opacity: 0; }
 }
 
+
+/* Holding a finger on a card brought up the phone's Copy / Look Up bar and
+   text handles (Ricky, 2026-10-28). An app doesn't select its labels; typing
+   fields still do. Touch screens only, so a desktop can still copy text. */
+@media (pointer: coarse) {
+  body, body * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, [contenteditable="true"], [contenteditable="true"] * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+}

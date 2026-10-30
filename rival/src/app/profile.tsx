@@ -8,7 +8,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
 import { runFullStravaImport } from '../lib/strava';
-import { loadStravaSharing, setShareRoutes, startStravaConnect } from '../lib/stravaSharing';
+import { loadStravaSharing, setShareRoutes, startStravaConnect, STRAVA_CONNECTIONS_OPEN } from '../lib/stravaSharing';
 import { ROUTE_MAPS_ENABLED } from '../lib/features';
 import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
@@ -711,8 +711,9 @@ export default function ProfileScreen() {
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
-      <Text style={styles.panelSub}>Sync activities automatically from connected services.</Text>
+      <Text style={styles.panelSub}>{stravaConnected || STRAVA_CONNECTIONS_OPEN ? 'Sync activities automatically from connected services.' : 'Bring past activities in from an archive file.'}</Text>
 
+      {(stravaConnected || STRAVA_CONNECTIONS_OPEN) && (
       <View style={styles.appRow}>
         <View style={styles.appRowLeft}>
           <View style={styles.appDot} />
@@ -734,6 +735,7 @@ export default function ProfileScreen() {
           ? <View style={styles.connectedCheck}><RivalIcon name="check" size={14} color={RivalColors.tertiary} /></View>
           : <RivalButton label="Connect" onPress={() => startStravaConnect(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
       </View>
+      )}
 
       {/* A RIVAL or Strava archive file (Ricky, 2026-10-17). */}
       <TouchableOpacity style={styles.appRow} onPress={() => router.push('/import-archive')} activeOpacity={0.8}>
@@ -792,7 +794,7 @@ export default function ProfileScreen() {
                   onClose={() => setConfirmingDisconnect(false)}
                   footer={<GreyPrimary label={disconnecting ? 'Disconnecting…' : removeImported ? 'Disconnect and remove' : 'Disconnect'} busy={disconnecting} disabled={disconnecting} onPress={() => disconnectStrava(removeImported)} />}
                 >
-                  <GreyNote>New activities stop syncing. Linked the wrong account? Remove its imported activities too.</GreyNote>
+                  <GreyNote>New activities stop syncing, and Strava cannot be connected again. Linked the wrong account? Remove its imported activities too.</GreyNote>
                   <GreyLabel>Imported activities</GreyLabel>
                   <GreyTiles
                     columns={2}
@@ -818,7 +820,7 @@ export default function ProfileScreen() {
             <RivalCard style={styles.disconnectConfirmCard}>
               <Text style={styles.disconnectConfirmTitle}>Keep the imported activities?</Text>
               <Text style={styles.disconnectConfirmSub}>
-                Linked the wrong account? Remove its imported activities too, not just the connection.
+                Strava cannot be connected again. Linked the wrong account? Remove its imported activities too, not just the connection.
               </Text>
               <RivalButton label={disconnecting ? '…' : 'Disconnect Only'} onPress={() => disconnectStrava(false)} disabled={disconnecting} variant="secondary" style={styles.disconnectConfirmBtn} />
               <RivalButton label={disconnecting ? '…' : 'Disconnect & Remove'} onPress={() => disconnectStrava(true)} disabled={disconnecting} variant="destructive" style={[styles.disconnectConfirmBtn, styles.disconnectDestructiveBtn]} />
@@ -834,7 +836,7 @@ export default function ProfileScreen() {
         <View style={styles.appRowLeft}>
           <Text style={styles.appIcon}>⌚</Text>
           <View>
-            <Text style={styles.appName}>Garmin · Apple Health</Text>
+            <Text style={styles.appName}>Apple Health</Text>
             <Text style={styles.appStatus}>Connection coming soon</Text>
           </View>
         </View>

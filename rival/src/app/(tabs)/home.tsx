@@ -8,7 +8,7 @@ import Svg, { Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../../lib/supabase';
-import { loadStravaSharing, startStravaConnect } from '../../lib/stravaSharing';
+import { loadStravaSharing, startStravaConnect, STRAVA_CONNECTIONS_OPEN } from '../../lib/stravaSharing';
 import { fetchAllActivities } from '../../lib/fetchAllActivities';
 import { notify } from '../../lib/notify';
 import { getMondayOfWeek, calculateStreak, STREAK_MIN_ACTIVITIES } from '../../lib/streak';
@@ -17,7 +17,7 @@ import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { lifetimePace } from '../../lib/rankPace';
 import { rankSheen, rankTextSheen } from '../../constants/rankSheen';
 import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
-import { computeGoalProgress, goalActivityLabel, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
+import { computeGoalProgress, goalActivityLabel, goalToGoLine, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
 // distances read as near-zero once rounded to km ("0.7km" is really "700m").
 // Distance goals always store/compute progress and target in km regardless
@@ -3002,11 +3002,21 @@ export default function HomeScreen() {
                         <Text style={styles.mFocusMetaLabel}>Complete</Text>
                       </View>
                       <View style={styles.mFocusMetaDivider} />
+                      {/* The last day stacks as Final / Day (Ricky, 2026-10-28). */}
                       <View style={styles.mFocusMetaCell}>
-                        <Text style={styles.mFocusMetaNumber}>{featuredGoal.daysLeft}</Text>
-                        <Text style={styles.mFocusMetaLabel}>{featuredGoal.daysLeft === 1 ? 'Day left' : 'Days left'}</Text>
+                        <Text style={styles.mFocusMetaNumber}>{featuredGoal.daysLeft <= 1 ? 'Final' : featuredGoal.daysLeft}</Text>
+                        <Text style={styles.mFocusMetaLabel}>{featuredGoal.daysLeft <= 1 ? 'Day' : 'Days left'}</Text>
                       </View>
                     </View>
+                    {(() => {
+                      const toGo = goalToGoLine(featuredGoal.progress, featuredGoal.target, featuredGoal.unit, featuredGoal.daysLeft);
+                      return toGo ? (
+                        <View style={styles.mFocusToGo}>
+                          <RivalIcon name="flag" size={15} color={RivalColors.accentText} />
+                          <Text style={styles.mFocusToGoText}>{toGo}</Text>
+                        </View>
+                      ) : null;
+                    })()}
                     {/* The whole Focus area opens Goals, so no separate link. */}
                   </>
               </TouchableOpacity>
@@ -3948,7 +3958,7 @@ export default function HomeScreen() {
               connected, status/sync/disconnect live on the profile page
               (Connected Apps panel) instead of taking up home real estate
               on every visit. */}
-          {!stravaConnected && (
+          {STRAVA_CONNECTIONS_OPEN && !stravaConnected && (
             <TouchableOpacity style={styles.stravaCard} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
               <View>
                 <Text style={styles.stravaCardTitle}>Connect a device</Text>
@@ -4272,6 +4282,8 @@ const styles = StyleSheet.create({
   // since that one is scoped private to team-hub.tsx.
   mFocusRingMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28, marginTop: 18, marginBottom: 14 },
   mFocusMetaCell: { alignItems: 'center', minWidth: 84 },
+  mFocusToGo: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: -2, marginBottom: 14 },
+  mFocusToGoText: { fontFamily: RivalFontFamily, fontSize: 13.5, fontWeight: '600', color: '#fff' },
   // White, so the card isn't all one colour: the ring and labels carry the salmon.
   mFocusMetaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, fontWeight: '700', lineHeight: 32, color: '#ffffff' },
   mFocusMetaLabel: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 4 },

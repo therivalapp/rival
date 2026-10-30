@@ -181,13 +181,15 @@ export function GreyPrimary({ label, busy, disabled, onPress }: { label: string;
   );
 }
 
-/** The month calendar over the sheet. `value` and `onChange` are ISO dates. */
-export function GreyCalendar({ value, onChange, onClose }: { value: string | null; onChange: (iso: string) => void; onClose: () => void }) {
+/** The month calendar over the sheet. `value` and `onChange` are ISO dates.
+ *  `footer` sits under the grid, inside the card (Log an activity's start time). */
+export function GreyCalendar({ value, onChange, onClose, footer }: { value: string | null; onChange: (iso: string) => void; onClose: () => void; footer?: ReactNode }) {
   return (
     <View style={g.overlay}>
       <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
       <View style={g.overlayCard}>
         <RivalCalendarGrid value={value} onChange={onChange} />
+        {footer}
       </View>
     </View>
   );

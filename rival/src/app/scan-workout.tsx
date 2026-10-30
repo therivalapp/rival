@@ -18,7 +18,8 @@ import { DAY_SHORT, createSavedWorkout, savedWorkoutError, uploadWorkoutPhoto } 
 import { tilesFor, useRecentTypes } from '../lib/recentTypes';
 import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
-import { goToTab } from '../lib/tabNav';
+import { backToOrigin, goToTab } from '../lib/tabNav';
+import { MilestonePhotoPrompt } from '../components/rival/MilestonePhotoPrompt';
 import { effortGoldText } from '../constants/reactionColours';
 import { toDisplayDistance, distanceUnit as distanceUnitLabel } from '../lib/units';
 
@@ -151,6 +152,7 @@ export default function ScanWorkoutScreen() {
   }, [generalError]);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [savedActivityId, setSavedActivityId] = useState<string | null>(null);
+  const [milestoneCheck, setMilestoneCheck] = useState<{ activityId: string; userId: string } | null>(null);
   const [savedHasPhoto, setSavedHasPhoto] = useState(false);
   // What the phone's saved moment shows: the name and its figures.
   const [saved, setSaved] = useState<{ name: string; effort: number; seconds: number; exercises: number; km: number } | null>(null);
@@ -895,7 +897,7 @@ export default function ScanWorkoutScreen() {
       }).catch(() => {});
       // If they added a photo, let them AI-enhance it before leaving; otherwise
       // head back to the feed automatically.
-      if (!firstPhotoUrl) setTimeout(() => goToTab('/my-activities'), 1200);
+      if (!firstPhotoUrl) setMilestoneCheck({ activityId, userId: user.id });
     } catch (err) {
       console.error('Save failed:', err);
       setGeneralError('The activity could not be saved. Try again.');
@@ -955,7 +957,7 @@ export default function ScanWorkoutScreen() {
                 </View>
               ))}
             </View>
-            <TouchableOpacity onPress={() => goToTab('/my-activities')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
+            <TouchableOpacity onPress={backToOrigin} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
               <Text style={mx.savedDone}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -964,7 +966,7 @@ export default function ScanWorkoutScreen() {
             <Text style={st.successBannerText}>{em('✓ ')}{successMsg}</Text>
             {savedActivityId && savedHasPhoto && (
               <View style={st.enhanceCta}>
-                <TouchableOpacity onPress={() => goToTab('/my-activities')}>
+                <TouchableOpacity onPress={backToOrigin}>
                   <Text style={st.enhanceDoneText}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -1659,7 +1661,7 @@ export default function ScanWorkoutScreen() {
                   <TouchableOpacity
                     style={st.changeBtn}
                     onPress={() => editActivityId
-                      ? goToTab('/my-activities')
+                      ? backToOrigin()
                       : (() => { setScanImages([]); setExtractedWorkout(null); setLiftTags({}); setTagPickerIndex(null); })()}
                     disabled={loading}
                   >
@@ -1691,6 +1693,7 @@ export default function ScanWorkoutScreen() {
         )}
 
       </ScrollView>
+      {milestoneCheck ? <MilestonePhotoPrompt {...milestoneCheck} onDone={backToOrigin} /> : null}
     </SafeAreaView>
   );
 }

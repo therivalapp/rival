@@ -59,6 +59,15 @@ export function setOpenTeam(id: string | null) {
   openTeamId = id;
 }
 
+/** Done saving or finishing something: back to the page it was started from,
+ *  past the Add an activity chooser if it came through there (Ricky,
+ *  2026-10-31). Activity when there is no page to go back to. */
+export function backToOrigin() {
+  if (!router.canGoBack()) { goToTab('/my-activities'); return; }
+  if (previousPath === '/add-workout' && router.canDismiss()) { router.dismiss(2); return; }
+  router.back();
+}
+
 export function goToTab(href: TabRoute) {
   if (currentPath === href) { reselectListeners.get(href)?.forEach((fn) => fn()); return; }
   if (currentPath === '/team-hub') returnTeamId = href === '/team-feed' ? null : openTeamId;

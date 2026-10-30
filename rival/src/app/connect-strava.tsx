@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { connectStrava } from '../lib/strava';
-import { agreeToStravaSharing, loadStravaSharing } from '../lib/stravaSharing';
+import { agreeToStravaSharing, loadStravaSharing, STRAVA_CONNECTIONS_OPEN } from '../lib/stravaSharing';
 import { ROUTE_MAPS_ENABLED } from '../lib/features';
 import { RivalButtonColors, RivalColors } from '../constants/rivalTheme';
 import { RivalIcon, rm, rb, GreyPageHead, GreyRows, GreyRow } from '../components/rival';
@@ -41,6 +41,9 @@ export default function ConnectStravaScreen() {
     if (!res.ok) { setError(res.error ?? 'The choice could not be saved. Try again.'); return; }
     if (isReview) leave();
   }
+
+  // ?review=1 stays open: people already connected can still change what they share.
+  if (!isReview && !STRAVA_CONNECTIONS_OPEN) return <Redirect href={{ pathname: '/profile', params: { tab: 'apps' } }} />;
 
   return (
     <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>

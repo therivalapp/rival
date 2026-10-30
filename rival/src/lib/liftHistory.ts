@@ -13,7 +13,7 @@ export type LiftLine = { name: string; sets?: number; reps?: number; weight?: nu
 export type LiftActivity = { id: string; startedAt: string; activityType: string; exercises: LiftLine[] };
 
 /** A named workout (saved_workouts.sql). */
-export type SavedWorkout = { id: string; name: string; activityType: string | null; exercises: LiftLine[]; lastUsedAt: string };
+export type SavedWorkout = { id: string; name: string; activityType: string | null; exercises: LiftLine[]; lastUsedAt: string; usualDay?: number | null };
 
 /** The same lift whatever it was typed as: the canonical name, else the words. */
 export function liftKey(name: string): string {
@@ -76,18 +76,13 @@ const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, {
 /**
  * What to offer under "Repeat a workout", most likely first, at most `max`:
  * the workout from the same weekday within the last three weeks ("Same as
- * last Friday"), saved workouts (latest used first), then other recent
- * workouts. The same set of lifts is offered once.
+ * last Friday"), saved workouts whose usual day is today, other saved
+ * workouts (latest used first), then other recent workouts. Anything done
+ * today or yesterday goes last: a routine is rarely repeated the next day
+ * (Ricky, 2026-10-28). The same set of lifts is offered once.
  */
 export function repeatOptions(history: LiftActivity[], saved: SavedWorkout[], now: Date, max = 3): RepeatOption[] {
-  const out: RepeatOption[] = [];
-  const seen = new Set<string>();
-  const push = (o: RepeatOption) => {
-    const sig = signature(o.exercises);
-    if (!sig || seen.has(sig) || out.length >= max) return;
-    seen.add(sig);
-    out.push(o);
-  };
+  const all: (RepeatOption & { at: string })[] = [];
   const recent = history
     .filter((a) => a.exercises.some((e) => e?.name?.trim()) && new Date(a.startedAt).getTime() < now.getTime())
     .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
@@ -96,11 +91,22 @@ export function repeatOptions(history: LiftActivity[], saved: SavedWorkout[], no
     const d = new Date(a.startedAt);
     return d.getDay() === day && now.getTime() - d.getTime() <= 21 * 86400000 && now.toDateString() !== d.toDateString();
   });
-  if (weekAgo) push({ key: `a${weekAgo.id}`, title: `Same as last ${WEEKDAYS[day]}`, detail: `${names(weekAgo.exercises)} · ${shortDate(weekAgo.startedAt)}`, exercises: weekAgo.exercises });
+  if (weekAgo) all.push({ key: `a${weekAgo.id}`, title: `Same as last ${WEEKDAYS[day]}`, detail: `${names(weekAgo.exercises)} · ${shortDate(weekAgo.startedAt)}`, exercises: weekAgo.exercises, at: weekAgo.startedAt });
   [...saved]
-    .sort((a, b) => new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime())
-    .forEach((s) => push({ key: `s${s.id}`, title: s.name, detail: names(s.exercises), exercises: s.exercises, savedId: s.id }));
-  recent.forEach((a) => push({ key: `a${a.id}`, title: shortDate(a.startedAt), detail: names(a.exercises), exercises: a.exercises }));
+    .sort((a, b) => ((b.usualDay === day ? 1 : 0) - (a.usualDay === day ? 1 : 0)) || new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime())
+    .forEach((s) => all.push({ key: `s${s.id}`, title: s.name, detail: names(s.exercises), exercises: s.exercises, savedId: s.id, at: s.lastUsedAt }));
+  recent.forEach((a) => all.push({ key: `a${a.id}`, title: shortDate(a.startedAt), detail: names(a.exercises), exercises: a.exercises, at: a.startedAt }));
+
+  const yesterday = startOfDay(now) - 86_400_000;
+  const fresh = (o: { at: string }) => new Date(o.at).getTime() >= yesterday;
+  const out: RepeatOption[] = [];
+  const seen = new Set<string>();
+  [...all.filter((o) => !fresh(o)), ...all.filter(fresh)].forEach(({ at, ...o }) => {
+    const sig = signature(o.exercises);
+    if (!sig || seen.has(sig) || out.length >= max) return;
+    seen.add(sig);
+    out.push(o);
+  });
   return out;
 }
 

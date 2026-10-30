@@ -4,7 +4,7 @@ import { RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../.
 import { RivalIcon, type RivalIconName } from './RivalIcon';
 
 // The month's personal bests on Activity (phones, Ricky 2026-10-16, option
-// B3): the week card's grey with a faint gold glow, the month as a serif
+// B3): the week card's grey (no glow since 2026-10-29), the month as a serif
 // title, and the bests as rows: what and the day, then old to new, the best
 // it beat struck through and the new one in gold. Three show; See all opens
 // the rest. Each row opens its activity. Folded to one line (the latest
@@ -58,7 +58,6 @@ export function MonthBests({ month, bests, onOpen }: { month: string; bests: Mon
   if (!open) {
     return (
       <TouchableOpacity style={[s.card, s.cardFolded]} onPress={() => setOpen(true)} activeOpacity={0.85} accessibilityRole="button" accessibilityState={{ expanded: false }}>
-        <View style={[s.glow, { pointerEvents: 'none' }]} />
         <RivalIcon name="trophy" size={20} color="#ffd27a" />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.kicker} numberOfLines={1}>{month} bests · {bests.length}</Text>
@@ -73,7 +72,6 @@ export function MonthBests({ month, bests, onOpen }: { month: string; bests: Mon
   return (
     // Open, a tap anywhere but a row folds it; rows open their activity.
     <TouchableOpacity style={s.card} onPress={() => setOpen(false)} activeOpacity={0.95}>
-      <View style={[s.glow, { pointerEvents: 'none' }]} />
       <View style={s.head}>
         <View style={{ flex: 1 }}>
           <Text style={s.kicker}>Personal bests · {bests.length}</Text>
@@ -104,12 +102,6 @@ export function MonthBests({ month, bests, onOpen }: { month: string; bests: Mon
 
 const s = StyleSheet.create({
   card: { position: 'relative', overflow: 'hidden', borderRadius: 22, padding: 15, gap: 12, backgroundColor: RivalGhost.ground },
-  glow: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 100,
-    ...(Platform.OS === 'web'
-      ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(255,201,77,0.12), rgba(255,201,77,0) 70%)' } as any
-      : { backgroundColor: 'rgba(255,201,77,0.04)' }),
-  },
   cardFolded: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12 },
   head: { flexDirection: 'row', alignItems: 'flex-end' },
   kicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: '#ffd27a' },

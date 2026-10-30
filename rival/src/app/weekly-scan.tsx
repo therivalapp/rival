@@ -12,7 +12,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { matchCanonicalLift } from '../lib/lifts';
-import { goToTab } from '../lib/tabNav';
+import { backToOrigin, goToTab } from '../lib/tabNav';
 import { MultiDayScan } from '../components/rival/MultiDayScan';
 
 type DayImage = { uri: string; base64: string; mimeType: string };
@@ -544,7 +544,7 @@ function WeeklyScanScreen() {
             ))}
 
             {allDone && (
-              <TouchableOpacity style={st.doneBtn} onPress={() => goToTab('/my-activities')}>
+              <TouchableOpacity style={st.doneBtn} onPress={backToOrigin}>
                 <Text style={st.doneBtnText}>View my Activities →</Text>
               </TouchableOpacity>
             )}

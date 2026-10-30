@@ -1,0 +1,244 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+* { box-sizing:border-box; }
+body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+.row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+.col { width:393px; flex-shrink:0; }
+.tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+.desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:56px; }
+.phone { position:relative; width:393px; height:1180px; border-radius:40px; overflow:hidden; background:#232120; }
+.mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; display:inline-block; text-transform:none; }
+.serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+.glw { position:absolute; top:-60px; left:0; right:0; height:260px; background:radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+.status { height:50px; }
+.phead { position:relative; text-align:center; padding:6px 60px 14px; }
+.back { position:absolute; left:16px; top:4px; width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; font-size:22px; }
+.kick { font-size:10px; font-weight:800; letter-spacing:2px; color:#ffb59e; }
+.ptitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:28px; line-height:34px; margin-top:3px; }
+.content { position:relative; padding:0 16px; display:flex; flex-direction:column; gap:12px; }
+.name { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:13px 15px; font-size:16px; font-weight:500; color:rgba(255,255,255,0.35); }
+.tiles { display:flex; flex-wrap:wrap; gap:8px; }
+.tile { width:calc(25% - 6px); height:62px; border-radius:16px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.3); position:relative; overflow:hidden; display:flex; align-items:flex-end; padding:0 9px 8px; font-size:12.5px; font-weight:800; }
+.tile .art { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:44px; color:rgba(255,181,158,0.2); }
+.tile.on { background:linear-gradient(135deg,#D97757,#ffb59e); border-color:transparent; color:#3a1a0e; }
+.tile.on .art { color:rgba(255,255,255,0.32); }
+.tile.all { border-style:dashed; border-color:rgba(255,181,158,0.45); color:#ffb59e; }
+.card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:18px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+.lab { font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#A0A0A0; display:flex; justify-content:space-between; align-items:center; }
+.lab .r { color:#ffb59e; letter-spacing:.6px; text-transform:none; font-size:12.5px; font-weight:700; }
+.big { display:flex; align-items:baseline; justify-content:center; gap:6px; }
+.big .n { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:58px; line-height:1; }
+.big .u { font-size:13px; font-weight:800; color:rgba(255,255,255,0.45); letter-spacing:.8px; text-transform:uppercase; margin-right:10px; }
+.chips { display:flex; gap:8px; flex-wrap:wrap; }
+.chips.scroll { flex-wrap:nowrap; overflow:hidden; margin-right:-16px; }
+.chip { flex-shrink:1; white-space:nowrap; display:flex; align-items:center; gap:6px; padding:10px 15px; border-radius:999px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); font-size:14px; font-weight:700; color:#A0A0A0; }
+.chip .mi { font-size:16px; color:#ffb59e; }
+.chip.on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#3a1a0e; border-color:transparent; }
+.chip.on .mi { color:#3a1a0e; }
+.chip.last { color:#fff; }
+.search { display:flex; align-items:center; gap:10px; height:56px; border-radius:16px; background:rgba(255,255,255,0.05); border:1.5px solid rgba(255,181,158,0.45); padding:0 16px; font-size:17px; font-weight:600; color:rgba(255,255,255,0.4); }
+.search .mi { color:#ffb59e; font-size:22px; }
+.ex { background:rgba(255,255,255,0.035); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+.exh { display:flex; align-items:center; justify-content:space-between; }
+.exn { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:21px; }
+.exlast { font-size:12px; color:rgba(255,255,255,0.45); }
+.boxes { display:flex; gap:8px; }
+.box { flex:1; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); padding:10px 0 9px; text-align:center; }
+.box .v { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:30px; line-height:1.1; }
+.box .v.ghost { color:rgba(255,255,255,0.28); }
+.box .k { font-size:10px; font-weight:800; letter-spacing:1px; color:rgba(255,255,255,0.45); margin-top:2px; }
+.box.focus { border-color:#ffb59e; background:rgba(255,181,158,0.12); }
+.mini { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:14px; background:rgba(255,255,255,0.035); }
+.mini .t { flex:1; font-size:15px; font-weight:700; }
+.mini .s { font-size:13.5px; color:#A0A0A0; font-variant-numeric:tabular-nums; }
+.mini .mi { color:rgba(255,255,255,0.35); font-size:18px; }
+.repeat { display:flex; align-items:center; gap:12px; padding:13px 14px; border-radius:16px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+.repeat .ic { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:#ffb59e; font-size:20px; }
+.repeat .t { font-size:15px; font-weight:700; } .repeat .s { font-size:12.5px; color:#A0A0A0; margin-top:2px; }
+.repeat .use { margin-left:auto; color:#ffb59e; font-weight:800; font-size:14px; }
+.half { display:flex; gap:10px; }
+.half > div { flex:1; }
+.tbig { border-radius:18px; padding:14px; min-height:132px; display:flex; flex-direction:column; justify-content:space-between; }
+.tbig.time { background:rgba(255,209,190,0.05); border:1.5px solid rgba(255,181,158,0.45); }
+.tbig.rep { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+.tbig .n { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:42px; line-height:1; }
+.tbig .n small { font-family:Manrope; font-style:normal; font-size:13px; font-weight:800; color:rgba(255,255,255,0.45); margin-left:3px; }
+.tbig .sub { font-size:12px; color:#A0A0A0; }
+.tbig .rn { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; line-height:1.15; }
+.step { display:flex; align-items:center; justify-content:space-between; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); padding:6px; }
+.step .b { width:46px; height:46px; border-radius:12px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:24px; color:#ffb59e; }
+.step .mid { text-align:center; }
+.step .v { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:30px; line-height:1; }
+.step .k { font-size:10px; font-weight:800; letter-spacing:1px; color:rgba(255,255,255,0.45); margin-top:3px; }
+.add { height:50px; border-radius:16px; border:1.5px dashed rgba(255,181,158,0.4); display:flex; align-items:center; justify-content:center; gap:8px; color:#ffb59e; font-weight:800; font-size:15px; }
+.unit { display:inline-flex; border-radius:999px; background:rgba(255,255,255,0.06); padding:3px; font-size:12px; font-weight:800; }
+.unit span { padding:4px 10px; border-radius:999px; color:#A0A0A0; }
+.unit .on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#3a1a0e; }
+.foot { position:absolute; left:0; right:0; bottom:0; padding:14px 16px 30px; background:#1c1b1a; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:14px; }
+.foot .eff { font-size:12px; color:#A0A0A0; line-height:1.35; } .foot .eff b { display:block; font-family:Georgia,serif; font-style:italic; font-size:24px; color:#fff; }
+.primary { flex:1; height:56px; border-radius:999px; background:linear-gradient(90deg,#D97757,#ffb59e); color:#3a1a0e; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; }
+.sec { font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#A0A0A0; margin:4px 0 -4px 2px; }
+.n1 { position:absolute; left:-2px; width:20px; height:20px; border-radius:10px; background:#ffb59e; color:#3a1a0e; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+</style></head><body>
+<div class="row">
+
+<!-- OPTION 1 -->
+<div class="col">
+  <div class="tag">1 · Time, then lifts</div>
+  <div class="desc">One big Time tile first, with one-tap times underneath. Then one big field to add an exercise, with the usual lifts right under it. Each lift is a tile with big Sets, Reps and kg boxes, last time faded in.</div>
+  <div class="phone">
+    <div class="glw"></div><div class="status"></div>
+    <div class="phead"><div class="back mi">chevron_left</div><div class="kick">LOG</div><div class="ptitle">Log an activity</div></div>
+    <div class="content">
+      <div class="name">Evening Weights</div>
+      <div class="tiles">
+        <div class="tile"><div class="art mi">directions_run</div>Run</div>
+        <div class="tile"><div class="art mi">pool</div>Swim</div>
+        <div class="tile"><div class="art mi">directions_bike</div>Ride</div>
+        <div class="tile"><div class="art mi">directions_run</div>HYROX</div>
+        <div class="tile"><div class="art mi">accessibility_new</div>Workout</div>
+        <div class="tile on"><div class="art mi">fitness_center</div>Weights</div>
+        <div class="tile"><div class="art mi">sports_gymnastics</div>CrossFit</div>
+        <div class="tile all"><div class="art mi" style="color:rgba(255,181,158,0.3)">apps</div>See all</div>
+      </div>
+
+      <div class="card">
+        <div class="lab">Time <span class="r">Last time 45:30</span></div>
+        <div class="big"><span class="n">45</span><span class="u">min</span><span class="n" style="color:rgba(255,255,255,0.3)">30</span><span class="u">sec</span></div>
+        <div class="chips" style="justify-content:center;flex-wrap:nowrap;gap:6px">
+          <div class="chip" style="padding:10px 12px">30 min</div><div style="padding:10px 12px" class="chip on">45 min</div><div style="padding:10px 12px" class="chip">60 min</div><div style="padding:10px 12px" class="chip">90 min</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="lab">Exercises <span class="unit"><span class="on">kg</span><span>lb</span></span></div>
+        <div class="search"><span class="mi">add</span>Add an exercise</div>
+        <div class="chips scroll">
+          <div class="chip"><span class="mi">add</span>Squat</div>
+          <div class="chip"><span class="mi">add</span>Deadlift</div>
+          <div class="chip"><span class="mi">add</span>Pull-up</div>
+          <div class="chip"><span class="mi">add</span>Overhead Press</div>
+        </div>
+        <div class="ex">
+          <div class="exh"><div class="exn">Bench Press</div><div class="exlast">Last 4 × 8 · 77.5 kg</div></div>
+          <div class="boxes">
+            <div class="box"><div class="v">4</div><div class="k">SETS</div></div>
+            <div class="box"><div class="v">8</div><div class="k">REPS</div></div>
+            <div class="box focus"><div class="v ghost">77.5</div><div class="k">KG</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="repeat"><div class="ic mi">replay</div><div><div class="t">Repeat Chest day</div><div class="s">Bench Press, Incline Press, Dips</div></div><div class="use">Use</div></div>
+    </div>
+    <div class="foot"><div class="eff"><b>38.2</b>Effort</div><div class="primary">Log activity</div></div>
+  </div>
+</div>
+
+<!-- OPTION 2 -->
+<div class="col">
+  <div class="tag">2 · Two big tiles</div>
+  <div class="desc">Time and Repeat side by side as the first thing under the tiles: most days it's one of these two taps. Added lifts fold into one tidy line each; the one being typed is open and big.</div>
+  <div class="phone">
+    <div class="glw"></div><div class="status"></div>
+    <div class="phead"><div class="back mi">chevron_left</div><div class="kick">LOG</div><div class="ptitle">Log an activity</div></div>
+    <div class="content">
+      <div class="name">Evening Weights</div>
+      <div class="tiles">
+        <div class="tile"><div class="art mi">directions_run</div>Run</div>
+        <div class="tile"><div class="art mi">pool</div>Swim</div>
+        <div class="tile"><div class="art mi">directions_bike</div>Ride</div>
+        <div class="tile"><div class="art mi">directions_run</div>HYROX</div>
+        <div class="tile"><div class="art mi">accessibility_new</div>Workout</div>
+        <div class="tile on"><div class="art mi">fitness_center</div>Weights</div>
+        <div class="tile"><div class="art mi">sports_gymnastics</div>CrossFit</div>
+        <div class="tile all"><div class="art mi" style="color:rgba(255,181,158,0.3)">apps</div>See all</div>
+      </div>
+
+      <div class="half">
+        <div class="tbig time">
+          <div class="lab">Time</div>
+          <div class="n">45<small>min</small></div>
+          <div class="sub">Last time 45:30</div>
+        </div>
+        <div class="tbig rep">
+          <div class="lab">Repeat <span class="mi" style="color:#ffb59e;font-size:18px">replay</span></div>
+          <div class="rn">Chest day</div>
+          <div class="sub">3 exercises · Mon</div>
+        </div>
+      </div>
+
+      <div class="sec">Exercises</div>
+      <div class="mini"><span class="mi">drag_indicator</span><div class="t">Squat</div><div class="s">4 × 6 · 100 kg</div></div>
+      <div class="mini"><span class="mi">drag_indicator</span><div class="t">Deadlift</div><div class="s">3 × 5 · 140 kg</div></div>
+      <div class="ex" style="border:1.5px solid rgba(255,181,158,0.45); background:rgba(255,209,190,0.05)">
+        <div class="exh"><div class="exn">Bench Press</div><span class="unit"><span class="on">kg</span><span>lb</span></span></div>
+        <div class="boxes">
+          <div class="box"><div class="v">4</div><div class="k">SETS</div></div>
+          <div class="box"><div class="v">8</div><div class="k">REPS</div></div>
+          <div class="box focus"><div class="v ghost">77.5</div><div class="k">KG</div></div>
+        </div>
+        <div class="exlast">Last time 4 × 8 · 77.5 kg</div>
+      </div>
+      <div class="search"><span class="mi">add</span>Add an exercise</div>
+      <div class="chips">
+        <div class="chip"><span class="mi">add</span>Pull-up</div>
+        <div class="chip"><span class="mi">add</span>Overhead Press</div>
+        <div class="chip"><span class="mi">add</span>Row</div>
+      </div>
+    </div>
+    <div class="foot"><div class="eff"><b>38.2</b>Effort</div><div class="primary">Log activity</div></div>
+  </div>
+</div>
+
+<!-- OPTION 3 -->
+<div class="col">
+  <div class="tag">3 · Tap, don't type</div>
+  <div class="desc">Built for one hand between sets. Time is a big stepper with one-tap times; each lift has big − and + buttons, starting from last time, so most lifts need no typing at all.</div>
+  <div class="phone">
+    <div class="glw"></div><div class="status"></div>
+    <div class="phead"><div class="back mi">chevron_left</div><div class="kick">LOG</div><div class="ptitle">Log an activity</div></div>
+    <div class="content">
+      <div class="name">Evening Weights</div>
+      <div class="tiles">
+        <div class="tile"><div class="art mi">directions_run</div>Run</div>
+        <div class="tile"><div class="art mi">pool</div>Swim</div>
+        <div class="tile"><div class="art mi">directions_bike</div>Ride</div>
+        <div class="tile"><div class="art mi">directions_run</div>HYROX</div>
+        <div class="tile"><div class="art mi">accessibility_new</div>Workout</div>
+        <div class="tile on"><div class="art mi">fitness_center</div>Weights</div>
+        <div class="tile"><div class="art mi">sports_gymnastics</div>CrossFit</div>
+        <div class="tile all"><div class="art mi" style="color:rgba(255,181,158,0.3)">apps</div>See all</div>
+      </div>
+
+      <div class="card">
+        <div class="lab">Time <span class="r">Last time 45:30</span></div>
+        <div class="step"><div class="b mi">remove</div><div class="mid"><div class="v" style="font-size:44px">45:30</div><div class="k">MIN · 5 MIN STEPS</div></div><div class="b mi">add</div></div>
+        <div class="chips" style="justify-content:center"><div class="chip">30</div><div class="chip">45</div><div class="chip">60</div><div class="chip">75</div><div class="chip">90 min</div></div>
+      </div>
+
+      <div class="card">
+        <div class="lab">Exercises <span class="unit"><span class="on">kg</span><span>lb</span></span></div>
+        <div class="chips">
+          <div class="chip on"><span class="mi">check</span>Bench Press</div>
+          <div class="chip"><span class="mi">add</span>Squat</div>
+          <div class="chip"><span class="mi">add</span>Deadlift</div>
+          <div class="chip"><span class="mi">add</span>Pull-up</div>
+          <div class="chip"><span class="mi">search</span>Other</div>
+        </div>
+        <div class="ex">
+          <div class="exh"><div class="exn">Bench Press</div><div class="exlast">From last time</div></div>
+          <div class="step"><div class="b mi">remove</div><div class="mid"><div class="v">4</div><div class="k">SETS</div></div><div class="b mi">add</div></div>
+          <div class="step"><div class="b mi">remove</div><div class="mid"><div class="v">8</div><div class="k">REPS</div></div><div class="b mi">add</div></div>
+          <div class="step"><div class="b mi">remove</div><div class="mid"><div class="v">80</div><div class="k">KG · 2.5 STEPS</div></div><div class="b mi">add</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><div class="eff"><b>38.2</b>Effort</div><div class="primary">Log activity</div></div>
+  </div>
+</div>
+
+</div>
+</body></html>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { notify } from '../../lib/notify';
 import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,7 +10,7 @@ import { supabase, getAuthUser } from '../../lib/supabase';
 import { calculateEffortScore, loadScoringConfig, type ScoringConfig } from '../../lib/effort';
 import { findMatchingRaceId } from '../../lib/raceMatch';
 import { matchCanonicalLift } from '../../lib/lifts';
-import { goToTab } from '../../lib/tabNav';
+import { backToOrigin, goToTab } from '../../lib/tabNav';
 import { takePendingScanDays } from '../../lib/scanHandoff';
 import { fitPhoto } from '../../lib/imageResize';
 import { dayKey } from '../../lib/photoDates';
@@ -265,7 +266,10 @@ export function MultiDayScan() {
         .map((ex: any) => ({ canonical: matchCanonicalLift(ex.name), ex }))
         .filter((m: any) => m.canonical && m.ex.weight)
         .map((m: any) => ({ user_id: user.id, activity_id: row.id, exercise_name: m.canonical, weight_kg: m.ex.weight, reps: m.ex.reps ?? null, performed_at: startedAt }));
-      if (lifts.length > 0) await supabase.from('exercise_entries').insert(lifts);
+      if (lifts.length > 0) {
+        const { error: liftError } = await supabase.from('exercise_entries').insert(lifts);
+        if (liftError) notify('Lifts were not added to the history', liftError.message);
+      }
       // Its photos and videos, as the single scan posts them: the first photo
       // is the cover. Best effort: the activity is already saved.
       let cover: string | null = null;
@@ -281,7 +285,10 @@ export function MultiDayScan() {
           if (!mErr && !p.video && !cover) cover = url;
         } catch {}
       }
-      if (cover) await supabase.from('activities').update({ photo_url: cover }).eq('id', row.id);
+      if (cover) {
+        const { error: coverError } = await supabase.from('activities').update({ photo_url: cover }).eq('id', row.id);
+        if (coverError) notify('The cover photo was not set', coverError.message);
+      }
     }
     if (failed.length > 0) {
       // Keep only what didn't save, so nothing is saved twice on retry.
@@ -290,7 +297,7 @@ export function MultiDayScan() {
       setError(`${failed.length} ${failed.length === 1 ? 'activity' : 'activities'} could not be saved. Try again.`);
       return;
     }
-    goToTab('/my-activities');
+    backToOrigin();
   }
 
   const updateDraft = (i: number, patch: Partial<Draft>) => setDrafts((prev) => prev.map((d, di) => (di === i ? { ...d, ...patch } : d)));
