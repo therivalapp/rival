@@ -13,6 +13,11 @@ import { inboxChanged } from './inbox';
 
 export type StravaSharing = { agreedAt: string | null; shareRoutes: boolean };
 
+// RIVAL is separating from Strava (Ricky, 2026-10-30; BETA_PLAN.md). Nobody new
+// connects, and people bring their history in as an archive instead. Existing
+// connections carry on until the switch-off. strava-token-exchange enforces it.
+export const STRAVA_CONNECTIONS_OPEN = false;
+
 // Whether the signed-in person has already agreed, remembered once known so a
 // Connect button can decide instantly (opening Strava's window has to happen
 // inside the tap itself, with no waiting first).
@@ -27,6 +32,7 @@ supabase.auth.onAuthStateChange(() => { agreedCache = null; answerCache = null; 
 /** Connect (or reconnect) Strava. The sharing screen is shown only until the
  *  person has agreed once; after that it goes straight to Strava. */
 export function startStravaConnect(onComplete?: () => void) {
+  if (!STRAVA_CONNECTIONS_OPEN) return;
   if (agreedCache) connectStrava(onComplete);
   else router.push('/connect-strava');
 }

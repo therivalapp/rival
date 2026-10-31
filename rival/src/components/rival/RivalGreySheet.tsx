@@ -14,11 +14,16 @@ import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGE_MAX_WIDTH, SIDE_SHEET_MAX_WIDTH } fro
 // these pieces so they stay the same.
 
 export function GreySheet({
-  kicker, title, onClose, children, footer, overlay,
+  kicker, title, sub, onClose, onBack, children, footer, overlay,
 }: {
   kicker?: string;
   title: string;
+  /** A short line under the title, such as the date an activity is for. */
+  sub?: string;
   onClose: () => void;
+  /** A back arrow, top left, for a pop-up opened from another one: back to
+   *  the one before, for a change of mind (Ricky, 2026-10-25). */
+  onBack?: () => void;
   children: ReactNode;
   footer: ReactNode;
   /** Drawn over the whole sheet, for the calendar or time picker. */
@@ -54,8 +59,10 @@ export function GreySheet({
       <View {...(Platform.OS === 'web' ? {} : pan.panHandlers)} style={g.dragZone}>
         {dialog ? null : <View style={g.grabber} />}
         <View style={g.head}>
+          {onBack ? <RivalBackButton onPress={onBack} style={g.back} /> : null}
           {kicker ? <Text style={g.kicker}>{kicker}</Text> : null}
           <Text style={[g.title, !kicker && { marginTop: 0 }]}>{title}</Text>
+          {sub ? <Text style={g.sub}>{sub}</Text> : null}
         </View>
       </View>
       <ScrollView style={g.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -174,13 +181,15 @@ export function GreyPrimary({ label, busy, disabled, onPress }: { label: string;
   );
 }
 
-/** The month calendar over the sheet. `value` and `onChange` are ISO dates. */
-export function GreyCalendar({ value, onChange, onClose }: { value: string | null; onChange: (iso: string) => void; onClose: () => void }) {
+/** The month calendar over the sheet. `value` and `onChange` are ISO dates.
+ *  `footer` sits under the grid, inside the card (Log an activity's start time). */
+export function GreyCalendar({ value, onChange, onClose, footer }: { value: string | null; onChange: (iso: string) => void; onClose: () => void; footer?: ReactNode }) {
   return (
     <View style={g.overlay}>
       <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
       <View style={g.overlayCard}>
         <RivalCalendarGrid value={value} onChange={onChange} />
+        {footer}
       </View>
     </View>
   );
@@ -299,6 +308,7 @@ export function GreySegment<T extends string>({
 const PLACEHOLDER = 'rgba(255,255,255,0.28)';
 
 const g = StyleSheet.create({
+  sub: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 2 },
   sheet: {
     backgroundColor: RivalColors.surfaceHigh,
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
@@ -322,6 +332,8 @@ const g = StyleSheet.create({
   head: { alignItems: 'center', marginBottom: 2, paddingHorizontal: 36 },
   kicker: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.3, color: RivalColors.accentText, textAlign: 'center' },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff', textAlign: 'center', marginTop: 3 },
+  // The app's one back control (RivalBackButton), in the title's corner.
+  back: { position: 'absolute', left: 0, top: -4, zIndex: 1 },
   close: {
     position: 'absolute', right: 0, top: -4,
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',

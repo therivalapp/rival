@@ -7,6 +7,7 @@ import { calculateEffortScore, loadScoringConfig } from '../_shared/effortScore.
 import { normaliseActivityType } from '../_shared/activityType.ts'
 import { detailFields, stravaNotes } from '../_shared/stravaDetails.ts'
 import { getFreshStravaToken } from '../_shared/stravaAuth.ts'
+import { isPrivateOnStrava, removeAllStravaData, removeStravaActivity } from '../_shared/stravaRemoval.ts'
 import { sendPushMessages } from '../_shared/push.ts'
 import { formatDisplayName } from '../_shared/formatName.ts'
 
@@ -181,6 +182,27 @@ serve(async (req) => {
     const event = await req.json()
     console.log('Webhook event:', JSON.stringify(event))
 
+    // Access revoked in Strava's settings: their data leaves too (API Policy
+    // 7.4). An error fails the request, so Strava's retry finishes the job.
+    if (event.object_type === 'athlete' && String(event.updates?.authorized) === 'false') {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      )
+      const { data: revoked } = await supabase
+        .from('fitness_connections')
+        .select('user_id')
+        .eq('provider', 'strava')
+        .eq('provider_user_id', String(event.owner_id))
+        .maybeSingle()
+      const removed = revoked ? await removeAllStravaData(supabase, revoked.user_id) : 0
+      console.log('Strava access revoked by athlete', event.owner_id, '— activities removed:', removed)
+      return new Response(JSON.stringify({ received: true, deleted: removed }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     // Creates, updates and deletes. Deletes were ignored until 2026-09-23,
     // which made RIVAL a one-way accumulator: a junk activity removed in
     // Strava lived here forever, still counting toward Effort. Strava is the
@@ -222,58 +244,7 @@ serve(async (req) => {
     // the event would be dropped. Scoped to this user and to strava-provided
     // rows so it can never reach a manual entry or another account's data.
     if (event.aspect_type === 'delete') {
-      // Resolved through activity_sources, not by matching
-      // activities.provider_activity_id directly. Two overlapping recordings
-      // of one session are merged into a single activities row, which keeps
-      // whichever provider_activity_id arrived first — so deleting the OTHER
-      // one in Strava would match nothing and the row would survive.
-      const { data: sourceRow } = await supabase
-        .from('activity_sources')
-        .select('activity_id')
-        .eq('user_id', connection.user_id)
-        .eq('provider', 'strava')
-        .eq('provider_activity_id', stravaActivityId)
-        .maybeSingle()
-
-      await supabase
-        .from('activity_sources')
-        .delete()
-        .eq('user_id', connection.user_id)
-        .eq('provider', 'strava')
-        .eq('provider_activity_id', stravaActivityId)
-
-      // Fall back to the direct match for rows imported before provenance was
-      // captured, which have no activity_sources entry at all.
-      const activityId = sourceRow?.activity_id ?? null
-      let removed = 0
-      if (activityId) {
-        // Only delete the activity once nothing else points at it. A merged
-        // row can legitimately have another source still standing, and that
-        // session genuinely still happened — dropping it would lose real
-        // training because a duplicate was tidied up.
-        const { count: remaining } = await supabase
-          .from('activity_sources')
-          .select('id', { count: 'exact', head: true })
-          .eq('activity_id', activityId)
-        if ((remaining ?? 0) === 0) {
-          const { count } = await supabase
-            .from('activities')
-            .delete({ count: 'exact' })
-            .eq('id', activityId)
-            .eq('user_id', connection.user_id)
-          removed = count ?? 0
-        } else {
-          console.log('Strava delete for', stravaActivityId, '— activity kept,', remaining, 'other source(s) still reference it')
-        }
-      } else {
-        const { count } = await supabase
-          .from('activities')
-          .delete({ count: 'exact' })
-          .eq('user_id', connection.user_id)
-          .eq('provider', 'strava')
-          .eq('provider_activity_id', stravaActivityId)
-        removed = count ?? 0
-      }
+      const removed = await removeStravaActivity(supabase, connection.user_id, stravaActivityId)
 
       // RLS failures delete nothing and raise nothing, so the count is the
       // only honest signal that this did what it claims.
@@ -308,6 +279,17 @@ serve(async (req) => {
     )
     const activity = await activityRes.json()
     console.log('Activity type:', activity.type, 'Duration:', activity.moving_time)
+
+    // "Only you" on Strava stays off RIVAL, or teammates would see it (API
+    // Policy 7.1). An update also lands here when one is made private later.
+    if (isPrivateOnStrava(activity)) {
+      const removed = await removeStravaActivity(supabase, connection.user_id, stravaActivityId)
+      console.log('Strava activity is private', stravaActivityId, '— activities removed:', removed)
+      return new Response(JSON.stringify({ received: true, deleted: removed }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
 
     // Strava spells it "Crossfit"; RIVAL stores "CrossFit". Without this the
     // same sport gets two scoring_config rows and two tuning knobs.

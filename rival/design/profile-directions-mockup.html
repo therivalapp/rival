@@ -1,0 +1,138 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}
+.col{width:393px;flex-shrink:0}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:74px}
+.phone{position:relative;width:393px;height:1320px;border-radius:40px;overflow:hidden;background:#1b1a19}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;text-transform:none}
+.s{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:700}
+.back{position:absolute;z-index:5;left:16px;top:50px;width:36px;height:36px;border-radius:18px;background:rgba(14,13,12,.5);display:flex;align-items:center;justify-content:center;font-size:22px}
+.pad{padding:0 16px;display:flex;flex-direction:column;gap:10px}
+.lab{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#A0A0A0;margin:8px 4px -2px}
+.lab span{letter-spacing:.3px;text-transform:none;font-size:12.5px;font-weight:700;color:#ffb59e}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#1a1210;background:linear-gradient(160deg,#9fd9bd,#2f7a5b)}
+.pill .mi{font-size:14px}
+.nums{display:flex;background:#232120;border:1px solid rgba(255,255,255,.07);border-radius:16px}
+.nums div{flex:1;text-align:center;padding:12px 2px}.nums div+div{border-left:1px solid rgba(255,255,255,.08)}
+.nums b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}
+.nums i{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.scroll{display:flex;gap:8px;margin-right:-16px;overflow:hidden}
+.pc{position:relative;flex-shrink:0;width:170px;height:228px;border-radius:18px;overflow:hidden;background-size:cover;background-position:center}
+.pc::after{content:'';position:absolute;inset:40% 0 0;background:linear-gradient(180deg,transparent,rgba(10,9,8,.85))}
+.pc.pb{outline:2.5px solid #d4a72c;outline-offset:-2.5px}
+.pc .t{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font-size:13px;font-weight:700}
+.pc .t b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:25px}
+.pc .d{position:absolute;z-index:1;top:9px;left:0;right:0;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:13px}
+.pc .e{position:absolute;z-index:1;right:12px;bottom:10px;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:21px;line-height:25px}
+.pc .e i{display:block;font-family:Manrope;font-style:normal;font-size:8px;font-weight:800;letter-spacing:1.2px;color:#ffb59e}
+.pbs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pbc{background:#232120;border:1px solid rgba(212,167,44,.4);border-radius:14px;padding:11px 12px}
+.pbc p{margin:0;font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#d4a72c}
+.pbc b{display:block;font-family:Georgia,serif;font-style:italic;font-size:24px;line-height:30px}
+.pbc span{font-size:11.5px;color:#A0A0A0}
+.dots{display:flex;gap:9px}.dots div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;font-weight:800;color:rgba(255,255,255,.45)}
+.dots u{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.2)}.dots u.on{background:#e8835f}.dots u.g{background:#ffc94d}
+.wk{position:relative;overflow:hidden;border-radius:22px;padding:14px 16px;background:#232120;border:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between}
+.wk .gl{position:absolute;top:0;left:0;right:0;height:90px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.2),transparent 70%)}
+.wk>div{position:relative}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffb59e}
+.wt{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:21px;line-height:26px;margin-bottom:6px}
+.wef{text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px}
+.wef i{display:block;font-family:Manrope;font-style:normal;font-size:9px;font-weight:800;letter-spacing:2px;color:#ffb59e}
+.strip{display:flex;gap:6px;margin-right:-16px;overflow:hidden}
+.th{flex-shrink:0;width:30px;height:200px;border-radius:14px;background:#232120;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:9px;font-weight:800;color:rgba(255,255,255,.4)}
+.th b{font-family:Georgia,serif;font-style:italic;font-size:14px}
+.q{font-family:Georgia,serif;font-style:italic;font-size:15px;line-height:21px}
+.hm{display:grid;grid-template-columns:repeat(26,1fr);gap:2px}
+.hm i{aspect-ratio:1;border-radius:2px;background:rgba(255,255,255,.06)}.hm i.a{background:rgba(217,119,87,.45)}.hm i.b{background:#D97757}.hm i.c{background:#ffb59e}.hm i.g{background:#ffc94d}
+</style></head><body><div class="row">
+
+<!-- A -->
+<div class="col"><p class="tag">A · The cover</p><p class="desc">Opens like a magazine cover: their best photo fills the top of the screen, with name, rank and quote over it. They choose the photo. Then the numbers, then swipeable photo cards from the Activity page.</p>
+<div class="phone"><div class="back mi">chevron_left</div>
+<div style="position:relative;height:510px;background:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg) center 30%/cover">
+<div style="position:absolute;inset:35% 0 0;background:linear-gradient(180deg,transparent,#1b1a19)"></div>
+<div style="position:absolute;left:18px;right:18px;bottom:12px"><span class="pill"><span class="mi">emoji_events</span>Champion</span>
+<div class="s" style="font-size:46px;line-height:50px;margin-top:8px">Maya Torres</div>
+<div class="q" style="margin-top:4px">“Built one ordinary day at a time.”</div></div></div>
+<div class="pad" style="padding-top:12px">
+<div class="nums"><div><b>15,780</b><i>2026 Effort</i></div><div><b>486</b><i>Activities</i></div><div><b>612h</b><i>Time earned</i></div></div>
+<div class="lab">Highlights<span>12 starred</span></div>
+<div class="scroll">
+<div class="pc pb" style="background-image:url(../assets/images/backgrounds/optimized/deadlift-rival-plates-box.jpg)"><div class="d">Personal best</div><div class="t">Deadlift<b>140 kg</b></div></div>
+<div class="pc" style="background-image:url(../assets/images/backgrounds/optimized/rope-climb-atelier-gym.jpg)"><div class="d">Saturday</div><div class="t">Rope climbs<b>48:00</b></div></div>
+<div class="pc" style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div></div>
+<div class="lab">Personal bests<span>All 9</span></div>
+<div class="pbs"><div class="pbc"><p>Half marathon</p><b>1:48:12</b><span>Jun 2026</span></div><div class="pbc"><p>Deadlift</p><b>140 kg</b><span>Sep 2026</span></div></div>
+<div class="lab">This year<span>Last 26 weeks</span></div><div class="hm" id="h1"></div>
+</div></div></div>
+
+<!-- B -->
+<div class="col"><p class="tag">B · The story</p><p class="desc">Built from the Activity page. Their weeks become the profile: each week is a card with one row of photo cards, read like a diary. Their best week is pinned at the top. You see how they got there, not only the totals.</p>
+<div class="phone"><div class="back mi">chevron_left</div>
+<div style="padding:50px 16px 12px;display:flex;flex-direction:column;align-items:center;gap:5px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.2),transparent)">
+<div style="width:84px;height:84px;border-radius:42px;border:2.5px solid #9fd9bd;background:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg) 52% 35%/300%"></div>
+<div class="s" style="font-size:28px;line-height:34px">Maya Torres</div>
+<span class="pill"><span class="mi">emoji_events</span>Champion · 15,780 Effort</span>
+<div class="q" style="margin-top:4px">“Built one ordinary day at a time.”</div></div>
+<div class="pad">
+<div class="nums"><div><b>6w</b><i>Streak</i></div><div><b>4.3</b><i>Per week</i></div><div><b>9</b><i>Personal bests</i></div></div>
+<div class="wk" style="border-color:rgba(212,167,44,.5)"><div class="gl"></div><div><div class="k" style="color:#ffc94d">Best week · Sep 7 – 13</div><div class="wt">Week 37</div><div class="dots"><div>M<u class="on"></u></div><div>T<u class="on"></u></div><div>W<u class="g"></u></div><div>T<u></u></div><div>F<u class="on"></u></div><div>S<u class="on"></u></div><div>S<u class="on"></u></div></div></div><div class="wef">412<i>EFFORT</i></div></div>
+<div class="strip"><div class="pc pb" style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/deadlift-rival-plates-box.jpg)"><div class="d">Wednesday</div><div class="t">Pull day<b>58:00</b></div></div><div class="th">T<b>10</b></div><div class="pc" style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/mountain-bikers-forest-trail.jpg)"><div class="d">Friday</div><div class="t">Long ride<b>62 km</b></div></div></div>
+<div class="wk"><div class="gl"></div><div><div class="k">Oct 19 – 25</div><div class="wt">Last week</div><div class="dots"><div>M<u></u></div><div>T<u class="on"></u></div><div>W<u></u></div><div>T<u></u></div><div>F<u></u></div><div>S<u class="on"></u></div><div>S<u></u></div></div></div><div class="wef">95<i>EFFORT</i></div></div>
+<div class="strip"><div class="th">M<b>19</b></div><div class="pc" style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg)"><div class="d">Tuesday</div><div class="t">Blue city<b>7.1 km</b></div></div><div class="th">W<b>21</b></div><div class="th">T<b>22</b></div><div class="pc" style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/overhead-squat-warehouse-gym.jpg)"><div class="d">Saturday</div></div></div>
+</div></div></div>
+
+<!-- C -->
+<div class="col"><p class="tag">C · The wall</p><p class="desc">Photos come first, in a mosaic with one large image, so the page feels like a personal gallery. Achievements sit on the wall alongside them: a personal best is a tile, and photos from those days have a gold frame.</p>
+<div class="phone"><div class="back mi">chevron_left</div>
+<div style="padding:50px 16px 12px 64px;display:flex;align-items:center;gap:12px">
+<div style="flex-shrink:0;width:60px;height:60px;border-radius:30px;border:2px solid #9fd9bd;background:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg) 52% 35%/300%"></div>
+<div><div class="s" style="font-size:25px;line-height:30px">Maya Torres</div><span style="font-size:12.5px;color:#9fd9bd;font-weight:700">Champion · 15,780 Effort</span></div></div>
+<div class="pad">
+<div class="q" style="text-align:center;padding:0 12px 4px">“Built one ordinary day at a time.”</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:118px;gap:4px;border-radius:18px;overflow:hidden">
+<div class="pc pb" style="width:auto;height:auto;border-radius:0;grid-column:span 2;grid-row:span 2;background-image:url(../assets/images/backgrounds/optimized/deadlift-rival-plates-box.jpg)"><div class="t">Personal best<b>Deadlift 140 kg</b></div></div>
+<div class="pc" style="width:auto;height:auto;border-radius:0;background-image:url(../assets/images/backgrounds/optimized/rope-climb-atelier-gym.jpg)"></div>
+<div class="pc" style="width:auto;height:auto;border-radius:0;background-image:url(../assets/images/backgrounds/optimized/mountain-bikers-forest-trail.jpg)"></div>
+<div style="background:linear-gradient(160deg,#9fd9bd,#2f7a5b);color:#1a1210;padding:11px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.65">2026 rank</span><span class="s" style="font-size:19px;line-height:23px">Champion</span></div>
+<div class="pc" style="width:auto;height:auto;border-radius:0;background-image:url(../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg)"></div>
+<div style="background:#232120;padding:11px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#d4a72c">Half marathon</span><span class="s" style="font-size:21px;line-height:26px">1:48:12</span></div>
+<div class="pc pb" style="width:auto;height:auto;border-radius:0;grid-column:span 2;grid-row:span 2;background-image:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg);background-position:center 30%"><div class="t">Event<b>Summit 30K</b></div></div>
+<div style="background:#232120;padding:11px;display:flex;flex-direction:column;justify-content:flex-end"><span class="s" style="font-size:24px;line-height:28px">486</span><span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.5)">Activities</span></div>
+<div class="pc" style="width:auto;height:auto;border-radius:0;background-image:url(../assets/images/backgrounds/optimized/overhead-squat-warehouse-gym.jpg)"></div>
+<div style="background:#232120;padding:11px;display:flex;flex-direction:column;justify-content:flex-end"><span class="s" style="font-size:24px;line-height:28px">612h</span><span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.5)">Time earned</span></div>
+<div style="background:rgba(217,119,87,.14);padding:11px;display:flex;flex-direction:column;justify-content:flex-end"><span class="mi" style="font-size:20px;color:#ffb59e">workspace_premium</span><span style="font-size:12px;font-weight:700;margin-top:4px">500 hours</span></div>
+<div class="pc" style="width:auto;height:auto;border-radius:0;background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div>
+</div>
+<div class="lab">This year<span>Last 26 weeks</span></div><div class="hm" id="h3"></div>
+</div></div></div>
+
+<!-- D -->
+<div class="col"><p class="tag">D · The player card</p><p class="desc">A collectible card in the material of their rank. Photo, name and six headline numbers, like a sports trading card, and it could be shared outside RIVAL. As rank rises the card changes from stone to gold.</p>
+<div class="phone"><div class="back mi">chevron_left</div>
+<div class="pad" style="padding-top:96px">
+<div style="position:relative;border-radius:26px;padding:10px;background:linear-gradient(160deg,#9fd9bd,#2f7a5b)">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 8px 9px;color:#1a1210"><span style="font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase">2026 · Champion</span><span class="mi" style="font-size:20px">emoji_events</span></div>
+<div style="position:relative;height:390px;border-radius:18px;overflow:hidden;background:url(../assets/images/backgrounds/optimized/overhead-squat-warehouse-gym.jpg) center/cover">
+<div style="position:absolute;inset:50% 0 0;background:linear-gradient(180deg,transparent,rgba(10,9,8,.88))"></div>
+<div style="position:absolute;left:14px;right:14px;bottom:10px"><div class="s" style="font-size:38px;line-height:42px">Maya Torres</div><div class="q" style="font-size:13.5px;line-height:19px">“Built one ordinary day at a time.”</div></div></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);color:#1a1210;padding:10px 0 4px;text-align:center;row-gap:8px">
+<div><b class="s" style="font-size:24px">15,780</b><br><span style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Effort</span></div><div><b class="s" style="font-size:24px">486</b><br><span style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Activities</span></div><div><b class="s" style="font-size:24px">612h</b><br><span style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Time earned</span></div>
+<div><b class="s" style="font-size:24px">9</b><br><span style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Personal bests</span></div><div><b class="s" style="font-size:24px">6w</b><br><span style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Streak</span></div><div><b class="s" style="font-size:24px">3</b><br><span style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Events</span></div></div></div>
+<div class="lab">Highlights<span>12 starred</span></div>
+<div class="scroll"><div class="pc pb" style="height:200px;background-image:url(../assets/images/backgrounds/optimized/deadlift-rival-plates-box.jpg)"><div class="t">Deadlift<b>140 kg</b></div></div><div class="pc" style="height:200px;background-image:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg)"><div class="t">Summit 30K<b>3:12:40</b></div></div><div class="pc" style="height:200px;background-image:url(../assets/images/backgrounds/optimized/rope-climb-atelier-gym.jpg)"></div></div>
+<div class="lab">Personal bests<span>All 9</span></div>
+<div class="pbs"><div class="pbc"><p>Half marathon</p><b>1:48:12</b><span>Jun 2026</span></div><div class="pbc"><p>Deadlift</p><b>140 kg</b><span>Sep 2026</span></div></div>
+</div></div></div>
+
+</div>
+<script>
+const pat='bab.cb.a.b.c.bb.b.bb.c..b.ba.b.a.b.cbb.c.a.b.b..c.a.b.bb.b.c.a.bb..b.c.c.b.b.ab.b.b..bab.cb.a.b.c.bb.b.bb.c..b.ba.b.a.b.cbb.c.a.b.b..c.a.b.bb.b.c.a.bb..b.c.c.b.b.ab.b.b..bab.cb.a.b.c.bb.b.bb.c..b.ba.b';
+for(const id of ['h1','h3']){let h='';for(let d=0;d<7;d++)for(let w=0;w<26;w++){let c=pat[(w*7+d)%pat.length];if(w==15&&d==2)c='g';if(w==21&&d==5)c='g';h+=`<i class="${c=='.'?'':c}"></i>`}document.getElementById(id).innerHTML=h}
+</script></body></html>

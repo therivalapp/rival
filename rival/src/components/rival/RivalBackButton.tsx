@@ -22,6 +22,8 @@ export function RivalBackButton({
       onPress={onPress}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={[styles.circle, style]}
+      accessibilityRole="button"
+      accessibilityLabel="Back"
     >
       <RivalIcon name="back" size={18} color={color} />
     </TouchableOpacity>

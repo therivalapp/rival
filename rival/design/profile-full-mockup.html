@@ -1,0 +1,116 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}
+.col{width:393px;flex-shrink:0}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:74px}
+.phone{position:relative;width:393px;height:1320px;border-radius:40px;overflow:hidden;background:#1b1a19}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;text-transform:none}
+.s{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:700}
+.back{position:absolute;z-index:5;left:16px;top:50px;width:36px;height:36px;border-radius:18px;background:rgba(14,13,12,.5);display:flex;align-items:center;justify-content:center;font-size:22px}
+.pad{padding:0 16px;display:flex;flex-direction:column;gap:10px}
+.lab{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#A0A0A0;margin:8px 4px -2px}
+.lab span{letter-spacing:.3px;text-transform:none;font-size:12.5px;font-weight:700;color:#ffb59e}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#1a1210;background:linear-gradient(160deg,#9fd9bd,#2f7a5b)}
+.pill .mi{font-size:14px}
+.nums{display:flex;background:#232120;border:1px solid rgba(255,255,255,.07);border-radius:16px}
+.nums div{flex:1;text-align:center;padding:12px 2px}.nums div+div{border-left:1px solid rgba(255,255,255,.08)}
+.nums b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}
+.nums i{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.scroll{display:flex;gap:8px;margin-right:-16px;overflow:hidden}
+.pc{position:relative;flex-shrink:0;width:170px;height:228px;border-radius:18px;overflow:hidden;background-size:cover;background-position:center}
+.pc::after{content:'';position:absolute;inset:40% 0 0;background:linear-gradient(180deg,transparent,rgba(10,9,8,.85))}
+.pc.pb{outline:2.5px solid #d4a72c;outline-offset:-2.5px}
+.pc .t{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font-size:13px;font-weight:700}
+.pc .t b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:25px}
+.pc .d{position:absolute;z-index:1;top:9px;left:0;right:0;text-align:center;font-family:Georgia,serif;font-style:italic;font-size:13px}
+.pc .e{position:absolute;z-index:1;right:12px;bottom:10px;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:21px;line-height:25px}
+.pc .e i{display:block;font-family:Manrope;font-style:normal;font-size:8px;font-weight:800;letter-spacing:1.2px;color:#ffb59e}
+.pbs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pbc{background:#232120;border:1px solid rgba(212,167,44,.4);border-radius:14px;padding:11px 12px}
+.pbc p{margin:0;font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#d4a72c}
+.pbc b{display:block;font-family:Georgia,serif;font-style:italic;font-size:24px;line-height:30px}
+.pbc span{font-size:11.5px;color:#A0A0A0}
+.dots{display:flex;gap:9px}.dots div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;font-weight:800;color:rgba(255,255,255,.45)}
+.dots u{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.2)}.dots u.on{background:#e8835f}.dots u.g{background:#ffc94d}
+.wk{position:relative;overflow:hidden;border-radius:22px;padding:14px 16px;background:#232120;border:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between}
+.wk .gl{position:absolute;top:0;left:0;right:0;height:90px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(232,131,95,.2),transparent 70%)}
+.wk>div{position:relative}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffb59e}
+.wt{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:21px;line-height:26px;margin-bottom:6px}
+.wef{text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px}
+.wef i{display:block;font-family:Manrope;font-style:normal;font-size:9px;font-weight:800;letter-spacing:2px;color:#ffb59e}
+.strip{display:flex;gap:6px;margin-right:-16px;overflow:hidden}
+.th{flex-shrink:0;width:30px;height:200px;border-radius:14px;background:#232120;border:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:9px;font-weight:800;color:rgba(255,255,255,.4)}
+.th b{font-family:Georgia,serif;font-style:italic;font-size:14px}
+.q{font-family:Georgia,serif;font-style:italic;font-size:15px;line-height:21px}
+.hm{display:grid;grid-template-columns:repeat(26,1fr);gap:2px}
+.hm i{aspect-ratio:1;border-radius:2px;background:rgba(255,255,255,.06)}.hm i.a{background:rgba(217,119,87,.45)}.hm i.b{background:#D97757}.hm i.c{background:#ffb59e}.hm i.g{background:#ffc94d}
+
+body{width:437px}
+.phone{height:auto;padding-bottom:40px;margin:22px}
+.nums.two{flex-wrap:wrap}.nums.two div{flex:0 0 33.33%;border-left:0}.nums.two div:nth-child(n+4){border-top:1px solid rgba(255,255,255,.08)}.nums.two div:not(:nth-child(3n+1)){border-left:1px solid rgba(255,255,255,.08)}
+.line{display:flex;justify-content:center;gap:8px;font-size:12.5px;color:#A0A0A0;margin:2px 0 0}
+.more{text-align:center;font-size:13px;font-weight:700;color:#ffb59e;padding:10px 0 2px}
+.ms{display:flex;gap:7px}
+.m{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 2px 9px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:10.5px;font-weight:700;color:rgba(255,255,255,.45);white-space:nowrap}
+.m.on{border-color:rgba(255,181,158,.5);background:rgba(217,119,87,.1);color:#fff}
+.bd{width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);font-size:15px;color:rgba(255,255,255,.4)}
+.on .bd{background:linear-gradient(135deg,#ffb59e,#D97757);color:#1a1210}
+.imp{display:flex;background:#232120;border:1px solid rgba(255,255,255,.07);border-radius:16px}.imp div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 0}.imp div+div{border-left:1px solid rgba(255,255,255,.08)}
+.imp .mi{font-size:15px;color:#ffb59e}.imp b{font-family:Georgia,serif;font-style:italic;font-size:22px}.imp i{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.yr{display:flex;justify-content:space-between;align-items:center;background:#232120;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;font-size:14px;font-weight:700}.yr span{font-weight:500;color:#A0A0A0}
+.pc .d{top:8px;left:50%;right:auto;transform:translateX(-50%);padding:2px 9px;border-radius:999px;background:rgba(14,13,12,.55);white-space:nowrap}
+.sub{font-size:12px;font-weight:700;color:rgba(255,255,255,.6);margin:0 4px -3px}
+.tk{display:flex;align-items:stretch;border-radius:18px;overflow:hidden;border:1px solid rgba(255,209,190,.10);background:#232120}
+.tkm{flex:1;padding:13px 12px 13px 16px;min-width:0}.tkm .k{letter-spacing:1.6px}
+.tkn{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:19px;line-height:24px;margin-top:4px}
+.tkd{font-size:13px;color:rgba(255,255,255,.6);margin-top:2px}
+.tear{width:0;margin:10px 0;border-left:2px dashed rgba(255,209,190,.15)}
+.stub{width:84px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.stub b{font-family:Georgia,serif;font-style:italic;font-size:34px;line-height:36px;background:linear-gradient(180deg,#fff,#D97757 170%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stub i{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin-top:3px}
+.ec{flex-shrink:0;width:326px;height:213px;display:flex;border-radius:20px;overflow:hidden;background:#232120;border:2px solid #f4ead8}
+.ep{width:45%;background-size:cover;background-position:center}
+.er{flex:1;min-width:0;padding:11px 12px;display:flex;flex-direction:column;gap:8px}
+.et{display:flex;justify-content:space-between;gap:6px}.tags{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.tg{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:999px;background:#f4ead8;color:#2a2116;font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}.tg .mi{font-size:11px}.tg.pb{background:#d4a72c}
+.ew{font-family:Georgia,serif;font-style:italic;font-weight:500;font-size:13px;color:rgba(255,255,255,.8)}
+.lg{display:flex;align-items:center;gap:6px;font-size:12px}.lg .mi{font-size:13px;color:#ffb59e}.lg u{flex:1;text-decoration:none;font-weight:600;color:rgba(255,255,255,.8)}.lg b{font-weight:700}
+.ef{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:6px}
+.en{font-size:12px;font-weight:700;color:#ffb59e}.eres{font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:20px;line-height:24px}
+.ee{text-align:center}.ee i{display:block;font-style:normal;font-size:7px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ffb59e}.ee b{font-family:Georgia,serif;font-style:italic;font-size:16px;line-height:18px}
+.tog{display:flex;gap:4px;padding:4px;border-radius:999px;background:#232120;border:1px solid rgba(255,255,255,.07)}
+.tog div{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;height:34px;border-radius:999px;font-size:12.5px;font-weight:700;color:rgba(255,255,255,.6)}
+.tog .mi{font-size:14px}.tog .on{background:rgba(217,119,87,.28);color:#fff}
+.phone::after{content:'';position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(180deg,transparent,#1b1a19)}
+</style></head><body>
+<div class="phone"><div class="back mi">chevron_left</div>
+<div style="position:relative;height:520px;background:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg) center 30%/cover">
+<div style="position:absolute;inset:35% 0 0;background:linear-gradient(180deg,transparent,#1b1a19)"></div>
+<div style="position:absolute;left:18px;right:18px;bottom:10px"><span class="pill"><span class="mi">emoji_events</span>Champion</span>
+<div class="s" style="font-size:46px;line-height:50px;margin-top:8px">Maya Torres</div>
+<div class="q" style="margin-top:4px">“Built one ordinary day at a time.”</div>
+<div style="font-size:12.5px;color:rgba(255,255,255,.55);margin-top:7px">Member since Jan 2026 · 3 teams</div></div></div>
+<div class="pad" style="padding-top:12px">
+<div class="nums two"><div><b>15,780</b><i>2026 Effort</i></div><div><b>41,206</b><i>Lifetime</i></div><div><b>486</b><i>Activities</i></div><div><b>612h</b><i>Time earned</i></div><div><b>3,940</b><i>km</i></div><div><b>6w</b><i>Streak</i></div></div>
+<div class="lab">Highlights<span>12 starred</span></div>
+<div class="scroll"><div class="pc pb" style="background-image:url(../assets/images/backgrounds/optimized/deadlift-rival-plates-box.jpg)"><div class="d">Personal best</div><div class="t">Deadlift<b>140 kg</b></div></div><div class="pc " style="background-image:url(../assets/images/backgrounds/optimized/rope-climb-atelier-gym.jpg)"><div class="d">Saturday</div><div class="t">Rope climbs<b>48:00</b></div></div><div class="pc " style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"><div class="d">Monday</div><div class="t">Handstands<b>35:00</b></div></div></div>
+<div class="lab">Personal bests<span>All 9</span></div>
+<div class="pbs"><div class="pbc"><p>Half marathon</p><b>1:48:12</b><span>Jun 2026</span></div><div class="pbc"><p>Deadlift</p><b>140 kg</b><span>Sep 2026</span></div><div class="pbc"><p>Bench Press</p><b>92.5 kg</b><span>Aug 2026</span></div><div class="pbc"><p>10 km</p><b>49:36</b><span>May 2026</span></div></div>
+<div class="lab">Impact</div>
+<div class="imp"><div><span class="mi">back_hand</span><b>1,204</b><i>Respect</i></div><div><span class="mi">auto_awesome</span><b>318</b><i>Inspired</i></div><div><span class="mi">groups</span><b>27</b><i>People</i></div></div>
+<div class="lab">Events<span>All 8</span></div>
+<div class="sub">Signed up</div>
+<div class="tk"><div class="tkm"><div class="k">Half marathon</div><div class="tkn">Coastal Half Marathon</div><div class="tkd">Nov 22 · Vancouver</div></div><div class="tear"></div><div class="stub"><b>23</b><i>Days</i></div></div>
+<div class="tk"><div class="tkm"><div class="k">Triathlon</div><div class="tkn">Spring Triathlon</div><div class="tkd">Mar 14, 2027 · Victoria</div></div><div class="tear"></div><div class="stub"><b>135</b><i>Days</i></div></div>
+<div class="sub" style="margin-top:4px">Completed</div>
+<div class="scroll"><div class="ec" style="border-color:#d4a72c"><div class="ep" style="background-image:url(../assets/images/backgrounds/optimized/trail-sisters-finish-line.jpg)"></div><div class="er"><div class="et"><div class="tags"><span class="tg"><span class="mi">flag</span>Event</span><span class="tg pb"><span class="mi">emoji_events</span>PB</span></div><div class="ew">Jun 2026</div></div><div class="lg"><span class="mi">directions_run</span><u>21.1 km</u><b>1:48:12</b></div><div class="ef"><div><div class="en">City Half Marathon</div><div class="eres">1:48:12</div></div><div class="ee"><i>Effort</i><b>96</b></div></div></div></div><div class="ec"><div class="ep" style="background-image:url(../assets/images/backgrounds/optimized/rope-climb-atelier-gym.jpg)"></div><div class="er"><div class="et"><div class="tags"><span class="tg"><span class="mi">flag</span>HYROX</span></div><div class="ew">Mar 2026</div></div><div class="lg"><span class="mi">fitness_center</span><u>8 stations</u><b>1:22:40</b></div><div class="ef"><div><div class="en">HYROX Toronto</div><div class="eres">1:22:40</div></div><div class="ee"><i>Effort</i><b>84</b></div></div></div></div></div>
+<div class="lab">Milestones<span>All 14</span></div>
+<div class="ms"><div class="m on"><div class="bd mi">workspace_premium</div>100 hours</div><div class="m on"><div class="bd mi">bolt</div>500 hours</div><div class="m"><div class="bd mi">lock</div>1,000 hours</div><div class="m"><div class="bd mi">lock</div>5,000 hours</div></div>
+<div class="lab">History</div><div class="tog"><div class="on"><span class="mi">calendar_today</span>Week</div><div class=""><span class="mi">calendar_month</span>Month</div><div class=""><span class="mi">bar_chart</span>Year</div></div><div class="wk"><div class="gl"></div><div><div class="k">Oct 19 – 25</div><div class="wt">Last week</div><div class="dots"><div>M<u class=""></u></div><div>T<u class="on"></u></div><div>W<u class=""></u></div><div>T<u class=""></u></div><div>F<u class=""></u></div><div>S<u class="on"></u></div><div>S<u class=""></u></div></div></div><div class="wef">95<i>EFFORT</i></div></div><div class="strip"><div class="th">M<b>19</b></div><div class="pc " style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg)"><div class="d">Tuesday</div><div class="t">Blue city<b>7.1 km</b></div></div><div class="th">W<b>21</b></div><div class="th">T<b>22</b></div><div class="pc " style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/overhead-squat-warehouse-gym.jpg)"><div class="d">Saturday</div><div class="t">Squat day<b>52:00</b></div></div></div><div class="wk"><div class="gl"></div><div><div class="k">Oct 12 – 18</div><div class="wt">Week 42</div><div class="dots"><div>M<u class="on"></u></div><div>T<u class=""></u></div><div>W<u class="on"></u></div><div>T<u class="on"></u></div><div>F<u class=""></u></div><div>S<u class="on"></u></div><div>S<u class="on"></u></div></div></div><div class="wef">186<i>EFFORT</i></div></div><div class="strip"><div class="pc " style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg)"><div class="d">Monday</div><div class="t">Dawn handstands<b>35:00</b></div></div><div class="th">T<b>13</b></div><div class="pc " style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/rope-climb-atelier-gym.jpg)"><div class="d">Wednesday</div><div class="t">Rope climbs<b>48:00</b></div></div></div><div class="wk"><div class="gl"></div><div><div class="k">Oct 5 – 11</div><div class="wt">Week 41</div><div class="dots"><div>M<u class=""></u></div><div>T<u class="on"></u></div><div>W<u class=""></u></div><div>T<u class=""></u></div><div>F<u class="on"></u></div><div>S<u class=""></u></div><div>S<u class=""></u></div></div></div><div class="wef">142<i>EFFORT</i></div></div><div class="strip"><div class="th">M<b>5</b></div><div class="pc " style="width:150px;height:200px;background-image:url(../assets/images/backgrounds/optimized/mountain-bikers-forest-trail.jpg)"><div class="d">Tuesday</div><div class="t">Long ride<b>62 km</b></div></div></div>
+</div></div></body></html>

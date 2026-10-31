@@ -21,6 +21,7 @@ import { TrainingPartners } from './TrainingPartners';
 import { BusyText } from './BusyText';
 import { EffortBreakdownSheet } from './EffortBreakdownSheet';
 import { DetailsBody, detailsSummary, hasDetails, useActivityDetails } from './ActivityDetails';
+import { RecordingsSheet, useRecordingCount } from './RecordingsSheet';
 import { STACKED_BESTS, fastestRest, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
 import { useSheetDrag } from './useSheetDrag';
 import { composeStampOnPhoto, makeShareCard, shareCardFile, type ShareBest, type ShareFigure, type StampPlacement } from '../../lib/shareCard';
@@ -134,6 +135,7 @@ export function ActivityDiaryViewer({
   onArrangeMedia,
   onPositionPhoto,
   mediaById,
+  viewOnly = false,
 }: {
   activities: DiaryActivity[];
   startIndex: number;
@@ -145,6 +147,8 @@ export function ActivityDiaryViewer({
   openShareFor?: string | null;
   onShareDone?: () => void;
   onUpdate: (id: string, patch: Partial<DiaryActivity>) => void;
+  // Someone else's activity, opened from their profile: to read, not to change.
+  viewOnly?: boolean;
   // Reuses the same upload flow the old card grid exposed via a camera icon —
   // without this, activities without a photo would have no way to get one
   // attached from this screen at all.
@@ -187,6 +191,9 @@ export function ActivityDiaryViewer({
   const sheetDrag = useSheetDrag(onClose);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const details = useActivityDetails(wide ? null : activity?.id);
+  // Recorded on a phone and a watch: a line to choose the recording shown.
+  const recordingCount = useRecordingCount(wide ? null : activity?.id, details?.provider);
+  const [recordingsOpen, setRecordingsOpen] = useState(false);
   useEffect(() => { setDetailsOpen(false); }, [activity?.id]);
 
   // Drag-down-to-dismiss, like a native modal sheet — only claimed from the
@@ -726,21 +733,22 @@ export function ActivityDiaryViewer({
   // here (Ricky, 2026-10-11).
   const whoAndWhere = (
     <>
-      <View style={[styles.locationRow, !wide && styles.detailRow]}>
+      {viewOnly && !location ? null : <View style={[styles.locationRow, !wide && styles.detailRow]}>
         <RivalIcon name="location" size={wide ? 12 : 14} color="rgba(255,255,255,0.5)" />
         <TextInput
+          editable={!viewOnly}
           style={[styles.locationInput, !wide && styles.detailText]}
           value={location}
           onChangeText={(v) => edit('location', v)}
           placeholder="Add a location"
           placeholderTextColor="rgba(255,255,255,0.45)"
         />
-      </View>
+      </View>}
       <TrainingPartners
         activityId={activity.id}
         startedAt={activity.started_at}
         companions={activity.companions}
-        readOnly={!!activity.shared_from_activity_id}
+        readOnly={viewOnly || !!activity.shared_from_activity_id}
         hideWhenEmpty={!wide}
         avatars={!wide}
         onChanged={() => onUpdate(activity.id, {})}
@@ -751,7 +759,7 @@ export function ActivityDiaryViewer({
   return (
     <Animated.View ref={wide ? undefined : sheetDrag} style={[styles.overlay, { transform: [{ translateY: dragY }] }]}>
       <EffortBreakdownSheet
-        activity={breakdownFor ? { ...breakdownFor, canReview: !breakdownFor.shared_from_activity_id } : null}
+        activity={breakdownFor ? { ...breakdownFor, canReview: !viewOnly && !breakdownFor.shared_from_activity_id } : null}
         onClose={() => setBreakdownFor(null)}
         onConfirmed={(id, effort) => {
           onUpdate(id, { effort_score: effort, effort_confirmed: true });
@@ -854,12 +862,16 @@ export function ActivityDiaryViewer({
                 {dirty && <Text style={styles.saveStatusText}>Unsaved changes</Text>}
               </View>
               <View style={styles.headerRight}>
-                <TouchableOpacity style={styles.pinCorner} onPress={() => router.push(`/manual-entry?editId=${activity.id}`)}>
-                  <RivalIcon name="edit" size={14} color={RivalColors.accentText} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.pinCorner} onPress={togglePin}>
-                  <RivalIcon name={activity.pinned ? 'star' : 'starOutline'} size={15} color={RivalColors.accentText} />
-                </TouchableOpacity>
+                {viewOnly ? null : (
+                  <>
+                    <TouchableOpacity style={styles.pinCorner} onPress={() => router.push(`/manual-entry?editId=${activity.id}`)}>
+                      <RivalIcon name="edit" size={14} color={RivalColors.accentText} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.pinCorner} onPress={togglePin}>
+                      <RivalIcon name={activity.pinned ? 'star' : 'starOutline'} size={15} color={RivalColors.accentText} />
+                    </TouchableOpacity>
+                  </>
+                )}
                 <View style={styles.counter}>
                   <Text style={styles.counterText}>{dayPosition} of {dayActivities.length}</Text>
                 </View>
@@ -879,7 +891,7 @@ export function ActivityDiaryViewer({
               <View style={styles.headerRight}>
                 {/* The usual overflow menu rather than a pencil: it holds more
                     than editing, and three dots is what people look for. */}
-                <View style={styles.menuWrap}>
+                <View style={[styles.menuWrap, viewOnly && { display: 'none' }]}>
                   <TouchableOpacity style={styles.headerBtn} onPress={() => setMenuOpen((v) => !v)}>
                     <RivalIcon name="moreHoriz" size={20} color="#fff" />
                   </TouchableOpacity>
@@ -984,6 +996,7 @@ export function ActivityDiaryViewer({
                     title it belongs to, leaving only back and more on the photo. */}
                 <View style={styles.titleRow}>
                   <TextInput
+                    editable={!viewOnly}
                     style={[styles.nameInput, styles.nameInputPhone, styles.titleRowInput]}
                     value={name}
                     onChangeText={(v) => edit('name', v)}
@@ -991,10 +1004,10 @@ export function ActivityDiaryViewer({
                     placeholderTextColor="rgba(255,255,255,0.5)"
                     maxLength={30}
                   />
-                  <TouchableOpacity onPress={togglePin} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={activity.pinned ? 'Unpin activity' : 'Pin activity'}>
+                  {viewOnly && !activity.pinned ? null : <TouchableOpacity disabled={viewOnly} onPress={togglePin} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={activity.pinned ? 'Unpin activity' : 'Pin activity'}>
                     {/* Spins and shines when pinned, like Respect on the feed (Ricky, 2026-10-14). */}
                     <RespectStar on={!!activity.pinned} size={30} onColour="#ffc94d" onGradient={['#fff4d6', '#ffc94d']} offColour="rgba(255,255,255,0.85)" animate />
-                  </TouchableOpacity>
+                  </TouchableOpacity>}
                 </View>
               </View>
             </>
@@ -1018,6 +1031,7 @@ export function ActivityDiaryViewer({
             <>
               <Text style={styles.typeKicker}>{activityDisplayName(activity.activity_type)}</Text>
               <TextInput
+                editable={!viewOnly}
                 style={styles.nameInput}
                 value={name}
                 onChangeText={(v) => edit('name', v)}
@@ -1037,6 +1051,7 @@ export function ActivityDiaryViewer({
                 <Text style={styles.journalPanelLabel}>Journal</Text>
                 <View style={styles.journalPanelRule} />
                 <TextInput
+                  editable={!viewOnly}
                   ref={journalRef}
                   style={[styles.journalInput, { height: journalHeight }]}
                   value={notes}
@@ -1110,7 +1125,7 @@ export function ActivityDiaryViewer({
 
               {/* Share the activity as a picture (Ricky, 2026-10-22: "you
                   could be inspiring someone"). */}
-              {Platform.OS === 'web' ? (
+              {Platform.OS === 'web' && !viewOnly ? (
                 <View style={styles.shareRow}>
                   <TouchableOpacity style={[styles.sharePill, styles.sharePrimary]} onPress={() => openShareCard()} disabled={makingCard} activeOpacity={0.85}>
                     <RivalIcon name="share" size={16} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
@@ -1122,7 +1137,7 @@ export function ActivityDiaryViewer({
 
               {/* The journal as a diary page: dated like an entry, with faint
                   writing lines while it is empty (Ricky, 2026-10-11). */}
-              <TouchableOpacity style={styles.diary} activeOpacity={1} onPress={() => journalRef.current?.focus()}>
+              {viewOnly && !notes.trim() ? null : <TouchableOpacity style={styles.diary} activeOpacity={1} onPress={() => journalRef.current?.focus()}>
                 <View style={styles.diaryHead}>
                   <Text style={styles.diaryLabel}>Journal</Text>
                   <Text style={styles.diaryDate}>{diaryStamp(activity.started_at)}</Text>
@@ -1131,6 +1146,7 @@ export function ActivityDiaryViewer({
                     more below, so it reads as writing on the page. */}
                 <View>
                   <TextInput
+                    editable={!viewOnly}
                     ref={journalRef}
                     style={[styles.journalInput, styles.journalInputPhone, !notes && styles.journalPromptBold, { height: journalHeight }]}
                     value={notes}
@@ -1151,13 +1167,14 @@ export function ActivityDiaryViewer({
                     </>
                   ) : null}
                 </View>
-                {!notes.trim() ? <Text style={styles.diaryNote}>Shown with the activity on the team feed.</Text> : null}
-              </TouchableOpacity>
+                {!notes.trim() ? <Text style={styles.diaryNote}>Shown on team feeds</Text> : null}
+              </TouchableOpacity>}
 
               {/* The finer details, folded: one quiet line until opened
                   (Ricky, 2026-10-14). */}
-              {hasDetails(details) ? (
+              {hasDetails(details) || (recordingCount > 1 && !viewOnly) ? (
                 <View style={styles.finerCard}>
+                  {hasDetails(details) ? (<>
                   <TouchableOpacity style={styles.detailsHead} onPress={() => setDetailsOpen((v) => !v)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }}>
                     <Text style={styles.detailsLabel}>Details</Text>
                     <RivalIcon name="chevronDown" size={18} color="rgba(255,255,255,0.5)" style={detailsOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
@@ -1170,10 +1187,29 @@ export function ActivityDiaryViewer({
                   ) : detailsSummary(details) ? (
                     <Text style={styles.detailsSummary} numberOfLines={1}>{detailsSummary(details)}</Text>
                   ) : null}
+                  </>) : null}
+                  {recordingCount > 1 && !viewOnly ? (
+                    <TouchableOpacity style={[styles.devicesRow, hasDetails(details) && styles.devicesRowRule]} onPress={() => setRecordingsOpen(true)} activeOpacity={0.8} accessibilityRole="button">
+                      <RivalIcon name="watch" size={15} color={RivalColors.accentText} />
+                      <Text style={styles.devicesText}>Recorded on {recordingCount} devices</Text>
+                      <Text style={styles.devicesAction}>Switch</Text>
+                      <RivalIcon name="chevronRight" size={16} color={RivalColors.accentText} />
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               ) : null}
+              <RecordingsSheet
+                activityId={recordingsOpen ? activity.id : null}
+                activityType={activity.activity_type}
+                title={activity.name || activityDisplayName(activity.activity_type)}
+                onClose={() => setRecordingsOpen(false)}
+                onSwitched={async () => {
+                  const { data } = await supabase.from('activities').select('name, duration_seconds, distance_meters, elevation_meters, effort_score').eq('id', activity.id).maybeSingle();
+                  if (data) onUpdate(activity.id, data as Partial<DiaryActivity>);
+                }}
+              />
 
-              <View style={styles.detailsCard}>{whoAndWhere}</View>
+              <View style={viewOnly && !location ? undefined : styles.detailsCard}>{whoAndWhere}</View>
             </>
           )}
 
@@ -1397,6 +1433,10 @@ const styles = StyleSheet.create({
   detailsLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
   detailsSummary: { marginTop: 7, fontSize: 13, color: 'rgba(255,255,255,0.85)' },
   detailsOpenBody: { marginTop: 12 },
+  devicesRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  devicesRowRule: { marginTop: 12, paddingTop: 11, borderTopWidth: 1, borderTopColor: RivalGhost.hairline },
+  devicesText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.85)' },
+  devicesAction: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   detailsAttribution: { marginTop: 14, textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.35)' },
   pbBandTitle: { fontWeight: '700', color: '#ffe6a8' },
   pbBandFrom: { fontWeight: '500', color: 'rgba(255,255,255,0.5)' },

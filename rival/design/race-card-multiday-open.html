@@ -1,0 +1,224 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+* { box-sizing:border-box; }
+body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+.row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+.col { width:393px; flex-shrink:0; }
+.tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+.desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:56px; }
+.phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#0d0d0d; }
+.status { height:50px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; font-weight:700; font-size:16px; color:rgba(255,255,255,0.5); position:relative; z-index:2; }
+.mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; display:inline-block; }
+.serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+
+/* GreySheet */
+.dim { position:absolute; inset:0; background:rgba(0,0,0,0.55); }
+.sheet { position:absolute; left:0; right:0; bottom:0; background:#282828; border-top:1px solid #323232; border-radius:22px 22px 0 0; padding:10px 18px 0; overflow:hidden; }
+.glow { position:absolute; top:0; left:0; right:0; height:150px; background:radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+.grab { width:38px; height:4px; border-radius:2px; background:#323232; margin:0 auto 14px; position:relative; }
+.kick { font-size:9.5px; font-weight:800; letter-spacing:1.3px; color:#ffb59e; text-align:center; position:relative; }
+.stitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:24px; text-align:center; margin-top:3px; position:relative; }
+.glabel { font-size:10px; font-weight:800; letter-spacing:1px; color:#A0A0A0; margin:15px 0 8px; text-transform:uppercase; position:relative; }
+.gfield { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:14px; padding:13px 14px; font-size:16px; font-weight:500; }
+.gcard { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:0 13px; }
+.grow { display:flex; align-items:center; min-height:46px; gap:10px; padding:4px 0; }
+.grow + .grow { border-top:1px solid rgba(255,209,190,0.08); }
+.grow .ic { width:18px; text-align:center; font-size:16px; color:#ffb59e; }
+.grow .l { font-size:13.5px; font-weight:600; color:#A0A0A0; min-width:104px; }
+.grow .v { flex:1; text-align:right; font-size:15px; font-weight:500; padding:8px 0; }
+.grow .v.ph { color:rgba(255,255,255,0.28); }
+.grow .chev { font-size:18px; color:rgba(255,255,255,0.4); margin-left:-4px; }
+.gnote { font-size:12.5px; line-height:17px; color:#A0A0A0; margin-top:8px; }
+.tiles { display:flex; flex-wrap:wrap; gap:7px; }
+.tile { width:calc(25% - 5.25px); display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 0 8px; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); font-size:11.5px; font-weight:700; color:#A0A0A0; }
+.tile .b { width:32px; height:32px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); font-size:17px; color:#ffb59e; }
+.tile.on { background:linear-gradient(160deg,#ffb59e,#D97757); border-color:transparent; color:#2a1710; }
+.tile.on .b { background:rgba(42,23,16,0.14); color:#2a1710; }
+.foot { padding:16px 0 26px; }
+.primary { height:52px; border-radius:999px; background:linear-gradient(90deg,#D97757,#ffb59e); color:#2a1710; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; }
+.new { position:absolute; inset:-5px; border:1.5px dashed rgba(255,181,158,0.55); border-radius:20px; pointer-events:none; }
+.newtag { position:absolute; right:-6px; top:-14px; background:#ffb59e; color:#2a1710; font-size:9px; font-weight:800; letter-spacing:.8px; padding:3px 7px; border-radius:999px; }
+
+/* Events page */
+.page { background:#232120; position:absolute; inset:0; }
+.phead { position:relative; text-align:center; padding:16px 60px 12px; }
+.phead .glw { position:absolute; top:-80px; left:0; right:0; height:240px; background:radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+.back { position:absolute; left:16px; top:14px; width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; }
+.ptitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:28px; line-height:34px; margin-top:3px; position:relative; }
+.content { padding:0 16px; display:flex; flex-direction:column; gap:12px; }
+.card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px; position:relative; }
+.ticket { display:flex; align-items:center; gap:12px; }
+.rlabel { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#A0A0A0; }
+.tname { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:19px; line-height:24px; }
+.tmeta { font-size:12.5px; color:#A0A0A0; }
+.stub { align-self:stretch; display:flex; align-items:center; justify-content:center; min-width:64px; padding-left:12px; border-left:1.5px dashed rgba(255,209,190,0.18); }
+.discs { display:flex; gap:6px; flex-wrap:wrap; }
+.disc { padding:5px 10px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); font-size:11.5px; font-weight:600; color:rgba(255,255,255,0.6); }
+.goalrow { display:flex; align-items:center; justify-content:space-between; }
+.mlabel { font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#ffb59e; display:flex; align-items:center; gap:8px; }
+.gval { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:18px; }
+.msg { font-family:Georgia,serif; font-style:italic; font-size:15px; line-height:21px; color:rgba(255,255,255,0.6); }
+.pill { display:inline-flex; align-items:center; gap:4px; height:20px; padding:0 7px; border-radius:999px; font-size:9.5px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:#2a2116; }
+.pill .mi { font-size:11px; text-transform:none; letter-spacing:0; }
+.pill.ev { background:#f4ead8; }
+.pill.pb { background:#FFD700; }
+
+/* Activity week head */
+.app { position:absolute; inset:0; background:#131313; }
+.topnav { height:52px; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid rgba(255,255,255,0.08); }
+.logo { color:#ffb59e; font-weight:800; letter-spacing:4px; font-size:17px; }
+.pwh { margin:22px 20px 0; padding-top:22px; border-top:1px solid rgba(255,255,255,0.12); display:flex; flex-direction:column; gap:12px; }
+.pwrow { display:flex; align-items:flex-start; gap:10px; }
+.pwk { font-size:10px; font-weight:800; letter-spacing:2px; color:#f4ead8; }
+.pwt { display:flex; align-items:center; gap:8px; }
+.pwt b { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:22px; line-height:26px; }
+.eff { text-align:center; }
+.eff b { display:block; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:28px; line-height:32px; }
+.eff span { display:block; font-size:10px; font-weight:800; letter-spacing:2.2px; color:#ffb59e; margin-top:1px; }
+.pwtiles { display:flex; gap:6px; }
+.pwtile { flex:1; text-align:center; padding:9px 0; border-radius:14px; background:#282828; border:1px solid #323232; }
+.pwtile b { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; line-height:24px; }
+.pwtile b i { font-family:Manrope; font-style:normal; font-weight:600; font-size:12px; color:#ffb59e; }
+.pwtile span { display:block; font-size:9px; font-weight:800; letter-spacing:1.2px; color:rgba(255,255,255,0.55); margin-top:2px; }
+.cards { display:flex; gap:8px; margin:12px 0 0 20px; overflow:hidden; }
+.rest { width:30px; height:213px; border-radius:15px; background:#0b0b0b; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:rgba(255,255,255,0.32); }
+.rest b { font-family:Georgia,serif; font-style:italic; font-size:15px; }
+.rest span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:9px; font-weight:800; letter-spacing:1.4px; }
+.acard { width:160px; height:213px; border-radius:18px; flex-shrink:0; position:relative; overflow:hidden; background:linear-gradient(180deg,#4b5d72 0%,#3a3f4a 55%,#1d1b1a 100%); }
+.acard .ico { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding-bottom:30px; font-size:110px; color:rgba(255,255,255,0.16); }
+.acard .shade { position:absolute; inset:0; background:linear-gradient(0deg, rgba(14,12,11,0.85) 0%, rgba(14,12,11,0) 55%); }
+.acard .day { position:absolute; top:10px; right:12px; font-family:Georgia,serif; font-style:italic; font-size:13px; color:rgba(255,255,255,0.85); }
+.acard .ptag { position:absolute; top:9px; left:9px; }
+.acard .bot { position:absolute; left:10px; right:10px; bottom:10px; display:flex; align-items:flex-end; justify-content:space-between; }
+.acard .nm { font-size:12px; font-weight:700; color:#ffb59e; }
+.acard .st { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:16px; }
+.acard .ef { text-align:right; }
+.acard .ef span { display:block; font-size:7px; font-weight:800; letter-spacing:1.2px; color:#ffb59e; }
+.acard .ef b { font-family:Georgia,serif; font-style:italic; font-size:16px; }
+.acard.ring { box-shadow:inset 0 0 0 2px #f4ead8; }
+.bnav { position:absolute; left:14px; right:14px; bottom:26px; height:58px; border-radius:22px; background:rgba(28,28,28,0.96); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-around; font-size:11px; font-weight:700; color:#A0A0A0; }
+.bnav div { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 18px; border-radius:16px; }
+.bnav .on { background:#3a2620; color:#ffb59e; }
+
+/* Result sheet */
+.sheet.tall { padding-bottom:0; }
+.hero { margin-top:14px; border-radius:18px; padding:18px 14px 16px; text-align:center; position:relative; background:#2f2b26; border:1.5px solid transparent; }
+.hero.gold { background:linear-gradient(#2f2a22,#2f2a22) padding-box, linear-gradient(150deg,#FFE680 0%,#F5B759 45%,#8a6a1f 100%) border-box; }
+.hero.plain { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+.hero .lbl { font-size:10px; font-weight:800; letter-spacing:1.6px; color:#A0A0A0; }
+.bigtime { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:56px; line-height:64px; margin-top:2px; }
+.bigtime.goldfill { background:linear-gradient(180deg,#FFF6CC 0%,#FFD700 55%,#C9962B 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.bigtime.ember { background:linear-gradient(180deg,#ffffff,#D97757 170%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.bigpill { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 12px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:1px; color:#2a2116; margin-top:6px; }
+.bigpill .mi { font-size:15px; text-transform:none; letter-spacing:0; }
+.bigpill.gold { background:linear-gradient(180deg,#FFE680,#FFD700 50%,#E9B52A); }
+.bigpill.ivory { background:#f4ead8; }
+.cmp { display:flex; gap:8px; margin-top:12px; }
+.cmp div { flex:1; border-radius:14px; background:#323232; border:1px solid #3a3a3a; padding:9px 0; text-align:center; }
+.cmp b { display:block; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; line-height:24px; }
+.cmp span { display:block; font-size:9px; font-weight:800; letter-spacing:1.2px; color:rgba(255,255,255,0.55); margin-top:2px; }
+.cmp .up b { color:#FFD700; }
+.legv { flex:1; text-align:right; font-size:15px; font-weight:500; padding:8px 0; display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.delta { font-size:11px; font-weight:800; color:#FFD700; display:inline-flex; align-items:center; }
+.delta .mi { font-size:14px; }
+.delta.dim { color:rgba(255,255,255,0.4); }
+.minipb { display:inline-flex; align-items:center; gap:3px; height:18px; padding:0 6px; border-radius:999px; background:#FFD700; color:#2a2116; font-size:8.5px; font-weight:800; letter-spacing:.5px; }
+.minipb .mi { font-size:10px; text-transform:none; letter-spacing:0; }
+.msg2 { font-family:Georgia,serif; font-style:italic; font-size:15px; line-height:21px; color:rgba(255,255,255,0.6); text-align:center; margin-top:12px; }
+.btns { display:flex; gap:8px; padding:16px 0 26px; }
+.ghostbtn { flex:1; height:52px; border-radius:999px; border:1px solid rgba(255,181,158,0.4); color:#ffb59e; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; gap:6px; }
+.btns .primary { flex:1; }
+.bg { position:absolute; inset:0; background:#232120; }
+/* Card variants */
+.panel { width:393px; height:852px; border-radius:40px; background:#131313; padding:26px 20px; display:flex; flex-direction:column; gap:14px; }
+.vrow { display:flex; gap:12px; align-items:flex-start; }
+.vcap { font-size:11px; font-weight:800; letter-spacing:1px; color:#ffb59e; margin-bottom:6px; }
+.vnote { font-size:11.5px; line-height:15px; color:#A0A0A0; margin-top:6px; width:160px; }
+.acard .ptags { position:absolute; top:9px; left:9px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; z-index:2; }
+.acard.ivory { box-shadow:inset 0 0 0 2px #f4ead8; }
+.acard.goldb { box-shadow:inset 0 0 0 2px #FFD700; }
+.acard.mix { border:2px solid transparent; background:linear-gradient(180deg,#4b5d72 0%,#3a3f4a 55%,#1d1b1a 100%) padding-box, linear-gradient(160deg,#f4ead8 0%,#f4ead8 35%,#FFD700 75%) border-box; }
+.acard.mixphoto { border:2px solid transparent; background:url('../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg') center/cover padding-box, linear-gradient(160deg,#f4ead8 0%,#f4ead8 35%,#FFD700 75%) border-box; }
+.acard.photo { background:#222 url('../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg') center/cover; }
+.acard.wide { width:328px; }
+.legs { display:flex; gap:10px; margin-bottom:6px; }
+.legs span { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; color:rgba(255,255,255,0.85); }
+.legs .mi { font-size:13px; color:#ffb59e; }
+.pick { font-size:9px; font-weight:800; letter-spacing:1px; padding:3px 8px; border-radius:999px; background:#ffb59e; color:#2a1710; display:inline-block; margin-left:6px; }
+
+.edge { border:2px solid transparent; }
+.race1 { background:url('../assets/images/backgrounds/optimized/team-feed-hero-dusk-ridge-2.jpg') center/cover padding-box, linear-gradient(160deg,#f4ead8 0%,#f4ead8 35%,#FFD700 75%) border-box; }
+.race1 .shade { background:linear-gradient(0deg, rgba(14,12,11,0.9) 0%, rgba(14,12,11,0.35) 45%, rgba(14,12,11,0) 70%); }
+.race2 { width:328px; height:213px; border-radius:18px; flex-shrink:0; display:flex; overflow:hidden; background:linear-gradient(#232120,#232120) padding-box, linear-gradient(160deg,#f4ead8 0%,#f4ead8 35%,#FFD700 75%) border-box; }
+.race2 .ph { width:150px; flex-shrink:0; background:url('../assets/images/backgrounds/optimized/team-feed-hero-dusk-ridge-2.jpg') center/cover; position:relative; }
+.race2 .pn { flex:1; padding:10px 11px; display:flex; flex-direction:column; gap:6px; background:#282828; }
+.race2 .pt { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.lrow { display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:rgba(255,255,255,0.8); }
+.lrow .mi { font-size:13px; color:#ffb59e; }
+.lrow .t { margin-left:auto; color:#fff; font-weight:700; }
+.fin { display:flex; align-items:flex-end; justify-content:space-between; margin-top:auto; }
+.fin .st { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:21px; line-height:24px; }
+.fin .ef span { display:block; font-size:7px; font-weight:800; letter-spacing:1.2px; color:#ffb59e; text-align:right; }
+.fin .ef b { font-family:Georgia,serif; font-style:italic; font-size:16px; }
+.nm2 { font-size:12px; font-weight:700; color:#ffb59e; }
+
+.race2.full { width:353px; margin:10px 20px 0; }
+.race2.full .ph { width:160px; }
+.rest.evt { background:#1c1a17; box-shadow:inset 0 0 0 1.5px #f4ead8; color:#f4ead8; }
+.rest.evt .mi { font-size:13px; }
+
+.race2.multi { height:auto; min-height:213px; }
+.race2.multi .ph { background-image:url('../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg'); background-position:30% center; }
+.dayrow { display:flex; flex-direction:column; gap:2px; padding:5px 0; border-top:1px solid rgba(255,255,255,0.07); }
+.dayrow:first-of-type { border-top:0; }
+.dayrow .dh { display:flex; justify-content:space-between; font-size:9px; font-weight:800; letter-spacing:1px; color:#f4ead8; }
+.dayrow .dh span:last-child { color:#ffb59e; }
+.dayrow .wl { display:flex; justify-content:space-between; font-size:11.5px; font-weight:600; color:rgba(255,255,255,0.8); }
+.dayrow .wl b { color:#fff; font-weight:700; }
+.race2.multi { background:linear-gradient(#232120,#232120) padding-box, linear-gradient(#f4ead8,#f4ead8) border-box; }
+
+.race2.fixed { height:213px; }
+.dchips { display:flex; gap:6px; margin-top:4px; }
+.dchip { flex:1; border-radius:12px; background:#323232; border:1px solid #3a3a3a; padding:7px 0 6px; text-align:center; }
+.dchip b { display:block; font-size:9px; font-weight:800; letter-spacing:1px; color:#f4ead8; }
+.dchip span { display:block; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:16px; line-height:20px; margin-top:2px; }
+.dchip i { display:block; font-style:normal; font-size:8.5px; font-weight:700; color:rgba(255,255,255,0.5); }
+.cover { height:150px; margin:-10px -18px 0; background:url('../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg') center 35%/cover; position:relative; }
+.cover .cs { position:absolute; inset:0; background:linear-gradient(0deg,#282828 0%,rgba(40,40,40,0) 60%); }
+.cover .grab2 { position:absolute; top:10px; left:50%; margin-left:-19px; width:38px; height:4px; border-radius:2px; background:rgba(255,255,255,0.5); }
+.dsec { font-size:10px; font-weight:800; letter-spacing:1px; color:#f4ead8; margin:14px 0 8px; display:flex; justify-content:space-between; }
+.dsec span { color:#ffb59e; }
+.arow { display:flex; align-items:center; gap:10px; min-height:46px; }
+.arow + .arow { border-top:1px solid rgba(255,209,190,0.08); }
+.arow .ic { width:18px; text-align:center; font-size:16px; color:#ffb59e; }
+.arow .n { font-size:14px; font-weight:600; flex:1; }
+.arow .v { font-size:15px; font-weight:500; }
+.arow .ch { font-size:18px; color:rgba(255,255,255,0.35); }
+.sheet.open { top:60px; }
+.scrollfade { position:absolute; left:0; right:0; bottom:96px; height:40px; background:linear-gradient(0deg,#282828,rgba(40,40,40,0)); }
+.btns.abs { position:absolute; left:18px; right:18px; bottom:0; background:#282828; }
+.rest.evtpb { box-shadow:none; border:1.5px solid transparent; background:linear-gradient(#1c1a17,#1c1a17) padding-box, linear-gradient(160deg,#f4ead8 0%,#f4ead8 35%,#FFD700 75%) border-box; color:#f4ead8; }
+.race2.multi.pbedge { background:linear-gradient(#232120,#232120) padding-box, linear-gradient(160deg,#f4ead8 0%,#f4ead8 35%,#FFD700 75%) border-box; }
+</style></head><body><div class="row"><div class="col"><div class="tag">1 · Fixed size</div><div class="desc">The card stays the same height however many days: a chip per day with its Effort and how many activities. This one was an event PB, so the card and the day markers in the row run ivory into gold. Tap it to open the full event.</div><div class="phone"><div class="app"><div class="status"><span>9:41</span><span>●●●</span></div>
+<div class="topnav"><span class="logo">RIVAL</span><span class="mi" style="color:#ffb59e;font-size:24px">notifications_none</span></div>
+<div class="pwh">
+ <div class="pwrow"><div style="flex:1;min-width:0"><div class="pwk">WEEK 33 · AUG 10 – 16</div><div class="pwt"><b>Throwdown Open</b></div><div style="display:flex;gap:6px;margin-top:6px"><span class="pill ev"><span class="mi">flag</span>CrossFit</span><span class="pill pb"><span class="mi">emoji_events</span>PB</span><span class="pill pb" style="display:none"><span class="mi">emoji_events</span>PB</span></div></div>
+ <div class="eff"><b>315</b><span>EFFORT</span></div></div>
+ <div class="pwtiles"><div class="pwtile"><b>1<i>h</i> 03<i>m</i></b><span>TIME</span></div><div class="pwtile"><b>6.2<i>km</i></b><span>DISTANCE</span></div><div class="pwtile"><b>5</b><span>ACTIVITIES</span></div></div>
+</div>
+<div class="cards"><div class="rest"><b>10</b><span>MON</span></div><div class="acard"><span class="mi ico">directions_run</span><div class="shade"></div><span class="day">Tuesday</span><div class="bot"><div><div class="nm">Run</div><div class="st">6.2 km</div></div><div class="ef"><span>EFFORT</span><b>61.5</b></div></div></div><div class="rest"><b>12</b><span>WED</span></div><div class="rest"><b>13</b><span>THU</span></div><div class="rest evt evtpb"><span class="mi">flag</span><b>14</b><span>FRI</span></div><div class="rest evt evtpb"><span class="mi">flag</span><b>15</b><span>SAT</span></div><div class="rest evt evtpb"><span class="mi">flag</span><b>16</b><span>SUN</span></div></div><div class="race2 edge full multi fixed pbedge"><div class="ph"></div><div class="pn"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="pt"><span class="pill ev"><span class="mi">flag</span>CrossFit</span><span class="pill pb"><span class="mi">emoji_events</span>PB</span></div><span class="serif" style="font-size:13px;color:rgba(255,255,255,0.85)">Fri – Sun</span></div>
+<div style="font-size:9px;font-weight:800;letter-spacing:1px;color:#A0A0A0;margin-top:6px">EFFORT BY DAY</div>
+<div class="dchips"><div class="dchip"><b>FRI</b><span>64</span><i>1 event</i></div><div class="dchip"><b>SAT</b><span>118</span><i>2 events</i></div><div class="dchip"><b>SUN</b><span>72</span><i>Final</i></div></div>
+<div class="fin"><div><div class="nm2">Throwdown Open</div><div class="st">4 events</div></div><div class="ef"><span>EFFORT</span><b>254</b></div></div></div></div><div class="bnav"><div><span class="mi" style="font-size:20px">home</span>Today</div><div class="on"><span class="mi" style="font-size:20px">bar_chart</span>Activity</div><div><span class="mi" style="font-size:20px">groups</span>Teams</div><div><span class="mi" style="font-size:20px">chat_bubble_outline</span>Chat</div></div>
+</div></div></div><div class="col"><div class="tag">2 · Opened</div><div class="desc">Tapping opens it as a pop-up: the photo across the top, totals, then each day with its activities. Long events scroll inside the pop-up, not on the page. Tap an activity to open it.</div><div class="phone"><div class="bg"></div><div class="status"><span>9:41</span><span>●●●</span></div><div class="dim"></div>
+<div class="sheet open"><div class="cover"><div class="cs"></div><div class="grab2"></div></div>
+<div style="text-align:center;margin-top:-28px;position:relative"><div style="display:flex;justify-content:center;gap:6px"><span class="pill ev"><span class="mi">flag</span>CrossFit</span><span class="pill pb"><span class="mi">emoji_events</span>PB</span></div><div class="stitle" style="margin-top:6px">Throwdown Open</div><div style="font-size:12.5px;color:#A0A0A0;margin-top:2px">Fri, Aug 14 – Sun, Aug 16 · Auckland</div></div>
+<div class="cmp" style="margin-top:14px"><div><b>254</b><span>EFFORT</span></div><div><b>4</b><span>EVENTS</span></div><div><b>3</b><span>DAYS</span></div></div>
+<div class="dsec">FRIDAY<span>EFFORT 64</span></div><div class="gcard"><div class="arow"><span class="mi ic">fitness_center</span><span class="n">Event 1</span><span class="v">12:30</span><span class="mi ch">chevron_right</span></div></div>
+<div class="dsec">SATURDAY<span>EFFORT 118</span></div><div class="gcard"><div class="arow"><span class="mi ic">fitness_center</span><span class="n">Event 2</span><span class="v">8:45</span><span class="mi ch">chevron_right</span></div><div class="arow"><span class="mi ic">fitness_center</span><span class="n">Event 3</span><span class="v">21:10</span><span class="mi ch">chevron_right</span></div></div>
+<div class="dsec">SUNDAY<span>EFFORT 72</span></div><div class="gcard"><div class="arow"><span class="mi ic">fitness_center</span><span class="n">Final</span><span class="v">14:02</span><span class="mi ch">chevron_right</span></div></div>
+<div class="scrollfade"></div>
+<div class="btns abs"><div class="ghostbtn"><span class="mi" style="font-size:18px">ios_share</span>Share</div><div class="primary">Done</div></div>
+</div></div></div></div></body></html>

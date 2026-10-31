@@ -119,6 +119,8 @@ const ICONS = {
   crop: 'crop',
   // Repeat a workout on Log an activity.
   replay: 'replay',
+  swapVert: 'swap-vert',
+  photoLibrary: 'photo-library',
   video: 'videocam',
   brain: 'psychology',
   verified: 'verified',
@@ -148,6 +150,7 @@ const ICONS = {
   // measuring-tool rather than distance-traveled.
   distance: 'route',
   timer: 'timer',
+  speed: 'speed',
   // MaterialIcons' plain "timer" renders with a solid-filled button/hand —
   // this outline variant for spots that need a lighter, unfilled stopwatch.
   timerOutline: ['mci', 'timer-outline'] as const,

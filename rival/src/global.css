@@ -1,7 +1,6 @@
-/* Manrope — RIVAL's "Refined Ember" design system typeface (see
-   src/constants/rivalTheme.ts). Loaded here for web; native loads it via
+/* Manrope, RIVAL's typeface (src/constants/rivalTheme.ts), is loaded for web
+   in +html.tsx, without holding up the first frame; native loads it via
    @expo-google-fonts/manrope in _layout.tsx. */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
 
 /* React Native Web renders TextInput to a plain <input>/<textarea>, and
    TouchableOpacity to a div/button, both of which get the browser's own
@@ -198,3 +197,11 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   100% { transform: scale(2.6); opacity: 0; }
 }
 
+
+/* Holding a finger on a card brought up the phone's Copy / Look Up bar and
+   text handles (Ricky, 2026-10-28). An app doesn't select its labels; typing
+   fields still do. Touch screens only, so a desktop can still copy text. */
+@media (pointer: coarse) {
+  body, body * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, [contenteditable="true"], [contenteditable="true"] * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+}

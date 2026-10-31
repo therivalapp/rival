@@ -49,30 +49,76 @@ export function FocalFrame({
     return () => { cancelled = true; };
   }, [shown, type]);
 
+  const frameRef = useRef<any>(null);
+
+  function dragBy(dx: number, dy: number) {
+    const n = naturalRef.current;
+    if (!n) return;
+    const { width: fw, height: fh } = sizeRef.current;
+    const s = startRef.current;
+    const l = computeCoverLayout(fw, fh, n.w, n.h, s.x, s.y);
+    // Dragging right shows more of the left side, so x goes down.
+    const x = l.maxOffsetX > 0 ? clamp01(s.x - dx / l.maxOffsetX) : s.x;
+    const y = l.maxOffsetY > 0 ? clamp01(s.y - dy / l.maxOffsetY) : s.y;
+    onChangeRef.current(x, y);
+  }
+  const dragRef = useRef(dragBy);
+  dragRef.current = dragBy;
+
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => { startRef.current = focalRef.current; },
-    onPanResponderMove: (_e, g) => {
-      const n = naturalRef.current;
-      if (!n) return;
-      const { width: fw, height: fh } = sizeRef.current;
-      const s = startRef.current;
-      const l = computeCoverLayout(fw, fh, n.w, n.h, s.x, s.y);
-      // Dragging right shows more of the left side, so x goes down.
-      const x = l.maxOffsetX > 0 ? clamp01(s.x - g.dx / l.maxOffsetX) : s.x;
-      const y = l.maxOffsetY > 0 ? clamp01(s.y - g.dy / l.maxOffsetY) : s.y;
-      onChangeRef.current(x, y);
-    },
+    onPanResponderMove: (_e, g) => dragRef.current(g.dx, g.dy),
   })).current;
+
+  // Web listens to the finger and mouse directly. The frame sits inside a
+  // scrolling pop-up, and on iPhones the scroll took the gesture away from
+  // PanResponder (Ricky, 2026-10-31), so the photo would not move.
+  useEffect(() => {
+    const el = frameRef.current as HTMLElement | null;
+    if (Platform.OS !== 'web' || !el || typeof el.addEventListener !== 'function') return;
+    let fromX = 0, fromY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      fromX = e.touches[0].clientX; fromY = e.touches[0].clientY;
+      startRef.current = focalRef.current;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      dragRef.current(e.touches[0].clientX - fromX, e.touches[0].clientY - fromY);
+    };
+    const onMouseMove = (e: MouseEvent) => dragRef.current(e.clientX - fromX, e.clientY - fromY);
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      fromX = e.clientX; fromY = e.clientY;
+      startRef.current = focalRef.current;
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('mousedown', onMouseDown);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('mousedown', onMouseDown);
+      onMouseUp();
+    };
+  }, []);
 
   const layout = natural ? computeCoverLayout(width, height, natural.w, natural.h, focalX, focalY) : null;
   const web = Platform.OS === 'web';
 
   return (
     <View
-      {...pan.panHandlers}
+      ref={frameRef}
+      {...(Platform.OS === 'web' ? {} : pan.panHandlers)}
       // data-nodrag: a drag here moves the photo, not the pop-up it sits in.
       {...(web ? { dataSet: { nodrag: '1' } } : {})}
       style={[{ width, height, overflow: 'hidden', backgroundColor: '#1a1714' }, web && ({ touchAction: 'none', cursor: 'grab' } as any), style]}

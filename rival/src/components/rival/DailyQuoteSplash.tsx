@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isAppShown, onAppShown } from '../../lib/appReveal';
 import { createPortal } from 'react-dom';
 import { Animated, Easing, ImageBackground, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
@@ -120,17 +121,25 @@ export function DailyQuoteSplash() {
   useEffect(() => {
     if (!quote) return;
     closing.current = false;
+    // While the app is still opening, the quote fades in with the rest of the
+    // app (data-rival-fade, lib/appReveal.ts) in place of the wordmark, rather
+    // than popping up over it.
+    const withApp = !isAppShown();
     const reduced = prefersReducedMotion();
-    opacity.setValue(reduced ? 1 : 0);
+    opacity.setValue(reduced || withApp ? 1 : 0);
     progress.setValue(0);
-    if (!reduced) {
+    if (!reduced && !withApp) {
       Animated.timing(opacity, { toValue: 1, duration: FADE_IN_MS, useNativeDriver: Platform.OS !== 'web' }).start();
     }
-    // The hairline along the bottom fills over the hold time — the timer made
-    // visible, in place of a button to press.
-    Animated.timing(progress, { toValue: 1, duration: HOLD_MS, easing: Easing.linear, useNativeDriver: false }).start();
-    const t = setTimeout(close, HOLD_MS);
-    return () => clearTimeout(t);
+    // The hold starts once it can be seen.
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const off = onAppShown(() => {
+      // The hairline along the bottom fills over the hold time — the timer
+      // made visible, in place of a button to press.
+      Animated.timing(progress, { toValue: 1, duration: HOLD_MS, easing: Easing.linear, useNativeDriver: false }).start();
+      t = setTimeout(close, HOLD_MS);
+    });
+    return () => { off(); if (t) clearTimeout(t); };
   }, [quote]);
 
   if (!quote) return null;
@@ -139,7 +148,11 @@ export function DailyQuoteSplash() {
   const dateLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
   const splash = (
-    <Animated.View style={[styles.overlay, { opacity }]} accessibilityViewIsModal>
+    <Animated.View
+      {...(Platform.OS === 'web' ? { dataSet: { rivalFade: '1' } } : {})}
+      style={[styles.overlay, { opacity }]}
+      accessibilityViewIsModal
+    >
       <ImageBackground source={getDailyBackground()} style={styles.bg} resizeMode="cover">
         <View style={styles.scrim} />
         <Pressable style={styles.inner} onPress={close} accessibilityRole="button" accessibilityLabel="Continue to RIVAL">

@@ -127,7 +127,7 @@ export default function YearReviewScreen() {
             {review.count === 0 ? (
               <View style={[rb.card, { alignItems: 'center' }]}>
                 <Text style={rm.serifTitleSm}>No activities in {year}</Text>
-                <Text style={[rm.hint, { textAlign: 'center' }]}>Activities logged or synced in {year} will appear here.</Text>
+                <Text style={[rm.hint, { textAlign: 'center' }]}>Activities logged in {year} will appear here.</Text>
               </View>
             ) : (
               <>

@@ -11,13 +11,15 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { isoToDisplayDate, displayToIsoDate } from '../lib/dateFormat';
 import { findMatchingRaceId } from '../lib/raceMatch';
-import { RivalColors, RivalRadius, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalButtonColors, RivalGhost, PHONE_CARD_BG } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalRowLink, RivalWarm, activityIconName, rm, rb, GreyPageHead, GreyRows, GreyRow, GREY_PAGE_BG } from '../components/rival';
-import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB } from '../components/rival/MediaPicker';
+import { MAX_VIDEO_MB as SHARED_MAX_VIDEO_MB, MAX_MEDIA as SHARED_MAX_MEDIA } from '../components/rival/MediaPicker';
+import { DAY_SHORT, createSavedWorkout, savedWorkoutError, uploadWorkoutPhoto } from '../lib/savedWorkouts';
 import { tilesFor, useRecentTypes } from '../lib/recentTypes';
 import { CANONICAL_LIFTS, LIFT_ALIASES, matchCanonicalLift, normalizeLiftName } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
-import { goToTab } from '../lib/tabNav';
+import { backToOrigin, goToTab } from '../lib/tabNav';
+import { MilestonePhotoPrompt } from '../components/rival/MilestonePhotoPrompt';
 import { effortGoldText } from '../constants/reactionColours';
 import { toDisplayDistance, distanceUnit as distanceUnitLabel } from '../lib/units';
 
@@ -36,6 +38,7 @@ type ExtractedWorkout = {
 };
 
 type MediaItem = { blob: Blob; uri: string; type: 'photo' | 'video'; mimeType: string; ext: string };
+type ScanImage = { uri: string; aspectRatio: number; blob?: Blob; mimeType?: string; ext?: string };
 
 const TYPE_OPTIONS: Array<{ type: string; icon: string }> = [
   { type: 'Run', icon: '🏃' },
@@ -50,10 +53,22 @@ const TYPE_OPTIONS: Array<{ type: string; icon: string }> = [
   { type: 'Workout', icon: '💪' },
 ];
 
-// Class-based formats are almost always a full ~45-60min session even though the
-// scanned WOD/board only shows the timed portion (e.g. a 15min WOD inside an hour class).
+// Type names as the tiles show them, as on Manual entry.
+const TILE_NAMES: Record<string, string> = { WeightTraining: 'Weights', Hyrox: 'HYROX', HIIT: 'HIIT', CrossFit: 'CrossFit' };
+function tileLabel(t: string): string {
+  if (TILE_NAMES[t]) return TILE_NAMES[t];
+  const words = t.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+// Class formats: a board often shows only the timed WOD from an hour class.
+// The time entered is scored as it is; a short one gets a note asking for the
+// full class time if it was a class. No minimum, so a 15-minute session done
+// alone isn't scored as 45 (Ricky, 2026-10-27).
 const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
-const CLASS_DURATION_FLOOR_SECONDS = 45 * 60;
+function isShortClass(workoutType: string, seconds: number): boolean {
+  return CLASS_BASED_TYPES.has(workoutType) && seconds > 0 && seconds < 30 * 60;
+}
 
 function dateToLocalStr(d: Date): string {
   const y = d.getFullYear();
@@ -74,12 +89,6 @@ function todayLocalStr(): string {
   return dateToLocalStr(new Date());
 }
 
-function applyClassDurationFloor(workoutType: string, durationSeconds: number): number {
-  if (CLASS_BASED_TYPES.has(workoutType) && durationSeconds > 0 && durationSeconds < 30 * 60) {
-    return CLASS_DURATION_FLOOR_SECONDS;
-  }
-  return durationSeconds;
-}
 
 export default function ScanWorkoutScreen() {
   // The person's own types lead the Type chips (lib/recentTypes.ts); all ten stay.
@@ -87,7 +96,17 @@ export default function ScanWorkoutScreen() {
   const allTypes = TYPE_OPTIONS.map((o) => o.type);
   const typeOptions = tilesFor(recentTypes.filter((t) => allTypes.includes(t)), allTypes, 99)
     .map((t) => TYPE_OPTIONS.find((o) => o.type === t)!);
-  const [scanImages, setScanImages] = useState<Array<{ uri: string; aspectRatio: number }>>([]);
+  // The photos read for the workout's details. They are never posted; the
+  // blob is kept so one can be moved to the posted photos, or kept as a
+  // saved workout's photo.
+  const [scanImages, setScanImages] = useState<ScanImage[]>([]);
+  // Save as a workout (lib/savedWorkouts.ts): on with saveOnly, where the
+  // scan only saves the routine and nothing is logged.
+  const [saveAsWorkout, setSaveAsWorkout] = useState(false);
+  const [savedName, setSavedName] = useState('');
+  const [savedDay, setSavedDay] = useState<number | null>(null);
+  // A posted photo's menu: Make the cover, Remove.
+  const [mediaMenu, setMediaMenu] = useState<number | null>(null);
   const [extraMedia, setExtraMedia] = useState<MediaItem[]>([]);
   const [extractedWorkout, setExtractedWorkout] = useState<ExtractedWorkout | null>(null);
   const [userNotes, setUserNotes] = useState('');
@@ -97,7 +116,7 @@ export default function ScanWorkoutScreen() {
   // permission, AI read failures, save failures) is a whole-flow problem
   // shown near the action that triggered it, not a banner pinned over
   // content unrelated to the error.
-  const [fieldError, setFieldError] = useState<{ field: 'name' | 'date'; message: string } | null>(null);
+  const [fieldError, setFieldError] = useState<{ field: 'name' | 'date' | 'duration'; message: string } | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [mediaErrorMsg, setMediaErrorMsg] = useState<string | null>(null);
   // Decoupled from extractedWorkout.distance (a number) so typing "42." doesn't
@@ -133,6 +152,7 @@ export default function ScanWorkoutScreen() {
   }, [generalError]);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [savedActivityId, setSavedActivityId] = useState<string | null>(null);
+  const [milestoneCheck, setMilestoneCheck] = useState<{ activityId: string; userId: string } | null>(null);
   const [savedHasPhoto, setSavedHasPhoto] = useState(false);
   // What the phone's saved moment shows: the name and its figures.
   const [saved, setSaved] = useState<{ name: string; effort: number; seconds: number; exercises: number; km: number } | null>(null);
@@ -144,7 +164,10 @@ export default function ScanWorkoutScreen() {
   const [tagPickerIndex, setTagPickerIndex] = useState<number | null>(null);
   const [nameSuggestIndex, setNameSuggestIndex] = useState<number | null>(null);
   const [tagSearch, setTagSearch] = useState('');
-  const [activityDateStr, setActivityDateStr] = useState(() => isoToDisplayDate(todayLocalStr()));
+  // From an empty day on Activity: the activity is for that date.
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
+  const startDate = () => isoToDisplayDate(dateParam || todayLocalStr());
+  const [activityDateStr, setActivityDateStr] = useState(startDate);
   const [editActivityId, setEditActivityId] = useState<string | null>(null);
   const [editOriginalStartedAt, setEditOriginalStartedAt] = useState<string | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
@@ -157,7 +180,10 @@ export default function ScanWorkoutScreen() {
   const st = (wide ? styles : mobileStyles) as typeof styles;
   const em = (glyph: string) => (wide ? glyph : '');
 
-  const { activityId: editParamId, mode: entryMode, source: entrySource } = useLocalSearchParams<{ activityId?: string; mode?: string; source?: string }>();
+  const { activityId: editParamId, mode: entryMode, source: entrySource, saveOnly: saveOnlyParam } = useLocalSearchParams<{ activityId?: string; mode?: string; source?: string; saveOnly?: string }>();
+  // From Saved workouts: the scan saves the routine and logs nothing.
+  const saveOnly = saveOnlyParam === '1';
+  useEffect(() => { if (saveOnly) setSaveAsWorkout(true); }, [saveOnly]);
 
   // Entry-point params from the Add Workout hub. `mode=manual` jumps straight
   // into the manual-entry form; `source=camera|gallery` best-effort auto-opens
@@ -259,14 +285,14 @@ export default function ScanWorkoutScreen() {
     setGeneralError(null);
     setSuccessMsg(null);
     setSaved(null);
-    setActivityDateStr(isoToDisplayDate(todayLocalStr()));
+    setActivityDateStr(startDate());
     setEditActivityId(null);
     setEditOriginalStartedAt(null);
     setLiftTags({});
   }
 
-  function startManualEntry() {
-    resetForNewImage();
+  function startManualEntry(reset = true) {
+    if (reset) resetForNewImage();
     setExtractedWorkout({
       workoutType: 'Workout',
       duration: 0,
@@ -281,8 +307,23 @@ export default function ScanWorkoutScreen() {
 
   // Web: read the chosen photos and scan them. Used by the buttons here and
   // by photos handed over from Add an activity (lib/scanHandoff.ts).
-  async function scanWebFiles(files: File[]) {
+  async function scanWebFiles(picked: File[]) {
     resetForNewImage();
+    // Videos are never read: they are posted with the activity as picked.
+    const videos = picked.filter((f) => f.type.startsWith('video/'));
+    const files = picked.filter((f) => !f.type.startsWith('video/'));
+    if (videos.length) {
+      setExtraMedia(videos.slice(0, MAX_VIDEOS).map((f) => ({
+        blob: f, uri: URL.createObjectURL(f), type: 'video' as const,
+        mimeType: f.type || 'video/mp4', ext: (f.name.split('.').pop() || 'mp4').toLowerCase(),
+      })));
+      if (videos.length > MAX_VIDEOS) setMediaErrorMsg(`Up to ${MAX_VIDEOS} video per activity`);
+    }
+    if (!files.length) {
+      // Only videos: nothing to read, so the details are typed in.
+      startManualEntry(false);
+      return;
+    }
 
     const readFile = (file: File) => new Promise<{ dataUri: string; base64: string; mimeType: string; w: number; h: number }>((resolve) => {
       const reader = new FileReader();
@@ -299,9 +340,13 @@ export default function ScanWorkoutScreen() {
     });
 
     const results = await Promise.all(files.map(readFile));
-    setScanImages(results.map(r => ({ uri: r.dataUri, aspectRatio: r.w / r.h })));
+    const shown: ScanImage[] = results.map((r, i) => ({
+      uri: r.dataUri, aspectRatio: r.w / r.h, blob: files[i], mimeType: r.mimeType,
+      ext: (files[i].name.split('.').pop() || 'jpg').toLowerCase(),
+    }));
+    setScanImages(shown);
 
-    await analyzeImages(results.map(r => ({ base64Image: r.base64, mediaType: r.mimeType })));
+    await analyzeImages(results.map(r => ({ base64Image: r.base64, mediaType: r.mimeType })), shown);
   }
 
   async function pickImage(source: 'camera' | 'gallery') {
@@ -328,23 +373,27 @@ export default function ScanWorkoutScreen() {
 
     resetForNewImage();
 
-    setScanImages(result.assets.map(a => ({
+    const withData = result.assets.filter(a => a.base64);
+    const shown: ScanImage[] = withData.map(a => ({
       uri: a.uri,
       aspectRatio: a.width && a.height ? a.width / a.height : 1,
-    })));
+      mimeType: a.mimeType || 'image/jpeg',
+      ext: a.fileName?.split('.').pop() || 'jpg',
+    }));
+    setScanImages(shown);
 
-    const imagesForAnalysis = result.assets
-      .filter(a => a.base64)
+    const imagesForAnalysis = withData
       .map(a => ({ base64Image: a.base64!, mediaType: a.mimeType || 'image/jpeg' }));
 
     if (imagesForAnalysis.length > 0) {
-      await analyzeImages(imagesForAnalysis);
+      await analyzeImages(imagesForAnalysis, shown);
     } else {
       setGeneralError('Could not read the photo. Try again.');
     }
   }
 
-  const MAX_PHOTOS = 2;
+  // The same as the rest of the app (MediaPicker): ten in all, one a video.
+  const MAX_PHOTOS = SHARED_MAX_MEDIA;
   const MAX_VIDEOS = 1;
   const MAX_PHOTO_MB = 15;
   // Shared with MediaPicker, which matches the storage bucket's own limit.
@@ -358,8 +407,8 @@ export default function ScanWorkoutScreen() {
   ): string | null {
     if (type === 'video' && sizeMb > MAX_VIDEO_MB) return `Video too large (max ${MAX_VIDEO_MB}MB)`;
     if (type === 'photo' && sizeMb > MAX_PHOTO_MB) return `Photo too large (max ${MAX_PHOTO_MB}MB)`;
-    if (type === 'photo' && photoCount >= MAX_PHOTOS) return `Max ${MAX_PHOTOS} photos per workout`;
-    if (type === 'video' && videoCount >= MAX_VIDEOS) return `Max ${MAX_VIDEOS} video per workout`;
+    if (photoCount + videoCount >= MAX_PHOTOS) return `Up to ${MAX_PHOTOS} photos and videos per activity`;
+    if (type === 'video' && videoCount >= MAX_VIDEOS) return `Max ${MAX_VIDEOS} video per activity`;
     return null;
   }
 
@@ -441,7 +490,7 @@ export default function ScanWorkoutScreen() {
     setExtraMedia((prev) => prev.filter((_, i) => i !== index));
   }
 
-  async function analyzeImages(images: Array<{ base64Image: string; mediaType: string }>) {
+  async function analyzeImages(images: Array<{ base64Image: string; mediaType: string }>, shown: ScanImage[] = []) {
     setAnalyzing(true);
     setGeneralError(null);
     try {
@@ -461,14 +510,29 @@ export default function ScanWorkoutScreen() {
       const data = await response.json();
 
       if (!response.ok || !data.workout) {
-        setGeneralError(data.error || 'Could not read the workout image. Try a clearer photo.');
+        setGeneralError(data.error || 'The photo could not be read. Try a clearer photo.');
         return;
+      }
+
+      // The scan says which photos showed the workout's details and which
+      // were of the session itself (supabase/functions/scan-workout). Those
+      // are posted with the activity; the details stay private (Ricky,
+      // 2026-10-25). Without an answer, all are treated as details.
+      const roles: unknown[] = Array.isArray(data.workout.imageRoles) ? data.workout.imageRoles : [];
+      if (shown.length && roles.length === shown.length && roles.some((r) => r === 'moment')) {
+        const moments = shown.filter((_, i) => roles[i] === 'moment');
+        setScanImages(shown.filter((_, i) => roles[i] !== 'moment'));
+        const items = await Promise.all(moments.map(async (img) => ({
+          blob: img.blob ?? await (await fetch(img.uri)).blob(),
+          uri: img.uri, type: 'photo' as const, mimeType: img.mimeType || 'image/jpeg', ext: img.ext || 'jpg',
+        })));
+        setExtraMedia((prev) => [...items, ...prev].slice(0, MAX_PHOTOS));
       }
 
       const detectedType = data.workout.workoutType || 'Workout';
       setExtractedWorkout({
         workoutType: detectedType,
-        duration: applyClassDurationFloor(detectedType, data.workout.duration || 0),
+        duration: data.workout.duration || 0,
         distance: data.workout.distance ?? null,
         elevation: data.workout.elevation ?? null,
         exercises: data.workout.exercises || [],
@@ -478,7 +542,7 @@ export default function ScanWorkoutScreen() {
       setWorkoutName(data.workout.workoutType || 'Workout');
     } catch (err) {
       console.error('Analysis failed:', err);
-      setGeneralError('Could not read the workout image. Try a clearer photo.');
+      setGeneralError('The photo could not be read. Try a clearer photo.');
     } finally {
       setAnalyzing(false);
     }
@@ -594,8 +658,74 @@ export default function ScanWorkoutScreen() {
     if (tagPickerIndex === index) setTagPickerIndex(null);
   }
 
+  // Moving a photo between read-for-details and posted (Ricky, 2026-10-25).
+  async function moveToPosted(i: number) {
+    const img = scanImages[i];
+    if (!img) return;
+    if (extraMedia.length >= MAX_PHOTOS) { setMediaErrorMsg(`Up to ${MAX_PHOTOS} photos and videos per activity`); return; }
+    const blob = img.blob ?? await (await fetch(img.uri)).blob();
+    setScanImages((prev) => prev.filter((_, k) => k !== i));
+    setExtraMedia((prev) => [...prev, { blob, uri: img.uri, type: 'photo', mimeType: img.mimeType || 'image/jpeg', ext: img.ext || 'jpg' }]);
+  }
+  function moveToDetails(i: number) {
+    const item = extraMedia[i];
+    if (!item || item.type !== 'photo') return;
+    setMediaMenu(null);
+    setExtraMedia((prev) => prev.filter((_, k) => k !== i));
+    setScanImages((prev) => [...prev, { uri: item.uri, aspectRatio: 1, blob: item.blob, mimeType: item.mimeType, ext: item.ext }]);
+  }
+  function makeCover(i: number) {
+    setMediaMenu(null);
+    setExtraMedia((prev) => [prev[i], ...prev.filter((_, k) => k !== i)]);
+  }
+
+  // The routine as a saved workout, with the first details photo as its
+  // picture (private: the workout-photos bucket).
+  async function saveRoutine() {
+    if (!extractedWorkout) return;
+    const lines = extractedWorkout.exercises
+      .filter((e) => e.name?.trim())
+      .map((e) => ({ name: matchCanonicalLift(e.name) || e.name.trim(), sets: e.sets, reps: e.reps, weight: e.weight }));
+    if (!lines.length) throw new Error('There are no exercises to save.');
+    const { data: { user } } = await getAuthUser();
+    if (!user) throw new Error('Sign in to continue.');
+    let imagePath: string | null = null;
+    const first = scanImages[0];
+    if (first) {
+      const blob = first.blob ?? await (await fetch(first.uri)).blob();
+      const up = await fitPhoto({ blob, mimeType: first.mimeType || 'image/jpeg', ext: first.ext || 'jpg' });
+      imagePath = await uploadWorkoutPhoto(user.id, up.blob, up.mimeType, up.ext);
+    }
+    await createSavedWorkout({
+      name: (savedName.trim() || workoutName.trim() || 'Workout').slice(0, 60),
+      activityType: extractedWorkout.workoutType,
+      exercises: lines,
+      usualDay: savedDay,
+      imagePath,
+    });
+  }
+
   async function saveWorkout() {
     if (!extractedWorkout) return;
+    if (saveOnly) {
+      setLoading(true);
+      setGeneralError(null);
+      try {
+        await saveRoutine();
+        router.replace('/saved-workouts');
+      } catch (e) {
+        setGeneralError(savedWorkoutError(e));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    // The scan leaves the time blank when the photo shows none, rather than
+    // guessing it (Ricky, 2026-10-27: a Tabata sheet came back as 1:31:25).
+    if (!(extractedWorkout.duration > 0)) {
+      setFieldError({ field: 'duration', message: 'Enter the time. The photo does not show one.' });
+      return;
+    }
 
     setLoading(true);
     setFieldError(null);
@@ -703,7 +833,7 @@ export default function ScanWorkoutScreen() {
         // The activity itself is already saved, so this is reported rather than
         // fatal -- but silently dropping the lifts would leave the PR tracker
         // quietly wrong.
-        if (liftErr) setGeneralError(`Workout saved, but the lifts didn't attach: ${liftErr.message}`);
+        if (liftErr) setGeneralError(`Activity saved, but the lifts didn't attach: ${liftErr.message}`);
       }
 
       // Only photos/videos added in the "Photos & Videos" section get stored and shown
@@ -741,7 +871,12 @@ export default function ScanWorkoutScreen() {
 
       if (firstPhotoUrl) {
         const { error: coverErr } = await supabase.from('activities').update({ photo_url: firstPhotoUrl }).eq('id', activityId);
-        if (coverErr) setGeneralError(`Workout saved, but the cover photo didn't set: ${coverErr.message}`);
+        if (coverErr) setGeneralError(`Activity saved, but the cover photo didn't set: ${coverErr.message}`);
+      }
+
+      if (saveAsWorkout) {
+        try { await saveRoutine(); }
+        catch (e) { setGeneralError(`Activity saved, but it could not be saved as a workout: ${savedWorkoutError(e)}`); }
       }
 
       setSuccessMsg(`${name} saved with ${Math.round(effortScore)} Effort.`);
@@ -762,10 +897,10 @@ export default function ScanWorkoutScreen() {
       }).catch(() => {});
       // If they added a photo, let them AI-enhance it before leaving; otherwise
       // head back to the feed automatically.
-      if (!firstPhotoUrl) setTimeout(() => goToTab('/my-activities'), 1200);
+      if (!firstPhotoUrl) setMilestoneCheck({ activityId, userId: user.id });
     } catch (err) {
       console.error('Save failed:', err);
-      setGeneralError('Failed to save workout');
+      setGeneralError('The activity could not be saved. Try again.');
     } finally {
       setLoading(false);
     }
@@ -790,12 +925,12 @@ export default function ScanWorkoutScreen() {
             <View style={st.header}>
               <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))} color={RivalColors.accentFill} />
             </View>
-            <Text style={st.title}>{editActivityId ? 'Edit Activity' : 'Scan Workout'}</Text>
+            <Text style={st.title}>{editActivityId ? 'Edit Activity' : 'Scan Activity'}</Text>
           </>
         ) : (
           <GreyPageHead
             kicker={editActivityId ? 'EDIT' : 'AI SCAN'}
-            title={editActivityId ? 'Edit activity' : 'Scan workout'}
+            title={editActivityId ? 'Edit activity' : 'Scan activity'}
             onBack={() => (router.canGoBack() ? router.back() : goToTab('/my-activities'))}
           />
         )}
@@ -822,7 +957,7 @@ export default function ScanWorkoutScreen() {
                 </View>
               ))}
             </View>
-            <TouchableOpacity onPress={() => goToTab('/my-activities')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
+            <TouchableOpacity onPress={backToOrigin} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
               <Text style={mx.savedDone}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -831,7 +966,7 @@ export default function ScanWorkoutScreen() {
             <Text style={st.successBannerText}>{em('✓ ')}{successMsg}</Text>
             {savedActivityId && savedHasPhoto && (
               <View style={st.enhanceCta}>
-                <TouchableOpacity onPress={() => goToTab('/my-activities')}>
+                <TouchableOpacity onPress={backToOrigin}>
                   <Text style={st.enhanceDoneText}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -846,7 +981,7 @@ export default function ScanWorkoutScreen() {
           <View style={{ gap: 12 }}>
             <View style={rb.card}>
               <Text style={rb.label}>Photo scan</Text>
-              <Text style={mx.blendHint}>A workout card, whiteboard or app screenshot. Add several photos if one activity spans more than one.</Text>
+              <Text style={mx.blendHint}>A results card, whiteboard or app screenshot. Add several photos if one activity spans more than one.</Text>
               <View>
                 {['Capture or upload', 'Details read automatically', 'Review and save'].map((t, i) => (
                   <View key={t} style={[mx.blendStep, i > 0 && rb.rule]}>
@@ -879,16 +1014,16 @@ export default function ScanWorkoutScreen() {
         ) : scanImages.length === 0 && !extractedWorkout && !editParamId ? (
           <View style={st.uploadArea}>
             <Text style={st.uploadIcon}>📸</Text>
-            <Text style={st.uploadTitle}>Add Workout</Text>
+            <Text style={st.uploadTitle}>Add Activity</Text>
             <Text style={st.uploadSub}>
-              Photo from your training app, gym whiteboard, or workout card — select multiple if your workout spans a few photos
+              A photo of an app screen, gym whiteboard or results card. Select several if one activity spans more than one photo.
             </Text>
 
             <View style={st.howItWorksCard}>
               <Text style={st.howItWorksTitle}>How it works</Text>
               <View style={st.howItWorksRow}>
                 <Text style={st.howItWorksNum}>1</Text>
-                <Text style={st.howItWorksText}>Upload one or more photos of a single workout. Each day needs its own scan.</Text>
+                <Text style={st.howItWorksText}>Upload one or more photos of a single activity. Each day needs its own scan.</Text>
               </View>
               <View style={st.howItWorksRow}>
                 <Text style={st.howItWorksNum}>2</Text>
@@ -920,6 +1055,8 @@ export default function ScanWorkoutScreen() {
           </View>
         ) : (
           <View style={st.previewSection}>
+            {wide ? (
+              <>
             {scanImages.length === 1 && (
               <Image source={{ uri: scanImages[0].uri }} style={[st.image, { aspectRatio: scanImages[0].aspectRatio }]} resizeMode="contain" />
             )}
@@ -930,19 +1067,198 @@ export default function ScanWorkoutScreen() {
                     <Image key={i} source={{ uri: img.uri }} style={st.scanImageThumb} resizeMode="cover" />
                   ))}
                 </ScrollView>
-                <Text style={st.scanImagesHint}>{scanImages.length} photos combined into this workout</Text>
+                <Text style={st.scanImagesHint}>{scanImages.length} photos combined into this activity</Text>
+              </View>
+            )}
+              </>
+            ) : (
+              // Phone: every picked photo, sorted (Ricky, 2026-10-25). Read
+              // for details stays private; the rest is posted, the first
+              // one as the cover.
+              <View style={ph.card}>
+                {scanImages.length ? (
+                  <>
+                    <View style={ph.head}>
+                      <RivalIcon name="lock" size={13} color={RivalColors.textSecondary} />
+                      <Text style={ph.label}>Read for details · private</Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ph.row}>
+                      {scanImages.map((img, i) => (
+                        <View key={`d${i}`} style={ph.thumb}>
+                          <Image source={{ uri: img.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                          {extractedWorkout && !saveOnly ? (
+                            <TouchableOpacity style={ph.move} onPress={() => moveToPosted(i)} accessibilityRole="button" accessibilityLabel="Post this photo with the activity">
+                              <RivalIcon name="swapVert" size={14} color="#fff" />
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </>
+                ) : null}
+                {!saveOnly && (extractedWorkout || extraMedia.length > 0) ? (
+                  <>
+                    <View style={[ph.head, scanImages.length > 0 && { marginTop: 14 }]}>
+                      <RivalIcon name="photoLibrary" size={13} color={RivalColors.textSecondary} />
+                      <Text style={[ph.label, { flex: 1 }]}>Posted with the activity</Text>
+                      <Text style={ph.count}>{extraMedia.length}/{MAX_PHOTOS}</Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ph.row}>
+                      {extraMedia.map((item, i) => (
+                        <TouchableOpacity key={`p${i}`} style={[ph.thumb, mediaMenu === i && ph.thumbOn]} onPress={() => setMediaMenu((cur) => (cur === i ? null : i))} activeOpacity={0.85} accessibilityRole="button">
+                          {item.type === 'video' ? (
+                            <View style={[StyleSheet.absoluteFill, ph.video]}><RivalIcon name="video" size={24} color={RivalColors.accentText} /></View>
+                          ) : (
+                            <Image source={{ uri: item.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                          )}
+                          {i === extraMedia.findIndex((x) => x.type === 'photo') ? (
+                            <View style={ph.cover}><Text style={ph.coverText}>COVER</Text></View>
+                          ) : null}
+                          {item.type === 'photo' ? (
+                            <TouchableOpacity style={ph.move} onPress={() => moveToDetails(i)} accessibilityRole="button" accessibilityLabel="Keep this photo private">
+                              <RivalIcon name="swapVert" size={14} color="#fff" />
+                            </TouchableOpacity>
+                          ) : null}
+                        </TouchableOpacity>
+                      ))}
+                      {extraMedia.length < MAX_PHOTOS ? (
+                        <TouchableOpacity style={[ph.thumb, ph.add]} onPress={pickExtraMedia} accessibilityRole="button" accessibilityLabel="Add photos or a video">
+                          <RivalIcon name="add" size={22} color={RivalColors.accentText} />
+                        </TouchableOpacity>
+                      ) : null}
+                    </ScrollView>
+                    {mediaMenu != null && extraMedia[mediaMenu] ? (
+                      <View style={ph.menu}>
+                        {extraMedia[mediaMenu].type === 'photo' ? (
+                          <TouchableOpacity style={ph.menuItem} onPress={() => makeCover(mediaMenu)}>
+                            <RivalIcon name="star" size={15} color={RivalColors.accentText} />
+                            <Text style={ph.menuText}>Make the cover</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity style={ph.menuItem} onPress={() => { removeExtraMedia(mediaMenu); setMediaMenu(null); }}>
+                          <RivalIcon name="delete" size={15} color={RivalColors.danger} />
+                          <Text style={[ph.menuText, { color: RivalColors.danger }]}>Remove</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+                    {mediaErrorMsg ? <Text style={st.mediaErrorText}>{mediaErrorMsg}</Text> : null}
+                    <Text style={ph.hint}>Sorted automatically. The arrows move a photo to the other group. Tap a posted photo for more.</Text>
+                  </>
+                ) : null}
               </View>
             )}
 
             {analyzing ? (
               <View style={st.loadingBox}>
                 <ActivityIndicator color={RivalColors.accentFill} size="large" />
-                <Text style={st.loadingText}>Extracting workout details…</Text>
+                <Text style={st.loadingText}>Extracting activity details…</Text>
               </View>
             ) : extractedWorkout ? (
-              <View style={st.extractedBox}>
-                <Text style={st.extractedLabel}>Workout Details</Text>
+              <View style={wide ? st.extractedBox : mx.details}>
+                {!wide ? (
+                  // Phone: the type as tiles and the numbers as rows, as on
+                  // Manual entry.
+                  <>
+                    <View style={mx.tiles}>
+                      {typeOptions.map((opt) => {
+                        const on = extractedWorkout.workoutType === opt.type;
+                        return (
+                          <TouchableOpacity
+                            key={opt.type}
+                            style={[mx.tile, on && mx.tileOn]}
+                            onPress={() => setExtractedWorkout({
+                              ...extractedWorkout,
+                              workoutType: opt.type,
+                            })}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: on }}
+                          >
+                            <View style={[mx.tileArt, { pointerEvents: 'none' }]}>
+                              <RivalIcon name={activityIconName(opt.type)} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
+                            </View>
+                            <Text style={[mx.tileText, on && mx.tileTextOn]}>{tileLabel(opt.type)}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    <GreyRows>
+                      <GreyRow icon="timer" label="Time">
+                        <View style={mx.timeRow}>
+                          <TextInput
+                            style={mx.rowInput}
+                            value={extractedWorkout.duration > 0 ? String(Math.floor(extractedWorkout.duration / 60)) : ''}
+                            onChangeText={(v) => {
+                              const min = Number(v.replace(/\D/g, '') || 0);
+                              setExtractedWorkout({ ...extractedWorkout, duration: min * 60 + (extractedWorkout.duration % 60) });
+                              if (fieldError?.field === 'duration') setFieldError(null);
+                            }}
+                            placeholder="0"
+                            placeholderTextColor="rgba(255,255,255,0.28)"
+                            keyboardType="numeric" autoComplete="off"
+                            accessibilityLabel="Minutes"
+                          />
+                          <Text style={mx.rowUnit}>min</Text>
+                          <TextInput
+                            style={[mx.rowInput, mx.secInput]}
+                            value={extractedWorkout.duration % 60 ? String(extractedWorkout.duration % 60) : ''}
+                            onChangeText={(v) => {
+                              const sec = Math.min(59, Number(v.replace(/\D/g, '').slice(0, 2) || 0));
+                              setExtractedWorkout({ ...extractedWorkout, duration: Math.floor(extractedWorkout.duration / 60) * 60 + sec });
+                              if (fieldError?.field === 'duration') setFieldError(null);
+                            }}
+                            placeholder="00"
+                            placeholderTextColor="rgba(255,255,255,0.28)"
+                            keyboardType="numeric" autoComplete="off" maxLength={2}
+                            accessibilityLabel="Seconds"
+                          />
+                          <Text style={mx.rowUnit}>sec</Text>
+                        </View>
+                      </GreyRow>
+                      <GreyRow icon="distance" label="Distance">
+                        <View style={mx.timeRow}>
+                          <TextInput
+                            style={[mx.rowInput, mx.wideInput]}
+                            value={distanceText}
+                            onChangeText={(v) => {
+                              setDistanceText(v);
+                              const km = v.trim() === '' ? null : Number(v);
+                              if (!Number.isNaN(km)) setExtractedWorkout({ ...extractedWorkout, distance: km });
+                            }}
+                            placeholder="Optional"
+                            placeholderTextColor="rgba(255,255,255,0.28)"
+                            keyboardType="decimal-pad" autoComplete="off"
+                          />
+                          {distanceText ? <Text style={mx.rowUnit}>km</Text> : null}
+                        </View>
+                      </GreyRow>
+                      <GreyRow icon="elevation" label="Elevation">
+                        <View style={mx.timeRow}>
+                          <TextInput
+                            style={[mx.rowInput, mx.wideInput]}
+                            value={extractedWorkout.elevation ? String(extractedWorkout.elevation) : ''}
+                            onChangeText={(v) => {
+                              const m = v.trim() === '' ? null : Number(v);
+                              if (!Number.isNaN(m)) setExtractedWorkout({ ...extractedWorkout, elevation: m });
+                            }}
+                            placeholder="Optional"
+                            placeholderTextColor="rgba(255,255,255,0.28)"
+                            keyboardType="numeric" autoComplete="off"
+                          />
+                          {extractedWorkout.elevation ? <Text style={mx.rowUnit}>m</Text> : null}
+                        </View>
+                      </GreyRow>
+                    </GreyRows>
+                    {fieldError?.field === 'duration' ? <Text style={st.fieldError}>{fieldError.message}</Text> : null}
+                    {isShortClass(extractedWorkout.workoutType, extractedWorkout.duration) ? (
+                      <Text style={mx.classHint}>If this was a class, enter the full class time, including the warm-up.</Text>
+                    ) : null}
+                  </>
+                ) : null}
+                {wide ? <Text style={st.extractedLabel}>Activity Details</Text> : null}
 
+                {wide ? (
+                <>
                 <View style={st.typeFieldBox}>
                   <Text style={st.fieldLabel}>Type</Text>
                   <View style={st.typeChipRow}>
@@ -955,11 +1271,10 @@ export default function ScanWorkoutScreen() {
                           onPress={() => setExtractedWorkout({
                             ...extractedWorkout,
                             workoutType: opt.type,
-                            duration: applyClassDurationFloor(opt.type, extractedWorkout.duration),
                           })}
                         >
                           <RivalIcon name={activityIconName(opt.type)} size={15} color={selected ? RivalButtonColors.label(RivalColors.onAccentFill) : RivalColors.textSecondary} />
-                          <Text style={[st.typeChipText, selected && st.typeChipTextSelected]}>{opt.type}</Text>
+                          <Text style={[st.typeChipText, selected && st.typeChipTextSelected]}>{tileLabel(opt.type)}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -980,11 +1295,12 @@ export default function ScanWorkoutScreen() {
                     autoCapitalize="none"
                   />
                 </View>
-                {CLASS_BASED_TYPES.has(extractedWorkout.workoutType) && (
+                {isShortClass(extractedWorkout.workoutType, extractedWorkout.duration) && (
                   <Text style={st.classDurationHint}>
-                    CrossFit/Hyrox/HIIT classes usually run 45-60 min total — make sure this includes warm-up & skill work, not just the timed WOD.
+                    If this was a class, enter the full class time, including the warm-up.
                   </Text>
                 )}
+                {fieldError?.field === 'duration' ? <Text style={st.fieldError}>{fieldError.message}</Text> : null}
 
                 <View style={st.fieldRow}>
                   <Text style={st.fieldLabel}>Distance (km):</Text>
@@ -1016,9 +1332,11 @@ export default function ScanWorkoutScreen() {
                     keyboardType="numeric"
                   />
                 </View>
+                </>
+                ) : null}
 
                 {(
-                  <View style={st.exercisesBox}>
+                  <View style={[st.exercisesBox, !wide && mx.exercisesCard]}>
                     <View style={st.exercisesHeaderRow}>
                       <Text style={st.exercisesLabel}>Exercises ({extractedWorkout.exercises.length})</Text>
                       <View style={st.unitTogglesRow}>
@@ -1216,7 +1534,7 @@ export default function ScanWorkoutScreen() {
                 )}
 
                 <View style={st.nameInputBox}>
-                  <Text style={st.nameLabel}>Workout Name</Text>
+                  <Text style={st.nameLabel}>Activity Name</Text>
                   <TextInput
                     style={st.nameInput}
                     value={workoutName}
@@ -1237,6 +1555,7 @@ export default function ScanWorkoutScreen() {
                   {fieldError?.field === 'date' && <Text style={st.fieldError}>{em('⚠️ ')}{fieldError.message}</Text>}
                 </View>
 
+                {wide ? (
                 <View style={st.nameInputBox}>
                   <Text style={st.nameLabel}>Photos & Videos</Text>
                   <Text style={st.mediaHint}>
@@ -1272,6 +1591,58 @@ export default function ScanWorkoutScreen() {
                     })()}
                   </ScrollView>
                 </View>
+                ) : null}
+
+                {/* Save as a workout: the routine kept, to log again in one tap
+                    from Add an activity (lib/savedWorkouts.ts). */}
+                {!wide && !editActivityId ? (
+                  <View style={ph.card}>
+                    {saveOnly ? (
+                      <Text style={ph.label}>Save to repeat</Text>
+                    ) : (
+                      <TouchableOpacity
+                        style={ph.toggleRow}
+                        onPress={() => setSaveAsWorkout((v) => {
+                          if (!v) {
+                            const iso = displayToIsoDate(activityDateStr);
+                            if (savedDay == null && iso) setSavedDay(new Date(`${iso}T12:00:00`).getDay());
+                          }
+                          return !v;
+                        })}
+                        activeOpacity={0.8}
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: saveAsWorkout }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={ph.toggleTitle}>Add to Saved activities</Text>
+                          <Text style={ph.hint}>Log it again any time from Saved activities.</Text>
+                        </View>
+                        <View style={[ph.switch, saveAsWorkout && ph.switchOn]}><View style={[ph.knob, saveAsWorkout && ph.knobOn]} /></View>
+                      </TouchableOpacity>
+                    )}
+                    {saveAsWorkout ? (
+                      <>
+                        <TextInput
+                          style={ph.field}
+                          value={savedName}
+                          onChangeText={(v) => setSavedName(v.slice(0, 60))}
+                          placeholder={workoutName.trim() || 'Monday workout'}
+                          placeholderTextColor="rgba(255,255,255,0.35)"
+                          autoComplete="off"
+                          textContentType="none"
+                        />
+                        <Text style={[ph.label, { marginTop: 12, marginBottom: 8 }]}>Usually on · optional</Text>
+                        <View style={ph.days}>
+                          {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+                            <TouchableOpacity key={d} style={[ph.day, savedDay === d && ph.dayOn]} onPress={() => setSavedDay(savedDay === d ? null : d)} accessibilityRole="button" accessibilityState={{ selected: savedDay === d }}>
+                              <Text style={[ph.dayText, savedDay === d && ph.dayTextOn]}>{DAY_SHORT[d]}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </>
+                    ) : null}
+                  </View>
+                ) : null}
 
                 <View style={st.nameInputBox}>
                   <Text style={st.nameLabel}>Notes</Text>
@@ -1290,7 +1661,7 @@ export default function ScanWorkoutScreen() {
                   <TouchableOpacity
                     style={st.changeBtn}
                     onPress={() => editActivityId
-                      ? goToTab('/my-activities')
+                      ? backToOrigin()
                       : (() => { setScanImages([]); setExtractedWorkout(null); setLiftTags({}); setTagPickerIndex(null); })()}
                     disabled={loading}
                   >
@@ -1302,7 +1673,7 @@ export default function ScanWorkoutScreen() {
                     disabled={loading}
                   >
                     <BusyText busy={loading} style={st.saveBtnText}>
-                      {wide ? (loading ? '⏳ Saving…' : '✓ Save Workout') : (loading ? 'Saving…' : 'Save workout')}
+                      {wide ? (loading ? '⏳ Saving…' : '✓ Save Activity') : saveOnly ? (loading ? 'Saving…' : 'Save') : (loading ? 'Saving…' : 'Save activity')}
                     </BusyText>
                   </TouchableOpacity>
                 </View>
@@ -1322,9 +1693,42 @@ export default function ScanWorkoutScreen() {
         )}
 
       </ScrollView>
+      {milestoneCheck ? <MilestonePhotoPrompt {...milestoneCheck} onDone={backToOrigin} /> : null}
     </SafeAreaView>
   );
 }
+
+// The phone's photo card and Save as a workout (Ricky, 2026-10-25).
+const ph = StyleSheet.create({
+  card: { backgroundColor: 'rgba(255,209,190,0.05)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,181,158,0.22)', padding: 14, marginBottom: 12 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  label: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  count: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
+  row: { gap: 8 },
+  thumb: { width: 76, height: 96, borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)' },
+  thumbOn: { borderWidth: 2, borderColor: RivalColors.accentText },
+  video: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,209,190,0.08)' },
+  add: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.4)', backgroundColor: 'transparent' },
+  move: { position: 'absolute', right: 5, bottom: 5, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
+  cover: { position: 'absolute', left: 5, top: 5, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.6)' },
+  coverText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: RivalColors.accentText },
+  menu: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)' },
+  menuText: { fontSize: 13, fontWeight: '700', color: RivalColors.onSurface },
+  hint: { fontSize: 11.5, lineHeight: 16, color: 'rgba(255,255,255,0.4)', marginTop: 8 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  toggleTitle: { fontSize: 14.5, fontWeight: '700', color: RivalColors.textPrimary },
+  switch: { width: 42, height: 25, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', padding: 3, justifyContent: 'center' },
+  switchOn: { backgroundColor: RivalColors.accentFill },
+  knob: { width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff' },
+  knobOn: { alignSelf: 'flex-end' },
+  field: { marginTop: 12, backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, color: '#fff', fontSize: 15, fontWeight: '500' },
+  days: { flexDirection: 'row', gap: 5 },
+  day: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'transparent' },
+  dayOn: { backgroundColor: 'rgba(255,181,158,0.14)', borderColor: 'rgba(255,181,158,0.6)' },
+  dayText: { fontSize: 11.5, fontWeight: '800', color: RivalColors.textSecondary },
+  dayTextOn: { color: '#fff' },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
@@ -1542,6 +1946,30 @@ const mobileStyles = {
 
 // Mobile-only pieces of the empty state.
 const mx = StyleSheet.create({
+  // Scanned details on a phone, in Manual entry's look.
+  details: { gap: 14 },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tile: {
+    // Four to a row; ten types leave two in the last row, kept the same
+    // size rather than stretched.
+    width: Platform.OS === 'web' ? 'calc(25% - 6px)' : '23%', height: 78, justifyContent: 'flex-end', paddingHorizontal: 8, paddingBottom: 9, overflow: 'hidden',
+    borderRadius: 16, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)',
+  } as any,
+  tileOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' } as any,
+  tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  // Bootcamp fits a quarter of a phone whole, never cut off.
+  tileText: { fontSize: 12, fontWeight: '800', color: '#fff', letterSpacing: -0.1 } as any,
+  tileTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
+  rowInput: {
+    width: 44, textAlign: 'right', paddingVertical: 8, paddingHorizontal: 0, color: '#fff', fontSize: 15, fontWeight: '500',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
+  },
+  secInput: { width: 28, marginLeft: 6 },
+  wideInput: { width: 110 },
+  rowUnit: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
+  classHint: { fontSize: 12.5, lineHeight: 18, color: RivalColors.textSecondary, marginTop: -4, paddingHorizontal: 2 },
+  exercisesCard: { marginTop: 0, backgroundColor: PHONE_CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14 },
   // The phone's saved moment (scan-saved-polished mockup).
   saved: { alignItems: 'center', paddingTop: 14, paddingHorizontal: 8 },
   savedBadge: {

@@ -6,6 +6,7 @@ import { resolveCanonicalActivityId, linkNewActivitySource } from '../_shared/ac
 import { calculateEffortScore, loadScoringConfig } from '../_shared/effortScore.ts'
 import { normaliseActivityType } from '../_shared/activityType.ts'
 import { getFreshStravaToken } from '../_shared/stravaAuth.ts'
+import { isPrivateOnStrava, removeStravaActivity } from '../_shared/stravaRemoval.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -137,6 +138,11 @@ serve(async (req) => {
 
     // deno-lint-ignore no-explicit-any
     async function processActivity(activity: any): Promise<{ seconds: number; effort: number } | null> {
+      // "Only you" on Strava stays off RIVAL, and goes if it was already here.
+      if (isPrivateOnStrava(activity)) {
+        await removeStravaActivity(supabase, user.id, String(activity.id))
+        return null
+      }
       // Strava spells it "Crossfit"; RIVAL stores "CrossFit". Without this the
       // same sport gets two scoring_config rows and two tuning knobs.
       // sport_type, not type: the legacy `type` field collapses the granular

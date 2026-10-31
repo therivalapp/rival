@@ -1,0 +1,138 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+  .row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+  .col { width:393px; flex-shrink:0; }
+  .tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+  .desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:72px; }
+  .phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#232120; }
+  .status { height:50px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; font-weight:700; font-size:16px; }
+  .mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; letter-spacing:normal; display:inline-block; }
+  .serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+
+  /* Page bits (manual-entry.tsx, phone) */
+  .pad { padding:0 16px; }
+  .pills { display:flex; gap:8px; margin:4px 0 14px; overflow:hidden; }
+  .pill { padding:9px 15px; border-radius:14px; border:1px solid rgba(255,181,158,0.22); font-size:14px; font-weight:800; white-space:nowrap; }
+  .pill.on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; border-color:transparent; }
+  .pill.dash { border-style:dashed; color:#ffb59e; }
+  .card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px; }
+  .cardLabel { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#A0A0A0; }
+  .hint { font-size:11.5px; color:rgba(255,255,255,0.4); }
+  .rows { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:0 13px; }
+  .r { display:flex; align-items:center; gap:10px; min-height:44px; border-top:1px solid rgba(255,209,190,0.08); font-size:13.5px; font-weight:600; color:#A0A0A0; }
+  .r:first-child { border-top:none; }
+  .r .mi { font-size:18px; color:#ffb59e; width:18px; }
+  .r b { margin-left:auto; color:#fff; font-weight:500; font-size:15px; }
+  .r b.ph { color:rgba(255,255,255,0.35); }
+
+  .wName { display:flex; align-items:center; gap:10px; }
+  .wName .field { flex:1; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; padding:4px 0; border-bottom:1px solid rgba(255,181,158,0.35); }
+  .chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip { display:flex; align-items:center; gap:5px; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.07); font-size:12.5px; font-weight:700; color:rgba(255,255,255,0.8); }
+  .chip .mi { font-size:14px; color:#ffb59e; }
+  .chip.on { background:rgba(255,181,158,0.14); border-color:rgba(255,181,158,0.6); color:#fff; }
+  .unit { display:flex; align-self:flex-start; background:rgba(255,255,255,0.05); border-radius:999px; padding:3px; gap:2px; }
+  .unit span { padding:6px 16px; border-radius:999px; font-size:12.5px; font-weight:800; color:#A0A0A0; }
+  .unit span.on { background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; }
+  .lift { background:rgba(255,255,255,0.04); border-radius:14px; padding:10px 12px; display:flex; align-items:center; gap:10px; }
+  .idx { width:22px; height:22px; border-radius:11px; text-align:center; line-height:22px; font-size:11px; font-weight:800; color:#ffb59e; background:rgba(255,209,190,0.10); flex-shrink:0; }
+  .lname { flex:1; min-width:0; }
+  .lname b { display:block; font-size:14px; font-weight:700; }
+  .lname span { font-size:11.5px; color:rgba(255,255,255,0.45); }
+  .lname span.ghost { color:rgba(255,255,255,0.28); }
+  .nums { display:flex; gap:5px; }
+  .num { width:46px; text-align:center; background:rgba(0,0,0,0.18); border-radius:9px; padding:5px 0 4px; }
+  .num i { display:block; font-style:normal; font-size:8.5px; font-weight:800; letter-spacing:0.5px; color:rgba(255,255,255,0.45); }
+  .num em { font-style:normal; font-size:16px; font-weight:300; }
+  .num em.ghost { color:rgba(255,255,255,0.3); }
+  .pbDot { font-size:9px; font-weight:800; color:#FFD700; letter-spacing:0.4px; }
+  .add { display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 0; border-radius:999px; border:1px dashed rgba(255,209,190,0.35); color:#ffb59e; font-size:13.5px; font-weight:700; }
+  .bar { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:14px; padding:12px 16px 30px; background:#232120; border-top:1px solid rgba(255,209,190,0.08); }
+  .bar .l { color:#A0A0A0; font-size:12px; font-weight:700; width:110px; line-height:1.35; }
+  .bar .b { flex:1; text-align:center; padding:15px 0; border-radius:999px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; font-weight:800; font-size:16px; }
+  .head { display:flex; align-items:center; justify-content:space-between; padding:6px 16px 10px; }
+  .back { width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:#ffb59e; }
+  .ptitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:24px; }
+
+  /* Sheet (RivalGreySheet + add-workout.tsx) */
+  .dim { position:absolute; inset:0; background:rgba(0,0,0,0.72); }
+  .under { position:absolute; inset:0; padding:60px 16px; opacity:0.5; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#282828; border-top:1px solid #323232; border-radius:22px 22px 0 0; padding:10px 18px 30px; overflow:hidden; }
+  .sheet .glow { position:absolute; top:0; left:0; right:0; height:150px; background:radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+  .grab { width:38px; height:4px; border-radius:2px; background:#323232; margin:0 auto 14px; position:relative; }
+  .kick { font-size:9.5px; font-weight:800; letter-spacing:1.3px; color:#ffb59e; text-align:center; position:relative; }
+  .stitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:24px; text-align:center; margin-top:3px; position:relative; }
+  .tiles { display:flex; gap:10px; position:relative; }
+  .tile { flex:1; min-height:132px; border-radius:18px; padding:16px; display:flex; flex-direction:column; justify-content:flex-end; gap:3px; position:relative; overflow:hidden; }
+  .tile.p { background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; }
+  .tile.g { border:1px solid rgba(255,181,158,0.35); background:rgba(255,209,190,0.05); }
+  .tile .art { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:118px; }
+  .tile.p .art { color:rgba(255,255,255,0.32); }
+  .tile.g .art { color:rgba(255,181,158,0.24); }
+  .tile .fade { position:absolute; inset:0; }
+  .tile.p .fade { background:linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%); }
+  .tile.g .fade { background:linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%); }
+  .tile b { position:relative; font-size:17px; font-weight:800; }
+  .tile span { position:relative; font-size:12px; font-weight:500; color:#A0A0A0; }
+  .tile.p span { color:#5c1902; opacity:0.75; }
+  .glabel { font-size:10px; font-weight:800; letter-spacing:1px; color:#A0A0A0; text-transform:uppercase; margin:18px 0 8px; display:flex; justify-content:space-between; position:relative; }
+  .glabel a { color:#ffb59e; letter-spacing:0.4px; text-transform:none; font-size:12px; }
+  .wrow { display:flex; gap:9px; position:relative; }
+  .wcard { flex:1; min-width:0; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); overflow:hidden; }
+  .wcard.today { border-color:rgba(255,181,158,0.6); background:rgba(255,181,158,0.10); }
+  .thumb { height:58px; position:relative; background-size:cover; background-position:center; }
+  .thumb .day { position:absolute; left:7px; top:7px; padding:2px 7px; border-radius:999px; background:rgba(0,0,0,0.55); font-size:9.5px; font-weight:800; letter-spacing:0.5px; color:#ffb59e; }
+  .wbody { padding:8px 9px 9px; }
+  .wbody b { display:block; font-size:12.5px; font-weight:800; line-height:15px; }
+  .wbody span { font-size:10.5px; color:rgba(255,255,255,0.45); }
+  .note { font-size:12px; color:#A0A0A0; text-align:center; margin-top:16px; position:relative; }
+  /* A whiteboard-ish photo stand-in for a scanned routine. */
+  .paper { background:#e9e3d6; color:#2b2722; font-family:'Bradley Hand','Segoe Print','Comic Sans MS',cursive; }
+
+  /* Library page */
+  .libItem { display:flex; gap:12px; align-items:center; padding:10px; border-radius:16px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); }
+  .libThumb { width:64px; height:64px; border-radius:12px; flex-shrink:0; overflow:hidden; position:relative; }
+  .libItem b { font-size:15px; font-weight:800; display:block; }
+  .libItem .sub { font-size:11.5px; color:rgba(255,255,255,0.45); margin-top:2px; }
+  .libItem .ex { font-size:11.5px; color:rgba(255,255,255,0.7); margin-top:4px; }
+  .more { width:28px; height:28px; border-radius:14px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.6); margin-left:auto; flex-shrink:0; }
+  .ghostBtn { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 0; border-radius:999px; border:1px solid rgba(255,181,158,0.35); color:#ffb59e; font-size:14px; font-weight:700; flex:1; }
+  .primBtn { display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 0; border-radius:999px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; font-size:14px; font-weight:800; flex:1; }
+  .field2 { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.6); border-radius:14px; padding:13px 14px; font-size:16px; font-weight:500; }
+  .dayPills { display:flex; gap:6px; }
+  .dayPills span { flex:1; text-align:center; padding:8px 0; border-radius:10px; background:rgba(255,255,255,0.05); font-size:12px; font-weight:800; color:#A0A0A0; }
+  .dayPills span.on { background:rgba(255,181,158,0.14); color:#fff; box-shadow: inset 0 0 0 1px rgba(255,181,158,0.6); }
+
+  .backBtn { position:absolute; left:18px; top:38px; width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; color:#fff; z-index:2; }
+  .backBtn .mi { font-size:24px; }
+  .link { text-align:center; color:#ffb59e; font-size:13px; font-weight:700; margin-top:14px; position:relative; }
+  .pg { display:grid; gap:8px; position:relative; margin-top:14px; }
+  .pt { aspect-ratio:3/4; border-radius:14px; position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; padding:9px; gap:1px; border:1px solid rgba(255,181,158,0.35); background:rgba(255,209,190,0.05); }
+  .pt .photo { position:absolute; inset:0; }
+  .pt .shade { position:absolute; inset:0; background:linear-gradient(0deg, rgba(35,33,32,0.97) 22%, rgba(35,33,32,0.5) 58%, rgba(35,33,32,0.05) 100%); }
+  .pt.today { border:1.5px solid #ffb59e; }
+  .pt.today .shade { background:linear-gradient(0deg, rgba(92,40,22,0.97) 22%, rgba(92,40,22,0.5) 58%, rgba(92,40,22,0.05) 100%); }
+  .pt b { position:relative; font-size:13px; font-weight:800; line-height:15px; }
+  .pt span { position:relative; font-size:10.5px; color:rgba(255,255,255,0.6); }
+  .pt .badge, .pt .day { position:absolute; top:7px; left:7px; padding:2px 7px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:0.5px; }
+  .pt .badge { background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; }
+  .pt .day { background:rgba(0,0,0,0.55); color:#ffb59e; }
+  .pt .handw { position:absolute; inset:0; padding:28px 9px 0; font-family:'Bradley Hand','Segoe Print','Comic Sans MS',cursive; font-size:10px; line-height:12.5px; color:#2b2722; }
+  .pt.ghost { border-style:dashed; justify-content:center; align-items:center; text-align:center; }
+  .pt.ghost .mi { font-size:24px; color:#ffb59e; }
+  .g4 .pt { padding:7px; border-radius:12px; }
+  .g4 .pt b { font-size:11.5px; line-height:13px; }
+  .g4 .pt span { font-size:9.5px; }
+  .g4 .pt .handw { font-size:8.5px; line-height:10.5px; padding:24px 7px 0; }
+  .g4 .pt .badge, .g4 .pt .day { font-size:8px; padding:2px 6px; top:6px; left:6px; }
+  .strip { display:flex; gap:8px; margin:14px -18px 0 0; overflow:hidden; position:relative; }
+  .strip .pt { width:104px; flex-shrink:0; }
+  .dots { display:flex; justify-content:center; gap:5px; margin-top:12px; position:relative; }
+  .dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,0.2); }
+  .dots i.on { background:#ffb59e; width:16px; }
+</style></head><body><div class="row"><div class="col"><div class="tag">A · Three across</div><div class="desc">Portrait tiles, 3 across. Seven workouts and Save a new one take three rows, so the pop-up grows to about two thirds of the screen. Names fit on two lines.</div><div class="phone"><div class="status"><span>9:03</span><span>89</span></div><div class="dim"></div><div class="sheet"><div class="backBtn"><span class="mi">chevron_left</span></div><div class="glow"></div><div class="grab"></div><div class="kick">LOG</div><div class="stitle">Saved workouts</div><div class="pg" style="grid-template-columns:repeat(3,1fr)"><div class="pt today"><div class="photo" style="background:#e9e3d6"><div class="handw">MONDAY<br>Bench 4x6<br>Inc DB 3x10<br>Cable fly 3x12<br>Dips 3x12</div></div><div class="shade"></div><span class="badge">TODAY</span><b>Monday session</b><span>6 exercises</span></div><div class="pt"><div class="photo" style="background:#dfe6e9"><div class="handw">LEGS<br>Squat 5x5<br>RDL 3x8<br>Lunge 3x10</div></div><div class="shade"></div><span class="day">WED</span><b>Leg day</b><span>5 exercises</span></div><div class="pt"><div class="photo" style="background:#e6dfe9"><div class="handw">FRIDAY<br>Clean 5x3<br>Push press<br>Pull-ups</div></div><div class="shade"></div><span class="day">FRI</span><b>Friday power</b><span>4 exercises</span></div><div class="pt"><div class="photo" style="background:#e3e9df"><div class="handw">PULL<br>Deadlift 3x5<br>Row 4x8<br>Pull-ups</div></div><div class="shade"></div><span class="day">TUE</span><b>Pull day</b><span>5 exercises</span></div><div class="pt"><div class="photo" style="background:#3a3431;display:flex;align-items:center;justify-content:center;padding-bottom:30px"><span class="mi" style="font-size:40px;color:rgba(255,181,158,0.22)">fitness_center</span></div><div class="shade"></div><b>Chest day</b><span>1 exercise</span></div><div class="pt"><div class="photo" style="background:#3a3431;display:flex;align-items:center;justify-content:center;padding-bottom:30px"><span class="mi" style="font-size:40px;color:rgba(255,181,158,0.22)">fitness_center</span></div><div class="shade"></div><b>Hotel gym</b><span>4 exercises</span></div><div class="pt"><div class="photo" style="background:#efe4d6"><div class="handw">ARMS<br>Curl 4x10<br>Hammer 3x12<br>Skull 3x10</div></div><div class="shade"></div><span class="day">SAT</span><b>Arms</b><span>6 exercises</span></div><div class="pt ghost"><span class="mi">add_a_photo</span><b style="margin-top:6px">Save a new one</b></div></div><div class="link">Manage saved workouts</div></div></div></div><div class="col"><div class="tag">B · Four across</div><div class="desc">Four across keeps all eight in two rows, about the size of Add an activity now. The tiles get small: names shrink and the photo is harder to read.</div><div class="phone"><div class="status"><span>9:03</span><span>89</span></div><div class="dim"></div><div class="sheet"><div class="backBtn"><span class="mi">chevron_left</span></div><div class="glow"></div><div class="grab"></div><div class="kick">LOG</div><div class="stitle">Saved workouts</div><div class="pg g4" style="grid-template-columns:repeat(4,1fr)"><div class="pt today"><div class="photo" style="background:#e9e3d6"><div class="handw">MONDAY<br>Bench 4x6<br>Inc DB 3x10<br>Cable fly 3x12<br>Dips 3x12</div></div><div class="shade"></div><span class="badge">TODAY</span><b>Monday session</b><span>6 exercises</span></div><div class="pt"><div class="photo" style="background:#dfe6e9"><div class="handw">LEGS<br>Squat 5x5<br>RDL 3x8<br>Lunge 3x10</div></div><div class="shade"></div><span class="day">WED</span><b>Leg day</b><span>5 exercises</span></div><div class="pt"><div class="photo" style="background:#e6dfe9"><div class="handw">FRIDAY<br>Clean 5x3<br>Push press<br>Pull-ups</div></div><div class="shade"></div><span class="day">FRI</span><b>Friday power</b><span>4 exercises</span></div><div class="pt"><div class="photo" style="background:#e3e9df"><div class="handw">PULL<br>Deadlift 3x5<br>Row 4x8<br>Pull-ups</div></div><div class="shade"></div><span class="day">TUE</span><b>Pull day</b><span>5 exercises</span></div><div class="pt"><div class="photo" style="background:#3a3431;display:flex;align-items:center;justify-content:center;padding-bottom:30px"><span class="mi" style="font-size:40px;color:rgba(255,181,158,0.22)">fitness_center</span></div><div class="shade"></div><b>Chest day</b><span>1 exercise</span></div><div class="pt"><div class="photo" style="background:#3a3431;display:flex;align-items:center;justify-content:center;padding-bottom:30px"><span class="mi" style="font-size:40px;color:rgba(255,181,158,0.22)">fitness_center</span></div><div class="shade"></div><b>Hotel gym</b><span>4 exercises</span></div><div class="pt"><div class="photo" style="background:#efe4d6"><div class="handw">ARMS<br>Curl 4x10<br>Hammer 3x12<br>Skull 3x10</div></div><div class="shade"></div><span class="day">SAT</span><b>Arms</b><span>6 exercises</span></div><div class="pt ghost"><span class="mi">add_a_photo</span><b style="margin-top:6px">Save a new one</b></div></div><div class="link">Manage saved workouts</div></div></div></div><div class="col"><div class="tag">C · One row that swipes</div><div class="desc">Larger portrait tiles in a single row that swipes sideways, today first. The pop-up stays short however many are saved. Fewer show at a glance.</div><div class="phone"><div class="status"><span>9:03</span><span>89</span></div><div class="dim"></div><div class="sheet"><div class="backBtn"><span class="mi">chevron_left</span></div><div class="glow"></div><div class="grab"></div><div class="kick">LOG</div><div class="stitle">Saved workouts</div><div class="strip"><div class="pt today"><div class="photo" style="background:#e9e3d6"><div class="handw">MONDAY<br>Bench 4x6<br>Inc DB 3x10<br>Cable fly 3x12<br>Dips 3x12</div></div><div class="shade"></div><span class="badge">TODAY</span><b>Monday session</b><span>6 exercises</span></div><div class="pt"><div class="photo" style="background:#dfe6e9"><div class="handw">LEGS<br>Squat 5x5<br>RDL 3x8<br>Lunge 3x10</div></div><div class="shade"></div><span class="day">WED</span><b>Leg day</b><span>5 exercises</span></div><div class="pt"><div class="photo" style="background:#e6dfe9"><div class="handw">FRIDAY<br>Clean 5x3<br>Push press<br>Pull-ups</div></div><div class="shade"></div><span class="day">FRI</span><b>Friday power</b><span>4 exercises</span></div><div class="pt"><div class="photo" style="background:#e3e9df"><div class="handw">PULL<br>Deadlift 3x5<br>Row 4x8<br>Pull-ups</div></div><div class="shade"></div><span class="day">TUE</span><b>Pull day</b><span>5 exercises</span></div><div class="pt"><div class="photo" style="background:#3a3431;display:flex;align-items:center;justify-content:center;padding-bottom:30px"><span class="mi" style="font-size:40px;color:rgba(255,181,158,0.22)">fitness_center</span></div><div class="shade"></div><b>Chest day</b><span>1 exercise</span></div><div class="pt"><div class="photo" style="background:#3a3431;display:flex;align-items:center;justify-content:center;padding-bottom:30px"><span class="mi" style="font-size:40px;color:rgba(255,181,158,0.22)">fitness_center</span></div><div class="shade"></div><b>Hotel gym</b><span>4 exercises</span></div><div class="pt"><div class="photo" style="background:#efe4d6"><div class="handw">ARMS<br>Curl 4x10<br>Hammer 3x12<br>Skull 3x10</div></div><div class="shade"></div><span class="day">SAT</span><b>Arms</b><span>6 exercises</span></div><div class="pt ghost"><span class="mi">add_a_photo</span><b style="margin-top:6px">Save a new one</b></div></div><div class="dots"><i class="on"></i><i></i><i></i></div><div class="link">Manage saved workouts</div></div></div></div></div></body></html>

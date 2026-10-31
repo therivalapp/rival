@@ -13,6 +13,20 @@
       "port": 8081
     },
     {
+      "name": "rival-web-fast",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "web",
+        "--prefix",
+        "rival",
+        "--",
+        "--no-dev",
+        "--minify"
+      ],
+      "port": 8081
+    },
+    {
       "name": "rival-prod",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

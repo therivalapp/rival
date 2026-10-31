@@ -39,6 +39,7 @@ import { RivalAvatar } from '../components/rival/RivalAvatar';
 import { RivalIcon, RivalIconName, activityIconName } from '../components/rival/RivalIcon';
 import { RivalBackButton } from '../components/rival/RivalBackButton';
 import { RivalTopNav } from '../components/rival/RivalTopNav';
+import { RivalCalendarGrid } from '../components/rival/RivalCalendarGrid';
 import { PlanSessionSheet, EditableSession } from '../components/rival/PlanSessionSheet';
 import { copyText } from '../lib/clipboard';
 import { SessionCard } from '../components/rival/SessionCard';
@@ -147,7 +148,16 @@ type ActivityRow = {
   pbLift: string | null; insight: ActivityInsight | null;
 };
 type GoalActivityRow = { user_id: string; activity_type: string; effort_score: number | null; distance_meters: number | null; elevation_meters: number | null; duration_seconds: number | null };
-type BoardPost = { id: string; user_id: string; title: string | null; body: string; pinned: boolean; created_at: string };
+type BoardPost = { id: string; user_id: string; title: string | null; body: string; pinned: boolean; created_at: string; expires_at?: string | null };
+
+// "Show until" (board_note_expiry.sql): a date, and a time if one is set;
+// a date alone ends at the end of that day.
+function boardEndText(iso: string, withTime: boolean): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  return withTime ? `${day}, ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : day;
+}
+const endsAtDayEnd = (iso: string) => { const d = new Date(iso); return d.getHours() === 23 && d.getMinutes() === 59; };
 function boardTargetKey(id: string) {
   return `board:${id}`;
 }
@@ -297,6 +307,11 @@ export default function TeamHub() {
   const [boardPosts, setBoardPosts] = useSnapState<BoardPost[]>(`hub.${id}.boardPosts`, []);
   const [boardComposeOpen, setBoardComposeOpen] = useState(false);
   const [boardTitleDraft, setBoardTitleDraft] = useState('');
+  // Show until: null is Until removed. The date as YYYY-MM-DD; the time as
+  // typed, or none for the end of that day.
+  const [boardEndDate, setBoardEndDate] = useState<string | null>(null);
+  const [boardEndTime, setBoardEndTime] = useState<{ h: string; m: string; pm: boolean } | null>(null);
+  const [boardEndOpen, setBoardEndOpen] = useState(false);
   // The note open in the full-size viewer, and its edit state. Notes open on
   // tap rather than carrying pin/delete icons: 13px icons in a card corner are
   // too small to hit reliably with a thumb.
@@ -477,9 +492,11 @@ export default function TeamHub() {
     // was slow to open). Sessions fill in on their own and never hold the page.
     const boardP = supabase
       .from('league_messages')
-      .select('id, user_id, title, body, pinned, created_at')
+      .select('id, user_id, title, body, pinned, created_at, expires_at')
       .eq('league_id', id)
       .eq('kind', 'board')
+      // Ended notes leave the board; they are kept, not deleted.
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(20)
@@ -654,6 +671,16 @@ export default function TeamHub() {
     setLoading(false);
   }
 
+  // The chosen end as a moment, or null for Until removed.
+  function boardEndIso(): string | null {
+    if (!boardEndDate) return null;
+    const [y, mo, d] = boardEndDate.split('-').map(Number);
+    if (!boardEndTime) return new Date(y, mo - 1, d, 23, 59, 0).toISOString();
+    const h12 = Math.min(12, Math.max(1, Number(boardEndTime.h) || 12));
+    const min = Math.min(59, Math.max(0, Number(boardEndTime.m) || 0));
+    return new Date(y, mo - 1, d, (h12 % 12) + (boardEndTime.pm ? 12 : 0), min, 0).toISOString();
+  }
+
   async function postToBoard() {
     const title = boardTitleDraft.trim();
     const body = boardBodyDraft.trim();
@@ -662,8 +689,8 @@ export default function TeamHub() {
     setBoardError('');
     const { data: inserted, error } = await supabase
       .from('league_messages')
-      .insert({ league_id: id, user_id: currentUserId, kind: 'board', title: title || null, body })
-      .select('id, user_id, title, body, pinned, created_at')
+      .insert({ league_id: id, user_id: currentUserId, kind: 'board', title: title || null, body, expires_at: boardEndIso() })
+      .select('id, user_id, title, body, pinned, created_at, expires_at')
       .single();
     setPostingBoard(false);
     if (error || !inserted) {
@@ -672,6 +699,7 @@ export default function TeamHub() {
     }
     setBoardTitleDraft('');
     setBoardBodyDraft('');
+    setBoardEndDate(null); setBoardEndTime(null); setBoardEndOpen(false);
     setBoardComposeOpen(false);
     setBoardPosts(prev => [inserted as BoardPost, ...prev].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)));
   }
@@ -1010,10 +1038,60 @@ export default function TeamHub() {
                       placeholderTextColor="rgba(255,255,255,0.4)"
                       multiline
                     />
+                    {/* Show until: Until removed, or a date and time it comes
+                        off the board (Ricky, 2026-10-24). */}
+                    {phone ? (
+                      <View style={bx.wrap}>
+                        <TouchableOpacity style={bx.row} onPress={() => setBoardEndOpen((v) => !v)} activeOpacity={0.8}>
+                          <Text style={bx.label}>Show until</Text>
+                          <Text style={[bx.value, boardEndDate && bx.valueSet]}>
+                            {boardEndIso() ? boardEndText(boardEndIso()!, !!boardEndTime) : 'Until removed'}
+                          </Text>
+                          <RivalIcon name={boardEndOpen ? 'chevronUp' : 'chevronDown'} size={16} color="rgba(255,255,255,0.45)" />
+                        </TouchableOpacity>
+                        {boardEndOpen ? (
+                          <View style={bx.panel}>
+                            <RivalCalendarGrid value={boardEndDate} onChange={(iso) => setBoardEndDate(iso)} />
+                            <View style={bx.timeRow}>
+                              {boardEndTime ? (
+                                <>
+                                  <Text style={bx.label}>Time</Text>
+                                  <View style={bx.timeFields}>
+                                    <TextInput style={bx.timeInput} value={boardEndTime.h} onChangeText={(v) => setBoardEndTime({ ...boardEndTime, h: v.replace(/\D/g, '').slice(0, 2) })} keyboardType="numeric" autoComplete="off" placeholder="7" placeholderTextColor="rgba(255,255,255,0.3)" />
+                                    <Text style={bx.colon}>:</Text>
+                                    <TextInput style={[bx.timeInput, { textAlign: 'left' }]} value={boardEndTime.m} onChangeText={(v) => setBoardEndTime({ ...boardEndTime, m: v.replace(/\D/g, '').slice(0, 2) })} keyboardType="numeric" autoComplete="off" placeholder="00" placeholderTextColor="rgba(255,255,255,0.3)" />
+                                    <TouchableOpacity style={bx.ampm} onPress={() => setBoardEndTime({ ...boardEndTime, pm: !boardEndTime.pm })}>
+                                      <Text style={bx.ampmText}>{boardEndTime.pm ? 'pm' : 'am'}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setBoardEndTime(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                      <RivalIcon name="close" size={15} color="rgba(255,255,255,0.45)" />
+                                    </TouchableOpacity>
+                                  </View>
+                                </>
+                              ) : (
+                                <TouchableOpacity onPress={() => setBoardEndTime({ h: '7', m: '00', pm: true })} disabled={!boardEndDate}>
+                                  <Text style={[bx.link, !boardEndDate && { opacity: 0.4 }]}>Add a time</Text>
+                                </TouchableOpacity>
+                              )}
+                              {boardEndDate ? (
+                                <TouchableOpacity onPress={() => { setBoardEndDate(null); setBoardEndTime(null); setBoardEndOpen(false); }} style={{ marginLeft: 'auto' }}>
+                                  <Text style={bx.link}>Until removed</Text>
+                                </TouchableOpacity>
+                              ) : null}
+                            </View>
+                            <Text style={bx.hint}>
+                              {boardEndDate
+                                ? 'It comes off the board then. Comments and Respect are kept.'
+                                : 'Pick the day it comes off the board, or leave it until removed.'}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    ) : null}
                     <View style={styles.boardComposeBtnRow}>
                       <TouchableOpacity
                         style={styles.boardDiscardBtn}
-                        onPress={() => { setBoardComposeOpen(false); setBoardTitleDraft(''); setBoardBodyDraft(''); setBoardError(''); }}
+                        onPress={() => { setBoardComposeOpen(false); setBoardTitleDraft(''); setBoardBodyDraft(''); setBoardError(''); setBoardEndDate(null); setBoardEndTime(null); setBoardEndOpen(false); }}
                       >
                         <Text style={styles.boardDiscardBtnText}>Discard</Text>
                       </TouchableOpacity>
@@ -1514,6 +1592,9 @@ export default function TeamHub() {
                   )}
                 >
                   <GreyNote>{timeAgo(note.created_at)}{note.pinned ? ' · Pinned' : ''}</GreyNote>
+                  {note.expires_at ? (
+                    <GreyNote>{`Shown until ${boardEndText(note.expires_at, !endsAtDayEnd(note.expires_at))}`}</GreyNote>
+                  ) : null}
                   <View style={{ height: 10 }} />
                   {editingNote ? (
                     <View style={{ gap: 8 }}>
@@ -2372,6 +2453,24 @@ const phoneHubStyles = makeHubStyles(RivalGhost.fill, RivalGhost.border, RivalGh
 const styles = desktopHubStyles;
 
 // Phone team note pop-up (the blend).
+// Show until, on posting a board note.
+const bx = StyleSheet.create({
+  wrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,209,190,0.08)', gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  label: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
+  value: { marginLeft: 'auto', fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
+  valueSet: { color: RivalColors.accentText, fontWeight: '700' },
+  panel: { gap: 10 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 },
+  timeFields: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  timeInput: { width: 24, textAlign: 'right', color: '#fff', fontSize: 15, padding: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  colon: { color: RivalColors.textSecondary, fontSize: 13, fontWeight: '600' },
+  ampm: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9, borderWidth: 1, borderColor: 'rgba(255,181,158,0.4)', marginRight: 4 },
+  ampmText: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
+  link: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  hint: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
+});
+
 const nm = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   note: { backgroundColor: RivalGhost.fill, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, padding: 14, gap: 6 },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bestFor, lastTimeFor, percentWeight, repeatOptions, type LiftActivity } from '../liftHistory';
+import { bestFor, exerciseCount, lastDoneText, lastTimeFor, orderSaved, percentWeight, repeatOptions, todaysWorkout, type LiftActivity } from '../liftHistory';
 
 const act = (id: string, iso: string, exercises: any[]): LiftActivity => ({ id, startedAt: iso, activityType: 'WeightTraining', exercises });
 
@@ -54,5 +54,33 @@ describe('repeatOptions', () => {
     const o = repeatOptions(history, [{ id: 's1', name: 'Squat day', activityType: null, exercises: [{ name: 'Deadlift' }], lastUsedAt: '2026-06-01' }], friday);
     expect(o.map((x) => x.title)).toEqual(['Same as last Friday', 'Squat day', expect.any(String)]);
     expect(o[2].detail).toBe('Squat');
+  });
+  it("puts today's usual saved workout ahead, and yesterday's last", () => {
+    const saved = [
+      { id: 'leg', name: 'Leg day', activityType: null, exercises: [{ name: 'Squat' }], lastUsedAt: '2026-07-02T08:00:00', usualDay: null },
+      { id: 'fri', name: 'Friday pull', activityType: null, exercises: [{ name: 'Row' }], lastUsedAt: '2026-06-01T08:00:00', usualDay: 5 },
+    ];
+    const o = repeatOptions([], saved, friday);
+    expect(o.map((x) => x.title)).toEqual(['Friday pull', 'Leg day']);
+  });
+});
+
+describe('saved workouts order', () => {
+  const now = new Date(2026, 9, 26, 9, 0); // a Monday
+  const list = [
+    { id: 'legs', usualDay: 3, lastUsedAt: '2026-10-25T10:00:00Z', createdAt: '2026-10-01T10:00:00Z', exercises: [{ name: 'Squat' }] },
+    { id: 'mon', usualDay: 1, lastUsedAt: '2026-10-19T10:00:00Z', createdAt: '2026-10-01T10:00:00Z', exercises: [{ name: 'Bench Press' }, { name: 'Dip' }] },
+    { id: 'chest', usualDay: null, lastUsedAt: '2026-10-24T10:00:00Z', createdAt: '2026-10-24T10:00:00Z', exercises: [] },
+  ];
+  it("puts today's workout first, then the most recently used", () => {
+    expect(orderSaved(list, now).map((w) => w.id)).toEqual(['mon', 'legs', 'chest']);
+    expect(todaysWorkout(list, now)?.id).toBe('mon');
+    expect(todaysWorkout(list, new Date(2026, 9, 27))).toBeNull();
+  });
+  it('counts exercises and says when it was last done', () => {
+    expect(exerciseCount(list[1])).toBe('2 exercises');
+    expect(exerciseCount(list[0])).toBe('1 exercise');
+    expect(lastDoneText(list[1].lastUsedAt, list[1].createdAt, now)).toBe('last done 7 days ago');
+    expect(lastDoneText(list[2].lastUsedAt, list[2].createdAt, now)).toBe('not done yet');
   });
 });

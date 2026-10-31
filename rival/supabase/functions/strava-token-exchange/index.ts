@@ -24,6 +24,45 @@ serve(async (req) => {
       )
     }
 
+    // Get user from auth header
+    const authHeader = req.headers.get('Authorization')
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader ?? '' } } }
+    )
+
+    const { data: { user } } = await userClient.auth.getUser()
+    console.log('User:', user ? user.id : 'not found')
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Not authenticated' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
+
+    // Use service role for DB write to bypass RLS
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+
+    // Nobody new connects (RIVAL is separating from Strava, BETA_PLAN.md).
+    // Checked before the code is spent, so Strava never records the link.
+    const { data: existing } = await supabase
+      .from('fitness_connections')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('provider', 'strava')
+      .maybeSingle()
+    if (!existing) {
+      return new Response(
+        JSON.stringify({ error: 'New Strava connections are closed. Import a Strava archive instead.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      )
+    }
+
     console.log('Calling Strava token exchange...')
     // Exchange code for token with Strava
     const stravaResponse = await fetch('https://www.strava.com/oauth/token', {
@@ -48,30 +87,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
-
-    // Get user from auth header
-    const authHeader = req.headers.get('Authorization')
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader ?? '' } } }
-    )
-
-    const { data: { user } } = await userClient.auth.getUser()
-    console.log('User:', user ? user.id : 'not found')
-
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
-    }
-
-    // Use service role for DB write to bypass RLS
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
 
     // Save to fitness_connections
     const { error: dbError } = await supabase

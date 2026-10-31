@@ -1,0 +1,88 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box} body{margin:0;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.grid{display:grid;grid-template-columns:393px 393px;gap:28px 26px;padding:22px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;min-height:38px}
+.screen{background:#232120;border-radius:28px;padding:20px 24px}
+.serif{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.hero{border-radius:20px;border:1px solid rgba(255,181,158,0.16);background:radial-gradient(circle at 50% -10%,rgba(255,209,190,0.18) 0%,rgba(255,209,190,0) 65%),linear-gradient(160deg,#231e1b 0%,#2d241f 55%,#3b2821 100%);padding:18px}
+.lab{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#A0A0A0}
+.top{display:flex;align-items:center;justify-content:space-between}
+.pill{font-size:10.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:#ffb59e}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12.5px;font-weight:600;color:#A0A0A0}
+.chip+.chip:before{content:'·';margin-right:6px;color:rgba(255,255,255,0.3)}
+.ring{position:relative;flex-shrink:0}
+.ring svg{transform:rotate(-90deg)}
+.ring .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.togo{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600}
+.togo .mi{color:#ffb59e;font-size:16px}
+.muted{color:#A0A0A0}
+.head{text-align:center}
+.head .t{font-size:30px;line-height:36px}
+.head .s{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;font-size:12px;font-weight:800;letter-spacing:3px;color:#ffb59e}
+.head .s:before,.head .s:after{content:"";width:36px;height:1px;background:rgba(255,181,158,0.4)}
+.meta{display:flex;align-items:center;justify-content:center;gap:28px;margin-top:18px}
+.cell{text-align:center;min-width:84px}
+.cell .n{font-size:28px;line-height:32px}
+.cell .l{font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin-top:4px}
+.div{width:1px;height:44px;background:rgba(255,255,255,0.12)}
+.today{border-radius:24px;border:1px solid rgba(255,255,255,0.08);background:linear-gradient(180deg,#2a2725,#232120);padding:24px 18px 20px;display:flex;flex-direction:column;align-items:center}
+</style></head><body><div class="grid">
+<div><div class="tag">Goals · A · One column</div><div class="desc">Ring on the left; everything else reads down one column beside it: total, what is left, the period. Recent days as a quiet line at the foot. No pills.</div><div class="screen"><div class="hero" style="display:flex;flex-direction:column;gap:14px">
+<div class="top"><span class="lab">Main focus</span><span class="pill">28 days left</span></div>
+<div class="serif" style="font-size:24px;line-height:28px">All activities</div>
+<div style="display:flex;align-items:center;gap:18px"><div class="ring" style="width:104px;height:104px"><svg width="104" height="104"><defs><linearGradient id="g104" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D97757"/><stop offset="1" stop-color="#ffb59e"/></linearGradient></defs>
+<circle cx="52.0" cy="52.0" r="47.5" stroke="rgba(255,255,255,0.08)" stroke-width="9" fill="none"/>
+<circle cx="52.0" cy="52.0" r="47.5" stroke="url(#g104)" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="298.45130209103036" stroke-dashoffset="265.02475625683496"/></svg><div class="in"><span class="serif" style="font-size:22px">11%</span></div></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+<div><span class="serif" style="font-size:36px;line-height:38px">5.6</span><span class="muted" style="font-size:14px;font-weight:700"> / 50 km</span></div>
+<div class="togo"><span class="mi">flag</span>44.4 km to go</div>
+<div class="muted" style="font-size:12px">1.6 km a day · This month</div></div></div>
+<div class="chips"><span class="chip">Wed +5.6 km</span></div></div></div></div>
+<div><div class="tag">Goals · A · Final day</div><div class="desc">Same card on the last day: Final day in place of the days left, and the line says what is left today.</div><div class="screen"><div class="hero" style="display:flex;flex-direction:column;gap:14px">
+<div class="top"><span class="lab">Main focus</span><span class="pill">Final day</span></div>
+<div class="serif" style="font-size:24px;line-height:28px">All activities</div>
+<div style="display:flex;align-items:center;gap:18px"><div class="ring" style="width:104px;height:104px"><svg width="104" height="104"><defs><linearGradient id="g104" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D97757"/><stop offset="1" stop-color="#ffb59e"/></linearGradient></defs>
+<circle cx="52.0" cy="52.0" r="47.5" stroke="rgba(255,255,255,0.08)" stroke-width="9" fill="none"/>
+<circle cx="52.0" cy="52.0" r="47.5" stroke="url(#g104)" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="298.45130209103036" stroke-dashoffset="137.28759896187395"/></svg><div class="in"><span class="serif" style="font-size:22px">54%</span></div></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+<div><span class="serif" style="font-size:36px;line-height:38px">10.8</span><span class="muted" style="font-size:14px;font-weight:700"> / 20 km</span></div>
+<div class="togo"><span class="mi">flag</span>9.2 km to go today</div>
+<div class="muted" style="font-size:12px">Distance · Oct 26 – Oct 28</div></div></div>
+<div class="chips"><span class="chip">Wed +5.6 km</span><span class="chip">Tue +5.2 km</span></div></div></div></div>
+<div><div class="tag">Goals · B · Like Today</div><div class="desc">Centred, matching the Today focus card: number in the ring, then Complete and Days left, and what is left under them. Final day stacks in place of the days left.</div><div class="screen"><div class="hero" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 18px 20px">
+<div class="top" style="align-self:stretch"><span class="lab">Main focus</span><span class="pill"></span></div>
+<div class="serif" style="font-size:24px;line-height:28px;margin-top:-4px">All activities</div>
+<div class="ring" style="width:150px;height:150px"><svg width="150" height="150"><defs><linearGradient id="g150" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D97757"/><stop offset="1" stop-color="#ffb59e"/></linearGradient></defs>
+<circle cx="75.0" cy="75.0" r="69.5" stroke="rgba(255,255,255,0.08)" stroke-width="11" fill="none"/>
+<circle cx="75.0" cy="75.0" r="69.5" stroke="url(#g150)" stroke-width="11" fill="none" stroke-linecap="round" stroke-dasharray="436.68137884898124" stroke-dashoffset="387.77306441789534"/></svg><div class="in"><span class="serif" style="font-size:38px;line-height:40px">5.6</span><span class="muted" style="font-size:12.5px;font-weight:700;margin-top:2px">/ 50 km</span></div></div>
+<div class="meta" style="margin-top:0"><div class="cell"><div class="serif n">11%</div><div class="l">Complete</div></div><div class="div"></div><div class="cell"><div class="serif n">28</div><div class="l">Days left</div></div></div>
+<div class="togo" style="font-size:13.5px"><span class="mi">flag</span>44.4 km to go · 1.6 km a day</div>
+<div class="chips" style="justify-content:center"><span class="chip">Wed +5.6 km</span></div></div></div></div>
+<div><div class="tag">Goals · B · Final day</div><div class="desc"></div><div class="screen"><div class="hero" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 18px 20px">
+<div class="top" style="align-self:stretch"><span class="lab">Main focus</span><span class="pill"></span></div>
+<div class="serif" style="font-size:24px;line-height:28px;margin-top:-4px">All activities</div>
+<div class="ring" style="width:150px;height:150px"><svg width="150" height="150"><defs><linearGradient id="g150" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D97757"/><stop offset="1" stop-color="#ffb59e"/></linearGradient></defs>
+<circle cx="75.0" cy="75.0" r="69.5" stroke="rgba(255,255,255,0.08)" stroke-width="11" fill="none"/>
+<circle cx="75.0" cy="75.0" r="69.5" stroke="url(#g150)" stroke-width="11" fill="none" stroke-linecap="round" stroke-dasharray="436.68137884898124" stroke-dashoffset="200.87343427053136"/></svg><div class="in"><span class="serif" style="font-size:38px;line-height:40px">10.8</span><span class="muted" style="font-size:12.5px;font-weight:700;margin-top:2px">/ 20 km</span></div></div>
+<div class="meta" style="margin-top:0"><div class="cell"><div class="serif n">54%</div><div class="l">Complete</div></div><div class="div"></div><div class="cell"><div class="serif n">Final</div><div class="l">Day</div></div></div>
+<div class="togo" style="font-size:13.5px"><span class="mi">flag</span>9.2 km to go today</div>
+<div class="chips" style="justify-content:center"><span class="chip">Wed +5.6 km</span><span class="chip">Tue +5.2 km</span></div></div></div></div>
+<div><div class="tag">Today · Days left</div><div class="desc">The Today card as it is, with one line added under the figures: what is left and the pace.</div><div class="screen"><div class="today"><div class="head"><div class="serif t">All activities</div><div class="s">FOCUS</div></div><div style="height:16px"></div>
+<div class="ring" style="width:200px;height:200px"><svg width="200" height="200"><defs><linearGradient id="g200" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D97757"/><stop offset="1" stop-color="#ffb59e"/></linearGradient></defs>
+<circle cx="100.0" cy="100.0" r="93.0" stroke="rgba(255,255,255,0.08)" stroke-width="14" fill="none"/>
+<circle cx="100.0" cy="100.0" r="93.0" stroke="url(#g200)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="584.3362335677015" stroke-dashoffset="518.8905754081189"/></svg><div class="in"><span class="serif" style="font-size:56px;line-height:58px;background:linear-gradient(135deg,#D97757,#ffb59e);-webkit-background-clip:text;color:transparent">5.6</span><span class="muted" style="font-size:15px;margin-top:2px">/ 50 km</span></div></div>
+<div class="meta"><div class="cell"><div class="serif n">11%</div><div class="l">Complete</div></div><div class="div"></div><div class="cell"><div class="serif n">28</div><div class="l">Days left</div></div></div>
+<div class="togo" style="margin-top:14px;font-size:13.5px"><span class="mi">flag</span>44.4 km to go · 1.6 km a day</div></div></div></div>
+<div><div class="tag">Today · Final day</div><div class="desc">On the last day, Final day stacks where the days left were; the line under says what is left today.</div><div class="screen"><div class="today"><div class="head"><div class="serif t">All activities</div><div class="s">FOCUS</div></div><div style="height:16px"></div>
+<div class="ring" style="width:200px;height:200px"><svg width="200" height="200"><defs><linearGradient id="g200" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D97757"/><stop offset="1" stop-color="#ffb59e"/></linearGradient></defs>
+<circle cx="100.0" cy="100.0" r="93.0" stroke="rgba(255,255,255,0.08)" stroke-width="14" fill="none"/>
+<circle cx="100.0" cy="100.0" r="93.0" stroke="url(#g200)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="584.3362335677015" stroke-dashoffset="268.7946674411427"/></svg><div class="in"><span class="serif" style="font-size:56px;line-height:58px;background:linear-gradient(135deg,#D97757,#ffb59e);-webkit-background-clip:text;color:transparent">10.8</span><span class="muted" style="font-size:15px;margin-top:2px">/ 20 km</span></div></div>
+<div class="meta"><div class="cell"><div class="serif n">54%</div><div class="l">Complete</div></div><div class="div"></div><div class="cell"><div class="serif n">Final</div><div class="l">Day</div></div></div>
+<div class="togo" style="margin-top:14px;font-size:13.5px"><span class="mi">flag</span>9.2 km to go today</div></div></div></div>
+</div></body></html>

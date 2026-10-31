@@ -36,7 +36,6 @@ export const QUOTES: Quote[] = [
   { text: "Nobody starts Unrivaled. Everybody can become it.", category: 'unrivaled', tone: 'balanced' },
   { text: "The standard moves. So do you.", category: 'unrivaled', tone: 'balanced' },
   { text: "Unrivaled is built one ordinary day at a time.", category: 'unrivaled', tone: 'balanced' },
-  { text: "Your rival is whoever brings out your best.", category: 'unrivaled', tone: 'balanced' },
   { text: "The title isn't given. It's assembled, day by day.", category: 'unrivaled', tone: 'balanced' },
   { text: "Unrivaled just means you outlasted yesterday's version.", category: 'unrivaled', tone: 'balanced' },
   { text: "There's always a next standard to meet.", category: 'unrivaled', tone: 'balanced' },
@@ -105,28 +104,28 @@ export const QUOTES: Quote[] = [
   { text: "Identity is built the same way rank is: one activity at a time.", category: 'identity', tone: 'balanced' },
   { text: "What you do consistently becomes who you are.", category: 'identity', tone: 'balanced' },
   { text: "Your actions are already telling your story. This just adds a chapter.", category: 'identity', tone: 'balanced' },
-  { text: "The person you're training to become is watching how you train today.", category: 'identity', tone: 'balanced' },
+  { text: "The person you're working to become is watching how you show up today.", category: 'identity', tone: 'balanced' },
   { text: "Become someone new, one day at a time.", category: 'identity', tone: 'encouraging' },
   { text: "The identity you want is closer than you think.", category: 'identity', tone: 'encouraging' },
-  { text: "Every workout is evidence for who you're becoming.", category: 'identity', tone: 'encouraging' },
+  { text: "Every activity is evidence for who you're becoming.", category: 'identity', tone: 'encouraging' },
   { text: "You don't have to already be that person. You just have to keep choosing it.", category: 'identity', tone: 'encouraging' },
   { text: "You are what you repeatedly do, not what you occasionally intend.", category: 'identity', tone: 'blunt' },
   { text: "Talk doesn't build identity. Reps do.", category: 'identity', tone: 'blunt' },
   { text: "Stop deciding who you are. Start proving it.", category: 'identity', tone: 'blunt' },
 
   // ── RECOVERY ──────────────────────────────────────────────────
-  { text: "Recovery is where the training actually takes effect.", category: 'recovery', tone: 'balanced' },
+  { text: "Recovery is where the work actually takes effect.", category: 'recovery', tone: 'balanced' },
   { text: "Rest isn't the opposite of progress. It's part of it.", category: 'recovery', tone: 'balanced' },
   { text: "Your body adapts on the days you let it.", category: 'recovery', tone: 'balanced' },
   { text: "Fatigue and fitness can look identical from the outside.", category: 'recovery', tone: 'balanced' },
   { text: "The best programs plan rest as carefully as effort.", category: 'recovery', tone: 'balanced' },
-  { text: "Taking the rest day is still training smart.", category: 'recovery', tone: 'encouraging' },
+  { text: "Taking the rest day is still part of the work.", category: 'recovery', tone: 'encouraging' },
   { text: "You're allowed to recover without guilt.", category: 'recovery', tone: 'encouraging' },
   { text: "Skipping recovery doesn't make you tougher. It makes you slower.", category: 'recovery', tone: 'blunt' },
   { text: "Ignoring fatigue is how progress stalls.", category: 'recovery', tone: 'blunt' },
 
   // ── NUTRITION ─────────────────────────────────────────────────
-  { text: "What you eat after training is still part of training.", category: 'nutrition', tone: 'balanced' },
+  { text: "What you eat after an activity is still part of it.", category: 'nutrition', tone: 'balanced' },
   { text: "Fuel arrives before performance does.", category: 'nutrition', tone: 'balanced' },
   { text: "Hydration is a variable, not an afterthought.", category: 'nutrition', tone: 'balanced' },
   { text: "Recovery starts on your plate, not just in your bed.", category: 'nutrition', tone: 'balanced' },
@@ -136,7 +135,7 @@ export const QUOTES: Quote[] = [
   { text: "Under-fueling isn't discipline. It's sabotage.", category: 'nutrition', tone: 'blunt' },
   { text: "You can't out-train a bad diet.", category: 'nutrition', tone: 'blunt' },
   { text: "Feeding yourself well is part of taking yourself seriously.", category: 'nutrition', tone: 'encouraging' },
-  { text: "Hours in training deserve a few minutes in the kitchen.", category: 'nutrition', tone: 'balanced' },
+  { text: "Hours of activity deserve a few minutes in the kitchen.", category: 'nutrition', tone: 'balanced' },
 
   // ── COMMUNITY ─────────────────────────────────────────────────
   { text: "Activity partners lend you motivation on the days you're short of it.", category: 'community', tone: 'balanced' },
@@ -144,11 +143,10 @@ export const QUOTES: Quote[] = [
   { text: "Shared effort feels lighter than solo effort.", category: 'community', tone: 'balanced' },
   { text: "Community turns discipline into routine.", category: 'community', tone: 'balanced' },
   { text: "You don't have to do this alone. Most people don't.", category: 'community', tone: 'encouraging' },
-  { text: "The people training beside you make the hard days easier.", category: 'community', tone: 'encouraging' },
+  { text: "The people beside you make the hard days easier.", category: 'community', tone: 'encouraging' },
   { text: "Showing up together makes showing up easier.", category: 'community', tone: 'encouraging' },
   { text: "Your team is proof you're not the only one trying.", category: 'community', tone: 'encouraging' },
-  { text: "Training alone forever is a choice, not a requirement.", category: 'community', tone: 'blunt' },
-  { text: "We make each other better.", category: 'community', tone: 'encouraging' },
+  { text: "Going it alone forever is a choice, not a requirement.", category: 'community', tone: 'blunt' },
   { text: "The right people make you want to raise your own standard.", category: 'community', tone: 'balanced' },
   { text: "Surround yourself with people who expect your best.", category: 'community', tone: 'blunt' },
   // Ricky, 2026-10-22: the idea behind sharing, and a candidate tagline.
@@ -156,13 +154,17 @@ export const QUOTES: Quote[] = [
   { text: "Someone out there needed to see you show up today.", category: 'community', tone: 'balanced' },
 
   // ── COMPETITION ───────────────────────────────────────────────
-  { text: "Your rival isn't resting today.", category: 'competition', tone: 'blunt' },
   { text: "Someone is closing the gap while you hesitate.", category: 'competition', tone: 'blunt' },
   { text: "Respect your competition. Don't hide from it.", category: 'competition', tone: 'blunt' },
   { text: "The standings don't care about your reasons.", category: 'competition', tone: 'blunt' },
   { text: "Your only real competition is who you were yesterday.", category: 'competition', tone: 'encouraging' },
   { text: "You don't need to beat everyone. Just keep pace with your own growth.", category: 'competition', tone: 'encouraging' },
   { text: "A good rival makes you better, not smaller.", category: 'competition', tone: 'encouraging' },
+  // The past self as the rival (Ricky, 2026-10-27).
+  { text: "Your rival is who you were last time.", category: 'competition', tone: 'balanced' },
+  { text: "The rival who knows you best is your past self.", category: 'competition', tone: 'balanced' },
+  { text: "Last year's time is a rival worth chasing.", category: 'competition', tone: 'encouraging' },
+  { text: "Same start line. Better version.", category: 'competition', tone: 'blunt' },
 
   // ── WISDOM ────────────────────────────────────────────────────
   { text: "Growth doesn't follow a schedule. It follows effort.", category: 'wisdom', tone: 'balanced' },

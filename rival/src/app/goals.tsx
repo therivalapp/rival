@@ -8,13 +8,16 @@ import { fetchAllActivities } from '../lib/fetchAllActivities';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { displayToIsoDate, isoToDisplayDate, friendlyDate } from '../lib/dateFormat';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { ALL_ACTIVITIES, computeGoalProgress, goalActivityLabel, goalContributions, GOAL_ACTIVITY_TYPES } from '../lib/goalProgress';
+import { ALL_ACTIVITIES, computeGoalProgress, goalActivityLabel, goalContributions, goalToGoLine, GOAL_ACTIVITY_TYPES } from '../lib/goalProgress';
 import { confirmAction, notify } from '../lib/notify';
 import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
+import { GoalCardGestures } from '../components/rival/GoalCardGestures';
 import { goToTab } from '../lib/tabNav';
+
+const GESTURE_HINT_KEY = 'rival.goals.gestureHintSeen';
 
 type Goal = {
   id: string;
@@ -292,7 +295,7 @@ function ProgressBar({
 }
 
 // The Main focus ring on phone: small, with the percentage inside.
-function MiniRing({ pct, size = 76, thickness = 7 }: { pct: number; size?: number; thickness?: number }) {
+function MiniRing({ pct, size = 76, thickness = 7, children }: { pct: number; size?: number; thickness?: number; children?: React.ReactNode }) {
   const radius = (size - thickness) / 2;
   const c = 2 * Math.PI * radius;
   return (
@@ -307,7 +310,7 @@ function MiniRing({ pct, size = 76, thickness = 7 }: { pct: number; size?: numbe
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="url(#goalMiniRing)" strokeWidth={thickness} fill="none" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - Math.max(0, Math.min(1, pct)))} />
       </Svg>
-      <Text style={ms.ringPct}>{Math.round(pct * 100)}%</Text>
+      {children ?? <Text style={ms.ringPct}>{Math.round(pct * 100)}%</Text>}
     </View>
   );
 }
@@ -504,6 +507,7 @@ export default function GoalsScreen() {
     }
 
     const { start, end } = getDateRange(periodType);
+    await keepFocus();
     const { error: addErr } = await supabase.from('goals').insert({
       user_id: userId,
       ...fields,
@@ -523,8 +527,9 @@ export default function GoalsScreen() {
     load();
   }
 
-  async function deleteGoal(id: string) {
-    if (!(await confirmAction({ title: 'Delete this goal?', confirmLabel: 'Delete', destructive: true }))) return;
+  // A swipe's Delete button is already the second step, so it skips the confirm.
+  async function deleteGoal(id: string, ask = true) {
+    if (ask && !(await confirmAction({ title: 'Delete this goal?', confirmLabel: 'Delete', destructive: true }))) return;
     const { error } = await supabase.from('goals').delete().eq('id', id);
     if (error) {
       notify("Couldn't delete that goal", error.message);
@@ -545,11 +550,36 @@ export default function GoalsScreen() {
     || (b.progress / (b.target_value || 1)) - (a.progress / (a.target_value || 1)),
   )[0] ?? null;
   const otherGoals = goals.filter((g) => g.id !== focusGoal?.id);
+  // Main focus is the drop slot for a held goal card; it lights while one is over it.
+  const focusRef = useRef<View>(null);
+  const [focusHover, setFocusHover] = useState(false);
+  // A one-line hint for the card gestures, until the first drag or swipe.
+  const [gestureHint, setGestureHint] = useState(() => {
+    try { return Platform.OS === 'web' && localStorage.getItem(GESTURE_HINT_KEY) !== '1'; } catch { return false; }
+  });
+  const gestureUsed = useCallback(() => {
+    setGestureHint(false);
+    try { localStorage.setItem(GESTURE_HINT_KEY, '1'); } catch {}
+  }, []);
 
-  // "Make focus" pins the goal, which moves it to Main focus here and on Today.
+  // Dropping a goal on Main focus pins it, which moves it to Main focus here and on Today.
   function makeFocus(goal: Goal) {
     if (!goal.pinned) togglePin(goal);
     else load();
+  }
+
+  // A new or restarted goal joins Other goals; it never takes Main focus by
+  // itself (Ricky, 2026-10-28). An unpinned focus is only the nearest
+  // deadline, so a goal ending sooner would bump it: pin it first to keep it.
+  async function keepFocus() {
+    if (!focusGoal || focusGoal.pinned) return;
+    setGoals((prev) => prev.map((g) => ({ ...g, pinned: g.id === focusGoal.id })));
+    const { error: unpinError } = await supabase.from('goals').update({ pinned: false }).eq('user_id', userId).neq('id', focusGoal.id);
+    const { error: pinError } = unpinError ? { error: null } : await supabase.from('goals').update({ pinned: true }).eq('id', focusGoal.id);
+    if (unpinError || pinError) {
+      setGoals((prev) => prev.map((g) => (g.id === focusGoal.id ? { ...g, pinned: false } : g)));
+      notify('The main focus could not be kept', (unpinError || pinError)!.message);
+    }
   }
 
   // Exactly one pinned goal at a time — pinning this one unpins whichever
@@ -585,6 +615,7 @@ export default function GoalsScreen() {
           return { start: st, end: en };
         })()
       : getDateRange(goal.period_type as 'week' | 'month' | 'year');
+    await keepFocus();
     // Insert the replacement BEFORE removing the old row, and abort if it
     // fails: unchecked, a failed insert followed by a successful delete left
     // the athlete with no goal at all -- silent data loss on a button labelled
@@ -927,34 +958,49 @@ export default function GoalsScreen() {
             const done = goal.progress >= goal.target_value;
             const pct = Math.min(1, goal.target_value > 0 ? goal.progress / goal.target_value : 0);
             const left = daysLeft(goal);
-            const of = `${goal.progress.toLocaleString()} of ${goal.target_value.toLocaleString()}${goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}`;
+            const toGo = goalToGoLine(goal.progress, goal.target_value, goal.goal_type === 'gym_sessions' ? 'activities' : unit, left);
             return (
-              <TouchableOpacity activeOpacity={0.85} onPress={() => openEdit(goal)} style={[rb.card, rb.hero]}>
-                <Text style={rb.label}>Main focus</Text>
-                <View style={ms.focusRow}>
-                  <MiniRing pct={pct} />
-                  <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                    <Text style={ms.focusTitle} numberOfLines={2}>{goalTitle(goal)}</Text>
-                    <Text style={ms.focusMeta}>{of} · {done ? 'Complete' : left === 1 ? '1 day left' : `${left} days left`}</Text>
-                    <Text style={ms.focusKind} numberOfLines={1}>{goalKind(goal)}</Text>
+              <GoalCardGestures key={goal.id} radius={22} onDelete={() => deleteGoal(goal.id, false)} onUsed={gestureUsed}>
+              {(guard) => (
+              <TouchableOpacity ref={focusRef} activeOpacity={0.85} onPress={guard(() => openEdit(goal))} style={[ms.hero, focusHover && ms.focusDropOn]}>
+                {/* Layout B (Ricky, 2026-10-28, design/focus-mockups.png): the
+                    Today focus card in small, so the goal reads the same on both. */}
+                <Text style={[rb.label, { alignSelf: 'flex-start' }]}>Main focus</Text>
+                <Text style={ms.focusTitle} numberOfLines={2}>{goalTitle(goal)}</Text>
+                <MiniRing pct={pct} size={150} thickness={11}>
+                  <Text style={ms.heroNum}>{goal.progress.toLocaleString()}</Text>
+                  <Text style={ms.heroOf}>/ {goal.target_value.toLocaleString()}{goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}</Text>
+                </MiniRing>
+                <View style={ms.heroMeta}>
+                  <View style={ms.heroCell}>
+                    <Text style={ms.heroCellNum}>{Math.round(pct * 100)}%</Text>
+                    <Text style={ms.heroCellLabel}>Complete</Text>
+                  </View>
+                  <View style={ms.heroDivider} />
+                  <View style={ms.heroCell}>
+                    <Text style={ms.heroCellNum}>{left <= 1 ? 'Final' : left}</Text>
+                    <Text style={ms.heroCellLabel}>{left <= 1 ? 'Day' : 'Days left'}</Text>
                   </View>
                 </View>
-                {!done && goal.recent && goal.recent.length > 0 ? (
-                  <View style={ms.recentRow}>
-                    {goal.recent.map((c) => (
-                      <View key={c.startedAt} style={ms.recentChip}>
-                        <Text style={ms.recentText}>
-                          {shortDay(c.startedAt)} +{goal.goal_type === 'gym_sessions' ? '1' : `${c.amount.toLocaleString()} ${unit}`}
-                        </Text>
-                      </View>
-                    ))}
+                {toGo ? (
+                  <View style={ms.heroPace}>
+                    <RivalIcon name="flag" size={15} color={RivalColors.accentText} />
+                    <Text style={ms.heroPaceText}>{toGo}</Text>
                   </View>
                 ) : null}
+                {!done && goal.recent && goal.recent.length > 0 ? (
+                  <Text style={ms.recentLine}>
+                    {goal.recent.map((c) => `${shortDay(c.startedAt)} +${goal.goal_type === 'gym_sessions' ? '1' : `${c.amount.toLocaleString()} ${unit}`}`).join('  ·  ')}
+                  </Text>
+                ) : null}
               </TouchableOpacity>
+              )}
+              </GoalCardGestures>
             );
           })()}
 
           {otherGoals.length > 0 && focusGoal ? <Text style={rb.section}>Other goals</Text> : null}
+          {otherGoals.length > 0 && focusGoal && gestureHint ? <Text style={ms.gestureHint}>Hold to drag · Swipe to delete</Text> : null}
 
           {otherGoals.map((goal) => {
             const unit = GOAL_UNITS[goal.goal_type];
@@ -962,8 +1008,18 @@ export default function GoalsScreen() {
             const ended = !done && isGoalEnded(goal);
             const pct = Math.min(1, goal.target_value > 0 ? goal.progress / goal.target_value : 0);
             const left = daysLeft(goal);
+            const canFocus = !done && !ended;
             return (
-              <TouchableOpacity key={goal.id} activeOpacity={0.85} onPress={() => openEdit(goal)} style={[rb.card, ms.otherCard]}>
+              <GoalCardGestures
+                key={goal.id}
+                onDelete={() => deleteGoal(goal.id, false)}
+                focusTarget={canFocus ? () => focusRef.current as unknown as HTMLElement | null : undefined}
+                onHoverFocus={setFocusHover}
+                onDropOnFocus={() => makeFocus(goal)}
+                onUsed={gestureUsed}
+              >
+              {(guard) => (
+              <TouchableOpacity activeOpacity={0.85} onPress={guard(() => openEdit(goal))} style={[rb.card, ms.otherCard]}>
                 <View style={ms.otherTop}>
                   <Text style={ms.otherTitle} numberOfLines={1}>{goalTitle(goal)}</Text>
                   <Text style={[ms.otherNum, done && { color: RivalColors.accentGold }]}>
@@ -977,19 +1033,17 @@ export default function GoalsScreen() {
                       ? 'Goal complete'
                       : ended
                         ? endedLine(goal)
-                        : `${goalKind(goal)} · ${left === 1 ? '1 day' : `${left} days`} left`}
+                        : `${goalKind(goal)} · ${left <= 1 ? 'Final day' : `${left} days left`}`}
                   </Text>
                   {ended ? (
                     <TouchableOpacity onPress={() => tryAgainGoal(goal)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                       <Text style={ms.footLink}>Start fresh</Text>
                     </TouchableOpacity>
-                  ) : !done ? (
-                    <TouchableOpacity onPress={() => makeFocus(goal)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Text style={ms.footLink}>Make focus</Text>
-                    </TouchableOpacity>
                   ) : null}
                 </View>
               </TouchableOpacity>
+              )}
+              </GoalCardGestures>
             );
           })}
 
@@ -1341,9 +1395,35 @@ const ms = StyleSheet.create({
   loading: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
   emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
-  focusRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  focusDropOn: { borderColor: RivalColors.accentText },
+  // The Today focus card's surface: soft top glow, a lit edge fading down.
+  hero: {
+    alignItems: 'center', gap: 14, borderRadius: 22, paddingTop: 18, paddingBottom: 18, paddingHorizontal: 16,
+    backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
+    ...(Platform.OS === 'web' ? {
+      backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
+      borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
+      backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
+    } : {}),
+  } as any,
+  heroNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 38, lineHeight: 42, color: '#fff' },
+  heroOf: { fontSize: 12.5, fontWeight: '700', color: RivalColors.textSecondary, marginTop: 1 },
+  heroMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28 },
+  heroCell: { alignItems: 'center', minWidth: 84 },
+  heroCellNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 28, lineHeight: 32, color: '#fff' },
+  heroCellLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 4 },
+  heroDivider: {
+    width: 1, height: 38,
+    ...(Platform.OS === 'web'
+      ? ({ backgroundImage: 'linear-gradient(180deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.45) 50%, rgba(255,181,158,0) 100%)' } as any)
+      : { backgroundColor: 'rgba(255,181,158,0.3)' }),
+  },
+  heroPace: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  heroPaceText: { fontSize: 13.5, fontWeight: '600', color: '#fff' },
+  recentLine: { fontSize: 12.5, fontWeight: '600', color: RivalColors.textSecondary, textAlign: 'center' },
+  focusRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   ringPct: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff' },
-  focusTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 18, lineHeight: 23, color: '#fff' },
+  focusTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, lineHeight: 29, color: '#fff', textAlign: 'center', marginTop: -6 },
   focusMeta: { fontSize: 12.5, color: RivalColors.textSecondary },
   focusKind: { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
   otherCard: { gap: 10 },
@@ -1381,7 +1461,7 @@ const ms = StyleSheet.create({
   metaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 26, fontWeight: '700', lineHeight: 30, color: '#fff' },
   metaLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 3 },
   metaDivider: { width: 1, height: 34, backgroundColor: 'rgba(255,181,158,0.25)' },
-  recentRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 16 },
+  recentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -6 },
   recentChip: { borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.18)', backgroundColor: 'rgba(217,119,87,0.10)', paddingHorizontal: 10, paddingVertical: 4 },
   recentText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
   goalCard: { backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
@@ -1398,6 +1478,7 @@ const ms = StyleSheet.create({
     } : {}),
   } as any,
   footRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  gestureHint: { fontSize: 12.5, color: RivalWarm.muted, marginTop: -6, marginLeft: 4 },
   footText: { flex: 1, fontSize: 12.5, color: RivalWarm.muted, lineHeight: 17 },
   footLink: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
   empty: { alignItems: 'center', paddingVertical: 28 },

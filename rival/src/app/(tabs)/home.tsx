@@ -1,4 +1,5 @@
 import { getMyTeamRows } from '../../lib/myTeams';
+import { isAppRevealed, onAppReveal, revealApp } from '../../lib/appReveal';
 import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation, fromDisplayDistance, fromDisplayElevation } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useId, memo } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated, Modal } from 'react-native';
@@ -7,7 +8,7 @@ import Svg, { Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../../lib/supabase';
-import { loadStravaSharing, startStravaConnect } from '../../lib/stravaSharing';
+import { loadStravaSharing, startStravaConnect, STRAVA_CONNECTIONS_OPEN } from '../../lib/stravaSharing';
 import { fetchAllActivities } from '../../lib/fetchAllActivities';
 import { notify } from '../../lib/notify';
 import { getMondayOfWeek, calculateStreak, STREAK_MIN_ACTIVITIES } from '../../lib/streak';
@@ -16,7 +17,7 @@ import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { lifetimePace } from '../../lib/rankPace';
 import { rankSheen, rankTextSheen } from '../../constants/rankSheen';
 import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
-import { computeGoalProgress, goalActivityLabel, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
+import { computeGoalProgress, goalActivityLabel, goalToGoLine, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
 // distances read as near-zero once rounded to km ("0.7km" is really "700m").
 // Distance goals always store/compute progress and target in km regardless
@@ -30,7 +31,7 @@ import { useSnapState } from '../../lib/snapState';
 import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, RivalMiniTile, RivalStartTiles, GreySheet, GreyNote, GreyPrimary, type RivalIconName } from '../../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalFontFamily, RivalSerifFamily, RivalButtonColors, rivalTextShadow } from '../../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
-import { goToTab } from '../../lib/tabNav';
+import { arrivedFromTab, getCurrentPath, goToTab, sincePathChange } from '../../lib/tabNav';
 import { avatarImage } from '../../lib/imageUrl';
 
 // Empty podium: a faint wreath round an empty seat over first place.
@@ -1366,6 +1367,11 @@ const LeaderCardSlot = memo(function LeaderCardSlot({ leader, first, width, stre
     // and rose again (Ricky, 2026-10-02). Once fully off screen it goes back
     // to its first frame, unseen, and is ready to rise when swiped to again.
     const io = new IntersectionObserver(([entry]) => {
+      // A page opening over Today slides it aside, which looked like the
+      // card being swiped away and rebuilt it on return (Ricky, 2026-10-24).
+      // Not while it slides, nor just after: a page sliding in or out moves
+      // the card sideways the way a swipe does.
+      if (getCurrentPath() !== '/home' || sincePathChange() < 900) { swipedAway = false; return; }
       const now = entry.intersectionRatio >= 0.1;
       if (!now && entry.rootBounds) {
         const r = entry.boundingClientRect, root = entry.rootBounds;
@@ -1951,6 +1957,9 @@ export default function HomeScreen() {
   // so nobody ever sees placeholder figures that look like someone's real data.
   // Later reloads (returning to the tab, pull to refresh) keep the last data up.
   const [loaded, setLoaded] = useSnapState('home.loaded', false);
+  // The app fades in once Today has something to show (lib/appReveal.ts),
+  // so it opens with the page drawn rather than filling in piece by piece.
+  useEffect(() => { if (loaded) requestAnimationFrame(() => revealApp()); }, [loaded]);
   const [goalsCardHovered, setGoalsCardHovered] = useState(false);
   const [leaderCardHovered, setLeaderCardHovered] = useState(false);
   const [momentumCardHovered, setMomentumCardHovered] = useState(false);
@@ -1987,7 +1996,12 @@ export default function HomeScreen() {
   // (Today stays loaded between tab switches).
   const [podiumVisit, setPodiumVisit] = useState(0);
   useFocusEffect(useCallback(() => {
-    setPodiumVisit((n) => n + 1);
+    // Not when a page over Today closes: that left the podium replaying as
+    // if the app had reloaded (Ricky, 2026-10-24). The data still refreshes.
+    // The first time, once the fade has begun, so the podium rises in view
+    // rather than finishing unseen behind the wordmark.
+    if (!isAppRevealed()) onAppReveal(() => setPodiumVisit((n) => n + 1));
+    else if (arrivedFromTab('/home')) setPodiumVisit((n) => n + 1);
     loadAll();
   }, []));
 
@@ -2697,7 +2711,7 @@ export default function HomeScreen() {
                       </TouchableOpacity>
                     }
                   >
-                    <GreyNote>{focusStarters?.basis ?? 'One tap sets it as the focus for the next 4 weeks.'}</GreyNote>
+                    {focusStarters?.basis ? <GreyNote>{focusStarters.basis}</GreyNote> : null}
                     <View style={[styles.mStarterRow, { marginTop: 14, marginBottom: 0 }]}>
                       {(focusStarters?.starters ?? []).map((st) => (
                         <TouchableOpacity
@@ -2988,11 +3002,21 @@ export default function HomeScreen() {
                         <Text style={styles.mFocusMetaLabel}>Complete</Text>
                       </View>
                       <View style={styles.mFocusMetaDivider} />
+                      {/* The last day stacks as Final / Day (Ricky, 2026-10-28). */}
                       <View style={styles.mFocusMetaCell}>
-                        <Text style={styles.mFocusMetaNumber}>{featuredGoal.daysLeft}</Text>
-                        <Text style={styles.mFocusMetaLabel}>{featuredGoal.daysLeft === 1 ? 'Day left' : 'Days left'}</Text>
+                        <Text style={styles.mFocusMetaNumber}>{featuredGoal.daysLeft <= 1 ? 'Final' : featuredGoal.daysLeft}</Text>
+                        <Text style={styles.mFocusMetaLabel}>{featuredGoal.daysLeft <= 1 ? 'Day' : 'Days left'}</Text>
                       </View>
                     </View>
+                    {(() => {
+                      const toGo = goalToGoLine(featuredGoal.progress, featuredGoal.target, featuredGoal.unit, featuredGoal.daysLeft);
+                      return toGo ? (
+                        <View style={styles.mFocusToGo}>
+                          <RivalIcon name="flag" size={15} color={RivalColors.accentText} />
+                          <Text style={styles.mFocusToGoText}>{toGo}</Text>
+                        </View>
+                      ) : null;
+                    })()}
                     {/* The whole Focus area opens Goals, so no separate link. */}
                   </>
               </TouchableOpacity>
@@ -3934,11 +3958,11 @@ export default function HomeScreen() {
               connected, status/sync/disconnect live on the profile page
               (Connected Apps panel) instead of taking up home real estate
               on every visit. */}
-          {!stravaConnected && (
+          {STRAVA_CONNECTIONS_OPEN && !stravaConnected && (
             <TouchableOpacity style={styles.stravaCard} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
               <View>
                 <Text style={styles.stravaCardTitle}>Connect a device</Text>
-                <Text style={styles.stravaCardSub}>Sync workouts from a watch or app to earn Effort.</Text>
+                <Text style={styles.stravaCardSub}>Sync activities from a watch or app to earn Effort.</Text>
               </View>
               <Text style={styles.stravaCardArrow}>→</Text>
             </TouchableOpacity>
@@ -4258,6 +4282,8 @@ const styles = StyleSheet.create({
   // since that one is scoped private to team-hub.tsx.
   mFocusRingMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28, marginTop: 18, marginBottom: 14 },
   mFocusMetaCell: { alignItems: 'center', minWidth: 84 },
+  mFocusToGo: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: -2, marginBottom: 14 },
+  mFocusToGoText: { fontFamily: RivalFontFamily, fontSize: 13.5, fontWeight: '600', color: '#fff' },
   // White, so the card isn't all one colour: the ring and labels carry the salmon.
   mFocusMetaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, fontWeight: '700', lineHeight: 32, color: '#ffffff' },
   mFocusMetaLabel: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 4 },

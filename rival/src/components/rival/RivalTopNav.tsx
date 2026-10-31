@@ -255,6 +255,8 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
     // gap is now safe — the shell reaches the true 852 bottom, so what shows
     // under the pill is the app's own background, not bare page canvas.
     <View
+      // Hidden with the rest of the app until it fades in (lib/appReveal.ts).
+      {...(Platform.OS === 'web' ? { dataSet: { rivalFade: '1' } } : {})}
       style={[
         styles.bottomNavOuter,
         {

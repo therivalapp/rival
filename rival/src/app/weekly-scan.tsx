@@ -12,7 +12,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { calculateEffortScore, loadScoringConfig } from '../lib/effort';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { matchCanonicalLift } from '../lib/lifts';
-import { goToTab } from '../lib/tabNav';
+import { backToOrigin, goToTab } from '../lib/tabNav';
 import { MultiDayScan } from '../components/rival/MultiDayScan';
 
 type DayImage = { uri: string; base64: string; mimeType: string };
@@ -53,18 +53,6 @@ function getCurrentWeekDays(): DayState[] {
       images: [],
     };
   });
-}
-
-// Class-based formats are almost always a full ~45-60min session even though the
-// scanned WOD/board only shows the timed portion (e.g. a 15min WOD inside an hour class).
-const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
-const CLASS_DURATION_FLOOR_SECONDS = 45 * 60;
-
-function applyClassDurationFloor(workoutType: string, durationSeconds: number): number {
-  if (CLASS_BASED_TYPES.has(workoutType) && durationSeconds > 0 && durationSeconds < 30 * 60) {
-    return CLASS_DURATION_FLOOR_SECONDS;
-  }
-  return durationSeconds;
 }
 
 // Phone: the multi-day scan pop-up (MultiDayScan.tsx). Desktop keeps this page.
@@ -122,7 +110,7 @@ function WeeklyScanScreen() {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setErrorMsg('Photo library access is required to add workout photos.');
+      setErrorMsg('Photo library access is required to add activity photos.');
       return;
     }
 
@@ -194,7 +182,7 @@ function WeeklyScanScreen() {
 
         const workout = data.workout;
         const workoutType = workout.workoutType || 'Workout';
-        const duration = applyClassDurationFloor(workoutType, workout.duration || 0);
+        const duration = workout.duration || 0;
         const distance = workout.distance || 0;
         const effortScore = calculateEffortScore(workoutType, duration, workout.elevation || 0, await loadScoringConfig(), distance * 1000);
 
@@ -264,7 +252,7 @@ function WeeklyScanScreen() {
 
     const { error: nameErr } = await supabase.from('activities').update({ name: trimmed, name_locked: true }).eq('id', result.activityId);
     if (nameErr) {
-      setErrorMsg(`The workout could not be renamed: ${nameErr.message}`);
+      setErrorMsg(`The activity could not be renamed: ${nameErr.message}`);
       setEditingIndex(null);
       return;
     }
@@ -343,8 +331,8 @@ function WeeklyScanScreen() {
 
       for (let i = 0; i < blobs.length; i++) {
         const item = blobs[i];
-        if (item.mediaType === 'photo' && photoCount >= MAX_PHOTOS) { setErrorMsg(`Up to ${MAX_PHOTOS} photos per workout`); continue; }
-        if (item.mediaType === 'video' && videoCount >= MAX_VIDEOS) { setErrorMsg(`Up to ${MAX_VIDEOS} video per workout`); continue; }
+        if (item.mediaType === 'photo' && photoCount >= MAX_PHOTOS) { setErrorMsg(`Up to ${MAX_PHOTOS} photos per activity`); continue; }
+        if (item.mediaType === 'video' && videoCount >= MAX_VIDEOS) { setErrorMsg(`Up to ${MAX_VIDEOS} video per activity`); continue; }
 
         const up = await fitPhoto({ blob: item.blob, mimeType: item.mimeType, ext: item.ext });
         const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -556,7 +544,7 @@ function WeeklyScanScreen() {
             ))}
 
             {allDone && (
-              <TouchableOpacity style={st.doneBtn} onPress={() => goToTab('/my-activities')}>
+              <TouchableOpacity style={st.doneBtn} onPress={backToOrigin}>
                 <Text style={st.doneBtnText}>View my Activities →</Text>
               </TouchableOpacity>
             )}

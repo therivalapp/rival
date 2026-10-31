@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { notify } from '../lib/notify';
 import { RivalColors, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { sidePageWide } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
@@ -143,17 +144,16 @@ export default function FriendsScreen() {
   }
 
   async function toggleFollow(user: UserResult) {
-    if (user.isFollowing) {
-      await supabase
+    const { error } = user.isFollowing
+      ? await supabase
         .from('follows')
         .delete()
         .eq('follower_id', currentUserId)
-        .eq('following_id', user.id);
-    } else {
-      await supabase
+        .eq('following_id', user.id)
+      : await supabase
         .from('follows')
         .insert({ follower_id: currentUserId, following_id: user.id });
-    }
+    if (error) { notify('The change could not be saved', error.message); return; }
 
     // Update search results immediately
     setSearchResults((prev) =>

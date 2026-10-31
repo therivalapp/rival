@@ -18,11 +18,13 @@ export function takePendingScanFiles(): File[] | null {
   return files;
 }
 
-/** Opens the camera or photo library straight from a tap (web only). */
-export function pickScanFiles(source: 'camera' | 'gallery', onPicked: (files: File[]) => void) {
+/** Opens the camera or photo library straight from a tap (web only).
+ *  With `withVideos`, videos can be picked too: Upload takes the workout's
+ *  photos and videos together and sorts them (scan-workout.tsx). */
+export function pickScanFiles(source: 'camera' | 'gallery', onPicked: (files: File[]) => void, withVideos = false) {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'image/*';
+  input.accept = withVideos && source === 'gallery' ? 'image/*,video/*' : 'image/*';
   if (source === 'camera') input.setAttribute('capture', 'environment');
   else input.multiple = true;
   input.onchange = () => {
@@ -30,4 +32,18 @@ export function pickScanFiles(source: 'camera' | 'gallery', onPicked: (files: Fi
     if (files.length > 0) onPicked(files);
   };
   input.click();
+}
+
+// Photos from Upload that were taken on several days, already grouped by day
+// (lib/photoDates.ts), handed to Multi-day scan to read one activity a day.
+let pendingDays: { date: Date; files: File[] }[] | null = null;
+
+export function setPendingScanDays(days: { date: Date; files: File[] }[]) {
+  pendingDays = days;
+}
+
+export function takePendingScanDays(): { date: Date; files: File[] }[] | null {
+  const days = pendingDays;
+  pendingDays = null;
+  return days;
 }

@@ -1,0 +1,189 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+* { box-sizing:border-box; }
+body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+.row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+.col { width:393px; flex-shrink:0; }
+.tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+.desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:56px; }
+.phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#0d0d0d; }
+.status { height:50px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; font-weight:700; font-size:16px; color:rgba(255,255,255,0.5); position:relative; z-index:2; }
+.mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; display:inline-block; }
+.serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+
+/* GreySheet */
+.dim { position:absolute; inset:0; background:rgba(0,0,0,0.55); }
+.sheet { position:absolute; left:0; right:0; bottom:0; background:#282828; border-top:1px solid #323232; border-radius:22px 22px 0 0; padding:10px 18px 0; overflow:hidden; }
+.glow { position:absolute; top:0; left:0; right:0; height:150px; background:radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+.grab { width:38px; height:4px; border-radius:2px; background:#323232; margin:0 auto 14px; position:relative; }
+.kick { font-size:9.5px; font-weight:800; letter-spacing:1.3px; color:#ffb59e; text-align:center; position:relative; }
+.stitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:24px; text-align:center; margin-top:3px; position:relative; }
+.glabel { font-size:10px; font-weight:800; letter-spacing:1px; color:#A0A0A0; margin:15px 0 8px; text-transform:uppercase; position:relative; }
+.gfield { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:14px; padding:13px 14px; font-size:16px; font-weight:500; }
+.gcard { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:0 13px; }
+.grow { display:flex; align-items:center; min-height:46px; gap:10px; padding:4px 0; }
+.grow + .grow { border-top:1px solid rgba(255,209,190,0.08); }
+.grow .ic { width:18px; text-align:center; font-size:16px; color:#ffb59e; }
+.grow .l { font-size:13.5px; font-weight:600; color:#A0A0A0; min-width:104px; }
+.grow .v { flex:1; text-align:right; font-size:15px; font-weight:500; padding:8px 0; }
+.grow .v.ph { color:rgba(255,255,255,0.28); }
+.grow .chev { font-size:18px; color:rgba(255,255,255,0.4); margin-left:-4px; }
+.gnote { font-size:12.5px; line-height:17px; color:#A0A0A0; margin-top:8px; }
+.tiles { display:flex; flex-wrap:wrap; gap:7px; }
+.tile { width:calc(25% - 5.25px); display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 0 8px; border-radius:14px; background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); font-size:11.5px; font-weight:700; color:#A0A0A0; }
+.tile .b { width:32px; height:32px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); font-size:17px; color:#ffb59e; }
+.tile.on { background:linear-gradient(160deg,#ffb59e,#D97757); border-color:transparent; color:#2a1710; }
+.tile.on .b { background:rgba(42,23,16,0.14); color:#2a1710; }
+.foot { padding:16px 0 26px; }
+.primary { height:52px; border-radius:999px; background:linear-gradient(90deg,#D97757,#ffb59e); color:#2a1710; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; }
+.new { position:absolute; inset:-5px; border:1.5px dashed rgba(255,181,158,0.55); border-radius:20px; pointer-events:none; }
+.newtag { position:absolute; right:-6px; top:-14px; background:#ffb59e; color:#2a1710; font-size:9px; font-weight:800; letter-spacing:.8px; padding:3px 7px; border-radius:999px; }
+
+/* Events page */
+.page { background:#232120; position:absolute; inset:0; }
+.phead { position:relative; text-align:center; padding:16px 60px 12px; }
+.phead .glw { position:absolute; top:-80px; left:0; right:0; height:240px; background:radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%); }
+.back { position:absolute; left:16px; top:14px; width:36px; height:36px; border-radius:18px; background:rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; }
+.ptitle { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:28px; line-height:34px; margin-top:3px; position:relative; }
+.content { padding:0 16px; display:flex; flex-direction:column; gap:12px; }
+.card { background:rgba(255,209,190,0.05); border:1px solid rgba(255,181,158,0.22); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px; position:relative; }
+.ticket { display:flex; align-items:center; gap:12px; }
+.rlabel { font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#A0A0A0; }
+.tname { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:19px; line-height:24px; }
+.tmeta { font-size:12.5px; color:#A0A0A0; }
+.stub { align-self:stretch; display:flex; align-items:center; justify-content:center; min-width:64px; padding-left:12px; border-left:1.5px dashed rgba(255,209,190,0.18); }
+.discs { display:flex; gap:6px; flex-wrap:wrap; }
+.disc { padding:5px 10px; border-radius:999px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); font-size:11.5px; font-weight:600; color:rgba(255,255,255,0.6); }
+.goalrow { display:flex; align-items:center; justify-content:space-between; }
+.mlabel { font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:#ffb59e; display:flex; align-items:center; gap:8px; }
+.gval { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:18px; }
+.msg { font-family:Georgia,serif; font-style:italic; font-size:15px; line-height:21px; color:rgba(255,255,255,0.6); }
+.pill { display:inline-flex; align-items:center; gap:4px; height:20px; padding:0 7px; border-radius:999px; font-size:9.5px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:#2a2116; }
+.pill .mi { font-size:11px; text-transform:none; letter-spacing:0; }
+.pill.ev { background:#f4ead8; }
+.pill.pb { background:#FFD700; }
+
+/* Activity week head */
+.app { position:absolute; inset:0; background:#131313; }
+.topnav { height:52px; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid rgba(255,255,255,0.08); }
+.logo { color:#ffb59e; font-weight:800; letter-spacing:4px; font-size:17px; }
+.pwh { margin:22px 20px 0; padding-top:22px; border-top:1px solid rgba(255,255,255,0.12); display:flex; flex-direction:column; gap:12px; }
+.pwrow { display:flex; align-items:flex-start; gap:10px; }
+.pwk { font-size:10px; font-weight:800; letter-spacing:2px; color:#f4ead8; }
+.pwt { display:flex; align-items:center; gap:8px; }
+.pwt b { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:22px; line-height:26px; }
+.eff { text-align:center; }
+.eff b { display:block; font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:28px; line-height:32px; }
+.eff span { display:block; font-size:10px; font-weight:800; letter-spacing:2.2px; color:#ffb59e; margin-top:1px; }
+.pwtiles { display:flex; gap:6px; }
+.pwtile { flex:1; text-align:center; padding:9px 0; border-radius:14px; background:#282828; border:1px solid #323232; }
+.pwtile b { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:20px; line-height:24px; }
+.pwtile b i { font-family:Manrope; font-style:normal; font-weight:600; font-size:12px; color:#ffb59e; }
+.pwtile span { display:block; font-size:9px; font-weight:800; letter-spacing:1.2px; color:rgba(255,255,255,0.55); margin-top:2px; }
+.cards { display:flex; gap:8px; margin:12px 0 0 20px; overflow:hidden; }
+.rest { width:30px; height:213px; border-radius:15px; background:#0b0b0b; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:rgba(255,255,255,0.32); }
+.rest b { font-family:Georgia,serif; font-style:italic; font-size:15px; }
+.rest span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:9px; font-weight:800; letter-spacing:1.4px; }
+.acard { width:160px; height:213px; border-radius:18px; flex-shrink:0; position:relative; overflow:hidden; background:linear-gradient(180deg,#4b5d72 0%,#3a3f4a 55%,#1d1b1a 100%); }
+.acard .ico { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding-bottom:30px; font-size:110px; color:rgba(255,255,255,0.16); }
+.acard .shade { position:absolute; inset:0; background:linear-gradient(0deg, rgba(14,12,11,0.85) 0%, rgba(14,12,11,0) 55%); }
+.acard .day { position:absolute; top:10px; right:12px; font-family:Georgia,serif; font-style:italic; font-size:13px; color:rgba(255,255,255,0.85); }
+.acard .ptag { position:absolute; top:9px; left:9px; }
+.acard .bot { position:absolute; left:10px; right:10px; bottom:10px; display:flex; align-items:flex-end; justify-content:space-between; }
+.acard .nm { font-size:12px; font-weight:700; color:#ffb59e; }
+.acard .st { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:16px; }
+.acard .ef { text-align:right; }
+.acard .ef span { display:block; font-size:7px; font-weight:800; letter-spacing:1.2px; color:#ffb59e; }
+.acard .ef b { font-family:Georgia,serif; font-style:italic; font-size:16px; }
+.acard.ring { box-shadow:inset 0 0 0 2px #f4ead8; }
+.bnav { position:absolute; left:14px; right:14px; bottom:26px; height:58px; border-radius:22px; background:rgba(28,28,28,0.96); border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-around; font-size:11px; font-weight:700; color:#A0A0A0; }
+.bnav div { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 18px; border-radius:16px; }
+.bnav .on { background:#3a2620; color:#ffb59e; }
+</style></head><body><div class="row">
+
+<!-- 1. Add event -->
+<div class="col"><div class="tag">1 · Add event</div>
+<div class="desc">Type a name you've used before and it offers the earlier one. Linked, the finish times are compared. Change it to "New event" if it's a different race.</div>
+<div class="phone"><div class="status"><span>9:41</span><span>●●●</span></div><div class="dim"></div>
+<div class="sheet"><div class="glow"></div><div class="grab"></div>
+<div class="kick">EVENTS</div><div class="stitle">Add event</div>
+<div class="glabel">Event</div><div class="gfield">T100 Wellington</div>
+<div style="position:relative"><div class="new"><span class="newtag">NEW</span></div>
+<div class="glabel" style="margin-top:12px">Done before</div>
+<div class="gcard"><div class="grow"><span class="mi ic">history</span><span class="l">Same event as</span><span class="v">Aug 2025</span><span class="mi chev">chevron_right</span></div></div>
+</div>
+<div class="glabel">Type</div>
+<div class="tiles">
+ <div class="tile"><span class="b mi">directions_run</span>Run</div><div class="tile"><span class="b mi">directions_bike</span>Ride</div><div class="tile"><span class="b mi">pool</span>Swim</div><div class="tile on"><span class="b mi">emoji_events</span>Triathlon</div>
+ <div class="tile"><span class="b mi">fitness_center</span>HYROX</div><div class="tile"><span class="b mi">sports_gymnastics</span>CrossFit</div><div class="tile"><span class="b mi">tune</span>Custom</div><div class="tile"><span class="b mi">more_horiz</span>Other</div>
+</div>
+<div class="glabel">Distances</div>
+<div class="gcard"><div class="grow"><span class="mi ic">pool</span><span class="l">Swim (km)</span><span class="v">2</span></div><div class="grow"><span class="mi ic">directions_bike</span><span class="l">Bike (km)</span><span class="v">80</span></div><div class="grow"><span class="mi ic">directions_run</span><span class="l">Run (km)</span><span class="v">18</span></div></div>
+<div class="gnote">Distances filled in from Aug 2025.</div>
+<div class="foot"><div class="primary">Add event</div></div>
+</div></div></div>
+
+<!-- 2. Events: course PB -->
+<div class="col"><div class="tag">2 · Finish logged: course PB</div>
+<div class="desc">Faster than last time: the gold PB pill beside the finish, and last year's time underneath for the comparison.</div>
+<div class="phone"><div class="page"><div class="status"><span>9:41</span><span>●●●</span></div>
+<div class="phead"><div class="glw"></div><div class="back"><span class="mi" style="font-size:24px">chevron_left</span></div><div class="kick">RACES AND COMPETITIONS</div><div class="ptitle">Events</div></div>
+<div class="content">
+<div class="card">
+ <div class="ticket"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><div class="rlabel">Triathlon · 100 km</div><div class="tname">T100 Wellington</div><div class="tmeta">Sat, Aug 15 · Wellington</div></div>
+ <div class="stub"><span class="mi" style="font-size:24px;color:#F5B759">check_circle</span></div></div>
+ <div class="discs"><span class="disc">Swim · 2 km</span><span class="disc">Bike · 80 km</span><span class="disc">Run · 18 km</span></div>
+ <div style="display:flex;flex-direction:column;gap:8px;position:relative">
+  <div class="goalrow"><span class="mlabel">Finish time <span class="pill pb"><span class="mi">emoji_events</span>PB</span></span><span class="gval">4:22:05</span></div>
+  <div class="goalrow"><span class="mlabel" style="color:#A0A0A0">Aug 2025</span><span class="gval" style="color:rgba(255,255,255,0.6)">4:31:20</span></div>
+  <div class="msg">9:15 faster than last time.</div>
+  <div class="new"><span class="newtag">NEW</span></div>
+ </div>
+</div>
+<div class="card">
+ <div class="ticket"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><div class="rlabel">Triathlon · 100 km</div><div class="tname">T100 Wellington</div><div class="tmeta">Sat, Aug 16, 2025 · Wellington</div></div>
+ <div class="stub"><span class="mi" style="font-size:24px;color:#F5B759">check_circle</span></div></div>
+ <div class="goalrow"><span class="mlabel">Finish time</span><span class="gval">4:31:20</span></div>
+</div>
+</div></div></div></div>
+
+<!-- 3. Events: slower -->
+<div class="col"><div class="tag">3 · Finish logged: slower</div>
+<div class="desc">Slower than last time: no PB pill and no "behind" figure. It counts the finish instead, so going back still means something.</div>
+<div class="phone"><div class="page"><div class="status"><span>9:41</span><span>●●●</span></div>
+<div class="phead"><div class="glw"></div><div class="back"><span class="mi" style="font-size:24px">chevron_left</span></div><div class="kick">RACES AND COMPETITIONS</div><div class="ptitle">Events</div></div>
+<div class="content">
+<div class="card">
+ <div class="ticket"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><div class="rlabel">Triathlon · 100 km</div><div class="tname">T100 Wellington</div><div class="tmeta">Sat, Aug 15 · Wellington</div></div>
+ <div class="stub"><span class="mi" style="font-size:24px;color:#F5B759">check_circle</span></div></div>
+ <div class="discs"><span class="disc">Swim · 2 km</span><span class="disc">Bike · 80 km</span><span class="disc">Run · 18 km</span></div>
+ <div style="display:flex;flex-direction:column;gap:8px;position:relative">
+  <div class="goalrow"><span class="mlabel">Finish time</span><span class="gval">4:35:10</span></div>
+  <div class="goalrow"><span class="mlabel" style="color:#A0A0A0">Best, Aug 2025</span><span class="gval" style="color:rgba(255,255,255,0.6)">4:31:20</span></div>
+  <div class="msg">Second T100 Wellington finish.</div>
+  <div class="new"><span class="newtag">NEW</span></div>
+ </div>
+</div>
+</div></div></div></div>
+
+<!-- 4. Activity week -->
+<div class="col"><div class="tag">4 · Activity page</div>
+<div class="desc">The race week shows the Triathlon pill, then PB, as built today. The race card gets the PB from the course time too.</div>
+<div class="phone"><div class="app"><div class="status"><span>9:41</span><span>●●●</span></div>
+<div class="topnav"><span class="logo">RIVAL</span><span class="mi" style="color:#ffb59e;font-size:24px">notifications_none</span></div>
+<div class="pwh">
+ <div class="pwrow"><div style="flex:1;min-width:0"><div class="pwk">WEEK 33 · AUG 10 – 16</div><div class="pwt"><b>T100</b><span class="pill ev"><span class="mi">flag</span>Triathlon</span><span class="pill pb"><span class="mi">emoji_events</span>PB</span></div></div>
+ <div class="eff"><b>416</b><span>EFFORT</span></div></div>
+ <div class="pwtiles"><div class="pwtile"><b>4<i>h</i> 22<i>m</i></b><span>TIME</span></div><div class="pwtile"><b>100<i>km</i></b><span>DISTANCE</span></div><div class="pwtile"><b>3</b><span>ACTIVITIES</span></div></div>
+</div>
+<div class="cards">
+ <div class="rest"><b>10</b><span>MON</span></div><div class="rest"><b>11</b><span>TUE</span></div>
+ <div class="acard ring"><span class="mi ico">pool</span><div class="shade"></div><span class="pill ev ptag"><span class="mi">flag</span>Triathlon</span><span class="day">Sat</span><div class="bot"><div><div class="nm">Swim</div><div class="st">2.0 km</div></div><div class="ef"><span>EFFORT</span><b>48.2</b></div></div></div>
+ <div class="acard ring"><span class="mi ico">directions_bike</span><div class="shade"></div><span class="pill ev ptag"><span class="mi">flag</span>Triathlon</span><span class="day">Sat</span><div class="bot"><div><div class="nm">Ride</div><div class="st">80 km</div></div><div class="ef"><span>EFFORT</span><b>212</b></div></div></div>
+</div>
+<div class="bnav"><div><span class="mi" style="font-size:20px">home</span>Today</div><div class="on"><span class="mi" style="font-size:20px">bar_chart</span>Activity</div><div><span class="mi" style="font-size:20px">groups</span>Teams</div><div><span class="mi" style="font-size:20px">chat_bubble_outline</span>Chat</div></div>
+</div></div></div>
+
+</div></body></html>

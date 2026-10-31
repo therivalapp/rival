@@ -5,6 +5,8 @@
 const NOUN: Record<string, string> = {
   Rowing: 'Row',
   WeightTraining: 'Weight Training',
+  CrossFit: 'CrossFit',
+  Hyrox: 'HYROX',
 };
 
 export function partOfDay(at: Date): string {

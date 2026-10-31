@@ -39,9 +39,13 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#0e0e0e" />
         <link rel="manifest" href="/manifest.json" />
 
-        {/* iOS launch screens for the home-screen app: plain app-dark, one
-            per iPhone size. Without them iOS shows a white screen while the
-            page loads. iOS reads these when the app is added to the home
+        {/* iOS launch screens for the home-screen app, one per iPhone size:
+            plain app-dark. They had the RIVAL wordmark on them, but a launch
+            screen is a still picture, so RIVAL sat there until the page
+            took over and began to pulse (Ricky, 2026-10-25: "stalls for a
+            second and then starts to pulse"). Now the page's own wordmark
+            (#rival-boot below) fades in already pulsing. Without them iOS
+            shows a white screen while the page loads. iOS reads these when the app is added to the home
             screen, so an existing icon needs re-adding to pick them up. */}
         {LAUNCH_SCREENS.map(([w, h, r]) => (
           <link
@@ -51,6 +55,34 @@ export default function Root({ children }: { children: React.ReactNode }) {
             media={`(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: portrait)`}
           />
         ))}
+
+        {/* Manrope, loaded without holding up the first frame. As an
+            ordinary stylesheet (an @import in global.css, as it was) the
+            phone waited on Google before drawing anything, so the still
+            launch picture stayed up longer and RIVAL sat there before it
+            began to pulse (Ricky, 2026-10-24). The app waits for it before
+            fading in (lib/appReveal.ts), so text never changes shape. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap';window.__rivalFonts=new Promise(function(r){l.onload=r;l.onerror=r;});document.head.appendChild(l);})();`,
+          }}
+        />
+
+        {/* A phone held sideways keeps the phone design, as the native app
+            stays portrait (app.json). Sideways a phone is wider than the
+            840px wide-layout cut-off, so it used to switch to the desktop
+            layout (Ricky, 2026-10-27: "it started showing the old website
+            version"). Here the page is held to the phone's portrait width,
+            centred, and the width the app reads (react-native-web takes it
+            from visualViewport) is that width too, so every page lays out
+            exactly as it does upright. Runs before the app's JavaScript. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var vv=window.visualViewport;if(!vv||!window.matchMedia||!matchMedia('(pointer: coarse)').matches)return;var d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv),'width');if(!d||!d.get)return;var el=document.documentElement;function col(){var s=Math.min(screen.width,screen.height);return s<500&&innerWidth>innerHeight?s:0;}function apply(){var c=col();el.classList.toggle('rival-phone-side',!!c);if(c)el.style.setProperty('--rival-phone-w',c+'px');}Object.defineProperty(vv,'width',{configurable:true,get:function(){var c=col();return c?c/(vv.scale||1):d.get.call(vv);}});apply();vv.addEventListener('resize',apply);})();`,
+          }}
+        />
 
         {/* Open the connection to Supabase while the app's JavaScript is still
             downloading, so the first data request doesn't also have to wait
@@ -75,24 +107,46 @@ export default function Root({ children }: { children: React.ReactNode }) {
             through — never a height/overflow override. */}
         <style dangerouslySetInnerHTML={{ __html: `
           html, body, #root { background-color: #0e0e0e; }
-          /* While the app's JavaScript loads, #root is empty: show the
-             wordmark, softly pulsing, instead of a blank screen. The app
-             covers it the moment it draws its first frame. */
           #root:empty { background-color: transparent; }
-          body::before {
-            content: 'RIVAL'; position: fixed; left: 0; right: 0; top: 50%;
+          /* The wordmark (#rival-boot below) shows, pulsing, while the app
+             loads. A real element, not body::before as it was: changes to
+             the pseudo-element didn't reliably take, on iOS or in Chrome, so
+             it kept showing through the app as it faded in (Ricky,
+             2026-10-24: "it flickers as it transitions to the Today page").
+             The app removes it outright as it starts to fade in
+             (lib/appReveal.ts), and fades in from dark a moment later. */
+          #rival-boot {
+            position: fixed; left: 0; right: 0; top: 50vh;
             transform: translateY(-50%); text-align: center;
             font: 600 22px/1 -apple-system, 'Helvetica Neue', Arial, sans-serif;
             letter-spacing: 0.32em; text-indent: 0.32em; color: #ffb59e;
-            animation: rivalBootPulse 1.6s ease-in-out infinite;
+            pointer-events: none;
+            animation: rivalBootIn 450ms ease-out both, rivalBootPulse 1.65s ease-in-out 450ms infinite;
+            /* Its own layer, so the pulse runs on the GPU and keeps going
+               while the phone is busy starting the app's JavaScript (Ricky,
+               2026-10-24: "RIVAL isn't pulsing"). */
+            will-change: opacity, transform;
           }
-          body:has(#root:not(:empty))::before { display: none; }
-          /* The app also switches it off itself once it starts (_layout.tsx):
-             the rule above didn't always take on iOS, and the wordmark kept
-             pulsing unseen behind the whole app, redrawing the page about
-             60 times a second (Ricky, 2026-10-21: the app felt laggy). */
-          html.rival-ready body::before { display: none; animation: none; content: none; }
-          @keyframes rivalBootPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+          /* The app itself (the page, the bottom bar, the daily quote) is
+             hidden until rival-shown, then fades in together, in one CSS
+             transition (lib/appReveal.ts). A short delay, so the wordmark is
+             gone before the app shows through. Only while opening: the daily
+             quote fades itself out later, and a transition left on it would
+             drag that. !important because the daily quote sets its own
+             opacity inline, which otherwise wins and let it show over the
+             wordmark before the app was ready. */
+          html:not(.rival-ready) [data-rival-fade] { transition: opacity 600ms ease-out 120ms; }
+          html:not(.rival-shown) [data-rival-fade] { opacity: 0 !important; }
+          /* Fades in from the plain launch screen, then pulses with a slight
+             shrink (Ricky, 2026-10-24: "make RIVAL pulse" when opening the
+             app). */
+          @keyframes rivalBootIn { from { opacity: 0; } to { opacity: 0.9; } }
+          @keyframes rivalBootPulse {
+            0%, 100% { opacity: 0.9; transform: translateY(-50%) scale(1); }
+            /* Half the first version's dip and shrink (0.3, 0.95), at half
+               its speed (1.1s): that was a little much (Ricky, 2026-10-24). */
+            50% { opacity: 0.6; transform: translateY(-50%) scale(0.975); }
+          }
           /* Expo's reset gives html/body/#root height:100%, which resolves
              against the LAYOUT viewport. On iOS standalone that is 59px
              shorter than the real screen (measured on device 2026-08-24:
@@ -108,9 +162,18 @@ export default function Root({ children }: { children: React.ReactNode }) {
              comment above warns against: overflow is untouched, so the app
              shell still scrolls internally and index.tsx still flows. */
           html, body, #root { height: 100vh; }
+          /* A phone held sideways: the page at the phone's portrait width,
+             centred (see the script above). The transform holds the fixed
+             parts (bottom bar, pop-ups) to that column too. */
+          html.rival-phone-side body {
+            width: var(--rival-phone-w); margin: 0 auto; transform: translateZ(0);
+          }
         ` }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <div id="rival-boot" aria-hidden="true">RIVAL</div>
+        {children}
+      </body>
     </html>
   );
 }
