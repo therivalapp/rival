@@ -557,7 +557,7 @@ function WeeklyScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
   header: { marginBottom: 16 },
   back: { color: RivalColors.accentFill, fontSize: 16 },

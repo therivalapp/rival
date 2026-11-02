@@ -1,0 +1,99 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;width:880px;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}.col{width:393px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:84px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#000}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.s{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:62px;background:#282828;border-top:1px solid #3a3939;border-radius:22px 22px 0 0;padding:10px 18px 0;overflow:hidden}
+.gl{position:absolute;top:0;left:0;right:0;height:150px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.20),rgba(217,119,87,.07) 45%,rgba(217,119,87,0))}
+.grab{position:relative;width:38px;height:4px;border-radius:2px;background:#3a3939;margin:0 auto 12px}
+.back{position:absolute;left:14px;top:26px;width:34px;height:34px;border-radius:17px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center}.back .mi{font-size:20px}
+.k{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.t{position:relative;font-size:24px;text-align:center;margin-top:3px}
+.lab{position:relative;font-size:10px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;margin:16px 2px 7px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.g{text-align:center;border-radius:14px;padding:9px 4px 8px;background:rgba(255,255,255,.05)}
+.g b{display:block;font-family:Georgia,serif;font-style:italic;font-size:20px;line-height:25px}.g b small{font-size:12px;opacity:.6}
+.g i{font-style:normal;font-size:8.5px;letter-spacing:1.2px;font-weight:800;color:#a0a0a0}
+.card{position:relative;border-radius:14px;background:rgba(255,255,255,.05);padding:10px 12px}
+.ch{display:flex;justify-content:space-between;align-items:baseline;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.ch span{color:#ffb59e}
+.card svg{display:block;margin-top:6px}
+.ax{display:flex;justify-content:space-between;font-size:9px;color:#a0a0a0;margin-top:2px}
+.be{display:flex;align-items:center;padding:9px 2px;border-top:1px solid rgba(255,255,255,.06)}.be:first-child{border-top:0}
+.be b{flex:1;font-size:13.5px;font-weight:800}.be .v{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px}
+.be .pb{margin-left:10px;font-size:9px;font-weight:800;letter-spacing:1px;color:#1a1408;background:#FFD700;border-radius:999px;padding:3px 8px}
+.sp{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(255,255,255,.06)}
+.sp .n{width:24px;font-size:12px;font-weight:800;color:#a0a0a0}
+.sp .p{width:44px;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px}
+.sp .bar{flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.sp .bar i{display:block;height:100%;border-radius:4px;background:rgba(255,181,158,.55)}.sp .bar i.best{background:linear-gradient(90deg,#D97757,#ffb59e)}
+.sp .x{width:38px;text-align:right;font-size:11px;color:#a0a0a0}
+.sh{display:flex;gap:10px;padding:0 2px 4px;font-size:8.5px;font-weight:800;letter-spacing:1.2px;color:#a0a0a0}.sh .n{width:24px}.sh .p{width:44px}.sh .bar{flex:1}.sh .x{width:38px;text-align:right}
+.zones .z{display:flex;align-items:center;gap:10px;padding:5px 0}
+.zones .z em{font-style:normal;width:26px;text-align:center;font-size:9.5px;font-weight:800;letter-spacing:.5px;color:#ffb59e;border:1px solid rgba(255,181,158,.35);border-radius:6px;padding:2px 0}.zones .z span{width:84px;font-size:12px;font-weight:800;color:#fff;line-height:14px}.zones .z span small{display:block;font-size:10px;font-weight:600;color:#a0a0a0}.zones .z .zb{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.zones .z .zb i{display:block;height:100%;border-radius:4px}
+.zones .z b{width:40px;text-align:right;font-size:11.5px}
+.fade{position:absolute;left:0;right:0;bottom:0;height:40px;background:linear-gradient(180deg,rgba(40,40,40,0),#282828)}
+.scroll{position:relative}
+</style></head><body><div class="row">
+
+<div class="col"><div class="tag">1 · More details, top</div>
+<div class="desc">Heart rate zones show both: the zone number for people who train by zones, a plain name for everyone else, and the beats per minute each covers. Zones come from max heart rate, set in Settings or worked out from age.</div>
+<div class="phone"><div class="sheet"><div class="gl"></div><div class="grab"></div><div class="back"><span class="mi">arrow_back</span></div>
+  <div class="k">RUN · 5.32 KM</div><div class="t s">More details</div>
+  <div class="lab">TIME</div>
+  <div class="grid">
+    <div class="g"><b>26:17</b><i>MOVING</i></div><div class="g"><b>28:40</b><i>ELAPSED</i></div><div class="g"><b>2:23</b><i>STOPPED</i></div>
+  </div>
+  <div class="lab">HEART RATE AND CADENCE</div>
+  <div class="grid">
+    <div class="g"><b>148</b><i>AVERAGE</i></div><div class="g"><b>171</b><i>MAX</i></div><div class="g"><b>172<small> spm</small></b><i>CADENCE</i></div>
+  </div>
+  <div class="lab">PACE AND ELEVATION</div>
+  <div class="card"><div class="ch">PACE<span>AVG 4:57 /KM</span></div>
+    <svg width="333" height="96" viewBox="0 0 333 96">
+      <path d="M0 96 L0 70 C30 66 50 74 80 72 C110 70 130 60 160 62 C190 64 210 76 240 72 C270 68 300 50 333 54 L333 96Z" fill="rgba(255,255,255,.07)"/>
+      <path d="M0 40 C20 34 40 46 70 42 C100 38 110 30 140 36 C170 42 190 52 220 44 C250 36 280 22 333 18" stroke="#e8835f" stroke-width="2.5" fill="none"/>
+      <line x1="0" x2="333" y1="38" y2="38" stroke="rgba(255,255,255,.3)" stroke-dasharray="3 3"/>
+    </svg>
+    <div class="ax"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5 km</span></div>
+    <div class="ch" style="margin-top:6px;letter-spacing:.4px;font-weight:700"><span style="color:#e8835f">— Pace</span><span style="color:#a0a0a0">▇ Elevation · 53 m gain</span></div>
+  </div>
+  <div class="lab">HEART RATE ZONES</div>
+  <div class="card zones">
+    <div class="z"><em>Z1</em><span>Recovery<small>under 119</small></span><div class="zb"><i style="width:6%;background:rgba(255,255,255,.25)"></i></div><b>1:30</b></div>
+    <div class="z"><em>Z2</em><span>Easy<small>119 to 138</small></span><div class="zb"><i style="width:14%;background:rgba(255,255,255,.4)"></i></div><b>3:40</b></div>
+    <div class="z"><em>Z3</em><span>Steady<small>139 to 152</small></span><div class="zb"><i style="width:38%;background:rgba(255,181,158,.45)"></i></div><b>9:55</b></div>
+    <div class="z"><em>Z4</em><span>Hard<small>153 to 165</small></span><div class="zb"><i style="width:36%;background:rgba(232,131,95,.75)"></i></div><b>9:24</b></div>
+    <div class="z"><em>Z5</em><span>Max<small>166+</small></span><div class="zb"><i style="width:7%;background:#e8835f"></i></div><b>1:48</b></div>
+  </div>
+  <div class="fade"></div>
+</div></div></div>
+
+<div class="col"><div class="tag">2 · Scrolled down</div>
+<div class="desc">Effort is gone from here: it is the lit tile on Finish, and tapping it opens the breakdown the app already has. Every split stays, as the full table with climb and heart rate per kilometre.</div>
+<div class="phone"><div class="sheet"><div class="gl"></div><div class="grab"></div><div class="back"><span class="mi">arrow_back</span></div>
+  <div class="k">RUN · 5.32 KM</div><div class="t s">More details</div>
+  <div class="lab">FASTEST EFFORTS</div>
+  <div class="card">
+    <div class="be"><b>400 m</b><span class="v">1:41</span></div>
+    <div class="be"><b>1 km</b><span class="v">4:38</span><span class="pb">PB</span></div>
+    <div class="be"><b>1 mile</b><span class="v">7:34</span></div>
+    <div class="be"><b>5 km</b><span class="v">24:12</span></div>
+  </div>
+  <div class="lab">EVERY SPLIT</div>
+  <div class="card">
+    <div class="sh"><span class="n">KM</span><span class="p">PACE</span><span class="bar"></span><span class="x">ELEV</span><span class="x">BPM</span></div>
+    <div class="sp" style="border-top:0"><span class="n">1</span><span class="p">4:52</span><span class="bar"><i style="width:62%"></i></span><span class="x">+7 m</span><span class="x">138</span></div>
+    <div class="sp"><span class="n">2</span><span class="p">4:49</span><span class="bar"><i style="width:74%"></i></span><span class="x">+11 m</span><span class="x">146</span></div>
+    <div class="sp"><span class="n">3</span><span class="p">4:57</span><span class="bar"><i style="width:45%"></i></span><span class="x">+11 m</span><span class="x">149</span></div>
+    <div class="sp"><span class="n">4</span><span class="p">4:50</span><span class="bar"><i style="width:70%"></i></span><span class="x">+11 m</span><span class="x">152</span></div>
+    <div class="sp"><span class="n">5</span><span class="p">4:43</span><span class="bar"><i class="best" style="width:96%"></i></span><span class="x">+11 m</span><span class="x">158</span></div>
+    <div class="sp"><span class="n">0.32</span><span class="p">4:31</span><span class="bar"><i style="width:30%;opacity:.6"></i></span><span class="x">+2 m</span><span class="x">166</span></div>
+  </div>
+</div></div></div>
+
+</div></body></html>

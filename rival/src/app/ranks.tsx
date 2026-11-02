@@ -4,7 +4,7 @@ import { makeRankCard, shareCardFile, type ShareFigure } from '../lib/shareCard'
 import { drawRankStamp, stampBlob, stampFontsReady } from '../lib/shareStamp';
 import { fullPhoto } from '../lib/imageUrl';
 import { distanceUnit, toDisplayDistance } from '../lib/units';
-import { RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
+import { RivalButtonColors, RivalGhost, rivalPhoneVar } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import type { RivalIconName } from '../components/rival/RivalIcon';
@@ -415,7 +415,7 @@ export default function RanksScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 48 },
   header: { marginBottom: 0 },
   back: { color: RivalColors.accentFill, fontSize: 16 },
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
   },
   strip: {
     width: 56,
@@ -559,7 +559,7 @@ const ms = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: {
     flexBasis: '30%', flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 132, paddingVertical: 14, paddingHorizontal: 8, overflow: 'hidden',
-    borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, backgroundColor: RivalColors.surfaceLowest,
+    borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, backgroundColor: rivalPhoneVar('rival-locked-tile', '#1b1a19', RivalColors.surfaceLowest),
   },
   tileCorner: { position: 'absolute', top: 9, right: 9 },
   tileIcon: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },

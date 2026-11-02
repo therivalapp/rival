@@ -13,10 +13,23 @@
 
 import { Platform } from 'react-native';
 
+// A colour that differs on phones. Phones are the mobile-only design phase, so
+// the phone value lives in global.css under max-width 839px and desktop keeps
+// `desktop` as the fallback. Native is always the phone.
+export function rivalPhoneVar(name: string, phone: string, desktop: string): string {
+  return Platform.OS === 'web' ? `var(--${name}, ${desktop})` : phone;
+}
+
+/** The soft top glow on a page's one main card (Ricky, 2026-11-01). Set on
+ *  phones only; see global.css. */
+export const RivalMainGlow: any = Platform.OS === 'web' ? { backgroundImage: 'var(--rival-main-glow, none)' } : {};
+
 export const RivalColors = {
   // Surfaces — tiered charcoal system, darkest to lightest.
   surfaceLowest: '#0e0e0e',
   surfaceLow: '#131313', // base app background
+  // The page itself: the pop-up grey on phones, near-black on desktop.
+  pageGround: rivalPhoneVar('rival-page', '#282828', '#131313'),
   surfaceContainer: '#20201f',
   surfaceHigh: '#282828', // elevated cards (DESIGN.md prose calls this "surface-high")
   surfaceContainerHigh: '#2a2a2a',
@@ -184,7 +197,7 @@ export const RivalButtonColors = {
 // as warm outlines with the faintest warm fill. Never near-black cards.
 // Phone only; desktop keeps its own colours (mobile-only phase).
 export const RivalGhost = {
-  ground: '#232120',
+  ground: rivalPhoneVar('rival-ground', '#282828', '#232120'),
   fill: 'rgba(255,209,190,0.05)',
   border: 'rgba(255,181,158,0.22)',
   /** A chosen tile or segment that isn't the lit (peach) one. */

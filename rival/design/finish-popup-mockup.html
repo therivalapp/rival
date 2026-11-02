@@ -1,0 +1,93 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;width:1300px;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}.col{width:393px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:76px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#111 url(finish-base.jpg) top/393px auto no-repeat}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.s{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #3a3939;border-radius:22px 22px 0 0;padding:10px 18px 30px;overflow:hidden}
+.gl{position:absolute;top:0;left:0;right:0;height:150px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.20),rgba(217,119,87,.07) 45%,rgba(217,119,87,0))}
+.grab{position:relative;width:38px;height:4px;border-radius:2px;background:#3a3939;margin:0 auto 14px}
+.k{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.big{position:relative;font-size:52px;line-height:58px;text-align:center;margin-top:2px}
+.cap{position:relative;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;text-align:center;margin-top:-2px}
+.stats{position:relative;display:flex;gap:8px;margin-top:14px}
+.st{flex:1;text-align:center;border-radius:14px;padding:10px 4px;background:rgba(255,255,255,.05)}
+.st b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}.st b small{font-size:12px;opacity:.6}
+.st i{font-style:normal;font-size:9px;letter-spacing:1.3px;font-weight:800;color:#a0a0a0}
+.photos{position:relative;display:flex;gap:8px;margin-top:10px}
+.add{flex:1;height:64px;border-radius:14px;border:1px dashed rgba(255,181,158,.4);display:flex;align-items:center;justify-content:center;gap:8px;color:#ffb59e;font-weight:800;font-size:14px}
+.add.small{flex:0 0 64px;flex-direction:column;gap:2px;font-size:10.5px}
+.th{flex:0 0 64px;height:64px;border-radius:14px;background:#444 center/cover}
+.btns{position:relative;display:flex;gap:10px;align-items:center;margin-top:18px}
+.resume{width:56px;height:56px;border-radius:28px;border:2px solid #e8835f;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.resume .mi{font-size:30px;color:#fff}
+.save{flex:1;height:56px;border-radius:28px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(217,119,87,.32)}
+.rl{position:relative;display:flex;gap:10px;margin-top:5px}.rl span{width:56px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6)}
+.sep{position:relative;height:1px;background:rgba(255,255,255,.07);margin:22px 0 12px}
+.discard{position:relative;text-align:center;font-size:13.5px;font-weight:700;color:#ff8f8f}
+.keep{position:relative;display:flex;align-items:center;gap:12px;border:1px solid rgba(255,181,158,.3);border-radius:16px;padding:11px 12px;margin-top:10px}
+.keep .mi{color:#ffb59e;font-size:22px}.keep b{display:block;font-size:13.5px}.keep span{font-size:11.5px;color:#a0a0a0}
+.sw{margin-left:auto;width:42px;height:24px;border-radius:12px;background:linear-gradient(135deg,#D97757,#ffb59e);position:relative}.sw:after{content:'';position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:9px;background:#fff}
+</style></head><body><div class="row">
+
+<div class="col"><div class="tag">A · A run, today</div>
+<div class="desc">The time is the hero, since it's all a run records until GPS. Photos and Add photo are one tile. Resume is a play button beside Save, and Save finishes it straight away; details can be changed on the activity after. Discard is red and sits apart, under a line.</div>
+<div class="phone"><div class="dim"></div><div class="sheet"><div class="gl"></div><div class="grab"></div>
+  <div class="k">RUN · PAUSED</div>
+  <div class="big s">24:51</div>
+  <div class="cap">TIME</div>
+  <div class="photos"><div class="add"><span class="mi" style="font-size:20px">add_a_photo</span>Add photo</div></div>
+  <div class="btns"><div class="resume"><span class="mi">play_arrow</span></div><div class="save">Save activity</div></div>
+  <div class="rl"><span>Resume</span></div>
+  <div class="sep"></div>
+  <div class="discard">Discard activity</div>
+</div></div></div>
+
+<div class="col"><div class="tag">B · A run, once GPS is in</div>
+<div class="desc">Every stat the run recorded: time as the hero, then distance, pace and elevation. Photos taken during it show as thumbnails, with a small tile to add more.</div>
+<div class="phone"><div class="dim"></div><div class="sheet"><div class="gl"></div><div class="grab"></div>
+  <div class="k">RUN · PAUSED</div>
+  <div class="big s">24:51</div>
+  <div class="cap">TIME</div>
+  <div class="stats">
+    <div class="st"><b>5.12<small> km</small></b><i>DISTANCE</i></div>
+    <div class="st"><b>4:51<small> /km</small></b><i>PACE</i></div>
+    <div class="st"><b>48<small> m</small></b><i>ELEVATION</i></div>
+  </div>
+  <div class="photos">
+    <div class="th" style="background-image:url(../assets/images/backgrounds/optimized/ridge-runners-hazy-backlit.jpg)"></div>
+    <div class="th" style="background-image:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg)"></div>
+    <div class="add small"><span class="mi" style="font-size:20px">add_a_photo</span>Add</div>
+  </div>
+  <div class="btns"><div class="resume"><span class="mi">play_arrow</span></div><div class="save">Save activity</div></div>
+  <div class="rl"><span>Resume</span></div>
+  <div class="sep"></div>
+  <div class="discard">Discard activity</div>
+</div></div></div>
+
+<div class="col"><div class="tag">C · A gym activity</div>
+<div class="desc">The same, with what was lifted: exercises, sets and the heaviest lift. The saved activity switch stays for a new routine.</div>
+<div class="phone"><div class="dim"></div><div class="sheet"><div class="gl"></div><div class="grab"></div>
+  <div class="k">WEIGHT TRAINING · PAUSED</div>
+  <div class="big s">58:20</div>
+  <div class="cap">TIME</div>
+  <div class="stats">
+    <div class="st"><b>5</b><i>EXERCISES</i></div>
+    <div class="st"><b>18</b><i>SETS</i></div>
+    <div class="st"><b>100<small> kg</small></b><i>HEAVIEST</i></div>
+  </div>
+  <div class="keep"><span class="mi">replay</span><div><b>Save as a saved activity</b><span>Start with these lifts next time.</span></div><div class="sw"></div></div>
+  <div class="photos"><div class="add"><span class="mi" style="font-size:20px">add_a_photo</span>Add photo</div></div>
+  <div class="btns"><div class="resume"><span class="mi">play_arrow</span></div><div class="save">Save activity</div></div>
+  <div class="rl"><span>Resume</span></div>
+  <div class="sep"></div>
+  <div class="discard">Discard activity</div>
+</div></div></div>
+
+</div></body></html>

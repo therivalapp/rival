@@ -4,6 +4,7 @@ import { goToTab } from '../lib/tabNav';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { teamSharingAgreed } from '../lib/stravaSharing';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { notify } from '../lib/notify';
 import { RivalTopNav, RivalIcon, RivalFixedBackground, RivalWarm, RivalMiniTile, rb, GreyPageHead } from '../components/rival';
@@ -317,6 +318,7 @@ export default function DiscoverLeaguesScreen() {
   }
 
   async function join(leagueId: string) {
+    if (!(await teamSharingAgreed())) return;
     const { data: { user } } = await getAuthUser();
     if (!user) return;
     setJoining(leagueId);
@@ -704,7 +706,7 @@ function TeamGridCard({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  root: { flex: 1, backgroundColor: RivalColors.pageGround },
   scrim: { position: 'fixed' as any, top: 0, left: 0, right: 0, height: '100vh' as any, backgroundColor: 'rgba(14,14,14,0.55)' },
   container: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 60, maxWidth: 1200, width: '100%', alignSelf: 'center' },

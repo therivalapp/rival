@@ -1,0 +1,73 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;width:1250px;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}.col{width:393px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:74px}
+.phone{position:relative;width:393px;height:980px;border-radius:40px;overflow:hidden;background:#111}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.s{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #3a3939;border-radius:22px 22px 0 0;padding:10px 18px 0;overflow:hidden}
+.gl{position:absolute;top:0;left:0;right:0;height:150px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.20),rgba(217,119,87,.07) 45%,rgba(217,119,87,0))}
+.grab{position:relative;width:38px;height:4px;border-radius:2px;background:#3a3939;margin:0 auto 12px}
+.k{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.big{position:relative;font-size:56px;line-height:62px;text-align:center;margin-top:2px}
+.cap{position:relative;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;text-align:center;margin-top:8px}
+.times{position:relative;display:flex;justify-content:center;gap:0;margin-top:10px}
+.times div{padding:0 16px;text-align:center}.times div+div{border-left:1px solid rgba(255,255,255,.14)}
+.times b{font-family:Georgia,serif;font-style:italic;font-size:19px}.times i{display:block;font-style:normal;font-size:8.5px;letter-spacing:1.3px;font-weight:800;color:#ffb59e;margin-top:1px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.g{position:relative;text-align:center;border-radius:14px;padding:9px 4px 8px;background:rgba(255,255,255,.05);overflow:hidden}
+.g b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}.g b small{font-size:12px;opacity:.6}
+.g i{font-style:normal;font-size:8.5px;letter-spacing:1.2px;font-weight:800;color:#a0a0a0}
+.g .ic{display:flex;align-items:center;justify-content:center;gap:4px}
+.g .ic .mi{font-size:15px;color:#ffb59e}
+.g.effort{background:linear-gradient(135deg,rgba(217,119,87,.28),rgba(255,181,158,.10));border:1px solid rgba(255,181,158,.35)}
+.g.effort i{color:#ffb59e}
+.mt{position:relative;height:84px;border-radius:14px;overflow:hidden;background:#1e1f1e;margin-top:10px}
+.mt svg{position:absolute;inset:0}
+.chart{position:relative;margin-top:10px;border-radius:14px;background:rgba(255,255,255,.05);padding:10px 12px 6px}
+.sr{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)}.ct+.sr{border-top:0;margin-top:4px}
+.sn{width:46px;font-size:12px;font-weight:800;color:#a0a0a0}
+.spc{width:52px;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:18px;line-height:22px}
+.sbar{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.sbar i{display:block;height:100%;border-radius:4px;background:rgba(255,181,158,.55)}.sbar i.best{background:linear-gradient(90deg,#D97757,#ffb59e)}
+.ct{display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.ct span{color:#ffb59e}
+.bars{position:relative;display:flex;align-items:flex-end;height:46px;margin-top:8px}
+.bars i{flex:1;border-radius:3px 3px 0 0;background:rgba(255,181,158,.45)}
+.bars i.best{background:linear-gradient(180deg,#ffb59e,#D97757)}
+.bars.thin{gap:1px}.bars.thin i{border-radius:1px 1px 0 0}
+.bars.wide{gap:5px}
+.avg{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.35)}
+.bl{display:flex;gap:5px;margin-top:4px}.bl span{flex:1;text-align:center;font-size:9px;color:#a0a0a0}
+.axis{position:relative;height:12px;margin-top:4px}.axis span{position:absolute;font-size:9px;color:#a0a0a0;transform:translateX(-50%);white-space:nowrap}
+.legend{display:flex;justify-content:space-between;margin-top:6px;font-size:10.5px;color:#a0a0a0}.legend b{color:#fff;font-weight:800}
+.more{position:relative;display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:11px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800}
+.more span{font-size:11.5px;font-weight:600;color:#a0a0a0}.more .mi{font-size:20px;color:#a0a0a0}
+.photos{position:relative;display:flex;gap:8px;margin-top:10px}
+.add{flex:1;height:50px;border-radius:14px;border:1px dashed rgba(255,181,158,.4);display:flex;align-items:center;justify-content:center;gap:8px;color:#ffb59e;font-weight:800;font-size:14px}
+.btns{position:relative;display:flex;gap:10px;align-items:center;margin-top:14px}
+.resume{width:56px;height:56px;border-radius:28px;border:2px solid #e8835f;display:flex;align-items:center;justify-content:center;flex-shrink:0}.resume .mi{font-size:30px}
+.save{flex:1;height:56px;border-radius:28px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(217,119,87,.32)}
+.rl{position:relative;width:56px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6);margin-top:4px}
+.sep{position:relative;height:1px;background:rgba(255,255,255,.07);margin:10px 0 0}
+.discard{position:relative;text-align:center;font-size:13.5px;font-weight:700;color:#ff8f8f;padding:12px 0 34px}
+.note{color:#a8a097;font-size:12.5px;line-height:1.5;margin:4px 26px 26px;max-width:820px}
+.note b{color:#ffb59e}
+
+.g.a{background:linear-gradient(135deg,#D97757,#ffb59e)}.g.a b{color:#3a1408}.g.a i{color:#5c1902}
+.g.b{background:#2f2d2c;border:1.5px solid #e8835f}.g.b b{color:#ffb59e}.g.b i{color:#ffb59e}
+.g.c{position:relative}.g.c b{color:#ffb59e}.g.c i{color:#ffb59e}.g.c:before{content:'';position:absolute;left:22%;right:22%;top:0;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,#D97757,#ffb59e)}
+.panel{width:357px;background:#282828;border-radius:18px;padding:14px 18px 18px}
+</style></head><body><div class="row"><div class="col" style="width:357px"><div class="tag">A · Lit like a chosen tile</div><div class="desc" style="height:58px">Solid peach, the same as the chosen tile on Add an activity and Start. Strongest, but it sits close to the Save button.</div><div class="panel">
+<div class="grid"><div class="g"><b>4:57<small> /km</small></b><i>AVG PACE</i></div><div class="g"><b>53<small> m</small></b><i>ELEVATION</i></div><div class="g a"><b>86</b><i>EFFORT</i></div>
+<div class="g"><b>148</b><i>AVG BPM</i></div><div class="g"><b>342</b><i>CALORIES</i></div><div class="g"><b>172</b><i>CADENCE · SPM</i></div></div>
+<div class="btns"><div class="resume"><span class="mi">play_arrow</span></div><div class="save">Save activity</div></div></div></div><div class="col" style="width:357px"><div class="tag">B · Solid with a peach edge</div><div class="desc" style="height:58px">A solid tile, a little lighter than the rest, with a clean peach edge and peach number. No see-through tint.</div><div class="panel">
+<div class="grid"><div class="g"><b>4:57<small> /km</small></b><i>AVG PACE</i></div><div class="g"><b>53<small> m</small></b><i>ELEVATION</i></div><div class="g b"><b>86</b><i>EFFORT</i></div>
+<div class="g"><b>148</b><i>AVG BPM</i></div><div class="g"><b>342</b><i>CALORIES</i></div><div class="g"><b>172</b><i>CADENCE · SPM</i></div></div>
+<div class="btns"><div class="resume"><span class="mi">play_arrow</span></div><div class="save">Save activity</div></div></div></div><div class="col" style="width:357px"><div class="tag">C · Peach number only</div><div class="desc" style="height:58px">The same tile as the others, with the number and label in peach and a short peach bar along the top.</div><div class="panel">
+<div class="grid"><div class="g"><b>4:57<small> /km</small></b><i>AVG PACE</i></div><div class="g"><b>53<small> m</small></b><i>ELEVATION</i></div><div class="g c"><b>86</b><i>EFFORT</i></div>
+<div class="g"><b>148</b><i>AVG BPM</i></div><div class="g"><b>342</b><i>CALORIES</i></div><div class="g"><b>172</b><i>CADENCE · SPM</i></div></div>
+<div class="btns"><div class="resume"><span class="mi">play_arrow</span></div><div class="save">Save activity</div></div></div></div></div></body></html>

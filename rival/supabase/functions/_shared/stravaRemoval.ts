@@ -74,6 +74,42 @@ async function allRows(page: (from: number, to: number) => Promise<{ data: { [k:
   }
 }
 
+// Fields only Strava's connection supplies. An archive has none of them.
+const STRAVA_ONLY_FIELDS = {
+  avg_heart_rate: null, avg_heartrate: null, max_heartrate: null, intensity_zone: null,
+  avg_cadence: null, avg_watts: null, calories: null, avg_speed: null, max_speed: null,
+  gear_name: null, best_efforts: null, splits: null, details_fetched_at: null, route_polyline: null,
+}
+
+/** Activities that also came from the person's own Strava archive stay, as
+ *  RIVAL's own: marked strava_archive, with what only Strava's connection
+ *  supplied taken off, including the route when the archive had none. */
+async function keepArchivedActivities(supabase: Db, userId: string, ids: string[]): Promise<void> {
+  if (!ids.length) return
+  const archived: { activity_id: string; raw_payload: { route?: boolean } | null }[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('activity_sources').select('activity_id, raw_payload')
+      .eq('user_id', userId).eq('provider', 'strava_archive').range(from, from + 999)
+    if (error) throw error
+    archived.push(...(data ?? []))
+    if (!data || data.length < 1000) break
+  }
+  const keep = new Set(ids)
+  const mine = archived.filter((a) => keep.has(a.activity_id))
+  const claim = mine.map((a) => a.activity_id)
+  for (let i = 0; i < claim.length; i += 200) {
+    const { error } = await supabase.from('activities')
+      .update({ provider: 'strava_archive', ...STRAVA_ONLY_FIELDS })
+      .in('id', claim.slice(i, i + 200)).eq('user_id', userId)
+    if (error) throw error
+  }
+  const noRoute = mine.filter((a) => a.raw_payload?.route === false).map((a) => a.activity_id)
+  for (let i = 0; i < noRoute.length; i += 200) {
+    const { error } = await supabase.from('activity_routes').delete().in('activity_id', noRoute.slice(i, i + 200)).eq('user_id', userId)
+    if (error) throw error
+  }
+}
+
 /** Everything that came from Strava for this person, then the connection
  *  itself (last, so a retry can still find them if this stops part way).
  *  Activities with another source, such as a personal archive, are kept. */
@@ -94,6 +130,7 @@ export async function removeAllStravaData(supabase: Db, userId: string): Promise
     'id',
   )
   const toRemove = fromStrava.filter((id) => !stillSourced.has(id))
+  await keepArchivedActivities(supabase, userId, fromStrava.filter((id) => stillSourced.has(id)))
 
   let removed = 0
   for (let i = 0; i < toRemove.length; i += 200) {

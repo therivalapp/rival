@@ -46,6 +46,8 @@ const TYPE_OPTIONS: Array<{ type: string; icon: string }> = [
   { type: 'Swim', icon: '🏊' },
   { type: 'Rowing', icon: '🚣' },
   { type: 'WeightTraining', icon: '🏋️' },
+  { type: 'Calisthenics', icon: '🤸' },
+  { type: 'Gymnastics', icon: '🤸' },
   { type: 'CrossFit', icon: '🤸' },
   { type: 'Hyrox', icon: '🔥' },
   { type: 'Bootcamp', icon: '🎽' },
@@ -65,7 +67,7 @@ function tileLabel(t: string): string {
 // The time entered is scored as it is; a short one gets a note asking for the
 // full class time if it was a class. No minimum, so a 15-minute session done
 // alone isn't scored as 45 (Ricky, 2026-10-27).
-const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
+const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Gymnastics']);
 function isShortClass(workoutType: string, seconds: number): boolean {
   return CLASS_BASED_TYPES.has(workoutType) && seconds > 0 && seconds < 30 * 60;
 }
@@ -1165,7 +1167,7 @@ export default function ScanWorkoutScreen() {
                         return (
                           <TouchableOpacity
                             key={opt.type}
-                            style={[mx.tile, on && mx.tileOn]}
+                            style={[mx.tile, ['Calisthenics', 'Gymnastics'].includes(opt.type) && mx.tileLong, on && mx.tileOn]}
                             onPress={() => setExtractedWorkout({
                               ...extractedWorkout,
                               workoutType: opt.type,
@@ -1177,7 +1179,7 @@ export default function ScanWorkoutScreen() {
                             <View style={[mx.tileArt, { pointerEvents: 'none' }]}>
                               <RivalIcon name={activityIconName(opt.type)} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                             </View>
-                            <Text style={[mx.tileText, on && mx.tileTextOn]}>{tileLabel(opt.type)}</Text>
+                            <Text style={[mx.tileText, ['Calisthenics', 'Gymnastics'].includes(opt.type) && mx.tileTextLong, on && mx.tileTextOn]}>{tileLabel(opt.type)}</Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -1731,7 +1733,7 @@ const ph = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
   header: { marginBottom: 24 },
   back: { color: RivalColors.accentText, fontSize: 16 },
@@ -1784,7 +1786,7 @@ const styles = StyleSheet.create({
 
   typeFieldBox: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: RivalColors.surfaceContainerHigh, gap: 8 },
   typeChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, backgroundColor: RivalColors.surfaceLow, minWidth: 100, flexGrow: 1, flexBasis: '22%' },
+  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, backgroundColor: RivalColors.pageGround, minWidth: 100, flexGrow: 1, flexBasis: '22%' },
   typeChipSelected: { borderColor: RivalColors.accentFill, backgroundColor: `${RivalColors.accentFill}22` },
   typeChipIcon: { fontSize: 14 },
   typeChipText: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
@@ -1810,7 +1812,7 @@ const styles = StyleSheet.create({
   liftPickerChipText: { fontSize: 11, fontWeight: '600', color: RivalColors.textSecondary },
   moreExercises: { fontSize: 12, color: RivalColors.textSecondary, fontStyle: 'italic', marginLeft: 8 },
 
-  exerciseEditRow: { backgroundColor: RivalColors.surfaceLow, borderRadius: 10, padding: 12, marginTop: 8, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, gap: 8 },
+  exerciseEditRow: { backgroundColor: RivalColors.pageGround, borderRadius: 10, padding: 12, marginTop: 8, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, gap: 8 },
   exerciseName: { fontSize: 14, fontWeight: '700', color: RivalColors.textPrimary },
   exerciseNameInput: { fontSize: 14, fontWeight: '700', color: RivalColors.textPrimary, backgroundColor: RivalColors.surfaceContainer, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh },
   nameSuggestBox: { backgroundColor: RivalColors.surfaceLowest, borderRadius: 8, borderWidth: 1, borderColor: RivalColors.surfaceContainer, marginTop: 4, overflow: 'hidden' },
@@ -1829,7 +1831,7 @@ const styles = StyleSheet.create({
   exerciseFieldInput: { backgroundColor: RivalColors.surfaceContainer, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, color: RivalColors.textPrimary, fontSize: 14, fontWeight: '600', borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, textAlign: 'center' },
   exercisesHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   unitTogglesRow: { flexDirection: 'row', gap: 8 },
-  unitToggle: { flexDirection: 'row', backgroundColor: RivalColors.surfaceLow, borderRadius: 8, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, overflow: 'hidden' },
+  unitToggle: { flexDirection: 'row', backgroundColor: RivalColors.pageGround, borderRadius: 8, borderWidth: 1, borderColor: RivalColors.surfaceContainerHigh, overflow: 'hidden' },
   unitToggleBtn: { paddingHorizontal: 10, paddingVertical: 5 },
   unitToggleBtnActive: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   unitToggleText: { fontSize: 11, fontWeight: '700', color: RivalColors.textSecondary },
@@ -1959,6 +1961,8 @@ const mx = StyleSheet.create({
   tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   // Bootcamp fits a quarter of a phone whole, never cut off.
   tileText: { fontSize: 12, fontWeight: '800', color: '#fff', letterSpacing: -0.1 } as any,
+  tileLong: { paddingHorizontal: 5 },
+  tileTextLong: { fontSize: 10, letterSpacing: -0.2 },
   tileTextOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
   rowInput: {

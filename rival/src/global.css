@@ -32,6 +32,39 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   }
 }
 
+/* The neutral page grey on phones, with the pop-up's #282828 as the ground and
+   the top glow kept to each page's main card (Ricky, 2026-11-01). 839px matches
+   BREAKPOINT_WIDE_LAYOUT. Unset on desktop, so rivalPhoneVar falls back. */
+@media (max-width: 839px) {
+  :root {
+    --rival-page: #282828;
+    --rival-ground: #282828;
+    --rival-fade-grey: 40, 40, 40;
+    --rival-solid-card: #32312f;
+    --rival-solid-border: rgba(255, 181, 158, 0.22);
+    --rival-activity-ground: #1b1a19;
+    --rival-hub-fade: 19, 19, 19;
+    --rival-hub-ground: #131313;
+    --rival-hub-card: #32312f;
+    --rival-locked-tile: #1b1a19;
+    --rival-card-title-font: Georgia, 'Times New Roman', serif;
+    --rival-card-title-style: italic;
+    --rival-panel: #282828;
+    --rival-icon-wrap: transparent;
+    --rival-badge-fill: transparent;
+    --rival-row-border: rgba(255, 209, 190, 0.08);
+    --rival-main-glow: radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217, 119, 87, 0.17), rgba(217, 119, 87, 0.035) 60%, rgba(217, 119, 87, 0));
+    --rival-head-glow: none;
+    --rival-bg-wash: none;
+    --rival-hero-fill: rgba(255, 209, 190, 0.05);
+    --rival-hero-border: rgba(255, 181, 158, 0.22);
+    --rival-hero-image: var(--rival-main-glow);
+    --rival-plain-fill: rgba(255, 209, 190, 0.05);
+    --rival-plain-border: rgba(255, 181, 158, 0.22);
+    --rival-plain-image: none;
+  }
+}
+
 /* Home podium motion — see podiumRise/podiumSettle/podiumSheen in home.tsx.
    Kept here because react-native-web drops inline animationKeyframes; the
    components reference these by animationName instead. */
@@ -42,6 +75,15 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   0%, 100% { opacity: 0.25; }
   50% { opacity: 0.5; }
 }
+/* A pop-up's sheet rising and dropping; its backdrop only fades (RivalModal.tsx). */
+@keyframes rivalSheetUp {
+  from { translate: 0 100%; }
+  to { translate: 0 0; }
+}
+@keyframes rivalSheetDown {
+  from { translate: 0 0; }
+  to { translate: 0 100%; }
+}
 /* A post's ⋯ menu opening out of its button (Ricky, 2026-10-23). */
 @keyframes rivalMenuIn {
   from { opacity: 0; transform: scale(0.9) translateY(-4px); }
@@ -50,6 +92,12 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
 @keyframes rivalSkelPulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
+}
+
+/* The live dot on Start, breathing while an activity records. */
+@keyframes rivalLivePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.8); }
 }
 
 /* A "Saving…" or "Loading…" label, breathing while it works (lib/textFit.ts). */

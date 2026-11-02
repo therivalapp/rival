@@ -1,18 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RivalColors, RivalButtonColors, RivalSerifFamily, RivalGhost } from '../constants/rivalTheme';
-import { sidePageWide } from '../constants/breakpoints';
-import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
+import { RivalColors, RivalButtonColors, RivalSerifFamily, RivalGhost, rivalPhoneVar } from '../constants/rivalTheme';
+import { BREAKPOINT_WIDE_LAYOUT, sidePageWide } from '../constants/breakpoints';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, useWindowDimensions } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
-import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, activityIconName, RivalSheet, RivalSheetCard, rb, GreyPageHead, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
+import { GreyArtTile, RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, activityIconName, RivalSheet, RivalSheetCard, rb, GreyPageHead, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
 import { activityTypeLabel } from '../components/rival/EffortBreakdownSheet';
 import { goToTab } from '../lib/tabNav';
 
 // Class-based types use sessions (1 session = 45 min) instead of free duration entry
 const SESSION_TYPES = new Set([
-  'WeightTraining', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Workout', 'Yoga',
+  'WeightTraining', 'Calisthenics', 'Gymnastics', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Workout', 'Yoga',
 ]);
 const SESSION_MINUTES = 45;
 
@@ -59,6 +60,7 @@ export default function PlanScreen() {
   const [showAllTypes, setShowAllTypes] = useState(false);
 
   const { width } = useWindowDimensions();
+  const artTiles = width < BREAKPOINT_WIDE_LAYOUT;
   const wide = sidePageWide(width);
 
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -225,7 +227,7 @@ export default function PlanScreen() {
 
     return (
       <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
-        <RivalTopNav active="today" />
+        {/* A page for doing a task: back arrow only on phones, no top or bottom bar (Ricky, 2026-11-02). */}
         <ScrollView contentContainerStyle={[rb.content, ms.content]}>
           <GreyPageHead kicker="THIS WEEK" title="Weekly plan" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 
@@ -258,14 +260,14 @@ export default function PlanScreen() {
           <Text style={rb.section}>Planned activities</Text>
           {plannedActivities.length === 0 ? (
             <View style={[rb.card, ms.emptyRow]}>
-              <View style={rb.badge}><RivalIcon name="calendar" size={16} color={RivalColors.accentText} /></View>
+              <View style={[rb.badge, ms.bareBadge]}><RivalIcon name="calendar" size={16} color={RivalColors.accentText} /></View>
               <Text style={ms.emptyText}>Nothing planned yet. Add an activity to see the projected standing.</Text>
             </View>
           ) : (
             <View style={[rb.card, ms.list]}>
               {plannedActivities.map((a, i) => (
                 <View key={a.id} style={[ms.row, i > 0 && rb.rule]}>
-                  <View style={rb.badge}>
+                  <View style={[rb.badge, ms.bareBadge]}>
                     <RivalIcon name={activityIconName(a.activity_type)} size={16} color={RivalColors.accentText} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -350,6 +352,7 @@ export default function PlanScreen() {
               <View style={ms.tiles}>
                 {tiles.map((t) => {
                   const on = selectedType === t;
+                  if (artTiles) return <GreyArtTile key={t} label={activityTypeLabel(t)} icon={activityIconName(t)} on={on} style={ms.artTile} onPress={() => setSelectedType(t)} />;
                   return (
                     <TouchableOpacity key={t} style={[ms.tile, on && ms.tileOn]} onPress={() => setSelectedType(t)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ selected: on }}>
                       <View style={[ms.badge, on && ms.badgeOn]}>
@@ -359,6 +362,16 @@ export default function PlanScreen() {
                     </TouchableOpacity>
                   );
                 })}
+                {artTiles ? (
+                  <GreyArtTile
+                    label={outsidePick ? activityTypeLabel(selectedType) : showAllTypes ? 'Fewer' : 'See all'}
+                    icon={outsidePick ? activityIconName(selectedType) : 'apps'}
+                    on={outsidePick}
+                    all={!outsidePick}
+                    style={ms.artTile}
+                    onPress={() => setShowAllTypes((v) => !v)}
+                  />
+                ) : (
                 <TouchableOpacity style={[ms.tile, outsidePick ? ms.tileOn : ms.tileAll]} onPress={() => setShowAllTypes((v) => !v)} activeOpacity={0.8} accessibilityRole="button">
                   <View style={[ms.badge, outsidePick ? ms.badgeOn : ms.badgeAll]}>
                     <RivalIcon name={outsidePick ? activityIconName(selectedType) : 'apps'} size={16} color={outsidePick ? RivalColors.surfaceLowest : RivalColors.accentText} />
@@ -367,6 +380,7 @@ export default function PlanScreen() {
                     {outsidePick ? activityTypeLabel(selectedType) : showAllTypes ? 'Fewer' : 'See all'}
                   </Text>
                 </TouchableOpacity>
+                )}
               </View>
 
               <GreyLabel>Details</GreyLabel>
@@ -671,7 +685,7 @@ export default function PlanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 48 },
   header: { marginBottom: 0 },
   back: { color: RivalColors.accentFill, fontSize: 16 },
@@ -825,6 +839,8 @@ const ms = StyleSheet.create({
   } as any,
   tileOn: { backgroundColor: 'rgba(217,119,87,0.10)', borderColor: 'rgba(255,181,158,0.6)' },
   tileAll: { borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)' },
+  artTile: { width: '23%', flexGrow: 1 },
+  bareBadge: { backgroundColor: rivalPhoneVar('rival-badge-fill', 'transparent', 'rgba(255,255,255,0.06)') },
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
@@ -850,8 +866,11 @@ const ms = StyleSheet.create({
   rankPillUp: { backgroundColor: 'rgba(245,183,89,0.12)' },
   rankPillText: { fontSize: 12.5, fontWeight: '800', color: RivalWarm.soft },
   rankNow: { fontSize: 13, fontWeight: '800', color: RivalWarm.muted },
-  lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10 },
-  lbRowMe: { backgroundColor: 'rgba(255,209,190,0.08)' },
+  lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'transparent' },
+  lbRowMe: {
+    backgroundColor: rivalPhoneVar('rival-badge-fill', 'transparent', 'rgba(255,209,190,0.08)'),
+    borderColor: rivalPhoneVar('rival-row-border', RivalGhost.hairline, 'transparent'),
+  },
   lbRank: { width: 16, fontSize: 12, fontWeight: '800', color: RivalWarm.muted },
   lbName: { flex: 1, fontSize: 13.5, fontWeight: '600', color: RivalWarm.soft },
   lbNameMe: { color: '#fff', fontWeight: '800' },

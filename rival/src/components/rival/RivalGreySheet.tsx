@@ -1,6 +1,7 @@
 import { Children, Fragment, isValidElement, useRef, type ReactNode } from 'react';
 import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps } from 'react-native';
-import { RivalButtonColors, RivalColors, RivalGhost, RivalSerifFamily } from '../../constants/rivalTheme';
+import { useSheetMotion } from './RivalModal';
+import { RivalButtonColors, RivalColors, RivalGhost, RivalMainGlow, RivalSerifFamily, rivalPhoneVar } from '../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
 import { BusyText } from './BusyText';
@@ -14,10 +15,13 @@ import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGE_MAX_WIDTH, SIDE_SHEET_MAX_WIDTH } fro
 // these pieces so they stay the same.
 
 export function GreySheet({
-  kicker, title, sub, onClose, onBack, children, footer, overlay,
+  kicker, title, sub, onClose, onBack, children, footer, overlay, heroCaption,
 }: {
   kicker?: string;
   title: string;
+  /** Shows the title as one big number with this caption under it, such as
+   *  "KILOMETRES" on the Finish pop-up (Ricky, 2026-11-02). */
+  heroCaption?: string;
   /** A short line under the title, such as the date an activity is for. */
   sub?: string;
   onClose: () => void;
@@ -53,15 +57,17 @@ export function GreySheet({
     onPanResponderTerminate: () => Animated.spring(dragY, { toValue: 0, useNativeDriver: false }).start(),
   })).current;
   const dragRef = useSheetDrag(onClose);
+  const motion = useSheetMotion();
   return (
-    <Animated.View ref={dialog ? undefined : dragRef} style={[g.sheet, dialog && g.sheetDialog, { maxHeight: height * (dialog ? 0.86 : 0.92), transform: [{ translateY: dragY }] }]}>
+    <Animated.View ref={dialog ? undefined : dragRef} style={[g.sheet, dialog && g.sheetDialog, !dialog && motion, { maxHeight: height * (dialog ? 0.86 : 0.92), transform: [{ translateY: dragY }] }]}>
       <View style={[g.glow, { pointerEvents: 'none' }]} />
       <View {...(Platform.OS === 'web' ? {} : pan.panHandlers)} style={g.dragZone}>
         {dialog ? null : <View style={g.grabber} />}
         <View style={g.head}>
           {onBack ? <RivalBackButton onPress={onBack} style={g.back} /> : null}
           {kicker ? <Text style={g.kicker}>{kicker}</Text> : null}
-          <Text style={[g.title, !kicker && { marginTop: 0 }]}>{title}</Text>
+          <Text style={[g.title, !kicker && { marginTop: 0 }, heroCaption != null && g.hero]}>{title}</Text>
+          {heroCaption ? <Text style={g.heroCaption}>{heroCaption}</Text> : null}
           {sub ? <Text style={g.sub}>{sub}</Text> : null}
         </View>
       </View>
@@ -79,10 +85,10 @@ export function GreyLabel({ children }: { children: ReactNode }) {
 }
 
 /** A recessed card of rows, with a hairline between each. */
-export function GreyRows({ children }: { children: ReactNode }) {
+export function GreyRows({ children, glow }: { children: ReactNode; /** The page's one main card. */ glow?: boolean }) {
   const rows = Children.toArray(children).filter((c) => isValidElement(c));
   return (
-    <View style={g.card}>
+    <View style={[g.card, glow && RivalMainGlow]}>
       {rows.map((r, i) => (
         <Fragment key={i}>
           {i > 0 && <View style={g.divider} />}
@@ -142,10 +148,13 @@ export function GreyTiles<T extends string>({
   columns?: number;
 }) {
   const width = `${(100 - (columns - 1) * 2.4) / columns}%` as any;
+  // Phones: the icon large and faint behind the words, as on Log an activity.
+  const art = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   return (
     <View style={g.tiles}>
       {options.map((o) => {
         const on = o.value === value;
+        if (art && o.icon) return <GreyArtTile key={o.value} label={o.label} icon={o.icon} on={on} style={{ width }} onPress={() => onChange(o.value)} />;
         return (
           <TouchableOpacity
             key={o.value}
@@ -178,6 +187,56 @@ export function GreyPrimary({ label, busy, disabled, onPress }: { label: string;
     <TouchableOpacity style={[g.primary, disabled && g.primaryOff]} onPress={onPress} disabled={disabled} activeOpacity={0.85}>
       <BusyText busy={!!busy} style={g.primaryText}>{label}</BusyText>
     </TouchableOpacity>
+  );
+}
+
+/** One tile in the Log an activity look. `all` is the dashed See all tile. */
+export function GreyArtTile({
+  label, icon, on, all, style, onPress,
+}: {
+  label: string;
+  icon: RivalIconName;
+  on?: boolean;
+  all?: boolean;
+  style?: any;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[g.artTile, on ? g.artTileOn : all ? g.artTileAll : g.artTileGhost, style]}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: !!on }}
+    >
+      <View style={[g.artIcon, { pointerEvents: 'none' }]}>
+        <RivalIcon name={icon} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
+      </View>
+      {/* One line, never a cut-off ellipsis. */}
+      <Text style={[g.artLabel, on && g.artLabelOn, all && !on && g.artLabelAll]} {...(Platform.OS === 'web' ? {} : { numberOfLines: 1 })}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/** Choice tiles in the Add an activity look: the icon large and faint behind
+ *  the words, part of the tile's background, and the chosen tile lit. */
+export function GreyArtTiles<T extends string>({
+  options, value, onChange, columns = 3,
+}: {
+  options: { value: T; label: string; icon: RivalIconName }[];
+  value: T;
+  onChange: (v: T) => void;
+  columns?: number;
+}) {
+  const width = `${(100 - (columns - 1) * 2.4) / columns}%` as any;
+  return (
+    <View style={g.tiles}>
+      {options.map((o) => {
+        const on = o.value === value;
+        return <GreyArtTile key={o.value} label={o.label} icon={o.icon} on={on} style={{ width }} onPress={() => onChange(o.value)} />;
+      })}
+    </View>
   );
 }
 
@@ -228,8 +287,8 @@ const gp = StyleSheet.create({
   glow: {
     position: 'absolute', top: -80, left: 0, right: 0, height: 240,
     ...(Platform.OS === 'web'
-      ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }
-      : { backgroundColor: 'rgba(217,119,87,0.05)' }),
+      ? { backgroundImage: 'var(--rival-head-glow, radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%))' }
+      : {}),
   } as any,
   // Its ellipse reaches exactly the box's sides, so nothing shows at the edge.
   glowWide: {
@@ -254,9 +313,10 @@ export const rb = StyleSheet.create({
    *  top (Team settings' crest, Goals' main focus, the rank on Ranks).
    *  Goes on top of `card`: [rb.card, rb.hero]. One per page. */
   hero: {
-    borderColor: 'rgba(255,181,158,0.16)', backgroundColor: '#2d241f',
+    borderColor: rivalPhoneVar('rival-hero-border', RivalGhost.border, 'rgba(255,181,158,0.16)'),
+    backgroundColor: rivalPhoneVar('rival-hero-fill', RivalGhost.fill, '#2d241f'),
     ...(Platform.OS === 'web' ? {
-      backgroundImage: 'radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
+      backgroundImage: 'var(--rival-hero-image, radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%))',
     } as any : {}),
   },
   /** Grey spaced caps: a card's own label, or a section label between cards. */
@@ -332,6 +392,9 @@ const g = StyleSheet.create({
   head: { alignItems: 'center', marginBottom: 2, paddingHorizontal: 36 },
   kicker: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.3, color: RivalColors.accentText, textAlign: 'center' },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff', textAlign: 'center', marginTop: 3 },
+  hero: { fontSize: 56, lineHeight: 62, marginTop: 2, ...(Platform.OS === 'web' ? { fontVariantNumeric: 'tabular-nums' } as any : {}) },
+  // Clear of Georgia's numerals that hang below the line (3, 4, 5, 7, 9).
+  heroCaption: { fontSize: 9, fontWeight: '800', letterSpacing: 1.3, color: '#a0a0a0', textAlign: 'center', marginTop: 8 },
   // The app's one back control (RivalBackButton), in the title's corner.
   back: { position: 'absolute', left: 0, top: -4, zIndex: 1 },
   close: {
@@ -375,6 +438,14 @@ const g = StyleSheet.create({
     borderWidth: 1, borderColor: RivalGhost.border,
   },
   tileShort: { paddingVertical: 12 },
+  artTile: { height: 78, borderRadius: 16, paddingHorizontal: 10, paddingBottom: 9, justifyContent: 'flex-end', overflow: 'hidden' },
+  artTileGhost: { borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)', backgroundColor: RivalGhost.fill },
+  artTileAll: { borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.45)', backgroundColor: 'rgba(255,209,190,0.03)' },
+  artTileOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  artIcon: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  artLabel: { fontSize: 12.5, fontWeight: '800', color: RivalColors.textPrimary, ...(Platform.OS === 'web' ? { whiteSpace: 'nowrap' } as any : {}) },
+  artLabelAll: { color: RivalColors.accentText },
+  artLabelOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
   tileOn: { backgroundColor: RivalGhost.fillOn, borderColor: RivalGhost.borderOn },
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
@@ -533,19 +604,22 @@ const mt = StyleSheet.create({
  *  tile; once it's set up, the page shows it as its own titled section and
  *  the tile drops out. Renders nothing when everything is set up. */
 export function RivalStartTiles({
-  tiles, title = "What's next", ghost,
+  tiles, title = "What's next", ghost, art, titleStyle,
 }: {
   tiles: { key: string; icon: RivalIconName; label: string; onPress: () => void }[];
   title?: string;
+  titleStyle?: any;
   /** The Add an activity look (warm outline), for pages that aren't main tabs. */
   ghost?: boolean;
+  /** Log an activity tiles, the first one lit as the main action. */
+  art?: boolean;
 }) {
   if (tiles.length === 0) return null;
   return (
     <View style={st.wrap}>
-      <Text style={st.title}>{title}</Text>
+      <Text style={[st.title, titleStyle]}>{title}</Text>
       <View style={st.row}>
-        {tiles.map((t) => (
+        {art ? tiles.map((t, i) => <GreyArtTile key={t.key} label={t.label} icon={t.icon} on={i === 0} style={st.artTile} onPress={t.onPress} />) : tiles.map((t) => (
           <TouchableOpacity key={t.key} style={[st.tile, ghost && st.tileGhost]} onPress={t.onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.label}>
             <View style={st.badge}>
               <RivalIcon name={t.icon} size={15} color={RivalColors.surfaceLowest} />
@@ -554,7 +628,7 @@ export function RivalStartTiles({
           </TouchableOpacity>
         ))}
         {/* Fillers keep a short row on the same four-column grid. */}
-        {Array.from({ length: (4 - (tiles.length % 4)) % 4 }).map((_, i) => <View key={`f${i}`} style={st.filler} />)}
+        {!art && Array.from({ length: (4 - (tiles.length % 4)) % 4 }).map((_, i) => <View key={`f${i}`} style={st.filler} />)}
       </View>
     </View>
   );
@@ -579,6 +653,7 @@ const st = StyleSheet.create({
     ...(Platform.OS === 'web' ? { backgroundImage: 'none' } : {}),
   } as any,
   filler: { flexBasis: '22%', flexGrow: 1 },
+  artTile: { minWidth: 118 },
   badge: {
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,

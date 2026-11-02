@@ -88,6 +88,9 @@ export default function LeagueSettingsScreen() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
+  // The last member leaving deletes the team, so it asks for the name too (Ricky, 2026-11-02).
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   // Last loaded copy of this team's settings, so reopening the page draws at
   // once and refreshes behind it instead of showing "Loading…" again.
@@ -336,6 +339,7 @@ export default function LeagueSettingsScreen() {
   async function leaveTeam() {
     const founder = createdBy === currentUserId;
     const last = members.length <= 1;
+    if (last) { setDeleteOpen(false); setDeleteTyped(''); setLeaveOpen(true); return; }
     const ok = await confirmAction({
       title: `Leave ${formatTeamName(leagueName)}?`,
       message: last
@@ -348,6 +352,14 @@ export default function LeagueSettingsScreen() {
     });
     if (!ok) return;
     const { error } = await supabase.rpc('leave_league', { p_league_id: id });
+    if (error) { notify("Couldn't leave the team", error.message); return; }
+    goToTab('/team-feed');
+  }
+
+  async function leaveAndDelete() {
+    setLeaving(true);
+    const { error } = await supabase.rpc('leave_league', { p_league_id: id });
+    setLeaving(false);
     if (error) { notify("Couldn't leave the team", error.message); return; }
     goToTab('/team-feed');
   }
@@ -578,7 +590,7 @@ export default function LeagueSettingsScreen() {
                 </TouchableOpacity>
               </View>
               <View style={ms.descFoot}>
-                <Text style={ms.cardHint}>{codeNote || 'Anyone with the code or link can join.'}</Text>
+                <Text style={ms.cardHint}>{codeNote || 'Anyone with the code or link can ask to join. Someone in the team confirms it.'}</Text>
                 <TouchableOpacity onPress={resetCode} disabled={resettingCode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <BusyText busy={!!(resettingCode)} style={ms.resetLink}>{resettingCode ? 'Resetting…' : 'Reset code'}</BusyText>
                 </TouchableOpacity>
@@ -618,7 +630,7 @@ export default function LeagueSettingsScreen() {
             </View>
             <Text style={ms.cardHint}>
               {isPrivate
-                ? 'Only people with your invite code can join.'
+                ? 'Only people with your invite code can ask to join.'
                 : 'Anyone can find this team and ask to join. You approve every request.'}
             </Text>
           </View>
@@ -646,22 +658,54 @@ export default function LeagueSettingsScreen() {
           {/* Kept apart at the bottom, away from everyday settings. */}
           <View style={[ms.card, ms.dangerCard]}>
             <Text style={[ms.cardLabel, ms.dangerLabel]}>Leave or delete</Text>
-            <TouchableOpacity style={ms.dangerRow} onPress={leaveTeam}>
-              <RivalIcon name="logout" size={17} color="#ff8f8f" />
-              <View style={{ flex: 1 }}>
-                <Text style={ms.dangerText}>Leave team</Text>
+            {!leaveOpen ? (
+              <TouchableOpacity style={ms.dangerRow} onPress={leaveTeam}>
+                <RivalIcon name="logout" size={17} color="#ff8f8f" />
+                <View style={{ flex: 1 }}>
+                  <Text style={ms.dangerText}>Leave team</Text>
+                  <Text style={ms.cardHint}>
+                    {members.length <= 1
+                      ? 'You are the last member, so leaving deletes the team.'
+                      : createdBy === currentUserId
+                        ? 'As founder, hand the team to someone first, or it passes to the longest-standing admin.'
+                        : 'You can rejoin later with the invite code.'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ gap: 10 }}>
                 <Text style={ms.cardHint}>
-                  {createdBy === currentUserId && members.length > 1
-                    ? 'As founder, hand the team to someone first, or it passes to the longest-standing admin.'
-                    : 'You can rejoin later with the invite code.'}
+                  You are the last member, so leaving permanently deletes the team, with its chat, posts and challenges. This can't be undone. Type <Text style={{ color: '#fff', fontWeight: '700' }}>{formatTeamName(leagueName)}</Text> to confirm.
                 </Text>
+                <TextInput
+                  style={ms.nameInput}
+                  value={deleteTyped}
+                  onChangeText={setDeleteTyped}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="Team name"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                />
+                <View style={ms.nameEditActions}>
+                  <TouchableOpacity style={ms.ghostBtn} onPress={() => { setLeaveOpen(false); setDeleteTyped(''); }}>
+                    <Text style={ms.ghostBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  {(() => {
+                    const match = deleteTyped.trim().toLowerCase() === formatTeamName(leagueName).trim().toLowerCase();
+                    return (
+                      <TouchableOpacity style={[ms.deleteBtn, (!match || leaving) && ms.crestBtnOff]} disabled={!match || leaving} onPress={leaveAndDelete}>
+                        <BusyText busy={leaving} style={ms.deleteBtnText}>{leaving ? 'Leaving…' : 'Leave and delete'}</BusyText>
+                      </TouchableOpacity>
+                    );
+                  })()}
+                </View>
               </View>
-            </TouchableOpacity>
+            )}
             {createdBy === currentUserId ? (
               <>
                 <View style={ms.dangerDivider} />
                 {!deleteOpen ? (
-                  <TouchableOpacity style={ms.dangerRow} onPress={() => setDeleteOpen(true)}>
+                  <TouchableOpacity style={ms.dangerRow} onPress={() => { setLeaveOpen(false); setDeleteTyped(''); setDeleteOpen(true); }}>
                     <RivalIcon name="delete" size={17} color={RivalColors.danger} />
                     <View style={{ flex: 1 }}>
                       <Text style={ms.dangerText}>Delete team</Text>
@@ -910,7 +954,7 @@ export default function LeagueSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
   },
   content: {
     paddingHorizontal: 24,
@@ -957,7 +1001,7 @@ const styles = StyleSheet.create({
   visibilityToggleOn: { backgroundColor: '#0A1A0F', borderColor: RivalColors.accentText },
   visibilityToggleText: { fontSize: 12, fontWeight: '700', color: '#CCCCCC' },
   nameCard: {
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
@@ -995,7 +1039,7 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     flex: 1,
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1034,7 +1078,7 @@ const styles = StyleSheet.create({
   crestPickFrame: { flex: 1, aspectRatio: 1, backgroundColor: RivalColors.surfaceContainer, borderRadius: 12, borderWidth: 1, borderColor: RivalColors.accentText, overflow: 'hidden' },
   crestPickImg: { width: '100%', height: '100%' },
   membersCard: {
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: RivalColors.accentText,
@@ -1128,10 +1172,10 @@ const ms = StyleSheet.create({
 
   identity: {
     alignItems: 'center', gap: 8, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 16,
-    // The warm glass card (kept by Ricky over the flat blend card).
-    borderWidth: 1, borderColor: 'rgba(255,181,158,0.16)', backgroundColor: '#2d241f',
+    // The warm glass card on desktop; plain on phones (Ricky, 2026-11-01).
+    borderWidth: 1, borderColor: 'var(--rival-plain-border, rgba(255,181,158,0.16))', backgroundColor: 'var(--rival-plain-fill, #2d241f)',
     ...(Platform.OS === 'web' ? {
-      backgroundImage: 'radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
+      backgroundImage: 'var(--rival-plain-image, radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%))',
     } as any : {}),
   },
   // Bigger crest in the same card: the artwork has clear space around it, so

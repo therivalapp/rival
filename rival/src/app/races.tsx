@@ -1,6 +1,7 @@
 import { getMyTeamIds } from '../lib/myTeams';
 import { useState, useCallback } from 'react';
-import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, Linking, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Linking, useWindowDimensions } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
@@ -100,7 +101,6 @@ type Race = {
   users: { display_name: string | null; email: string };
   interest_count: number;
   i_am_interested: boolean;
-  avg_weekly_km: number;
 };
 
 function parseTimeToSeconds(t: string): number {
@@ -154,27 +154,6 @@ function daysUntil(dateStr: string): number {
 
 function formatRaceDate(dateStr: string): string {
   return parseDateLocal(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-function TrainingBar({ avgWeeklyKm, distanceKm }: { avgWeeklyKm: number; distanceKm: number }) {
-  if (distanceKm <= 0) return null;
-  const pct = Math.min(avgWeeklyKm / distanceKm, 1);
-  const displayPct = Math.round(pct * 100);
-  const done = pct >= 1;
-  return (
-    <View style={styles.trainingSection}>
-      <View style={styles.trainingLabelRow}>
-        <Text style={styles.trainingLabel}>Weekly avg vs event distance</Text>
-        <Text style={[styles.trainingPct, done && { color: RivalColors.accentGold }]}>{displayPct}%</Text>
-      </View>
-      <View style={styles.trainingTrack}>
-        <View style={[styles.trainingFill, { width: `${displayPct}%`, backgroundColor: done ? RivalColors.accentFill : RivalColors.accentFill }]} />
-      </View>
-      <Text style={styles.trainingMeta}>
-        {avgWeeklyKm.toFixed(1)} km/week avg · {distanceKm} km race
-      </Text>
-    </View>
-  );
 }
 
 // On mobile, a group of fields sits in its own card inside the sheet; on
@@ -257,6 +236,8 @@ export default function RacesScreen() {
   const { width } = useWindowDimensions();
   const wide = sidePageWide(width);
   const m = !wide;
+  // Phones: "Add event" from another page is that pop-up alone, over that page.
+  const addOnly = m && add === 'true';
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -277,9 +258,6 @@ export default function RacesScreen() {
         .gte('race_date', today).order('race_date', { ascending: true }),
       supabase.from('races').select('*, users(display_name)')
         .eq('user_id', user.id).lt('race_date', today).order('race_date', { ascending: false }),
-      supabase.from('activities').select('distance_meters, started_at')
-        .eq('user_id', user.id)
-        .gte('started_at', new Date(Date.now() - 56 * 24 * 60 * 60 * 1000).toISOString()),
     ]);
 
     // Get league mates
@@ -296,19 +274,16 @@ export default function RacesScreen() {
     const friendSet = new Set(friendIds);
     setLeagueMateIds(friendSet);
 
-    const [racesRes, pastRes, activitiesRes] = await eventsP;
-
-    const totalKm = (activitiesRes.data || []).reduce((s, a) => s + (a.distance_meters || 0), 0) / 1000;
-    const avgWeeklyKm = totalKm / 8;
+    const [racesRes, pastRes] = await eventsP;
 
     const withMeta = (racesRes.data || []).map((r: any) => {
       const raceInterests: any[] = r.race_interests || [];
       const { race_interests: _interests, ...race } = r;
-      return { ...race, interest_count: raceInterests.length, i_am_interested: raceInterests.some((i: any) => i.user_id === user.id), avg_weekly_km: avgWeeklyKm };
+      return { ...race, interest_count: raceInterests.length, i_am_interested: raceInterests.some((i: any) => i.user_id === user.id) };
     });
 
     setRaces(withMeta);
-    setCompletedRaces((pastRes.data || []).map((r: any) => ({ ...r, interest_count: 0, i_am_interested: false, avg_weekly_km: avgWeeklyKm })));
+    setCompletedRaces((pastRes.data || []).map((r: any) => ({ ...r, interest_count: 0, i_am_interested: false })));
     setLoading(false);
   }
 
@@ -359,6 +334,7 @@ export default function RacesScreen() {
     }
     setSaving(false);
     closeModal();
+    if (addOnly) { leaveAddOnly(); return; }
     if (!editingRace && then === 'back' && router.canGoBack()) { router.back(); return; }
     load();
   }
@@ -403,6 +379,12 @@ export default function RacesScreen() {
     setShowAdd(true);
   }
 
+  // Opened just to add an event: closing returns to the page it came from,
+  // once the pop-up and its dim have faded out together.
+  function leaveAddOnly() {
+    setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/races')), 250);
+  }
+
   function closeModal() {
     setShowAdd(false); setEditingRace(null);
     setRaceName(''); setDistanceKm(''); setRaceDate('');
@@ -415,12 +397,14 @@ export default function RacesScreen() {
 
   async function deleteRace(id: string) {
     if (!(await confirmAction({ title: 'Delete this event?', confirmLabel: 'Delete', destructive: true }))) return;
-    const { error } = await supabase.from('races').delete().eq('id', id);
-    if (error) {
-      notify("Couldn't delete that event", error.message);
+    const { error, count } = await supabase.from('races').delete({ count: 'exact' }).eq('id', id);
+    if (error || !count) {
+      notify("Couldn't delete that event", error?.message ?? 'The event was not found.');
       return;
     }
+    // Past events are held in their own list.
     setRaces((prev) => prev.filter((r) => r.id !== id));
+    setCompletedRaces((prev) => prev.filter((r) => r.id !== id));
   }
 
   async function saveActualFinishTime() {
@@ -606,7 +590,7 @@ export default function RacesScreen() {
     <GreySheet
       kicker="EVENTS"
       title={editingRace ? 'Edit event' : 'Add event'}
-      onClose={() => { setEventCalOpen(false); closeModal(); }}
+      onClose={() => { setEventCalOpen(false); closeModal(); if (addOnly) leaveAddOnly(); }}
       footer={<>
         <GreyPrimary
           label={saving ? 'Saving…' : editingRace ? 'Save changes' : 'Add event'}
@@ -707,7 +691,7 @@ export default function RacesScreen() {
   const modals = (
     <>
         {/* Add / Edit Race Modal */}
-        <Modal visible={showAdd} transparent animationType="slide">
+        <Modal visible={showAdd} transparent animationType={addOnly ? 'fade' : 'slide'}>
           <View style={styles.modalOverlay}>
             {m ? (
               eventSheet
@@ -915,6 +899,8 @@ export default function RacesScreen() {
     </>
   );
 
+  if (addOnly) return <View style={{ flex: 1 }}>{modals}</View>;
+
   if (!wide) {
     const tabs: { key: typeof activeTab; label: string; count: number }[] = [
       { key: 'mine', label: 'Mine', count: myRaces.length },
@@ -1022,10 +1008,6 @@ export default function RacesScreen() {
                     <Text style={rm.label}>Goal time</Text>
                     <Text style={ms.goalValue}>{race.goal_finish_time}</Text>
                   </View>
-                ) : null}
-
-                {isOwn && !past && race.distance_km > 0 ? (
-                  <TrainingBar avgWeeklyKm={race.avg_weekly_km} distanceKm={race.distance_km} />
                 ) : null}
 
                 {past && isOwn && race.actual_finish_time ? (
@@ -1261,8 +1243,6 @@ export default function RacesScreen() {
                 </TouchableOpacity>
               )}
 
-              {isOwn && !past && <TrainingBar avgWeeklyKm={race.avg_weekly_km} distanceKm={race.distance_km} />}
-
               <View style={styles.raceFooter}>
                 {!isOwn && (
                   <TouchableOpacity
@@ -1301,7 +1281,7 @@ export default function RacesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 48 },
   header: { marginBottom: 0 },
   back: { color: RivalColors.accentFill, fontSize: 16 },
@@ -1395,13 +1375,6 @@ const styles = StyleSheet.create({
   logFinishBtn: { borderWidth: 1, borderColor: RivalColors.accentFill, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   logFinishBtnText: { color: RivalColors.accentFill, fontSize: 14, fontWeight: '700' },
 
-  trainingSection: { gap: 6 },
-  trainingLabelRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  trainingLabel: { fontSize: 12, color: RivalColors.textSecondary, fontWeight: '600' },
-  trainingPct: { fontSize: 12, color: RivalColors.accentFill, fontWeight: '700' },
-  trainingTrack: { height: 8, backgroundColor: RivalColors.surfaceHigh, borderRadius: 4 },
-  trainingFill: { height: '100%', borderRadius: 4 },
-  trainingMeta: { fontSize: 11, color: RivalColors.textSecondary },
 
   raceFooter: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   interestedBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: RivalColors.accentFill },

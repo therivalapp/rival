@@ -1,3 +1,4 @@
+import { TYPE_GROUPS, tileLabel } from '../lib/activityTypes';
 import { distanceUnit, elevationUnit, formatSpeedOrPace, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
 import { defaultActivityName } from '../lib/activityName';
 import { useEffect, useRef, useState } from 'react';
@@ -14,18 +15,23 @@ import { suggestLifts } from '../lib/liftSuggest';
 import { findMatchingRaceId } from '../lib/raceMatch';
 import { formatDuration, formatDurationClock } from '../lib/format';
 import { confirmAction, notify } from '../lib/notify';
-import { loadSavedWorkout } from '../lib/savedWorkouts';
-import { CANONICAL_LIFTS, matchCanonicalLift } from '../lib/lifts';
+import { createSavedWorkout, loadSavedWorkout } from '../lib/savedWorkouts';
+import { liftsToSave } from '../lib/liveActivity';
+import { clearLive, getLive, getLivePhotos } from '../lib/liveActivityStore';
+import { CALISTHENICS_LIFTS, CANONICAL_LIFTS, isHoldLift, matchCanonicalLift } from '../lib/lifts';
 import { bestFor, lastTimeFor, percentWeight, repeatOptions, type LiftActivity, type LiftEntry, type LiftLine, type SavedWorkout } from '../lib/liftHistory';
 import { RivalButton, RivalCard, RivalIcon, activityIconName, RivalBackButton, RivalDateField, GreyPageHead, GreyRows, GreyRow, GreyCalendar, GREY_PAGE_BG, rb } from '../components/rival';
 import { CoverImage } from '../components/rival/CoverImage';
 import { MediaPicker, pickMediaFiles, MAX_MEDIA, MAX_VIDEOS, MAX_VIDEO_SECONDS, type MediaItem } from '../components/rival/MediaPicker';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, type MediaRow } from '../lib/activityMedia';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors, PHONE_CARD_BG, RivalGhost } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalButtonColors, PHONE_CARD_BG, RivalGhost, RivalMainGlow } from '../constants/rivalTheme';
 import { sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { TrainingPartners } from '../components/rival/TrainingPartners';
-import { tagTeammates, withinTagWindow, TAG_WINDOW_HOURS } from '../lib/sharedActivities';
+import { AddCard, ResultCard, ResultEditor, ScoreCard, ScoreEditor } from '../components/rival/LiveFinishExtras';
+import { GreySheet, GreyPrimary } from '../components/rival/RivalGreySheet';
+import { statFamily, type ActivityStats, type MatchResult, type Score } from '../lib/activityStats';
+import { fetchTeammates, tagTeammates, withinTagWindow, TAG_WINDOW_HOURS } from '../lib/sharedActivities';
 import { backToOrigin, goToTab } from '../lib/tabNav';
 import { MilestonePhotoPrompt } from '../components/rival/MilestonePhotoPrompt';
 import { useKeyboardOpen } from '../lib/keyboard';
@@ -43,6 +49,8 @@ const TYPE_OPTIONS: Array<{ type: string; label: string }> = [
   { type: 'Swim', label: 'Swim' },
   { type: 'Rowing', label: 'Rowing' },
   { type: 'WeightTraining', label: 'Weights' },
+  { type: 'Calisthenics', label: 'Calisthenics' },
+  { type: 'Gymnastics', label: 'Gymnastics' },
   { type: 'CrossFit', label: 'CrossFit' },
   { type: 'Hyrox', label: 'Hyrox' },
   { type: 'Bootcamp', label: 'Bootcamp' },
@@ -53,7 +61,7 @@ const TYPE_OPTIONS: Array<{ type: string; label: string }> = [
 // Workout and HYROX in place of Hike and HIIT (Ricky, 2026-10-18: used more).
 // Workout sits apart from Weights so the two dumbbells aren't side by side (Ricky, 2026-10-23).
 // Gym activities, where the Lifts row is offered.
-const LIFT_TYPES = new Set(['WeightTraining', 'Workout', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
+const LIFT_TYPES = new Set(['WeightTraining', 'Calisthenics', 'Workout', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
 // Long enough that the four quick tiles stay full as lifts are added.
 const MAIN_LIFTS = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Pull-up', 'Barbell Row', 'Lat Pulldown', 'Incline Bench Press', 'Dip', 'Bicep Curl', 'Lunge', 'Leg Press', 'Hip Thrust'];
 
@@ -67,36 +75,18 @@ const PHONE_TILES = ['Run', 'Ride', 'Swim', 'CrossFit', 'WeightTraining', 'Hyrox
 // See all: every type RIVAL scores (scoring_config), grouped, with a search
 // (Ricky, 2026-10-29, design/all-types-mockup.png). The seven tiles are left
 // out of the groups, as they are already on screen.
-const TYPE_GROUPS: [string, string[]][] = [
-  ['Run and walk', ['Run', 'TrailRun', 'VirtualRun', 'Walk', 'Hike', 'TrackAndField']],
-  ['Ride', ['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide', 'EMountainBikeRide', 'Handcycle', 'Velomobile']],
-  ['Gym and classes', ['WeightTraining', 'Workout', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Yoga', 'Pilates', 'Elliptical', 'StairStepper', 'VirtualRow']],
-  ['Water', ['Swim', 'Rowing', 'Kayaking', 'Canoeing', 'StandUpPaddling', 'Surfing', 'Kitesurf', 'Windsurf', 'Sail']],
-  ['Racket sports', ['Tennis', 'Squash', 'Pickleball', 'Badminton', 'TableTennis', 'Racquetball']],
-  ['Team sports', ['Basketball', 'Football', 'Soccer', 'Rugby', 'Cricket', 'Volleyball', 'Handball', 'FieldHockey', 'IceHockey', 'Lacrosse', 'Frisbee']],
-  ['Winter', ['AlpineSki', 'BackcountrySki', 'NordicSki', 'Snowboard', 'Snowshoe', 'IceSkate']],
-  ['Other', ['Golf', 'MartialArts', 'Fencing', 'RockClimbing', 'InlineSkate', 'RollerSki', 'Skateboard', 'Wheelchair']],
-];
 const ALL_TYPES = TYPE_GROUPS.flatMap(([, types]) => types);
-const TILE_NAMES: Record<string, string> = {
-  WeightTraining: 'Weights', Hyrox: 'HYROX', TrailRun: 'Trail run', HIIT: 'HIIT', CrossFit: 'CrossFit', VirtualRun: 'Treadmill', VirtualRide: 'Indoor ride',
-  VirtualRow: 'Indoor row', MountainBikeRide: 'Mountain bike', EBikeRide: 'E-bike', EMountainBikeRide: 'E-MTB', StandUpPaddling: 'Paddle board',
-  BackcountrySki: 'Ski touring', Sail: 'Sailing', TrackAndField: 'Track and field',
-};
+// One long word that can't wrap on a quarter-width tile.
+const LONG_TILES = new Set(['Calisthenics', 'Gymnastics']);
 // The activity name is a short label that fits one line on a feed card; the
 // story goes in the journal (Ricky, 2026-10-08).
 const NAME_MAX = 30;
 
-function tileLabel(t: string): string {
-  if (TILE_NAMES[t]) return TILE_NAMES[t];
-  const words = t.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
 
 // Class formats: the time entered is scored as it is, with a note under a
 // short one asking for the full class time if it was a class (no 45-minute
 // minimum since 2026-10-27, as on the scan screen).
-const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp']);
+const CLASS_BASED_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Gymnastics']);
 
 // Quick tiles under the numbers (Ricky, 2026-10-29, other-types-mockup.png).
 // Distance types get Time and Distance side by side and these distances, in
@@ -144,17 +134,25 @@ export default function ManualEntryScreen() {
   // looking empty day" → jump straight to logging that day), passed as
   // ?date=YYYY-MM-DD. Falls back to today for every other entry point
   // (the FAB, "Add Workout" screen, etc. never pass this param).
-  const { date: prefillDateIso, editId, saved: savedParam } = useLocalSearchParams<{ date?: string; editId?: string; saved?: string }>();
+  const { date: prefillDateIso, editId, saved: savedParam, live: liveParam, keep: keepParam } = useLocalSearchParams<{ date?: string; editId?: string; saved?: string; live?: string; keep?: string }>();
   const isEditMode = !!editId;
 
   // From a saved workout it starts on Weights, so the page doesn't open on
   // Run and then switch.
-  const [workoutType, setWorkoutType] = useState(savedParam ? 'WeightTraining' : 'Run');
+  const [workoutType, setWorkoutType] = useState(() => (liveParam && getLive()?.activityType) || (savedParam ? 'WeightTraining' : 'Run'));
   const [showAllTypes, setShowAllTypes] = useState(false);
   // The seven tiles: the person's own types first (lib/recentTypes.ts).
   const recentTypes = useRecentTypes();
   const tiles = tilesFor(recentTypes, PHONE_TILES);
   const [typeQuery, setTypeQuery] = useState('');
+  // While searching, the search field rides to the top of the screen so the
+  // results show above the keyboard (Ricky, 2026-11-02).
+  const [searchingTypes, setSearchingTypes] = useState(false);
+  const typeSearchRef = useRef<any>(null);
+  const liftTypeSearch = () => {
+    if (Platform.OS !== 'web') return;
+    setTimeout(() => (typeSearchRef.current as HTMLElement | null)?.closest('[data-type-search]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 250);
+  };
   const [calOpen, setCalOpen] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [dateStr, setDateStr] = useState(() => (prefillDateIso ? isoToDisplayDate(prefillDateIso) || todayDisplay() : todayDisplay()));
@@ -187,6 +185,17 @@ export default function ManualEntryScreen() {
   const [notes, setNotes] = useState('');
   // Teammates picked before the activity exists; tagged once it has saved.
   const [partnerIds, setPartnerIds] = useState<string[]>([]);
+  // The match result (racket and team sports) and the CrossFit score, entered
+  // here after the game rather than on Start (Ricky, 2026-11-02). Kept in the
+  // stats column with anything else the activity already holds there.
+  const [loadedStats, setLoadedStats] = useState<ActivityStats>({});
+  const [result, setResult] = useState<MatchResult | null>(null);
+  const [score, setScore] = useState<Score | null>(null);
+  const [statEditor, setStatEditor] = useState<'result' | 'score' | null>(null);
+  const [resultDraft, setResultDraft] = useState<MatchResult>({ outcome: 'won', sets: [] });
+  const [scoreDraft, setScoreDraft] = useState<Score>({ kind: 'rounds', rounds: 0, reps: 0, rx: true });
+  const [mates, setMates] = useState<{ id: string; name: string }[]>([]);
+  const [myFirst, setMyFirst] = useState('You');
   const [journalOpen, setJournalOpen] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [showExercises, setShowExercises] = useState(false);
@@ -326,6 +335,9 @@ export default function ManualEntryScreen() {
       setStartMin(String(started.getMinutes()).padStart(2, '0'));
       setStartPm(started.getHours() >= 12);
       setLoadedFrom({ provider: data.provider ?? null, name: data.name || '' });
+      setLoadedStats(data.stats ?? {});
+      setResult(data.stats?.result ?? null);
+      setScore(data.stats?.score ?? null);
       setDateStr(isoToDisplayDate(`${started.getFullYear()}-${String(started.getMonth() + 1).padStart(2, '0')}-${String(started.getDate()).padStart(2, '0')}`) || todayDisplay());
       setDurationMin(data.duration_seconds > 0 ? String(Math.floor(data.duration_seconds / 60)) : '');
       setDurationSec(data.duration_seconds > 0 ? String(data.duration_seconds % 60) : '');
@@ -672,6 +684,13 @@ export default function ManualEntryScreen() {
         : null;
 
       const raceId = await findMatchingRaceId(user.id, startedAt.toISOString());
+      // Only for the activities that have them, so changing the type drops them.
+      const fam = statFamily(workoutType);
+      const keepResult = (fam === 'racket' || fam === 'team') ? result : null;
+      const keepScore = workoutType === 'CrossFit' ? score : null;
+      const { result: _r, score: _s, ...otherStats } = loadedStats;
+      const merged: ActivityStats = { ...otherStats, ...(keepResult ? { result: keepResult } : {}), ...(keepScore ? { score: keepScore } : {}) };
+      const statsPayload = Object.keys(merged).length ? merged : null;
 
       let activityId: string;
       if (isEditMode) {
@@ -692,6 +711,7 @@ export default function ManualEntryScreen() {
             notes: notes.trim() || null,
             exercises: exercisesPayload,
             race_id: raceId,
+            stats: statsPayload,
             ...locks,
           })
           .eq('id', editId);
@@ -732,6 +752,7 @@ export default function ManualEntryScreen() {
             provider: 'rival_manual',
             provider_activity_id: `manual-${Date.now()}`,
             race_id: raceId,
+            stats: statsPayload,
           })
           .select('id')
           .single();
@@ -750,6 +771,13 @@ export default function ManualEntryScreen() {
           const tagged = await tagTeammates(activityId, partnerIds);
           if (!tagged.ok) setGeneralError(`Activity saved, but the activity partners were not added: ${tagged.error ?? 'try again from the activity'}`);
         }
+      }
+      // A teammate picked as the opponent is asked to confirm, like a partner,
+      // and their copy gets the result turned round (mirror_match_result.sql).
+      const opponentId = keepResult?.opponentId;
+      if (opponentId && opponentId !== loadedStats.result?.opponentId && !partnerIds.includes(opponentId)) {
+        const tagged = await tagTeammates(activityId, [opponentId]);
+        if (!tagged.ok && !/already been added/.test(tagged.error ?? '')) setGeneralError(`Activity saved, but ${keepResult?.opponent ?? 'the opponent'} was not added: ${tagged.error}`);
       }
 
       // Lift entries feed the PR tracker. Use the canonical name when we
@@ -807,6 +835,11 @@ export default function ManualEntryScreen() {
       if (isEditMode) {
         backToOrigin();
         return;
+      }
+      if (liveParam) {
+        clearLive();
+        // Finish offered to keep these lifts as a saved activity.
+        if (keepParam) createSavedWorkout({ name: workoutName.trim() || namePlaceholder, activityType: workoutType, exercises: exercises.filter((e) => e.name.trim()) }).catch(() => {});
       }
       setSavedActivityId(activityId);
       setSavedHasPhoto(!!coverUrl);
@@ -1030,7 +1063,7 @@ export default function ManualEntryScreen() {
                   <TextInput style={styles.exFieldInput} value={ex.sets != null ? String(ex.sets) : ''} onChangeText={(v) => updateExerciseNum(i, 'sets', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" autoComplete="off" />
                 </View>
                 <View style={styles.exField}>
-                  <Text style={styles.exFieldLabel}>Reps</Text>
+                  <Text style={styles.exFieldLabel}>{isHoldLift(ex.name) ? 'Seconds' : 'Reps'}</Text>
                   <TextInput style={styles.exFieldInput} value={ex.reps != null ? String(ex.reps) : ''} onChangeText={(v) => updateExerciseNum(i, 'reps', v)} placeholder="-" placeholderTextColor={RivalColors.textSecondary} keyboardType="numeric" autoComplete="off" />
                 </View>
                 <View style={styles.exField}>
@@ -1115,6 +1148,7 @@ export default function ManualEntryScreen() {
     const counts = new Map<string, number>();
     (priorLifts ?? []).forEach((p) => { if (CANONICAL_LIFTS.includes(p.lift)) counts.set(p.lift, (counts.get(p.lift) ?? 0) + 1); });
     const mine = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([l]) => l);
+    if (workoutType === 'Calisthenics') return [...new Set([...mine.filter((l) => CALISTHENICS_LIFTS.includes(l)), ...CALISTHENICS_LIFTS])].slice(0, 5);
     return [...new Set([...mine, ...MAIN_LIFTS])].slice(0, 5);
   })();
   // Weights starts with a row ready to fill in.
@@ -1133,6 +1167,25 @@ export default function ManualEntryScreen() {
       setShowExercises(true);
     }).finally(() => setSavedLoaded(true));
   }, [savedParam]);
+  // Finished from Start: the recorded time, lifts and photos, to review like
+  // any activity. ?live= is the seconds recorded, stopped at Finish.
+  useEffect(() => {
+    const live = liveParam ? getLive() : null;
+    if (!live) return;
+    const started = new Date(live.startedAt);
+    const seconds = Number(liveParam) || 0;
+    setWorkoutType(live.activityType);
+    if (live.name) setWorkoutName(live.name.slice(0, NAME_MAX));
+    setDateStr(isoToDisplayDate(`${started.getFullYear()}-${String(started.getMonth() + 1).padStart(2, '0')}-${String(started.getDate()).padStart(2, '0')}`) || todayDisplay());
+    setStartHour(String(((started.getHours() + 11) % 12) + 1));
+    setStartMin(String(started.getMinutes()).padStart(2, '0'));
+    setStartPm(started.getHours() >= 12);
+    setDurationMin(String(Math.floor(seconds / 60)));
+    setDurationSec(seconds % 60 ? String(seconds % 60).padStart(2, '0') : '');
+    const lifts = liftsToSave(live.lifts);
+    if (lifts.length) { setExercises(lifts); setShowExercises(true); }
+    setMedia(getLivePhotos());
+  }, [liveParam]);
   function toggleMainLift(lift: string) {
     setExercises((prev) => {
       const at = prev.findIndex((e) => matchCanonicalLift(e.name) === lift);
@@ -1189,6 +1242,26 @@ export default function ManualEntryScreen() {
   })();
   const partnersStart = isEditMode ? originalStartedAt?.toISOString() ?? null : draftStart;
   const partnersOpen = !!partnersStart && withinTagWindow(partnersStart);
+  const statFam = statFamily(workoutType);
+  const wantsResult = statFam === 'racket' || statFam === 'team';
+  const wantsScore = workoutType === 'CrossFit';
+  useEffect(() => {
+    if (statEditor !== 'result' || statFam !== 'racket' || mates.length) return;
+    fetchTeammates().then(setMates).catch(() => {});
+    (async () => {
+      const { data: { user } } = await getAuthUser();
+      if (!user) return;
+      const { data } = await supabase.from('users').select('display_name').eq('id', user.id).maybeSingle();
+      const first = (data?.display_name ?? '').trim().split(/\s+/)[0];
+      if (first) setMyFirst(first);
+    })().catch(() => {});
+  }, [statEditor, statFam, mates.length]);
+  const resultCard = wantsResult ? (result
+    ? <ResultCard result={result} me={myFirst} style={m.statCard} onEdit={() => { setResultDraft(result); setStatEditor('result'); }} />
+    : <AddCard label="Add result" style={m.statAdd} onPress={() => { setResultDraft({ outcome: 'won', sets: [] }); setStatEditor('result'); }} />) : null;
+  const scoreCard = wantsScore ? (score
+    ? <ScoreCard score={score} style={m.statCard} onEdit={() => { setScoreDraft(score); setStatEditor('score'); }} />
+    : <AddCard label="Add score" style={m.statAdd} onPress={() => { setScoreDraft({ kind: 'rounds', rounds: 0, reps: 0, rx: true }); setStatEditor('score'); }} />) : null;
   const partnersCard = isEditMode ? (
     editId && partnersStart ? (
       <View style={m.journal}>
@@ -1257,7 +1330,7 @@ export default function ManualEntryScreen() {
           </View>
           <View style={m.cNums}>
             {box('sets', 'Sets')}
-            {box('reps', 'Reps')}
+            {box('reps', isHoldLift(ex.name) ? 'Seconds' : 'Reps')}
             <View style={[m.cNum, pctOn && pctFocus === i && m.liftFieldTyping]}>
               <Text style={m.cNumLabel}>{pctOn ? '%' : weightUnit === 'kg' ? 'Kg' : 'Lb'}</Text>
               {pctOn ? (
@@ -1510,7 +1583,7 @@ export default function ManualEntryScreen() {
                 const missing = (['sets', 'reps', 'weight'] as const).some((f) => ex[f] == null && last && last[f] != null);
                 const fields = [
                   { f: 'sets' as const, label: 'Sets', value: ex.sets != null ? String(ex.sets) : '', onChange: (v: string) => updateExerciseNum(i, 'sets', v) },
-                  { f: 'reps' as const, label: 'Reps', value: ex.reps != null ? String(ex.reps) : '', onChange: (v: string) => updateExerciseNum(i, 'reps', v) },
+                  { f: 'reps' as const, label: isHoldLift(ex.name) ? 'Seconds' : 'Reps', value: ex.reps != null ? String(ex.reps) : '', onChange: (v: string) => updateExerciseNum(i, 'reps', v) },
                 ];
                 return (
                   <>
@@ -1678,6 +1751,11 @@ export default function ManualEntryScreen() {
       });
     });
     const mine = [...stats.values()].sort((x, y) => y.count - x.count || y.last - x.last).map((v) => v.name);
+    // Calisthenics stays with bodyweight moves, whatever else the person lifts.
+    if (workoutType === 'Calisthenics') {
+      return suggestLifts({ mine, activities: recent, added: exercises.map((e) => e.name), activityName: workoutName, fallback: CALISTHENICS_LIFTS, count: 60 })
+        .filter((l) => CALISTHENICS_LIFTS.includes(l)).slice(0, 4);
+    }
     return suggestLifts({ mine, activities: recent, added: exercises.map((e) => e.name), activityName: workoutName, fallback: MAIN_LIFTS, count: 4 });
   })();
   function nextExercise() {
@@ -1708,7 +1786,7 @@ export default function ManualEntryScreen() {
     setNameSuggestIndex(null);
   }
   const liftSummary = (ex: Exercise) => [
-    ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : ex.sets ? `${ex.sets} sets` : ex.reps ? `${ex.reps} reps` : '',
+    ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}${isHoldLift(ex.name) ? ' sec' : ''}` : ex.sets ? `${ex.sets} sets` : ex.reps ? `${ex.reps}${isHoldLift(ex.name) ? ' sec' : ' reps'}` : '',
     ex.weight != null ? `${kgToDisplay(ex.weight)} ${weightUnit}` : '',
   ].filter(Boolean).join(' · ');
   const lastWeightsTime = lastTimeByType.current[workoutType];
@@ -1794,7 +1872,7 @@ export default function ManualEntryScreen() {
 
         <View style={w.boxes}>
           {box('sets', 'SETS')}
-          {box('reps', 'REPS')}
+          {box('reps', isHoldLift(ex.name) ? 'SECONDS' : 'REPS')}
           <View style={[w.box, pctOn && pctFocus === i && w.boxTyping]}>
             {pctOn ? (
               <TextInput
@@ -2073,7 +2151,7 @@ export default function ManualEntryScreen() {
     return (
       <TouchableOpacity
         key={t}
-        style={[m.tile, fromAll && m.tileSmall, on && m.tileOn]}
+        style={[m.tile, fromAll && m.tileSmall, LONG_TILES.has(t) && m.tileLong, on && m.tileOn]}
         onPress={() => { pickType(t); if (fromAll) { setShowAllTypes(false); setTypeQuery(''); } }}
         activeOpacity={0.8}
         accessibilityRole="button"
@@ -2083,7 +2161,7 @@ export default function ManualEntryScreen() {
           <RivalIcon name={activityIconName(t)} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
         </View>
         {/* Long names wrap to a second line in See all. */}
-        <Text style={[m.tileText, fromAll && m.tileTextSmall, on && m.tileTextOn]} numberOfLines={fromAll ? 2 : 1}>{tileLabel(t)}</Text>
+        <Text style={[m.tileText, fromAll && m.tileTextSmall, LONG_TILES.has(t) && m.tileTextLong, on && m.tileTextOn]} numberOfLines={fromAll ? 2 : 1}>{tileLabel(t)}</Text>
       </TouchableOpacity>
     );
   };
@@ -2123,7 +2201,7 @@ export default function ManualEntryScreen() {
                 <View style={[m.tileArt, { pointerEvents: 'none' }]}>
                   <RivalIcon name={outside ? activityIconName(workoutType) : 'apps'} size={56} color={outside ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
                 </View>
-                <Text style={[m.tileText, outside ? m.tileTextOn : m.tileAllText]} numberOfLines={1}>
+                <Text style={[m.tileText, outside && LONG_TILES.has(workoutType) && m.tileTextLong, outside ? m.tileTextOn : m.tileAllText]} numberOfLines={1}>
                   {showAllTypes ? 'Fewer' : outside ? tileLabel(workoutType) : 'See all'}
                 </Text>
               </TouchableOpacity>
@@ -2133,15 +2211,20 @@ export default function ManualEntryScreen() {
         {showAllTypes ? (() => {
           const q = typeQuery.trim().toLowerCase();
           const rest = (types: string[]) => types.filter((t) => !tiles.includes(t));
-          const found = q ? rest(ALL_TYPES).filter((t) => tileLabel(t).toLowerCase().includes(q)) : [];
+          // Every match, the tiles above included: a search for one of them shouldn't say nothing matches.
+          const found = q ? ALL_TYPES.filter((t) => tileLabel(t).toLowerCase().includes(q)) : [];
           return (
             <View style={m.allTypes}>
-              <View style={[m.typeSearch, q && m.typeSearchOn]}>
+              <View style={[m.typeSearch, q && m.typeSearchOn]} {...({ dataSet: { typeSearch: '1' } } as any)}>
                 <RivalIcon name="search" size={19} color={RivalColors.accentText} />
                 <TextInput
+                  ref={typeSearchRef}
                   style={m.typeSearchInput}
                   value={typeQuery}
-                  onChangeText={setTypeQuery}
+                  onChangeText={(v) => { setTypeQuery(v); liftTypeSearch(); }}
+                  onFocus={() => { setSearchingTypes(true); liftTypeSearch(); }}
+                  // Late, so a tap on a result lands before the room below goes.
+                  onBlur={() => setTimeout(() => setSearchingTypes(false), 400)}
                   placeholder={`Search ${ALL_TYPES.length} activities`}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                   autoComplete="off"
@@ -2177,6 +2260,8 @@ export default function ManualEntryScreen() {
                   </View>
                 );
               })}
+              {/* Room below, so the field can reach the top while the keyboard is up. */}
+              {searchingTypes && Platform.OS === 'web' ? <View style={{ height: '60vh' as any }} /> : null}
             </View>
           );
         })() : null}
@@ -2199,7 +2284,7 @@ export default function ManualEntryScreen() {
       {/* Photos and Journal as one card, the post the team sees: picture on
           top, words underneath (Ricky, 2026-10-29, journal-mockup.png B),
           straight under the numbers. */}
-      <View style={m.post}>
+      <View style={[m.post, RivalMainGlow]}>
         {/* Photos inline, Instagram-style: numbered in posting order, tap one
             to rearrange, the last tile adds more. */}
         {media.length === 0 ? (
@@ -2378,7 +2463,30 @@ export default function ManualEntryScreen() {
 
       {/* Who else was there. Partners can only be added within the tagging
           window, so an older date shows who is already on it and nothing more. */}
+      {resultCard}
+      {scoreCard}
       {partnersCard}
+
+      <Modal visible={!!statEditor} transparent animationType="slide" onRequestClose={() => setStatEditor(null)}>
+        <View style={m.statBackdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatEditor(null)} />
+          {statEditor === 'result' ? (
+            <GreySheet
+              kicker={tileLabel(workoutType).toUpperCase()} title="Result" onClose={() => setStatEditor(null)}
+              footer={<GreyPrimary label="Save result" onPress={() => { setResult({ ...resultDraft, sets: resultDraft.sets.filter((p) => p[0] || p[1]) }); setStatEditor(null); }} />}
+            >
+              <ResultEditor value={resultDraft} onChange={setResultDraft} team={statFam === 'team'} teammates={mates} />
+            </GreySheet>
+          ) : statEditor === 'score' ? (
+            <GreySheet
+              kicker={tileLabel(workoutType).toUpperCase()} title="Score" onClose={() => setStatEditor(null)}
+              footer={<GreyPrimary label="Save score" onPress={() => { setScore(scoreDraft); setStatEditor(null); }} />}
+            >
+              <ScoreEditor value={scoreDraft} onChange={setScoreDraft} />
+            </GreySheet>
+          ) : <View />}
+        </View>
+      </Modal>
 
       {/* Destructive, so it sits apart at the very end rather than next to
           the button you tap every time. */}
@@ -2532,7 +2640,7 @@ function calculateEffortScorePreview(
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 48, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   header: { marginBottom: 8 },
   back: { color: RivalColors.accentText, fontSize: 16 },
@@ -2559,7 +2667,7 @@ const styles = StyleSheet.create({
   panelLabel: { ...RivalType.labelCaps, color: RivalColors.accentText },
 
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  typeCard: { flexBasis: '47%', flexGrow: 1, alignItems: 'center', gap: 6, paddingVertical: 18, borderRadius: RivalRadius.DEFAULT, borderWidth: 1, borderColor: RivalColors.outlineVariant, backgroundColor: RivalColors.surfaceLow },
+  typeCard: { flexBasis: '47%', flexGrow: 1, alignItems: 'center', gap: 6, paddingVertical: 18, borderRadius: RivalRadius.DEFAULT, borderWidth: 1, borderColor: RivalColors.outlineVariant, backgroundColor: RivalColors.pageGround },
   typeCardSelected: { borderColor: RivalColors.accentFill, backgroundColor: `${RivalColors.accentFill}22` },
   typeIcon: { fontSize: 22 },
   typeLabel: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary },
@@ -2667,12 +2775,15 @@ const m = StyleSheet.create({
   tileGap: { width: '23%', flexGrow: 1 } as any,
   // See all: whole words only, two lines at most (Velomobile, Mountain bike).
   tileSmall: { paddingHorizontal: 6 },
+  // One long word that can't wrap: smaller, so it's never cut off.
+  tileLong: { paddingHorizontal: 5 },
+  tileTextLong: { fontSize: 10, letterSpacing: -0.2 },
   tileTextSmall: {
     fontSize: 11.5, lineHeight: 13.5, letterSpacing: -0.3,
     ...(Platform.OS === 'web' ? { wordBreak: 'keep-all', overflowWrap: 'normal' } : {}),
   } as any,
   allTypes: { gap: 14, marginTop: 4 },
-  typeSearch: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, paddingHorizontal: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: RivalGhost.border },
+  typeSearch: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, paddingHorizontal: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: RivalGhost.border, ...(Platform.OS === 'web' ? { scrollMarginTop: 16 } as any : {}) },
   typeSearchOn: { borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.55)' },
   typeSearchInput: {
     flex: 1, minWidth: 0, padding: 0, fontSize: 15.5, fontWeight: '600', color: '#fff',
@@ -2777,6 +2888,9 @@ const m = StyleSheet.create({
   addTileText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
 
   nameCount: { alignSelf: 'flex-end', fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.45)', marginTop: -4 },
+  statCard: { marginTop: 0, borderRadius: 16, backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12 },
+  statAdd: { marginTop: 0 },
+  statBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
   journal: { borderRadius: 16, backgroundColor: PHONE_CARD_BG, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 14, paddingVertical: 14 },
   // The label as on the Time card: no rule under it (Ricky, 2026-10-29).
   journalLabel: { marginBottom: 8 },

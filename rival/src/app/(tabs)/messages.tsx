@@ -247,21 +247,21 @@ function rowIn(i: number): any {
 
 // Phone only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
-  // The activity page's lighter grey (Ricky, 2026-10-21: "give the chat page
-  // this feel") under the cards, but dark at the top like Today's podium, so
-  // the see-through top bar and the smoke read the same on both tabs.
+  // Profile and Activity's lighter black (Ricky, 2026-11-02), with the warm
+  // light of Today's podium at the top.
   bg: {
-    backgroundColor: RivalColors.surfaceHigh,
+    backgroundColor: '#1b1a19',
     ...(Platform.OS === 'web'
-      // Today's podium backdrop at the top: its warm light, then into grey.
-      ? ({ backgroundImage: 'radial-gradient(ellipse 90% 200px at 50% 120px, rgba(217,119,87,0.11), rgba(22,19,19,0) 75%), linear-gradient(180deg, #161313 0px, #161313 170px, #282828 330px)' } as any)
+      // Today's podium backdrop at the top: its warm light, then into black.
+      ? ({ backgroundImage: 'radial-gradient(ellipse 90% 200px at 50% 120px, rgba(217,119,87,0.11), rgba(22,19,19,0) 75%), linear-gradient(180deg, #161313 0px, #161313 170px, #1b1a19 330px)' } as any)
       : {}),
   },
-  // The same smoke as Today's Weekly Leader, at Today's strength, over the
-  // whole page behind the cards (Ricky, 2026-10-21). It stays put while the
-  // list scrolls.
+  // The same smoke as Today's Weekly Leader, at Today's strength, held to the
+  // top of the page and faded out behind the list (Ricky, 2026-11-01). It stays
+  // put while the list scrolls.
   smoke: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.28, pointerEvents: 'none',
+    ...(Platform.OS === 'web' ? { maskImage: 'linear-gradient(180deg, #000 0%, #000 28%, transparent 62%)', WebkitMaskImage: 'linear-gradient(180deg, #000 0%, #000 28%, transparent 62%)' } as any : {}),
   },
   head: { alignItems: 'center', gap: 8, marginBottom: 4 },
   title: { fontSize: 30, lineHeight: 36, textAlign: 'center' },

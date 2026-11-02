@@ -11,7 +11,7 @@ import { supabase } from './supabase';
 // Multipliers are the time-only rate. Raised 25% on 2026-10 so an hour in the
 // gym keeps level with an hour of running under the distance formula.
 const FALLBACK_MULTIPLIERS: Record<string, number> = {
-  AlpineSki: 1.0, CrossFit: 1.625, EBikeRide: 0.875, Elliptical: 1.125,
+  AlpineSki: 1.0, Calisthenics: 1.25, Gymnastics: 1.125, CrossFit: 1.625, EBikeRide: 0.875, Elliptical: 1.125,
   Bootcamp: 1.5625, GravelRide: 1.375, HIIT: 1.625, Hike: 1.125, Hyrox: 1.625, Kayaking: 1.0,
   MountainBikeRide: 1.375, NordicSki: 1.5625, Pilates: 1.0, Ride: 1.25,
   Rowing: 1.5, Run: 1.5, Snowboard: 1.0, StandUpPaddling: 0.875, Surfing: 1.0,

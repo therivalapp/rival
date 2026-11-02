@@ -1,6 +1,7 @@
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { Animated, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -35,7 +36,7 @@ const NOTIFY_OPTIONS: Array<{ key: NotifyKey; label: string; sub: string }> = [
   { key: 'reaction', label: 'Respect and Inspired', sub: 'When someone recognises an activity.' },
   { key: 'comment', label: 'Comments', sub: 'When someone comments on an activity.' },
   { key: 'tag_accepted', label: 'Activity partners', sub: 'When someone confirms they trained with you.' },
-  { key: 'team_joined', label: 'Team updates', sub: 'When a request to join a team is approved.' },
+  { key: 'team_joined', label: 'Team updates', sub: 'When a team approves a request, and when someone joins a team.' },
 ];
 
 const QUOTE_TONES: Array<{ value: QuoteTone; label: string; sub: string }> = [
@@ -371,35 +372,28 @@ export default function ProfileScreen() {
     const { data: { user } } = await getAuthUser();
     if (!user) return;
     setDisconnecting(true);
-    // The connection row is the thing that actually keeps Strava linked. If this
-    // fails silently the UI shows "disconnected" while the sync keeps running.
-    const { error: connErr } = await supabase.from('fitness_connections').delete().eq('user_id', user.id).eq('provider', 'strava');
-    if (connErr) {
-      notify("Couldn't disconnect Strava", connErr.message);
-      setDisconnecting(false);
-      return;
+    if (wipeActivities) {
+      // Done server-side: activities also imported from the person's own
+      // archive stay, which the app can't tell apart (strava-disconnect).
+      const { data, error: wipeErr } = await supabase.functions.invoke('strava-disconnect');
+      invalidateActivityCache();
+      if (wipeErr || data?.error) {
+        notify("Couldn't finish disconnecting Strava", 'Some Strava data may still be here. Try again to remove the rest.');
+        setDisconnecting(false);
+        return;
+      }
+    } else {
+      // The connection row is the thing that actually keeps Strava linked. If this
+      // fails silently the UI shows "disconnected" while the sync keeps running.
+      const { error: connErr } = await supabase.from('fitness_connections').delete().eq('user_id', user.id).eq('provider', 'strava');
+      if (connErr) {
+        notify("Couldn't disconnect Strava", connErr.message);
+        setDisconnecting(false);
+        return;
+      }
     }
 
     if (wipeActivities) {
-      const { error: wipeErr } = await supabase.from('activities').delete().eq('user_id', user.id).eq('provider', 'strava');
-      // RLS failures are silent (0 rows, no error) — verify the wipe actually happened.
-      const { count: leftBehind } = await supabase
-        .from('activities')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('provider', 'strava');
-      if (wipeErr || (leftBehind ?? 0) > 0) {
-        notify(
-          "Couldn't remove imported activities",
-          wipeErr?.message || `${leftBehind} imported activities could not be deleted. Strava is disconnected, but the data is still there — please try again.`
-        );
-        setDisconnecting(false);
-        setConfirmingDisconnect(false);
-        setStravaConnected(false);
-        loadProfile();
-        return;
-      }
-
       // Milestones are earned off total hours across all activities — if the
       // Strava data being wiped was never legitimately yours (e.g. it landed
       // here from an accidental cross-account connection), any badge it
@@ -756,7 +750,7 @@ export default function ProfileScreen() {
             : (
               <RivalButton
                 label="Review Strava sharing"
-                onPress={() => router.push({ pathname: '/connect-strava', params: { review: '1' } })}
+                onPress={() => router.push('/team-sharing')}
                 variant="secondary"
                 style={styles.actionBtn}
               />
@@ -1116,7 +1110,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 60,
   },
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   // Phones: room for the floating bottom nav, so the last item isn't hidden behind it.
   contentNavClear: { paddingBottom: 120 },

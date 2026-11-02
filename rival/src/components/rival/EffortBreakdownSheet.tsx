@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal } from './RivalModal';
 import { router } from 'expo-router';
 import { RivalColors, RivalFontFamily } from '../../constants/rivalTheme';
 import { effortBreakdown, loadScoringConfig, type EffortBreakdown, type ScoringConfig } from '../../lib/effort';

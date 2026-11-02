@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { hasSnap, setSnap, useSnapState } from '../../lib/snapState';
 import { createPortal } from 'react-dom';
 import { Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchInbox, isActionable, markRead, type InboxItem } from '../../lib/inbox';
-import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
+import { RivalColors, RivalFontFamily, RivalMainGlow, RivalSerifFamily, rivalPhoneVar } from '../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { goToTab } from '../../lib/tabNav';
 import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../../lib/stravaSharing';
@@ -17,6 +18,8 @@ export const INBOX_ICON_FOR: Record<InboxItem['kind'], RivalIconName> = {
   reaction: 'star',
   comment: 'reply',
   join_request: 'groups',
+  join_confirm: 'groups',
+  join_declined: 'groups',
   short_activity: 'timerOutline',
   team_joined: 'checkCircle',
   activity_tag: 'groups',
@@ -39,6 +42,9 @@ export function inboxTimeAgo(iso: string): string {
 // Where tapping an informational notification goes.
 export function goToInboxSubject(item: InboxItem) {
   if (item.kind === 'reaction' || item.kind === 'comment') goToTab('/team-feed');
+  else if (item.kind === 'team_joined' && item.actor_id) router.push(`/stats?userId=${item.actor_id}` as any);
+  else if (item.kind === 'team_joined' && item.league_id) router.push({ pathname: '/team-hub', params: { id: item.league_id } });
+  else if (item.kind === 'join_declined') router.push('/discover-leagues');
   else if (item.kind === 'team_joined' || item.kind === 'join_request') router.push('/team-hub');
   else if (item.kind === 'tag_accepted') goToTab('/my-activities');
   else if (item.kind === 'rank_alert') router.push('/ranks');
@@ -46,7 +52,7 @@ export function goToInboxSubject(item: InboxItem) {
 
 const SHOWN = 6;
 const TAB_PAD = 6;
-const PANEL = '#1d1714';
+const PANEL = rivalPhoneVar('rival-panel', '#282828', '#1d1714');
 
 // Applied inline, never through StyleSheet.create: react-native-web's style
 // validation deletes animationName from a stylesheet (and logs an error), but
@@ -57,8 +63,30 @@ const MENU_IN: any = Platform.OS === 'web'
 
 type Anchor = { left: number; top: number; width: number; height: number; barBottom: number };
 
+// Open questions first, then newest — the same order as the full page.
+function menuOrder(rows: InboxItem[]): InboxItem[] {
+  return [...rows].sort((a, b) =>
+    (isActionable(a) ? 0 : 1) - (isActionable(b) ? 0 : 1)
+    || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+// The list is fetched ahead, while the top bar loads, so tapping the bell
+// shows it at once instead of "Loading…" (Ricky, 2026-11-02: slow to open).
+// Opening still refreshes it behind the list.
+const SNAP_KEY = 'notificationsMenu';
+let prefetching: Promise<void> | null = null;
+let prefetchedFor: number | null = null;
+export function prefetchNotifications(badgeCount: number) {
+  if (prefetching || (prefetchedFor === badgeCount && hasSnap(SNAP_KEY))) return;
+  prefetchedFor = badgeCount;
+  prefetching = fetchInbox(SHOWN)
+    .then((rows) => setSnap(SNAP_KEY, menuOrder(rows)))
+    .catch(() => { prefetchedFor = null; })
+    .finally(() => { prefetching = null; });
+}
+
 export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose: () => void }) {
-  const [items, setItems] = useState<InboxItem[] | null>(null);
+  const [items, setItems] = useSnapState<InboxItem[] | null>(SNAP_KEY, null);
   const [stravaPending, setStravaPending] = useState(false);
   useEffect(() => { stravaSharingNeedsAnswer().then(setStravaPending, () => {}); }, []);
 
@@ -66,11 +94,7 @@ export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose
     let cancelled = false;
     fetchInbox(SHOWN).then((rows) => {
       if (cancelled) return;
-      // Open questions first, then newest — the same order as the full page.
-      const sorted = [...rows].sort((a, b) =>
-        (isActionable(a) ? 0 : 1) - (isActionable(b) ? 0 : 1)
-        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setItems(sorted);
+      setItems(menuOrder(rows));
       // Seeing an informational item here counts as reading it.
       const seen = rows.filter((r) => !r.read_at && !isActionable(r)).map((r) => r.id);
       if (seen.length) markRead(seen);
@@ -189,6 +213,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 18,
     borderLeftWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,209,190,0.12)',
     overflow: 'hidden',
+    ...RivalMainGlow,
     ...(Platform.OS === 'web' ? ({ boxShadow: '-10px 18px 36px rgba(0,0,0,0.5)' } as any) : {}),
   },
   tab: {
@@ -211,7 +236,7 @@ const styles = StyleSheet.create({
   rowDivider: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   iconWrap: {
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,209,190,0.10)',
+    backgroundColor: rivalPhoneVar('rival-icon-wrap', 'transparent', 'rgba(255,209,190,0.10)'),
   },
   text: { flex: 1, minWidth: 0, gap: 2 },
   rowTitle: { fontFamily: RivalFontFamily, fontSize: 13.5, lineHeight: 18, fontWeight: '600', color: '#fff' },

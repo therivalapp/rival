@@ -24,7 +24,8 @@ import { avatarImage } from '../lib/imageUrl';
 import { selectAll } from '../lib/selectAll';
 import { onActivityDataChanged } from '../lib/dataEvents';
 import { RUN_TYPES } from '../lib/bestEfforts';
-import { ProfilePage, type ProfileRace, type ProfileRow } from '../components/rival/ProfilePage';
+import { ProfilePage, type ProfileWelcome, type ProfileRace, type ProfileRow } from '../components/rival/ProfilePage';
+import { formatTeamName } from '../lib/identity';
 
 // Refined Ember rank ramp only has 4 confirmed anchor colors from the Stitch
 // export (see rivalTheme.ts) — the interpolated 10-level ramp is provisional.
@@ -42,6 +43,9 @@ export default function StatsScreen() {
   // What gets them through: a quote, a principle, a line they live by.
   // Stored in users.bio; "Mindset" is the name people see.
   const [mindset, setMindset] = useSnapState(`stats.${viewedUserId ?? 'me'}.mindset`, '');
+  const [teamCount, setTeamCount] = useSnapState(`stats.${viewedUserId ?? 'me'}.teamCount`, 0);
+  const [profileStats, setProfileStats] = useSnapState<string[] | null>(`stats.${viewedUserId ?? 'me'}.profileStats`, null);
+  const [welcome, setWelcome] = useSnapState<ProfileWelcome | null>(`stats.${viewedUserId ?? 'me'}.welcome`, null);
   const { width } = useWindowDimensions();
   const wide = sidePageWide(width);
   const [totalPoints, setTotalPoints] = useSnapState(`stats.${viewedUserId ?? 'me'}.totalPoints`, 0);
@@ -79,9 +83,18 @@ export default function StatsScreen() {
     return onActivityDataChanged(() => { changedAway.current = true; });
   }, []);
   useFocusEffect(useCallback(() => {
-    if (!changedAway.current) return;
-    changedAway.current = false;
-    loadStats();
+    if (changedAway.current) {
+      changedAway.current = false;
+      loadStats();
+      return;
+    }
+    // Events are added and deleted on their own page, which sends no change notice.
+    if (viewedUserId) return;
+    getAuthUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data, error } = await supabase.from('races').select('id, name, race_type, race_date, location, actual_finish_time').eq('user_id', user.id);
+      if (!error) setRaces((data || []) as ProfileRace[]);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []));
 
@@ -95,6 +108,27 @@ export default function StatsScreen() {
     const targetUserId = viewedUserId || user.id;
     const viewingOther = !!viewedUserId && viewedUserId !== user.id;
 
+    // Your teams, for Build profile; a teammate's, for how they connect to you.
+    supabase.from('league_members').select('league_id, joined_at, invited_by').eq('user_id', targetUserId).eq('status', 'active')
+      .then(async ({ data: theirs, error }) => {
+        if (error || !theirs) return;
+        setTeamCount(theirs.length);
+        if (!viewingOther) return;
+        const { data: mine } = await supabase.from('league_members').select('league_id').eq('user_id', user.id).eq('status', 'active');
+        const myTeams = new Set((mine ?? []).map((m: any) => m.league_id));
+        const shared = theirs.filter((t: any) => myTeams.has(t.league_id)).sort((a: any, b: any) => b.joined_at.localeCompare(a.joined_at))[0] as any;
+        if (!shared) { setWelcome(null); return; }
+        const [{ data: league }, inviter] = await Promise.all([
+          supabase.from('leagues').select('name, logo_url').eq('id', shared.league_id).maybeSingle(),
+          shared.invited_by ? supabase.from('users').select('display_name, avatar_url').eq('id', shared.invited_by).maybeSingle() : Promise.resolve({ data: null }),
+        ]);
+        if (!league) return;
+        setWelcome({
+          teamId: shared.league_id, teamName: formatTeamName(league.name), teamLogo: league.logo_url, joinedAt: shared.joined_at,
+          inviterId: shared.invited_by, inviterName: inviter.data?.display_name ?? null, inviterAvatar: inviter.data?.avatar_url ?? null,
+        });
+      });
+
 
     // Milestones, race ids and past seasons don't depend on the activities,
     // so they load alongside them instead of one after another afterwards.
@@ -106,6 +140,10 @@ export default function StatsScreen() {
       .order('started_at', { ascending: false })
       .limit(HIGHLIGHTS_MAX)
       .then(({ data, error }) => { if (!error) setHighlights((data ?? []) as Highlight[]); });
+
+    // Apart from the main read: a choice that can't load falls back to the defaults.
+    supabase.from('users').select('profile_stats').eq('id', targetUserId).maybeSingle()
+      .then(({ data, error }) => { if (!error) setProfileStats((data as any)?.profile_stats ?? null); });
 
     const [userRes, activitiesRes, { data: milestonesData }, { data: myRaceIdsData }, { data: seasonResultsData }] = await Promise.all([
       supabase.from('users').select('display_name, avatar_url, bio, created_at').eq('id', targetUserId).single(),
@@ -149,7 +187,7 @@ export default function StatsScreen() {
     setTotalDistanceKm(Math.round(activities.reduce((sum, a) => sum + (a.distance_meters || 0), 0) / 1000));
     setTotalElevationM(Math.round(activities.reduce((sum, a) => sum + (a.elevation_meters || 0), 0)));
     setTotalTimeMinutes(Math.round(activities.reduce((sum, a) => sum + (a.duration_seconds || 0), 0) / 60));
-    const HARD_TYPES = new Set(['CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Run', 'Swim', 'Ride', 'WeightTraining', 'Rowing']);
+    const HARD_TYPES = new Set(['Calisthenics', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Run', 'Swim', 'Ride', 'WeightTraining', 'Rowing']);
     setHardTimeMinutes(Math.round(activities.filter(a => HARD_TYPES.has(a.activity_type)).reduce((sum, a) => sum + (a.duration_seconds || 0), 0) / 60));
 
     setEarnedMilestones((milestonesData || []).map((m: any) => m.type));
@@ -253,6 +291,9 @@ export default function StatsScreen() {
           weekEffort={thisWeekPoints}
           streakWeeks={streak?.current ?? 0}
           pastYears={pastSeasons}
+          teamCount={teamCount}
+          profileStats={profileStats}
+          welcome={welcome}
           year={seasonYear}
           onBack={back}
           onChanged={loadStats}

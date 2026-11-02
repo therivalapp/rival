@@ -1,0 +1,136 @@
+<!doctype html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"><style>
+* { box-sizing:border-box; }
+body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+.row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+.col { width:393px; flex-shrink:0; }
+.tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+.desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:90px; }
+.phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#141312; }
+.status { height:50px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; font-weight:700; font-size:16px; }
+.mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; display:inline-block; }
+.serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+.nav { display:flex; justify-content:space-between; align-items:center; padding:4px 16px 10px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.logo { color:#ffb59e; font-weight:600; letter-spacing:0.32em; font-size:17px; }
+.av { width:34px; height:34px; border-radius:17px; background:url(../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg) center/cover; border:1.5px solid rgba(255,255,255,0.2); }
+.pad { padding:0 16px; }
+.bnav { position:absolute; left:16px; right:16px; bottom:24px; display:flex; background:rgba(30,29,28,0.95); border:1px solid rgba(255,255,255,0.07); border-radius:999px; padding:5px; z-index:5; }
+.bnav span { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0; border-radius:999px; font-size:10.5px; font-weight:700; color:#A0A0A0; }
+.bnav span .mi { font-size:19px; }
+.bnav span.on { background:rgba(255,181,158,0.14); color:#ffb59e; }
+
+/* The activity card, as now: 3:4, day on top, name and Effort at the foot. */
+.ac { width:170px; height:226px; flex-shrink:0; border-radius:18px; position:relative; overflow:hidden; background-size:cover; background-position:center; }
+.ac .sh { position:absolute; inset:0; background:linear-gradient(0deg, rgba(14,13,12,0.85) 0%, rgba(14,13,12,0.1) 45%, rgba(14,13,12,0) 70%, rgba(14,13,12,0.35) 100%); }
+.ac .dn { position:absolute; top:12px; left:0; right:0; text-align:center; font-family:Georgia,serif; font-style:italic; font-size:14px; color:rgba(255,255,255,0.85); }
+.ac .ft { position:absolute; left:12px; right:12px; bottom:12px; display:flex; justify-content:space-between; align-items:flex-end; }
+.ac .ft .nm { font-size:13px; font-weight:700; }
+.ac .ft .v { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:18px; }
+.ac .ft .el { font-size:8.5px; font-weight:800; letter-spacing:0.8px; color:#ffb59e; text-align:right; }
+.ac.mat { background:linear-gradient(160deg,#6e7884,#3a4048 60%,#262a2f); }
+.ac.mat .ico { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding-bottom:40px; font-size:120px; color:rgba(255,255,255,0.18); }
+.ac.pb { box-shadow: inset 0 0 0 2px #FFD700; }
+.ac.pb .el { color:#FFD700; }
+/* Retro's date stamp, in RIVAL type. */
+.stamp { position:absolute; top:10px; left:10px; text-align:center; width:44px; padding:5px 0 4px; border-radius:12px; background:rgba(14,13,12,0.55); }
+.stamp i { display:block; font-style:normal; font-size:8.5px; font-weight:800; letter-spacing:0.8px; color:#ffb59e; }
+.stamp b { display:block; font-family:Georgia,serif; font-style:italic; font-size:22px; line-height:24px; }
+.ac.today { background:rgba(255,209,190,0.05); border:1.5px dashed rgba(255,181,158,0.6); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+.ac.today .big { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:64px; line-height:64px; color:rgba(255,255,255,0.9); }
+.ac.today .lbl { font-size:10px; font-weight:800; letter-spacing:1.6px; color:#ffb59e; }
+.ac.today .pl { width:40px; height:40px; border-radius:20px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; display:flex; align-items:center; justify-content:center; margin-top:8px; }
+.ac.future { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ac.future .big { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:56px; color:rgba(255,255,255,0.22); }
+.ac.future .lbl { font-size:10px; font-weight:800; letter-spacing:1.6px; color:rgba(255,255,255,0.3); }
+.rest { width:34px; height:226px; flex-shrink:0; border-radius:14px; border:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.025); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+.rest i { font-style:normal; font-size:9px; font-weight:800; letter-spacing:0.6px; color:rgba(255,255,255,0.35); writing-mode:vertical-rl; transform:rotate(180deg); }
+.rest b { font-family:Georgia,serif; font-style:italic; font-size:15px; color:rgba(255,255,255,0.35); }
+.track { display:flex; gap:8px; margin-right:-16px; overflow:hidden; }
+.whead { display:flex; justify-content:space-between; align-items:flex-end; margin:18px 2px 10px; }
+.whead .k { font-size:10px; font-weight:800; letter-spacing:1.8px; color:#ffb59e; }
+.whead .t { font-size:24px; line-height:28px; }
+.whead .e { text-align:right; }
+.whead .e b { display:block; font-family:Georgia,serif; font-style:italic; font-size:30px; line-height:30px; }
+.whead .e span { font-size:9.5px; font-weight:800; letter-spacing:2px; color:#ffb59e; }
+.wline { font-size:11.5px; color:rgba(255,255,255,0.45); margin:8px 2px 0; }
+.dots { display:flex; gap:10px; margin-top:6px; }
+.dots span { font-size:9px; font-weight:800; color:rgba(255,255,255,0.4); text-align:center; width:12px; }
+.dots span i { display:block; width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,0.2); margin:4px auto 0; }
+.dots span.on i { background:#D97757; }
+.grid { display:flex; flex-wrap:wrap; gap:10px; }
+.card { position:relative; overflow:hidden; border-radius:22px; padding:16px; background:#232120; border:1px solid rgba(255,255,255,0.06); }
+.card .glow { position:absolute; top:0; left:0; right:0; height:120px; background:radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%); }
+.add { display:flex; align-items:center; justify-content:center; gap:6px; padding:13px 0; border-radius:999px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; font-weight:800; font-size:15px; margin-top:12px; }
+.seg { display:flex; justify-content:space-between; margin-top:12px; }
+.seg .s { display:flex; padding:3px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); }
+.seg .s span { display:flex; align-items:center; gap:4px; padding:7px 9px; border-radius:999px; font-size:12px; font-weight:700; color:#A0A0A0; }
+.seg .s span.on { border:1px solid rgba(255,255,255,0.5); color:#fff; }
+.seg .f { display:flex; align-items:center; gap:5px; padding:7px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); font-size:13px; font-weight:700; }
+.sep { display:flex; align-items:center; gap:10px; margin:6px 4px 0; font-size:11px; font-weight:700; color:rgba(255,255,255,0.35); }
+.sep i { flex:1; height:1px; background:rgba(255,255,255,0.08); }
+.pager { display:flex; justify-content:center; gap:5px; margin-top:10px; }
+.pager i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,0.2); }
+.pager i.on { width:16px; background:#ffb59e; }
+
+body{width:1716px}.row{flex-wrap:wrap;row-gap:30px}.desc{min-height:62px}.phone{height:852px;background:#111;position:relative;overflow:hidden}
+.fillp{position:absolute;inset:0;background-size:cover;background-position:center}
+.ser{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.ki{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffb59e}
+.dot{display:inline-block;width:7px;height:7px;border-radius:4px;background:#e8835f;margin-right:6px;vertical-align:1px}
+.tm{position:absolute;left:0;right:0;text-align:center;color:#fff}
+.down{position:absolute;top:54px;left:16px;z-index:5;width:38px;height:38px;border-radius:19px;background:rgba(14,13,12,.55);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
+.dock{position:absolute;left:0;right:0;z-index:6;display:flex;align-items:center;justify-content:center;gap:26px}
+.c{border-radius:50%;background:#232120;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;border:1.5px solid rgba(255,255,255,.16)}
+.c.main{border:2.5px solid #e8835f}
+.c .mi{color:#ffb59e}.c.main .mi{color:#fff}
+.lb{font-size:10px;font-weight:700;color:rgba(255,255,255,.65);text-align:center;margin-top:7px}
+.st{display:flex}.st div{flex:1;text-align:center}.st div+div{border-left:1px solid rgba(255,255,255,.14)}
+.st b{display:block;font-family:Georgia,serif;font-style:italic;font-size:24px;line-height:29px;color:#fff}
+.st i{font-style:normal;font-size:8.5px;letter-spacing:1.3px;font-weight:800;color:#ffb59e}
+.tr{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid rgba(255,255,255,.07)}
+.tr b{font-size:14.5px;font-weight:700}.tr span{font-size:13px;color:#a0a0a0}
+.tick{color:#ffb59e;font-size:17px;margin-right:6px;vertical-align:-3px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#2a2826;border-radius:26px 26px 0 0;padding:10px 18px 0;z-index:4}
+.gr{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);margin:0 auto 12px}
+
+.row{row-gap:30px}
+.lg{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid rgba(255,255,255,.08)}
+.lg b{font-size:15px;font-weight:700;color:#fff}.lg small{display:block;font-size:12.5px;color:#a0a0a0;margin-top:1px}
+.lg .v{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px;color:#fff;text-align:right}
+.tickb{width:30px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin-right:11px;flex-shrink:0;border:1.5px solid rgba(255,181,158,.4);color:#ffb59e;font-size:17px}
+.tickb.on{background:#e8835f;border-color:#e8835f;color:#1a1210}
+.dim2{position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:7}
+.sh{position:absolute;left:0;right:0;bottom:0;z-index:8;background:#2a2826;border-radius:26px 26px 0 0;padding:10px 18px 34px}
+.ttl{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;line-height:34px;color:#fff;text-align:center}
+.nb{flex:1;border-radius:16px;background:rgba(255,255,255,.05);text-align:center;padding:11px 0 9px}
+.nb b{display:block;font-family:Georgia,serif;font-style:italic;font-size:32px;line-height:38px;color:#fff}
+.nb i{font-style:normal;font-size:9px;letter-spacing:1.3px;font-weight:800;color:#a0a0a0}
+.fact{flex:1;border:1px solid rgba(255,181,158,.18);border-radius:14px;padding:9px 6px;text-align:center}
+.fact.on{border-color:#e8835f}.fact i{display:block;font-style:normal;font-size:8.5px;letter-spacing:1.2px;font-weight:800;color:#ffb59e}.fact b{display:block;font-size:13.5px;font-weight:800;color:#fff;margin-top:3px}.fact small{font-size:11px;color:#a0a0a0}
+.pl{display:flex;align-items:center;justify-content:center;height:50px;border-radius:25px;background:linear-gradient(135deg,#ffb59e,#D97757);color:#1a1210;font-size:15px;font-weight:800;margin-top:14px}
+.nm{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid rgba(255,255,255,.07)}.nm b{font-size:14.5px;font-weight:700;color:#fff}.nm span{font-size:12.5px;color:#a0a0a0}
+.fld{height:44px;border-radius:14px;background:rgba(255,255,255,.06);display:flex;align-items:center;padding:0 14px;color:#a0a0a0;font-size:14px;margin-top:12px}
+.tap{position:absolute;width:44px;height:44px;border-radius:22px;border:2px solid #fff;background:rgba(255,255,255,.22);z-index:9}
+.nm.hit{margin:0 -10px;padding:11px 10px;border-radius:12px;background:rgba(255,181,158,.14);border-top-color:transparent}
+.new{background:rgba(255,181,158,.09);margin:0 -10px;padding:12px 10px;border-radius:14px;border-top-color:transparent}
+.note{font-size:12.5px;color:rgba(255,255,255,.65);text-align:center;margin-top:9px}
+.rm{text-align:center;font-size:13px;font-weight:600;color:#a0a0a0;margin-top:13px}
+.fmt{display:flex;gap:7px;margin-top:14px}.fmt span{flex:1;text-align:center;padding:10px 0;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:#ddd}
+.fmt span.on{background:#2f2d2c;border:1.5px solid #e8835f;color:#ffb59e}
+.fmt small{display:block;font-size:10px;font-weight:600;color:#a0a0a0;margin-top:2px}
+.capk{font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;margin:16px 2px 7px}
+.stp{display:flex;align-items:center;justify-content:space-between;border-radius:16px;background:rgba(255,255,255,.05);padding:10px 12px}
+.stp b{font-family:Georgia,serif;font-style:italic;font-size:34px}
+.pm{width:38px;height:38px;border-radius:19px;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center}.pm .mi{font-size:20px;color:#ffb59e}
+.mv{border-radius:16px;background:rgba(255,255,255,.05);padding:4px 12px}
+.mv div{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid rgba(255,255,255,.07);font-size:14px;font-weight:700}.mv div:first-child{border-top:0}.mv span{color:#a0a0a0;font-weight:600}
+.left{display:inline-block;background:rgba(14,13,12,.6);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;margin-top:2px}.left b{color:#ffb59e}
+.rnd{position:absolute;left:18px;right:18px;display:flex;align-items:center;gap:14px;border-radius:22px;background:rgba(35,33,32,.92);border:1px solid rgba(255,255,255,.08);padding:14px 14px 14px 18px}
+.rnd .n{flex:1}.rnd .n i{display:block;font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.rnd .n b{font-family:Georgia,serif;font-style:italic;font-size:44px;line-height:48px}
+.rnd .n small{display:block;font-size:12px;color:#a0a0a0}.rnd .n small em{font-style:normal;color:#fff;font-weight:700}
+.rbtn{width:92px;height:92px;border-radius:46px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:0 6px 22px rgba(217,119,87,.32)}
+.rbtn .mi{font-size:30px;color:#5c1902}
+.laps{position:absolute;left:18px;right:18px}
+.laps .lr{display:flex;align-items:center;gap:10px;padding:6px 2px}.laps .lr span:first-child{width:56px;font-size:12px;font-weight:800;color:#a0a0a0}.laps .lr .bar{display:block;flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.laps .lr .bar i{display:block;height:100%;border-radius:4px;background:rgba(255,181,158,.55)}.laps .lr .bar i.best{background:linear-gradient(90deg,#D97757,#ffb59e)}.laps .lr b{width:40px;text-align:right;font-family:Georgia,serif;font-style:italic;font-size:15px}
+.capt{color:#ffb59e}
+.pre{display:flex;align-items:center;gap:6px;justify-content:center;font-size:12px;color:#a0a0a0;margin-top:10px}.pre .mi{font-size:15px;color:#ffb59e}
+</style></head><body><div class="row"><div class="col"><div class="tag">1 · Pick the format</div><div class="desc">After Start on CrossFit, one choice: AMRAP, For time, EMOM or Lifts. AMRAP and EMOM take a time; For time takes an optional cap. A saved workout skips this, it already knows.</div><div class="phone"><div class="fillp" style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div><div class="fillp" style="background:linear-gradient(180deg,rgba(8,8,8,.55) 0%,rgba(8,8,8,.25) 26%,rgba(8,8,8,.82) 46%,#111 66%)"></div><div class="down mi">keyboard_arrow_down</div><div class="tm" style="top:88px"><div class="ki"><span class="dot"></span>CrossFit</div><div class="ser" style="font-size:84px;line-height:96px;margin-top:4px">0:00</div></div><div class="dock" style="bottom:44px"><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">add_a_photo</span></div><div class="lb capt">Capture</div></div><div><div class="c main" style="width:104px;height:104px"><span class="mi" style="font-size:44px">pause</span></div><div class="lb">Pause</div></div><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">flag</span></div><div class="lb">Finish</div></div></div><div class="dim2"></div><div class="sh"><div class="gr"></div><div class="ttl">Workout</div><div class="fmt"><span class="on">AMRAP<small>Most rounds</small></span><span>For time<small>Fastest</small></span></div><div class="fmt" style="margin-top:7px"><span>EMOM<small>Every minute</small></span><span>Lifts<small>Sets and reps</small></span></div><div class="capk">TIME</div><div class="stp"><span class="pm"><span class="mi">remove</span></span><b>20 min</b><span class="pm"><span class="mi">add</span></span></div><div class="capk">MOVEMENTS · OPTIONAL</div><div class="mv"><div>Pull-ups<span>10</span></div><div>Push-ups<span>15</span></div><div>Air squats<span>20</span></div></div><div class="pl">Start workout</div></div></div></div><div class="col"><div class="tag">2 · One tap a round</div><div class="desc">The clock counts down the AMRAP. One big Round button, tapped at the end of each round, counts rounds and times them. The movements stay on screen as a reminder.</div><div class="phone"><div class="fillp" style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div><div class="fillp" style="background:linear-gradient(180deg,rgba(8,8,8,.55) 0%,rgba(8,8,8,.25) 26%,rgba(8,8,8,.82) 46%,#111 66%)"></div><div class="down mi">keyboard_arrow_down</div><div class="tm" style="top:88px"><div class="ki"><span class="dot"></span>CrossFit · AMRAP 20</div><div class="ser" style="font-size:84px;line-height:96px;margin-top:4px">7:14</div><div class="left">TIME LEFT · <b>ROUND 8</b></div></div><div class="laps" style="top:262px"><div class="mv" style="background:rgba(35,33,32,.85)"><div>Pull-ups<span>10</span></div><div>Push-ups<span>15</span></div><div>Air squats<span>20</span></div></div></div><div class="rnd" style="top:468px"><div class="n"><i>ROUNDS</i><b>7</b><small>Last round <em>1:38</em> · fastest <em>1:31</em></small></div><div class="rbtn"><span class="mi">add</span>Round</div></div><div class="dock" style="bottom:44px"><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">add_a_photo</span></div><div class="lb capt">Capture</div></div><div><div class="c main" style="width:104px;height:104px"><span class="mi" style="font-size:44px">pause</span></div><div class="lb">Pause</div></div><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">flag</span></div><div class="lb">Finish</div></div></div></div></div><div class="col"><div class="tag">3 · Round splits</div><div class="desc">Swipe the same way as the run pages for every round so far, fastest lit. It shows pacing: here the rounds drift slower after round 3.</div><div class="phone"><div class="fillp" style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div><div class="fillp" style="background:linear-gradient(180deg,rgba(8,8,8,.55) 0%,rgba(8,8,8,.25) 26%,rgba(8,8,8,.82) 46%,#111 66%)"></div><div class="down mi">keyboard_arrow_down</div><div class="tm" style="top:88px"><div class="ki"><span class="dot"></span>CrossFit · AMRAP 20</div><div class="ser" style="font-size:84px;line-height:96px;margin-top:4px">7:02</div><div class="left">TIME LEFT · <b>ROUND 8</b></div></div><div class="laps" style="top:262px"><div class="mv" style="background:rgba(35,33,32,.85);padding:8px 12px"><div class="lr"><span>Round 1</span><span class="bar"><i class="best" style="width:100%"></i></span><b>1:31</b></div><div class="lr"><span>Round 2</span><span class="bar"><i class="" style="width:82%"></i></span><b>1:36</b></div><div class="lr"><span>Round 3</span><span class="bar"><i class="" style="width:71%"></i></span><b>1:39</b></div><div class="lr"><span>Round 4</span><span class="bar"><i class="" style="width:54%"></i></span><b>1:44</b></div><div class="lr"><span>Round 5</span><span class="bar"><i class="" style="width:64%"></i></span><b>1:41</b></div><div class="lr"><span>Round 6</span><span class="bar"><i class="" style="width:40%"></i></span><b>1:48</b></div><div class="lr"><span>Round 7</span><span class="bar"><i class="" style="width:75%"></i></span><b>1:38</b></div></div></div><div class="pager" style="position:absolute;left:0;right:0;top:600px"><i></i><i class="on"></i></div><div class="dock" style="bottom:44px"><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">add_a_photo</span></div><div class="lb capt">Capture</div></div><div><div class="c main" style="width:104px;height:104px"><span class="mi" style="font-size:44px">pause</span></div><div class="lb">Pause</div></div><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">flag</span></div><div class="lb">Finish</div></div></div></div></div><div class="col"><div class="tag">4 · Score filled in</div><div class="desc">At Finish the rounds are already counted. Only the extra reps in the unfinished round are added by hand, if any. Without taps the score is typed in, as before.</div><div class="phone"><div class="fillp" style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div><div class="fillp" style="background:linear-gradient(180deg,rgba(8,8,8,.55) 0%,rgba(8,8,8,.25) 26%,rgba(8,8,8,.82) 46%,#111 66%)"></div><div class="down mi">keyboard_arrow_down</div><div class="tm" style="top:88px"><div class="ki"><span class="dot"></span>CrossFit · AMRAP 20</div><div class="ser" style="font-size:84px;line-height:96px;margin-top:4px">20:00</div></div><div class="dock" style="bottom:44px"><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">add_a_photo</span></div><div class="lb capt">Capture</div></div><div><div class="c main" style="width:104px;height:104px"><span class="mi" style="font-size:44px">pause</span></div><div class="lb">Pause</div></div><div><div class="c" style="width:62px;height:62px"><span class="mi" style="font-size:25px">flag</span></div><div class="lb">Finish</div></div></div><div class="dim2"></div><div class="sh"><div class="gr"></div><div class="ki" style="text-align:center">CrossFit</div><div class="ttl">Score</div><div style="display:flex;gap:8px;margin-top:14px"><div class="nb"><b>12</b><i>ROUNDS</i></div><div class="nb" style="border:1.5px solid #e8835f;background:#2f2d2c"><b>8</b><i>EXTRA REPS</i></div></div><div class="pre"><span class="mi">check_circle</span>12 rounds counted during the workout</div><div class="fmt"><span class="on">RX</span><span>Scaled</span></div><div class="pl">Save score</div></div></div></div></div></body></html>

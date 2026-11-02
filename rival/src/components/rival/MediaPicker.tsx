@@ -83,13 +83,16 @@ function tooLarge(type: 'photo' | 'video', bytes: number): string | null {
 // Opens the phone's own picker. Must be called straight from a tap — mobile
 // browsers refuse to open a file picker that was not started by one, which is
 // why this is a separate step rather than something the sheet does on mount.
-export function pickMediaFiles(): Promise<PickResult> {
-  if (Platform.OS !== 'web') return pickNative();
+/** `camera`: straight to the camera, skipping the library and the choice
+ *  between them (Start's Photo button, Ricky, 2026-11-02). */
+export function pickMediaFiles(opts: { camera?: boolean } = {}): Promise<PickResult> {
+  if (Platform.OS !== 'web') return pickNative(opts.camera);
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*,video/*';
-    input.multiple = true;
+    if (opts.camera) input.setAttribute('capture', 'environment');
+    else input.multiple = true;
     input.onchange = async () => {
       const rejected: string[] = [];
       const items: MediaItem[] = [];
@@ -123,16 +126,18 @@ export function pickMediaFiles(): Promise<PickResult> {
   });
 }
 
-async function pickNative(): Promise<PickResult> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return { items: [], rejected: ['Photo library access is needed to add photos and videos'] };
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images', 'videos'],
-    allowsMultipleSelection: true,
-    orderedSelection: true,
-    selectionLimit: MAX_MEDIA,
-    quality: 0.8,
-  });
+async function pickNative(camera = false): Promise<PickResult> {
+  const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) return { items: [], rejected: [camera ? 'Camera access is needed to take photos and videos' : 'Photo library access is needed to add photos and videos'] };
+  const result = camera
+    ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.8 })
+    : await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
+      orderedSelection: true,
+      selectionLimit: MAX_MEDIA,
+      quality: 0.8,
+    });
   if (result.canceled || !result.assets?.length) return { items: [], rejected: [] };
   const rejected: string[] = [];
   const items: MediaItem[] = [];

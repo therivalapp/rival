@@ -2,7 +2,8 @@ import { getMyTeamRows } from '../../lib/myTeams';
 import { isAppRevealed, onAppReveal, revealApp } from '../../lib/appReveal';
 import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation, fromDisplayDistance, fromDisplayElevation } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useId, memo } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated, Modal } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated } from 'react-native';
+import { Modal } from '../../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import Svg, { Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,9 @@ import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { lifetimePace } from '../../lib/rankPace';
 import { rankSheen, rankTextSheen } from '../../constants/rankSheen';
 import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
+import { formatValue, gainedText, isPerformance, performanceState, performanceTitle, toGoText, type PerformanceGoal } from '../../lib/goalPerformance';
+import { loadPerformanceData } from '../../lib/goalPerformanceData';
+import { formatWeight } from '../../lib/units';
 import { computeGoalProgress, goalActivityLabel, goalToGoLine, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
 // distances read as near-zero once rounded to km ("0.7km" is really "700m").
@@ -893,6 +897,8 @@ type EndedGoal = {
   target: number;
   unit: string;
   pct: number;
+  /** A Performance goal's own words; its numbers are times or weights. */
+  perf?: { current: string; target: string; toGo: string | null; open: boolean };
   endIso: string;
   extendedDays: number;
   /** What's left, in the goal's own display units. */
@@ -913,6 +919,8 @@ type FeaturedGoal = {
   target: number;
   unit: string;
   pct: number;
+  /** A Performance goal's own words; its numbers are times or weights. */
+  perf?: { current: string; target: string; toGo: string | null; open: boolean };
   daysLeft: number;
 };
 
@@ -1092,6 +1100,7 @@ function MobileHomeSkeleton() {
   return (
     <View accessibilityLabel="Loading" style={{ gap: 0 }}>
       <View style={[styles.mLeaderCard, styles.mSkelLeader]}>
+        <View style={[styles.mLeaderBg, { pointerEvents: 'none' }]} />
         {block({ width: 150, height: 12, borderRadius: 6 })}
         <View style={styles.mSkelPodium}>
           {block({ width: 72, height: 70, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderRadius: 0 })}
@@ -2232,15 +2241,24 @@ export default function HomeScreen() {
       const top = activeGoals[0];
       const unit = goalUnit(top.goal.goal_type);
       const useMeters = unit === 'km' && top.goal.activity_filter != null && METERS_SPORTS.has(top.goal.activity_filter);
+      const topRow = top.goal as unknown as PerformanceGoal & { open_ended?: boolean };
+      const perfData = isPerformance(top.goal.goal_type) ? await loadPerformanceData(uId).catch(() => null) : null;
+      const perfState = perfData ? performanceState(topRow, perfData.activities, perfData.entries) : null;
       setFeaturedGoal({
         id: top.goal.id,
-        title: featuredGoalTitle(top.goal),
-        activityLabel: goalActivityLabel(top.goal),
+        title: perfState ? performanceTitle(topRow, formatWeight) : featuredGoalTitle(top.goal),
+        activityLabel: perfState ? performanceTitle(topRow, formatWeight) : goalActivityLabel(top.goal),
         progress: useMeters ? Math.round(top.progress * 1000) : shownGoal(top.goal.goal_type, top.progress).value,
         target: useMeters ? Math.round(top.goal.target_value * 1000) : shownGoal(top.goal.goal_type, top.goal.target_value).value,
         unit: useMeters ? 'm' : shownGoal(top.goal.goal_type, 0).unit,
-        pct: top.pct,
+        pct: perfState ? perfState.pct : top.pct,
         daysLeft: Math.max(0, Math.ceil((top.endMs - now.getTime()) / (1000 * 60 * 60 * 24))),
+        perf: perfState ? {
+          current: formatValue(topRow, perfState.current, formatWeight),
+          target: formatValue(topRow, topRow.target_value, formatWeight),
+          toGo: toGoText(topRow, perfState, formatWeight) ?? gainedText(topRow, perfState, formatWeight),
+          open: !!topRow.open_ended,
+        } : undefined,
       });
     } else {
       // No active goal — the "ended, not hit" encouragement + Try Again
@@ -2256,6 +2274,7 @@ export default function HomeScreen() {
     if (activeGoals.length === 0) {
       const graceStart = new Date(now); graceStart.setHours(0, 0, 0, 0); graceStart.setDate(graceStart.getDate() - ENDED_GRACE_DAYS);
       const ended = allGoals
+        .filter((g) => !isPerformance(g.goal_type))
         .filter((g) => { const end = new Date(g.end_date + 'T23:59:59'); return end < now && end >= graceStart; })
         .map((g) => ({ g, progress: computeGoalProgress(g, activities) }))
         .filter(({ g, progress }) => progress < g.target_value)
@@ -2750,6 +2769,10 @@ export default function HomeScreen() {
                   comes FROM that same measurement starts at 0, so it never
                   has any content to measure a nonzero size from. */}
               <RivalCard style={styles.mLeaderCard}>
+                {/* The card's dark band, on its own layer so its bottom fades out
+                    into the page instead of ending in a line, without fading the
+                    button that sits across its edge (Ricky, 2026-11-02). */}
+                <View style={[styles.mLeaderBg, { pointerEvents: 'none' }]} />
                 {/* Painted once here, outside/behind the swiping ScrollView,
                     so it never travels with the content — only the podium/
                     text pages across on top of this fixed backdrop. */}
@@ -2988,8 +3011,9 @@ export default function HomeScreen() {
                       key={podiumVisit}
                       pct={featuredGoal.pct}
                       value={featuredGoal.progress}
+                      valueText={featuredGoal.perf?.current}
                       target={featuredGoal.target}
-                      unit={`/ ${featuredGoal.target.toLocaleString()} ${featuredGoal.unit}`}
+                      unit={featuredGoal.perf ? `/ ${featuredGoal.perf.target}` : `/ ${featuredGoal.target.toLocaleString()} ${featuredGoal.unit}`}
                       size={200}
                       thickness={14}
                     />
@@ -3004,12 +3028,12 @@ export default function HomeScreen() {
                       <View style={styles.mFocusMetaDivider} />
                       {/* The last day stacks as Final / Day (Ricky, 2026-10-28). */}
                       <View style={styles.mFocusMetaCell}>
-                        <Text style={styles.mFocusMetaNumber}>{featuredGoal.daysLeft <= 1 ? 'Final' : featuredGoal.daysLeft}</Text>
-                        <Text style={styles.mFocusMetaLabel}>{featuredGoal.daysLeft <= 1 ? 'Day' : 'Days left'}</Text>
+                        <Text style={styles.mFocusMetaNumber}>{featuredGoal.perf?.open ? 'Open' : featuredGoal.daysLeft <= 1 ? 'Final' : featuredGoal.daysLeft}</Text>
+                        <Text style={styles.mFocusMetaLabel}>{featuredGoal.perf?.open ? 'No end date' : featuredGoal.daysLeft <= 1 ? 'Day' : 'Days left'}</Text>
                       </View>
                     </View>
                     {(() => {
-                      const toGo = goalToGoLine(featuredGoal.progress, featuredGoal.target, featuredGoal.unit, featuredGoal.daysLeft);
+                      const toGo = featuredGoal.perf ? featuredGoal.perf.toGo : goalToGoLine(featuredGoal.progress, featuredGoal.target, featuredGoal.unit, featuredGoal.daysLeft);
                       return toGo ? (
                         <View style={styles.mFocusToGo}>
                           <RivalIcon name="flag" size={15} color={RivalColors.accentText} />
@@ -3945,7 +3969,7 @@ export default function HomeScreen() {
 
           {/* Moved to notifications (Ricky, 2026-09-27); kept here, switched off. */}
           {SHOW_STRAVA_SHARING_CARD && stravaConnected && stravaSharingUnanswered && (
-            <TouchableOpacity style={styles.stravaCard} onPress={() => router.push({ pathname: '/connect-strava', params: { review: '1' } })}>
+            <TouchableOpacity style={styles.stravaCard} onPress={() => router.push('/team-sharing')}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.stravaCardTitle}>Strava sharing</Text>
                 <Text style={styles.stravaCardSub}>Confirm what teammates can see from Strava.</Text>
@@ -4307,9 +4331,18 @@ const styles = StyleSheet.create({
     marginHorizontal: -24, paddingHorizontal: 16, paddingTop: 22, paddingBottom: 38, alignItems: 'center',
     // A little less brown (Ricky, 2026-10-21): warm light 0.16 → 0.11, and a
     // base nearer neutral (#181312 → #161313).
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web' ? { backgroundImage: 'none' } as any : {}),
+  },
+  mLeaderBg: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#161313',
     ...(Platform.OS === 'web'
-      ? { backgroundImage: 'radial-gradient(ellipse 90% 65% at 50% 55%, rgba(217,119,87,0.11) 0%, rgba(19,19,19,0) 75%), linear-gradient(135deg, #111214 0%, #161313 100%)' } as any
+      ? {
+          backgroundImage: 'radial-gradient(ellipse 90% 65% at 50% 55%, rgba(217,119,87,0.11) 0%, rgba(19,19,19,0) 75%), linear-gradient(135deg, #111214 0%, #161313 100%)',
+          maskImage: 'linear-gradient(to bottom, black calc(100% - 140px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 140px), transparent 100%)',
+        } as any
       : {}),
   },
   // Vertically centred on the card, hugging the edges — the podium is capped

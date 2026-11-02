@@ -22,6 +22,34 @@ export const CANONICAL_LIFTS = [
   'Cable Row', 'Dumbbell Row',
   // Bodyweight: bests by sets × reps (Ricky, 2026-10-16)
   'Push-up', 'Air Squat',
+  // Calisthenics (Ricky, 2026-11-01): pulling, pushing, legs and core, by reps
+  'Muscle-up', 'Inverted Row', 'Typewriter Pull-up', 'Archer Pull-up',
+  'Diamond Push-up', 'Decline Push-up', 'Pike Push-up', 'Archer Push-up', 'Pseudo Planche Push-up',
+  'Handstand Push-up', 'Ring Dip', 'Bench Dip',
+  'Pistol Squat', 'Shrimp Squat', 'Jump Squat', 'Nordic Curl', 'Step-up', 'Glute Bridge', 'Box Jump',
+  'Sit-up', 'Crunch', 'Leg Raise', 'Hanging Leg Raise', 'Toes to Bar', 'Knees to Elbows', 'V-up',
+  'Hollow Rock', 'Russian Twist', 'Dragon Flag', 'Mountain Climber', 'Burpee',
+  // Held for time: the reps field carries seconds. See HOLD_LIFTS.
+  'Plank', 'Side Plank', 'Hollow Hold', 'L-sit', 'Dead Hang', 'Wall Sit', 'Handstand Hold',
+  'Front Lever', 'Back Lever', 'Planche', 'Human Flag',
+];
+
+// Held for time, not repeated: `reps` holds the seconds, and the best is the
+// longest single hold.
+const HOLD_LIFTS = new Set(['Plank', 'Side Plank', 'Hollow Hold', 'L-sit', 'Dead Hang', 'Wall Sit', 'Handstand Hold', 'Front Lever', 'Back Lever', 'Planche', 'Human Flag']);
+
+export function isHoldLift(name: string): boolean {
+  return HOLD_LIFTS.has(matchCanonicalLift(name) ?? name);
+}
+
+// What the Calisthenics activity offers first, most common first.
+export const CALISTHENICS_LIFTS = [
+  'Pull-up', 'Push-up', 'Dip', 'Air Squat', 'Plank', 'Muscle-up', 'Inverted Row', 'Hanging Leg Raise',
+  'Pike Push-up', 'Handstand Push-up', 'L-sit', 'Pistol Squat', 'Lunge', 'Burpee', 'Sit-up', 'Toes to Bar',
+  'Handstand Hold', 'Ring Dip', 'Diamond Push-up', 'Dead Hang', 'Hollow Hold', 'Leg Raise', 'Glute Bridge', 'Mountain Climber',
+  'Archer Push-up', 'Decline Push-up', 'Archer Pull-up', 'Typewriter Pull-up', 'Pseudo Planche Push-up', 'Bench Dip',
+  'Shrimp Squat', 'Jump Squat', 'Nordic Curl', 'Step-up', 'Box Jump', 'Crunch', 'Knees to Elbows', 'V-up', 'Hollow Rock',
+  'Russian Twist', 'Dragon Flag', 'Side Plank', 'Wall Sit', 'Front Lever', 'Back Lever', 'Planche', 'Human Flag',
 ];
 
 // Maps a canonical lift to every known phrasing/abbreviation that should resolve to it.
@@ -58,6 +86,48 @@ export const LIFT_ALIASES: Record<string, string[]> = {
   'Hip Thrust': ['hip thrust', 'barbell hip thrust', 'bb hip thrust'],
   'Push-up': ['push up', 'pushup', 'press up', 'pressup', 'strict push up', 'hand release push up'],
   'Air Squat': ['air squat', 'bodyweight squat', 'bw squat'],
+  'Muscle-up': ['muscle up', 'muscleup', 'bar muscle up', 'ring muscle up', 'bmu', 'rmu'],
+  'Inverted Row': ['inverted row', 'australian pull up', 'australian row', 'body row', 'bodyweight row', 'ring row', 'trx row'],
+  'Typewriter Pull-up': ['typewriter pull up', 'typewriter pullup'],
+  'Archer Pull-up': ['archer pull up', 'archer pullup'],
+  'Diamond Push-up': ['diamond push up', 'diamond pushup', 'close grip push up'],
+  'Decline Push-up': ['decline push up', 'decline pushup', 'feet elevated push up'],
+  'Pike Push-up': ['pike push up', 'pike pushup'],
+  'Archer Push-up': ['archer push up', 'archer pushup'],
+  'Pseudo Planche Push-up': ['pseudo planche push up', 'pseudo planche pushup', 'planche push up', 'pppu'],
+  'Handstand Push-up': ['handstand push up', 'handstand pushup', 'hspu', 'strict hspu', 'kipping hspu', 'wall handstand push up'],
+  'Ring Dip': ['ring dip'],
+  'Bench Dip': ['bench dip', 'chair dip'],
+  'Pistol Squat': ['pistol squat', 'pistol', 'single leg squat', 'one leg squat'],
+  'Shrimp Squat': ['shrimp squat'],
+  'Jump Squat': ['jump squat', 'squat jump'],
+  'Nordic Curl': ['nordic curl', 'nordic hamstring curl'],
+  'Step-up': ['step up', 'stepup', 'box step up', 'db step up'],
+  'Glute Bridge': ['glute bridge', 'hip bridge', 'single leg glute bridge'],
+  'Box Jump': ['box jump', 'bj'],
+  'Sit-up': ['sit up', 'situp', 'abmat sit up', 'ghd sit up'],
+  'Crunch': ['crunch', 'ab crunch'],
+  'Leg Raise': ['leg raise', 'lying leg raise'],
+  'Hanging Leg Raise': ['hanging leg raise', 'hanging knee raise', 'hlr'],
+  'Toes to Bar': ['toes to bar', 't2b', 'ttb', 'toe to bar'],
+  'Knees to Elbows': ['knees to elbows', 'knee to elbow', 'k2e'],
+  'V-up': ['v up', 'vup'],
+  'Hollow Rock': ['hollow rock'],
+  'Russian Twist': ['russian twist'],
+  'Dragon Flag': ['dragon flag'],
+  'Mountain Climber': ['mountain climber'],
+  'Burpee': ['burpee', 'bar facing burpee'],
+  'Plank': ['plank', 'front plank', 'forearm plank', 'high plank'],
+  'Side Plank': ['side plank'],
+  'Hollow Hold': ['hollow hold', 'hollow body hold'],
+  'L-sit': ['l sit', 'lsit', 'l sit hold'],
+  'Dead Hang': ['dead hang', 'bar hang', 'hang hold'],
+  'Wall Sit': ['wall sit'],
+  'Handstand Hold': ['handstand hold', 'handstand', 'wall handstand', 'free handstand', 'freestanding handstand'],
+  'Front Lever': ['front lever'],
+  'Back Lever': ['back lever'],
+  'Planche': ['planche', 'tuck planche'],
+  'Human Flag': ['human flag', 'flag hold'],
   'Lunge': ['lunge', 'walking lunge', 'db lunge', 'dumbbell lunge', 'barbell lunge', 'reverse lunge'],
   'Leg Press': ['leg press'],
   'Lat Pulldown': ['lat pulldown', 'lat pull down', 'pulldown', 'pull down', 'wide grip pulldown'],

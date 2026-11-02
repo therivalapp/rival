@@ -34,6 +34,7 @@ function ringValueFontSize(text: string, size: number): number {
 export function RivalChallengeRing({
   pct,
   value,
+  valueText,
   target,
   unit,
   icon = null,
@@ -44,6 +45,8 @@ export function RivalChallengeRing({
 }: {
   pct: number;
   value: number;
+  /** Shown in place of the number, for a time such as 21:14. */
+  valueText?: string;
   target: number;
   unit: string;
   icon?: RivalIconName | null;
@@ -73,9 +76,9 @@ export function RivalChallengeRing({
   const ringId = `ringGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`; // unique per ring on the page
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
-  const formatted = formatRingValue(value * f, target);
+  const formatted = valueText ?? formatRingValue(value * f, target);
   // Sized for the final number, so the digits don't change size as they count.
-  const valueSize = ringValueFontSize(formatRingValue(value, target), size);
+  const valueSize = ringValueFontSize(valueText ?? formatRingValue(value, target), size);
   return (
     <View style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }, style]}>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>

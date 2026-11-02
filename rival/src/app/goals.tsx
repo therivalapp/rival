@@ -1,7 +1,12 @@
 import { useSnapState } from '../lib/snapState';
+import { clock, distanceName, formatValue, gainedText, GOAL_GROUP_LIMIT, isPerformance, OPEN_END_DATE, parseClock, performanceKind, performanceState, performanceTitle, toGoText, bestSince, type PerformanceActivity, type PerformanceGoal, type PerformanceState } from '../lib/goalPerformance';
+import { loadPerformanceData } from '../lib/goalPerformanceData';
+import type { LiftEntry } from '../lib/liftHistory';
+import { formatWeight, toDisplayWeight, weightUnit } from '../lib/units';
 import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, useWindowDimensions } from 'react-native';
+import { Fragment, useState, useCallback, useEffect, useRef } from 'react';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, useWindowDimensions } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { fetchAllActivities } from '../lib/fetchAllActivities';
@@ -10,7 +15,7 @@ import { displayToIsoDate, isoToDisplayDate, friendlyDate } from '../lib/dateFor
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { ALL_ACTIVITIES, computeGoalProgress, goalActivityLabel, goalContributions, goalToGoLine, GOAL_ACTIVITY_TYPES } from '../lib/goalProgress';
 import { confirmAction, notify } from '../lib/notify';
-import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
+import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyArtTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
@@ -20,8 +25,16 @@ import { goToTab } from '../lib/tabNav';
 const GESTURE_HINT_KEY = 'rival.goals.gestureHintSeen';
 
 type Goal = {
+  // Performance goals (lib/goalPerformance.ts); shown through `perf`.
+  distance_m?: number | null;
+  lift_name?: string | null;
+  lift_reps?: number | null;
+  start_value?: number | null;
+  open_ended?: boolean;
+  storedTarget?: number;
+  perf?: { title: string; kind: string; current: string; target: string; toGo: string | null; gained: string | null; startedAt: string | null };
   id: string;
-  goal_type: 'distance' | 'elevation' | 'gym_sessions';
+  goal_type: 'distance' | 'elevation' | 'gym_sessions' | 'fastest_time' | 'pace' | 'lift';
   target_value: number;
   period_type: 'week' | 'month' | 'year' | 'custom';
   start_date: string;
@@ -118,6 +131,15 @@ const ZERO_MESSAGES = [
 // disappears from "active" everywhere (home.tsx's featured-goal card, this
 // list) with no record of it ever existing. Brand voice: never frame it as
 // failure — "missed"/"expired" reads as shame, not encouragement.
+type Sport = 'Run' | 'Ride' | 'Swim';
+const SPORTS: Sport[] = ['Run', 'Ride', 'Swim'];
+// The distances a time or pace can be set over, in metres.
+const TIME_DISTANCES: Record<Sport, number[]> = { Run: [1000, 5000, 10000, 21097.5, 42195], Ride: [10000, 20000, 40000, 100000], Swim: [400, 750, 1500, 3800] };
+const PACE_DISTANCES: Record<Sport, number[]> = { Run: [1000, 5000, 10000], Ride: [10000, 20000, 40000], Swim: [100, 400, 1000, 1500] };
+const shortDistance = (m: number) => (m === 21097.5 ? 'Half' : m === 42195 ? 'Full' : m >= 1000 ? `${(m / 1000).toLocaleString()} km` : `${m} m`);
+const MAIN_LIFTS = ['Bench Press', 'Squat', 'Deadlift', 'Pull-up', 'Overhead Press'];
+const LB_PER_KG = 2.20462;
+
 function isGoalEnded(goal: Goal): boolean {
   const end = new Date(goal.end_date + 'T23:59:59');
   return end.getTime() < Date.now() && goal.progress < goal.target_value;
@@ -130,6 +152,7 @@ function loggedText(goal: Goal): string {
   return `${goal.progress.toLocaleString()} ${unit} logged`;
 }
 function endedLine(goal: Goal): string {
+  if (goal.perf) return goal.perf.gained ? `${goal.perf.gained}. A fresh start is ready.` : 'A fresh start is ready.';
   const next = goal.period_type === 'week' ? 'A new week is ready.' : goal.period_type === 'month' ? 'A new month is ready.' : 'A fresh start is ready.';
   return goal.progress > 0 ? `${loggedText(goal)}. ${next}` : next;
 }
@@ -176,10 +199,11 @@ function periodLabel(goal: Goal) {
 
 // "Distance · This month" over the title; a gym goal's type is its title.
 function goalKind(goal: Goal): string {
+  if (goal.perf) return goal.perf.kind;
   return `${GOAL_LABELS[goal.goal_type]} · ${periodLabel(goal)}`;
 }
 function goalTitle(goal: Goal): string {
-  return goalActivityLabel(goal);
+  return goal.perf ? goal.perf.title : goalActivityLabel(goal);
 }
 
 function shortDay(iso: string): string {
@@ -323,7 +347,7 @@ export default function GoalsScreen() {
   const [showAdd, setShowAdd] = useState(add === 'true');
   const [userId, setUserId] = useSnapState('goals.userId', '');
 
-  const [goalType, setGoalType] = useState<'distance' | 'elevation' | 'gym_sessions'>('distance');
+  const [goalType, setGoalType] = useState<Goal['goal_type']>('distance');
   const [targetValue, setTargetValue] = useState('');
   const [periodType, setPeriodType] = useState<'week' | 'month' | 'year' | 'custom'>('month');
   // The full activity list under "More", and the custom activity being typed.
@@ -340,6 +364,16 @@ export default function GoalsScreen() {
   // ORIGINAL period/dates to decide whether the goal's window should be
   // recomputed — see saveGoal.
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+
+  // Performance goals (lib/goalPerformance.ts).
+  const [perfSource, setPerfSource] = useState<{ activities: PerformanceActivity[]; entries: LiftEntry[] }>({ activities: [], entries: [] });
+  const [sport, setSport] = useState<Sport>('Run');
+  const [distanceM, setDistanceM] = useState(5000);
+  const [liftName, setLiftName] = useState('Bench Press');
+  const [customLift, setCustomLift] = useState(false);
+  const [liftReps, setLiftReps] = useState('1');
+  const [openEnded, setOpenEnded] = useState(true);
+  const performance = isPerformance(goalType);
 
   const { width } = useWindowDimensions();
   const wide = sidePageWide(width);
@@ -366,10 +400,24 @@ export default function GoalsScreen() {
     ]);
 
     if (!goalsData) { setLoading(false); return; }
+    const perfData = await loadPerformanceData(user.id).catch(() => ({ activities: [] as PerformanceActivity[], entries: [] as LiftEntry[] }));
+    setPerfSource(perfData);
 
     // Shown in the units chosen in Profile. Stored targets stay metric;
     // storedTarget keeps the original for anything written back.
     const goalsWithProgress = goalsData.map((goal: any) => {
+      if (isPerformance(goal.goal_type)) {
+        const state = performanceState(goal, perfData.activities, perfData.entries);
+        return {
+          ...goal, storedTarget: goal.target_value, target_value: 100, progress: Math.round(state.pct * 100), recent: [],
+          perf: {
+            title: performanceTitle(goal, formatWeight), kind: performanceKind(goal),
+            current: formatValue(goal, state.current, formatWeight), target: formatValue(goal, goal.target_value, formatWeight),
+            toGo: toGoText(goal, state, formatWeight), gained: gainedText(goal, state, formatWeight),
+            startedAt: state.start == null ? null : formatValue(goal, state.start, formatWeight),
+          },
+        };
+      }
       const progress = computeGoalProgress(goal, activities || []);
       const conv = (v: number) => Math.round(toShownGoal(goal.goal_type, v) * 10) / 10;
       const recent = goalContributions(goal, activities || []).slice(0, 3)
@@ -424,6 +472,15 @@ export default function GoalsScreen() {
     setEditingGoal(goal);
     setGoalType(goal.goal_type);
     setTargetValue(String(goal.target_value));
+    if (goal.perf) {
+      const stored = goal.storedTarget ?? 0;
+      setTargetValue(goal.goal_type === 'lift' ? String(Math.round(toDisplayWeight(stored) * 10) / 10) : clock(stored));
+      if (goal.activity_filter && SPORTS.includes(goal.activity_filter as Sport)) setSport(goal.activity_filter as Sport);
+      if (goal.distance_m) setDistanceM(Number(goal.distance_m));
+      if (goal.lift_name) { setLiftName(goal.lift_name); setCustomLift(!MAIN_LIFTS.includes(goal.lift_name)); }
+      setLiftReps(String(goal.lift_reps ?? 1));
+      setOpenEnded(!!goal.open_ended);
+    }
     setPeriodType(goal.period_type);
     // An Activities goal saved before "All" existed has no filter and counts gym activities.
     const f = goal.goal_type === 'gym_sessions' ? (goal.activity_filter ?? 'Gym') : goal.activity_filter;
@@ -445,7 +502,18 @@ export default function GoalsScreen() {
     setActivityFilter(null);
     setCustomActivity('');
     setMoreOpen(false);
+    setSport('Run'); setDistanceM(5000); setLiftName('Bench Press'); setCustomLift(false); setLiftReps('1'); setOpenEnded(true);
   }
+
+  // A Performance goal as the form holds it, to read its current best.
+  const draftGoal: PerformanceGoal = {
+    goal_type: goalType, target_value: 0, activity_filter: goalType === 'lift' ? null : sport, start_date: dateToLocalStr(new Date()),
+    distance_m: goalType === 'lift' ? null : distanceM, lift_name: goalType === 'lift' ? liftName : null, lift_reps: goalType === 'lift' ? Number(liftReps) || 1 : null,
+  };
+  const draftBest = performance ? bestSince(draftGoal, perfSource.activities, perfSource.entries) : null;
+  const perfTarget = goalType === 'lift'
+    ? (parseFloat(targetValue) > 0 ? (weightUnit() === 'lb' ? parseFloat(targetValue) / LB_PER_KG : parseFloat(targetValue)) : null)
+    : parseClock(targetValue);
 
   async function saveGoal() {
     if (goalWriting.current) return;
@@ -453,12 +521,17 @@ export default function GoalsScreen() {
     try { await saveGoalOnce(); } finally { goalWriting.current = false; }
   }
   async function saveGoalOnce() {
-    if (!targetValue || parseFloat(targetValue) <= 0) return;
-    // The 3-goal cap applies to creating a 4th, not to editing one of the 3.
-    if (!editingGoal && goals.length >= 3) return;
-    if (periodType === 'custom' && (!customEndDate || !displayToIsoDate(customEndDate))) return;
+    if (performance ? !perfTarget : (!targetValue || parseFloat(targetValue) <= 0)) return;
+    if (goalType === 'lift' && !liftName.trim()) return;
+    // The cap of 3 per group applies to creating a 4th, not to editing one of the 3.
+    if (!editingGoal && (performance ? performanceFull : volumeFull)) {
+      notify(`Up to three ${performance ? 'Performance' : 'Volume'} goals`, 'Delete one to add another.');
+      return;
+    }
+    const datedEnd = periodType === 'custom' && !(performance && openEnded);
+    if (datedEnd && (!customEndDate || !displayToIsoDate(customEndDate))) return;
     // A custom end date has to be today or later, and never before the goal starts.
-    if (periodType === 'custom') {
+    if (datedEnd) {
       const endIso = displayToIsoDate(customEndDate)!;
       const startIso = editingGoal ? editingGoal.start_date : dateToLocalStr(new Date());
       if (endIso < dateToLocalStr(new Date()) || endIso < startIso) {
@@ -469,7 +542,16 @@ export default function GoalsScreen() {
 
     setSaving(true);
 
-    const fields = {
+    const fields: Record<string, unknown> = performance ? {
+      goal_type: goalType,
+      target_value: perfTarget,
+      period_type: openEnded ? 'custom' : periodType,
+      activity_filter: draftGoal.activity_filter,
+      distance_m: draftGoal.distance_m,
+      lift_name: draftGoal.lift_name ? draftGoal.lift_name.trim() : null,
+      lift_reps: draftGoal.lift_reps,
+      open_ended: openEnded,
+    } : {
       goal_type: goalType,
       target_value: fromShownGoal(goalType, parseFloat(targetValue)),
       period_type: periodType,
@@ -481,7 +563,7 @@ export default function GoalsScreen() {
       // changed. Recomputing unconditionally would silently restart a
       // half-finished custom goal — or shunt a goal set up mid-month back to
       // the 1st — just because someone nudged the target number.
-      const periodChanged =
+      const periodChanged = openEnded && performance ? false :
         periodType !== editingGoal.period_type ||
         (periodType === 'custom' && displayToIsoDate(customEndDate) !== editingGoal.end_date);
       const dates = periodChanged
@@ -492,7 +574,7 @@ export default function GoalsScreen() {
             const startDate = periodType === 'custom' ? editingGoal.start_date : dateToLocalStr(start);
             return { start_date: startDate, end_date: dateToLocalStr(end) };
           })()
-        : { start_date: editingGoal.start_date, end_date: editingGoal.end_date };
+        : { start_date: editingGoal.start_date, end_date: performance && openEnded ? OPEN_END_DATE : editingGoal.end_date };
 
       const { error: editErr } = await supabase.from('goals').update({ ...fields, ...dates }).eq('id', editingGoal.id);
       if (editErr) {
@@ -512,7 +594,8 @@ export default function GoalsScreen() {
       user_id: userId,
       ...fields,
       start_date: dateToLocalStr(start),
-      end_date: dateToLocalStr(end),
+      end_date: performance && openEnded ? OPEN_END_DATE : dateToLocalStr(end),
+      ...(performance ? { start_value: draftBest } : {}),
     });
     if (addErr) {
       // Keep the form open with the values still in it rather than closing on
@@ -543,6 +626,8 @@ export default function GoalsScreen() {
 
   // The goal Today shows, chosen the same way home.tsx does: the pinned goal,
   // otherwise the active goal nearest its deadline, then the most complete.
+  const volumeFull = goals.filter((g) => !isPerformance(g.goal_type)).length >= GOAL_GROUP_LIMIT;
+  const performanceFull = goals.filter((g) => isPerformance(g.goal_type)).length >= GOAL_GROUP_LIMIT;
   const activeGoals = goals.filter((g) => new Date(g.end_date + 'T23:59:59').getTime() >= Date.now());
   const focusGoal = [...activeGoals].sort((a, b) =>
     (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
@@ -628,6 +713,10 @@ export default function GoalsScreen() {
       start_date: dateToLocalStr(start),
       end_date: dateToLocalStr(end),
       activity_filter: goal.activity_filter,
+      distance_m: goal.distance_m ?? null,
+      lift_name: goal.lift_name ?? null,
+      lift_reps: goal.lift_reps ?? null,
+      start_value: goal.start_value ?? null,
     });
     if (insErr) {
       notify("Couldn't start that goal again", insErr.message);
@@ -641,7 +730,7 @@ export default function GoalsScreen() {
     load();
   }
 
-  const quick = QUICK_FILTERS[goalType];
+  const quick = QUICK_FILTERS[goalType] ?? [];
   // Everything not in the quick row. Distance and Elevation only list activities that record a distance.
   const moreTypes = GOAL_ACTIVITY_TYPES.filter((t) =>
     !quick.includes(t.value) && (goalType === 'gym_sessions' || (t.distance && t.value !== 'Gym')));
@@ -676,7 +765,7 @@ export default function GoalsScreen() {
               options={[
                 { value: 'distance' as const, label: GOAL_LABELS.distance, icon: 'distance' as const },
                 { value: 'elevation' as const, label: GOAL_LABELS.elevation, icon: 'elevation' as const },
-                { value: 'gym_sessions' as const, label: GOAL_LABELS.gym_sessions, icon: 'workout' as const },
+                { value: 'gym_sessions' as const, label: GOAL_LABELS.gym_sessions, icon: 'calendar' as const },
               ]}
               value={goalType}
               onChange={(t) => { setGoalType(t); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); }}
@@ -790,7 +879,7 @@ export default function GoalsScreen() {
   const typeOptions = [
     { value: 'distance' as const, label: GOAL_LABELS.distance, icon: 'distance' as const },
     { value: 'elevation' as const, label: GOAL_LABELS.elevation, icon: 'elevation' as const },
-    { value: 'gym_sessions' as const, label: GOAL_LABELS.gym_sessions, icon: 'workout' as const },
+    { value: 'gym_sessions' as const, label: GOAL_LABELS.gym_sessions, icon: 'calendar' as const },
   ];
   const activityOptions: { value: string; label: string }[] = [
     { value: String(allValue(goalType)), label: 'All' },
@@ -799,15 +888,76 @@ export default function GoalsScreen() {
     ...(moreOpen ? moreTypes.map((t) => ({ value: String(t.value), label: t.label })) : []),
     { value: '__more', label: moreOpen ? 'Fewer' : 'More' },
   ];
-  const phoneForm = (
+  const performanceFields = (
     <>
-      <GreyLabel>Type</GreyLabel>
+      {goalType === 'lift' ? (
+        <>
+          <GreyLabel>Exercise</GreyLabel>
+          <GreyTiles
+            columns={3}
+            options={[...MAIN_LIFTS.map((l) => ({ value: l, label: l })), { value: '__other', label: 'Other' }]}
+            value={customLift ? '__other' : liftName}
+            onChange={(v) => { if (v === '__other') { setCustomLift(true); setLiftName(''); } else { setCustomLift(false); setLiftName(v); } }}
+          />
+          {customLift ? <View style={{ marginTop: 8 }}><GreyField placeholder="Exercise name" value={liftName} onChangeText={setLiftName} maxLength={40} /></View> : null}
+        </>
+      ) : (
+        <>
+          <GreyLabel>Activity</GreyLabel>
+          <GreyTiles
+            columns={3}
+            options={SPORTS.map((t) => ({ value: t, label: t }))}
+            value={sport}
+            onChange={(t) => { setSport(t); setDistanceM((goalType === 'pace' ? PACE_DISTANCES : TIME_DISTANCES)[t][1]); }}
+          />
+          <GreyLabel>{goalType === 'pace' ? 'Held over' : 'Distance'}</GreyLabel>
+          <GreyTiles
+            columns={(goalType === 'pace' ? PACE_DISTANCES : TIME_DISTANCES)[sport].length}
+            options={(goalType === 'pace' ? PACE_DISTANCES : TIME_DISTANCES)[sport].map((d) => ({ value: String(d), label: shortDistance(d) }))}
+            value={String(distanceM)}
+            onChange={(v) => setDistanceM(Number(v))}
+          />
+        </>
+      )}
+      <GreyLabel>Target</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="target" label={goalType === 'lift' ? 'Weight' : goalType === 'pace' ? 'Pace' : 'Time'}>
+          <View style={ms.targetRow}>
+            <GreyRowInput
+              value={targetValue}
+              onChangeText={setTargetValue}
+              placeholder={goalType === 'lift' ? '100' : goalType === 'pace' ? (sport === 'Swim' ? '2:00' : '5:00') : '19:59'}
+              keyboardType={goalType === 'lift' ? 'decimal-pad' : 'numbers-and-punctuation'}
+              style={ms.targetInput}
+            />
+            <Text style={ms.targetUnit}>{goalType === 'lift' ? weightUnit() : goalType === 'pace' ? (sport === 'Swim' ? '/ 100 m' : '/ km') : ''}</Text>
+          </View>
+        </GreyRow>
+        {goalType === 'lift' ? (
+          <GreyRow icon="replay" label="Reps">
+            <View style={ms.targetRow}><GreyRowInput value={liftReps} onChangeText={setLiftReps} placeholder="1" keyboardType="number-pad" style={ms.targetInput} /></View>
+          </GreyRow>
+        ) : null}
+        {!openEnded ? (
+          <GreyRow icon="calendar" label="End date" value={customEndDate ? friendlyDate(customEndDate) : ''} placeholder="Choose" onPress={() => setEndCalOpen(true)} />
+        ) : null}
+      </GreyRows>
+      <GreyNote>
+        {draftBest != null
+          ? `Best now ${goalType === 'pace' ? `${clock(draftBest)} ${sport === 'Swim' ? '/ 100 m' : '/ km'}` : formatValue(draftGoal, draftBest, formatWeight)}. Found from logged activities.`
+          : `No ${goalType === 'lift' ? 'lift' : distanceName(distanceM)} logged yet. The first one sets the starting point.`}
+      </GreyNote>
+      <GreyLabel>End date</GreyLabel>
       <GreyTiles
-        columns={3}
-        options={typeOptions}
-        value={goalType}
-        onChange={(t) => { setGoalType(t); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); }}
+        columns={2}
+        options={[{ value: 'open', label: 'No end date' }, { value: 'date', label: 'Choose a date' }]}
+        value={openEnded ? 'open' : 'date'}
+        onChange={(v) => { setOpenEnded(v === 'open'); setPeriodType('custom'); }}
       />
+    </>
+  );
+  const volumeFields = (
+    <>
       <GreyLabel>Activity</GreyLabel>
       <GreyTiles
         columns={4}
@@ -871,6 +1021,27 @@ export default function GoalsScreen() {
       ) : null}
     </>
   );
+  const phoneForm = (
+    <>
+      <GreyLabel>Volume</GreyLabel>
+      <GreyArtTiles
+        options={typeOptions}
+        value={goalType as any}
+        onChange={(t: any) => { setGoalType(t); setTargetValue(''); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); }}
+      />
+      <GreyLabel>Performance</GreyLabel>
+      <GreyArtTiles
+        options={[
+          { value: 'fastest_time' as const, label: 'Best time', icon: 'timer' as const },
+          { value: 'pace' as const, label: 'Pace', icon: 'pulse' as const },
+          { value: 'lift' as const, label: 'Lift', icon: 'workout' as const },
+        ]}
+        value={goalType as any}
+        onChange={(t: any) => { setGoalType(t); setTargetValue(''); setDistanceM((t === 'pace' ? PACE_DISTANCES : TIME_DISTANCES)[sport][1]); }}
+      />
+      {performance ? performanceFields : volumeFields}
+    </>
+  );
 
   const sheet = m ? (
     <Modal visible={showAdd} transparent animationType="slide" onRequestClose={closeForm}>
@@ -881,7 +1052,7 @@ export default function GoalsScreen() {
           title={editingGoal ? 'Edit goal' : 'New goal'}
           onClose={closeForm}
           footer={<>
-            <GreyPrimary label={saving ? 'Saving…' : 'Save'} busy={saving} disabled={!targetValue || saving} onPress={saveGoal} />
+            <GreyPrimary label={saving ? 'Saving…' : 'Save'} busy={saving} disabled={(performance ? !perfTarget : !targetValue) || saving} onPress={saveGoal} />
             {editingGoal && (
               <TouchableOpacity style={ms.deleteLink} onPress={() => deleteGoal(editingGoal.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <RivalIcon name="delete" size={15} color={RivalColors.danger} />
@@ -968,26 +1139,27 @@ export default function GoalsScreen() {
                 <Text style={[rb.label, { alignSelf: 'flex-start' }]}>Main focus</Text>
                 <Text style={ms.focusTitle} numberOfLines={2}>{goalTitle(goal)}</Text>
                 <MiniRing pct={pct} size={150} thickness={11}>
-                  <Text style={ms.heroNum}>{goal.progress.toLocaleString()}</Text>
-                  <Text style={ms.heroOf}>/ {goal.target_value.toLocaleString()}{goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}</Text>
+                  <Text style={ms.heroNum}>{goal.perf ? goal.perf.current : goal.progress.toLocaleString()}</Text>
+                  <Text style={ms.heroOf}>/ {goal.perf ? goal.perf.target : `${goal.target_value.toLocaleString()}${goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}`}</Text>
                 </MiniRing>
                 <View style={ms.heroMeta}>
                   <View style={ms.heroCell}>
-                    <Text style={ms.heroCellNum}>{Math.round(pct * 100)}%</Text>
-                    <Text style={ms.heroCellLabel}>Complete</Text>
+                    <Text style={ms.heroCellNum}>{goal.perf?.toGo ? goal.perf.toGo.replace(' to go', '') : `${Math.round(pct * 100)}%`}</Text>
+                    <Text style={ms.heroCellLabel}>{goal.perf?.toGo ? 'To go' : 'Complete'}</Text>
                   </View>
                   <View style={ms.heroDivider} />
                   <View style={ms.heroCell}>
-                    <Text style={ms.heroCellNum}>{left <= 1 ? 'Final' : left}</Text>
-                    <Text style={ms.heroCellLabel}>{left <= 1 ? 'Day' : 'Days left'}</Text>
+                    <Text style={ms.heroCellNum}>{goal.open_ended ? 'Open' : left <= 1 ? 'Final' : left}</Text>
+                    <Text style={ms.heroCellLabel}>{goal.open_ended ? 'No end date' : left <= 1 ? 'Day' : 'Days left'}</Text>
                   </View>
                 </View>
-                {toGo ? (
+                {(goal.perf ? goal.perf.gained : toGo) ? (
                   <View style={ms.heroPace}>
                     <RivalIcon name="flag" size={15} color={RivalColors.accentText} />
-                    <Text style={ms.heroPaceText}>{toGo}</Text>
+                    <Text style={ms.heroPaceText}>{goal.perf ? goal.perf.gained : toGo}</Text>
                   </View>
                 ) : null}
+                {goal.perf?.startedAt ? <Text style={ms.recentLine}>Started at {goal.perf.startedAt}</Text> : null}
                 {!done && goal.recent && goal.recent.length > 0 ? (
                   <Text style={ms.recentLine}>
                     {goal.recent.map((c) => `${shortDay(c.startedAt)} +${goal.goal_type === 'gym_sessions' ? '1' : `${c.amount.toLocaleString()} ${unit}`}`).join('  ·  ')}
@@ -999,10 +1171,15 @@ export default function GoalsScreen() {
             );
           })()}
 
-          {otherGoals.length > 0 && focusGoal ? <Text style={rb.section}>Other goals</Text> : null}
           {otherGoals.length > 0 && focusGoal && gestureHint ? <Text style={ms.gestureHint}>Hold to drag · Swipe to delete</Text> : null}
 
-          {otherGoals.map((goal) => {
+          {(['Volume', 'Performance'] as const).map((group) => {
+            const list = otherGoals.filter((g) => isPerformance(g.goal_type) === (group === 'Performance'));
+            if (!list.length) return null;
+            return (
+            <Fragment key={group}>
+            {focusGoal ? <Text style={rb.section}>{group}</Text> : null}
+            {list.map((goal) => {
             const unit = GOAL_UNITS[goal.goal_type];
             const done = goal.progress >= goal.target_value;
             const ended = !done && isGoalEnded(goal);
@@ -1023,7 +1200,7 @@ export default function GoalsScreen() {
                 <View style={ms.otherTop}>
                   <Text style={ms.otherTitle} numberOfLines={1}>{goalTitle(goal)}</Text>
                   <Text style={[ms.otherNum, done && { color: RivalColors.accentGold }]}>
-                    {goal.progress.toLocaleString()}<Text style={ms.otherOf}> / {goal.target_value.toLocaleString()}{goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}</Text>
+                    {goal.perf ? goal.perf.current : goal.progress.toLocaleString()}<Text style={ms.otherOf}> / {goal.perf ? goal.perf.target : goal.target_value.toLocaleString()}{goal.perf || goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}</Text>
                   </Text>
                 </View>
                 <View style={rb.bar}><View style={[rb.barFill, { width: `${Math.max(2, pct * 100)}%` as any }]} /></View>
@@ -1033,7 +1210,7 @@ export default function GoalsScreen() {
                       ? 'Goal complete'
                       : ended
                         ? endedLine(goal)
-                        : `${goalKind(goal)} · ${left <= 1 ? 'Final day' : `${left} days left`}`}
+                        : goal.open_ended ? goalKind(goal) : `${goalKind(goal)} · ${left <= 1 ? 'Final day' : `${left} days left`}`}
                   </Text>
                   {ended ? (
                     <TouchableOpacity onPress={() => tryAgainGoal(goal)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -1045,15 +1222,18 @@ export default function GoalsScreen() {
               )}
               </GoalCardGestures>
             );
+            })}
+            </Fragment>
+            );
           })}
 
-          {!loading && goals.length < 3 && (
+          {!loading && !(volumeFull && performanceFull) && (
             <TouchableOpacity style={ms.addBtn} onPress={addGoal} activeOpacity={0.85} accessibilityRole="button">
               <Text style={ms.addBtnText}>{goals.length === 0 ? 'Set a goal' : 'Add goal'}</Text>
             </TouchableOpacity>
           )}
-          {goals.length >= 3 && (
-            <Text style={ms.note}>Up to three goals at a time. Delete one to add another.</Text>
+          {(volumeFull || performanceFull) && (
+            <Text style={ms.note}>{volumeFull && performanceFull ? 'Up to three Volume and three Performance goals. Delete one to add another.' : `Up to three ${volumeFull ? 'Volume' : 'Performance'} goals. Delete one to add another.`}</Text>
           )}
         </ScrollView>
         {sheet}
@@ -1158,13 +1338,13 @@ export default function GoalsScreen() {
           );
         })}
 
-        {goals.length < 3 && (
+        {!volumeFull && (
           <TouchableOpacity style={styles.addButton} onPress={() => { setEditingGoal(null); setShowAdd(true); }}>
             <Text style={styles.addButtonText}>+ Add Goal</Text>
           </TouchableOpacity>
         )}
 
-        {goals.length >= 3 && (
+        {volumeFull && (
           <Text style={styles.maxText}>Maximum 3 goals. Delete one to add another.</Text>
         )}
 
@@ -1176,7 +1356,7 @@ export default function GoalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   // The floating bottom nav (RivalTopNav) is portaled outside this layout
   // and overlays whatever's at the bottom of the page, so a plain content
   // paddingBottom leaves it covering the last thing in the scroll rather

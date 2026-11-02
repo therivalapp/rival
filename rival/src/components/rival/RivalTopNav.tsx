@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,15 +7,17 @@ import { supabase, getAuthUser } from '../../lib/supabase';
 import { getLevel } from '../../lib/xp';
 import { getSeasonStartISO } from '../../lib/season';
 import { fetchInboxBadgeCount, onInboxChanged } from '../../lib/inbox';
-import { NotificationsMenu } from './NotificationsMenu';
+import { NotificationsMenu, prefetchNotifications } from './NotificationsMenu';
 import { stravaSharingNeedsAnswer } from '../../lib/stravaSharing';
 import { getUnreadChats } from '../../lib/unreadChats';
-import { RivalColors, RivalType } from '../../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalType } from '../../constants/rivalTheme';
 import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 import { RivalIcon, RivalIconName } from './RivalIcon';
 import Svg, { Path } from 'react-native-svg';
 import { goToTab, getCurrentPath, type TabRoute } from '../../lib/tabNav';
 import { avatarImage } from '../../lib/imageUrl';
+import { useLive, useTick } from '../../lib/liveActivityStore';
+import { liveClock, liveSeconds } from '../../lib/liveActivity';
 
 // Shared persistent top navigation, matching the Stitch mockups. Drop it in at
 // the top of a screen (outside the ScrollView so it stays put) and pass the
@@ -94,11 +96,17 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   const [notifAnchor, setNotifAnchor] = useState<{ left: number; top: number; width: number; height: number; barBottom: number } | null>(null);
   // A route change closes the dropdown.
   useEffect(() => { setNotifOpen(false); }, [pathname]);
+  const narrowRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
       Promise.all([fetchInboxBadgeCount(), stravaSharingNeedsAnswer().catch(() => false)])
-        .then(([n, strava]) => { if (!cancelled) setInboxCount(n + (strava ? 1 : 0)); })
+        .then(([n, strava]) => {
+          if (cancelled) return;
+          setInboxCount(n + (strava ? 1 : 0));
+          // Phones open the bell's list in place; have it ready.
+          if (narrowRef.current) prefetchNotifications(n);
+        })
         .catch(() => {});
     };
     refresh();
@@ -108,12 +116,17 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
     return () => { cancelled = true; unsubscribe(); };
   }, [pathname]);
 
+  // Start, or the time of the activity running (Ricky, 2026-10-31).
+  const { live } = useLive();
+  const now = useTick(!!live && live.pausedAt == null);
+
   const { width } = useWindowDimensions();
   // Below this, the absolutely-centered links row (built for desktop, where the
   // logo and the RANK/bell/avatar cluster are far apart) collides with the right
   // cluster instead of sitting in genuine empty space. Drop to a second in-flow
   // row instead of overlapping text on top of text.
   const narrow = width < BREAKPOINT_MOBILE_NAV;
+  narrowRef.current = narrow;
   // react-native-screens (web) hides an inactive screen with `display:none`
   // rather than unmounting it, so a signed-out or navigated-away screen's
   // RivalTopNav instance keeps running. That's invisible for everything
@@ -266,11 +279,13 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
       ]}
     >
       <View nativeID="rival-bottom-nav" style={[styles.bottomNav, navShrunk && styles.bottomNavShrunk]}>
-        {LINKS.map((l) => {
+        {LINKS.map((l, i) => {
           const isActive = active === l.key;
           return (
+            <Fragment key={l.key}>
+            {/* The space the Start circle sits over, two tabs either side. */}
+            {i === 2 && <View style={styles.bottomNavGap} />}
             <TouchableOpacity
-              key={l.key}
               onPress={() => {
                 // Always goes to the tab: from a page opened above it (a team,
                 // an activity) it closes back down to the tab's own page.
@@ -289,9 +304,26 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
               </View>
               <Text style={[styles.bottomNavLabel, isActive && styles.bottomNavLabelActive, navShrunk && styles.bottomNavLabelShrunk]}>{l.label}</Text>
             </TouchableOpacity>
+            </Fragment>
           );
         })}
       </View>
+      {/* Outside the bar, which clips what overhangs it. */}
+      <TouchableOpacity
+        onPress={() => router.push('/start')}
+        accessibilityLabel={live ? 'Return to the activity' : 'Start an activity'}
+        activeOpacity={0.85}
+        style={[styles.startCircle, navShrunk && styles.startCircleShrunk]}
+      >
+        {live ? (
+          <>
+            <Text style={styles.startTime}>{liveClock(liveSeconds(live, now))}</Text>
+            <Text style={styles.startLive}>{live.pausedAt != null ? 'PAUSED' : 'LIVE'}</Text>
+          </>
+        ) : (
+          <Text style={styles.startText}>Start</Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 
@@ -416,7 +448,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           </TouchableOpacity>
           <View
             style={styles.avatarWrap}
-            {...(canHover
+            {...(canHover && !narrow
               ? { onMouseEnter: () => setMenuOpen(true), onMouseLeave: () => setMenuOpen(false) } as any
               : {})}
           >
@@ -425,7 +457,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
               <TouchableOpacity style={styles.avatarMenuDismiss} activeOpacity={1} onPress={() => setMenuOpen(false)} accessibilityLabel="Close menu" />
             ) : null}
             <View style={[styles.avatarRing, narrow && styles.avatarRingNarrow]}>
-              <TouchableOpacity onPress={() => (Platform.OS !== 'web' || canHover ? router.push('/profile') : setMenuOpen((v) => !v))} style={[styles.avatar, narrow && styles.avatarNarrow]} accessibilityLabel={canHover ? 'Settings' : 'Account menu'}>
+              <TouchableOpacity onPress={() => (narrow ? router.push('/stats') : Platform.OS !== 'web' || canHover ? router.push('/profile') : setMenuOpen((v) => !v))} style={[styles.avatar, narrow && styles.avatarNarrow]} accessibilityLabel={canHover ? 'Settings' : 'Account menu'}>
                 {avatarUrl ? (
                   <Image source={{ uri: avatarImage(avatarUrl, 48) }} style={[styles.avatarImg, narrow && styles.avatarImgNarrow]} />
                 ) : (
@@ -536,10 +568,12 @@ const styles = StyleSheet.create({
   // Mockup's mobile header is a warm pink-tinted gradient wash, not the
   // desktop bar's flat dark translucent fill — desktop keeps `bar` as-is.
   barNarrow: {
-    backgroundColor: 'rgba(255,209,190,0.06)',
+    // Solid, on Today's #161313, so every page's bar is Today's exact colour
+    // whatever sits behind it (Ricky, 2026-11-01).
+    backgroundColor: '#161313',
     borderBottomColor: 'rgba(255,209,190,0.12)',
     ...(Platform.OS === 'web'
-      ? { backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.10) 0%, rgba(255,209,190,0.03) 100%)' } as any
+      ? { backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.10) 0%, rgba(255,209,190,0.03) 100%), linear-gradient(rgba(255,209,190,0.06), rgba(255,209,190,0.06))' } as any
       : {}),
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 1200, marginHorizontal: 'auto', paddingHorizontal: 20, paddingVertical: 8, position: 'relative' },
@@ -624,6 +658,20 @@ const styles = StyleSheet.create({
       ? { transition: 'transform 0.22s ease, opacity 0.22s ease' } as any
       : {}),
   },
+  bottomNavGap: { flex: 1 },
+  // Raised out of the bar's middle, the same circle as the running timer.
+  startCircle: {
+    position: 'absolute', top: -12, left: '50%', marginLeft: -33,
+    width: 66, height: 66, borderRadius: 33,
+    backgroundColor: '#232120', borderWidth: 2, borderColor: '#e8835f',
+    alignItems: 'center', justifyContent: 'center',
+    ...(Platform.OS === 'web' ? { transition: 'transform 0.22s ease' } as any : {}),
+  },
+  // Settles with the bar as it shrinks.
+  startCircleShrunk: { transform: [{ translateY: 12 }, { scale: 0.8 }] },
+  startText: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '600', fontSize: 15, color: 'rgba(255,255,255,0.92)' },
+  startTime: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 15, lineHeight: 19, color: '#fff' },
+  startLive: { fontSize: 7.5, letterSpacing: 1, fontWeight: '800', color: RivalColors.accentText },
   // Instagram-style shrink while scrolling down — scales the whole pill down
   // and nudges it toward the bottom edge (transform-origin) so it reads as
   // settling out of the way, not just uniformly resizing in place.

@@ -1,0 +1,98 @@
+<!doctype html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"><style>
+* { box-sizing:border-box; }
+body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+.row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+.col { width:393px; flex-shrink:0; }
+.tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+.desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:90px; }
+.phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#141312; }
+.status { height:50px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; font-weight:700; font-size:16px; }
+.mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; display:inline-block; }
+.serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+.nav { display:flex; justify-content:space-between; align-items:center; padding:4px 16px 10px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.logo { color:#ffb59e; font-weight:600; letter-spacing:0.32em; font-size:17px; }
+.av { width:34px; height:34px; border-radius:17px; background:url(../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg) center/cover; border:1.5px solid rgba(255,255,255,0.2); }
+.pad { padding:0 16px; }
+.bnav { position:absolute; left:16px; right:16px; bottom:24px; display:flex; background:rgba(30,29,28,0.95); border:1px solid rgba(255,255,255,0.07); border-radius:999px; padding:5px; z-index:5; }
+.bnav span { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0; border-radius:999px; font-size:10.5px; font-weight:700; color:#A0A0A0; }
+.bnav span .mi { font-size:19px; }
+.bnav span.on { background:rgba(255,181,158,0.14); color:#ffb59e; }
+
+/* The activity card, as now: 3:4, day on top, name and Effort at the foot. */
+.ac { width:170px; height:226px; flex-shrink:0; border-radius:18px; position:relative; overflow:hidden; background-size:cover; background-position:center; }
+.ac .sh { position:absolute; inset:0; background:linear-gradient(0deg, rgba(14,13,12,0.85) 0%, rgba(14,13,12,0.1) 45%, rgba(14,13,12,0) 70%, rgba(14,13,12,0.35) 100%); }
+.ac .dn { position:absolute; top:12px; left:0; right:0; text-align:center; font-family:Georgia,serif; font-style:italic; font-size:14px; color:rgba(255,255,255,0.85); }
+.ac .ft { position:absolute; left:12px; right:12px; bottom:12px; display:flex; justify-content:space-between; align-items:flex-end; }
+.ac .ft .nm { font-size:13px; font-weight:700; }
+.ac .ft .v { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:18px; }
+.ac .ft .el { font-size:8.5px; font-weight:800; letter-spacing:0.8px; color:#ffb59e; text-align:right; }
+.ac.mat { background:linear-gradient(160deg,#6e7884,#3a4048 60%,#262a2f); }
+.ac.mat .ico { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding-bottom:40px; font-size:120px; color:rgba(255,255,255,0.18); }
+.ac.pb { box-shadow: inset 0 0 0 2px #FFD700; }
+.ac.pb .el { color:#FFD700; }
+/* Retro's date stamp, in RIVAL type. */
+.stamp { position:absolute; top:10px; left:10px; text-align:center; width:44px; padding:5px 0 4px; border-radius:12px; background:rgba(14,13,12,0.55); }
+.stamp i { display:block; font-style:normal; font-size:8.5px; font-weight:800; letter-spacing:0.8px; color:#ffb59e; }
+.stamp b { display:block; font-family:Georgia,serif; font-style:italic; font-size:22px; line-height:24px; }
+.ac.today { background:rgba(255,209,190,0.05); border:1.5px dashed rgba(255,181,158,0.6); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+.ac.today .big { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:64px; line-height:64px; color:rgba(255,255,255,0.9); }
+.ac.today .lbl { font-size:10px; font-weight:800; letter-spacing:1.6px; color:#ffb59e; }
+.ac.today .pl { width:40px; height:40px; border-radius:20px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; display:flex; align-items:center; justify-content:center; margin-top:8px; }
+.ac.future { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ac.future .big { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:56px; color:rgba(255,255,255,0.22); }
+.ac.future .lbl { font-size:10px; font-weight:800; letter-spacing:1.6px; color:rgba(255,255,255,0.3); }
+.rest { width:34px; height:226px; flex-shrink:0; border-radius:14px; border:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.025); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+.rest i { font-style:normal; font-size:9px; font-weight:800; letter-spacing:0.6px; color:rgba(255,255,255,0.35); writing-mode:vertical-rl; transform:rotate(180deg); }
+.rest b { font-family:Georgia,serif; font-style:italic; font-size:15px; color:rgba(255,255,255,0.35); }
+.track { display:flex; gap:8px; margin-right:-16px; overflow:hidden; }
+.whead { display:flex; justify-content:space-between; align-items:flex-end; margin:18px 2px 10px; }
+.whead .k { font-size:10px; font-weight:800; letter-spacing:1.8px; color:#ffb59e; }
+.whead .t { font-size:24px; line-height:28px; }
+.whead .e { text-align:right; }
+.whead .e b { display:block; font-family:Georgia,serif; font-style:italic; font-size:30px; line-height:30px; }
+.whead .e span { font-size:9.5px; font-weight:800; letter-spacing:2px; color:#ffb59e; }
+.wline { font-size:11.5px; color:rgba(255,255,255,0.45); margin:8px 2px 0; }
+.dots { display:flex; gap:10px; margin-top:6px; }
+.dots span { font-size:9px; font-weight:800; color:rgba(255,255,255,0.4); text-align:center; width:12px; }
+.dots span i { display:block; width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,0.2); margin:4px auto 0; }
+.dots span.on i { background:#D97757; }
+.grid { display:flex; flex-wrap:wrap; gap:10px; }
+.card { position:relative; overflow:hidden; border-radius:22px; padding:16px; background:#232120; border:1px solid rgba(255,255,255,0.06); }
+.card .glow { position:absolute; top:0; left:0; right:0; height:120px; background:radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%); }
+.add { display:flex; align-items:center; justify-content:center; gap:6px; padding:13px 0; border-radius:999px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; font-weight:800; font-size:15px; margin-top:12px; }
+.seg { display:flex; justify-content:space-between; margin-top:12px; }
+.seg .s { display:flex; padding:3px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); }
+.seg .s span { display:flex; align-items:center; gap:4px; padding:7px 9px; border-radius:999px; font-size:12px; font-weight:700; color:#A0A0A0; }
+.seg .s span.on { border:1px solid rgba(255,255,255,0.5); color:#fff; }
+.seg .f { display:flex; align-items:center; gap:5px; padding:7px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); font-size:13px; font-weight:700; }
+.sep { display:flex; align-items:center; gap:10px; margin:6px 4px 0; font-size:11px; font-weight:700; color:rgba(255,255,255,0.35); }
+.sep i { flex:1; height:1px; background:rgba(255,255,255,0.08); }
+.pager { display:flex; justify-content:center; gap:5px; margin-top:10px; }
+.pager i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,0.2); }
+.pager i.on { width:16px; background:#ffb59e; }
+
+.desc{min-height:58px}.phone{height:690px}
+.pc{position:relative;overflow:hidden;border-radius:22px;background:#232120;border:1px solid rgba(255,255,255,.06);margin:14px 0 2px}
+.pc .x{position:absolute;top:9px;right:9px;z-index:3;width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:16px}
+.ki{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffb59e}
+.ti{font-family:Georgia,serif;font-style:italic;font-weight:700;color:#fff}
+.me{font-size:12.5px;color:rgba(255,255,255,.6)}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 18px;border-radius:999px;background:linear-gradient(135deg,#ffb59e,#D97757);color:#1a1210;font-size:13.5px;font-weight:800}
+.pill .mi{font-size:17px}
+.thumb{position:relative;flex-shrink:0;overflow:hidden;background:linear-gradient(180deg,#5b5f7d 0%,#a7786a 50%,#e0a46a 100%);display:flex;align-items:center;justify-content:center}
+.thumb .mi{color:rgba(255,255,255,.75)}
+.slot{position:absolute;inset:7px;border:1.5px dashed rgba(255,255,255,.55);border-radius:13px}
+.tiles{display:flex;gap:6px;margin-top:10px}
+.tiles div{flex:1;aspect-ratio:3/4;border-radius:12px;background-size:cover;background-position:center}
+.wk2{position:relative;overflow:hidden;border-radius:22px;padding:16px;background:#232120;border:1px solid rgba(255,255,255,.06);margin-top:12px}
+.wk2 .h{display:flex;justify-content:space-between}
+.wk2 .tt{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px}
+.wk2 .ef{text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;line-height:30px}
+.wk2 .ef i{display:block;font-family:Manrope;font-style:normal;font-size:9px;font-weight:800;letter-spacing:2px;color:#ffb59e}
+.wk2 .d{display:flex;justify-content:space-between;margin-top:14px;color:rgba(255,255,255,.45);font-size:10px;font-weight:800}
+.wk2 .d span{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;flex:1;height:48px}
+.wk2 .d u{width:20px;border-radius:4px;background:rgba(255,255,255,.1);height:5px}.wk2 .d u.on{background:#e8835f;height:26px}
+.words{margin:0 22px 24px;padding:18px 20px;background:#232120;border-radius:20px;border:1px solid rgba(255,255,255,.07)}
+.words p{margin:10px 0 0;font-size:15px;color:rgba(255,255,255,.75);line-height:22px}
+.words b{font-family:Georgia,serif;font-style:italic;color:#fff;font-size:19px}
+</style></head><body><div class="row"><div class="col"><div class="tag">A · Slim banner</div><div class="desc">Small enough to sit above the week without moving it far. The activity sits beside the words, with its sky and icon.</div><div class="phone"><div class="status"><span>7:04</span><span>91</span></div><div class="nav"><span class="logo">RIVAL</span><span style="display:flex;gap:14px;align-items:center"><span class="mi" style="font-size:24px;color:#ffb59e">notifications_none</span><span class="av"></span></span></div><div class="pad"><div class="seg"><div class="s"><span class="on"><span class="mi" style="font-size:15px">calendar_today</span>Week</span><span><span class="mi" style="font-size:15px">grid_view</span>Month</span><span><span class="mi" style="font-size:15px">bar_chart</span>Year</span></div><div class="f"><span class="mi" style="font-size:16px">tune</span>Filter</div></div><div class="pc" style="display:flex;align-items:center;gap:12px;padding:12px 40px 12px 12px"><span class="mi x">close</span><div class="thumb" style="width:54px;height:72px;border-radius:13px"><span class="mi" style="font-size:22px">directions_run</span></div><div style="flex:1;min-width:0"><div class="ti" style="font-size:20px;line-height:25px">Show the effort.</div><div class="me" style="margin:1px 0 8px">Morning Run · 7.1 km</div><span class="pill" style="height:34px;padding:0 14px;font-size:12.5px"><span class="mi">add_a_photo</span>Add photo</span></div></div><div class="wk2"><div class="h"><div><div class="ki">Oct 26 – Nov 1</div><div class="tt">This week</div></div><div class="ef">142<i>EFFORT</i></div></div><div class="d"><span><u class=""></u>M</span><span><u class="on"></u>T</span><span><u class=""></u>W</span><span><u class="on"></u>T</span><span><u class=""></u>F</span><span><u class="on"></u>S</span><span><u class=""></u>S</span></div></div></div></div></div><div class="col"><div class="tag">B · The empty photo</div><div class="desc">The activity shown as its card, with the place for the photo left open. Stronger pull, takes more of the page.</div><div class="phone"><div class="status"><span>7:04</span><span>91</span></div><div class="nav"><span class="logo">RIVAL</span><span style="display:flex;gap:14px;align-items:center"><span class="mi" style="font-size:24px;color:#ffb59e">notifications_none</span><span class="av"></span></span></div><div class="pad"><div class="seg"><div class="s"><span class="on"><span class="mi" style="font-size:15px">calendar_today</span>Week</span><span><span class="mi" style="font-size:15px">grid_view</span>Month</span><span><span class="mi" style="font-size:15px">bar_chart</span>Year</span></div><div class="f"><span class="mi" style="font-size:16px">tune</span>Filter</div></div><div class="pc" style="display:flex;min-height:196px"><span class="mi x">close</span><div class="thumb" style="width:146px"><div class="slot"></div><span class="mi" style="font-size:30px">add_a_photo</span></div><div style="flex:1;padding:16px 14px;display:flex;flex-direction:column"><div class="ki">Morning Run</div><div class="ti" style="font-size:25px;line-height:30px;margin-top:5px">What did it look like?</div><div class="me" style="margin-top:5px">7.1 km · 42:10 · Effort 76</div><span class="pill" style="margin-top:auto">Add photo</span></div></div><div class="wk2"><div class="h"><div><div class="ki">Oct 26 – Nov 1</div><div class="tt">This week</div></div><div class="ef">142<i>EFFORT</i></div></div><div class="d"><span><u class=""></u>M</span><span><u class="on"></u>T</span><span><u class=""></u>W</span><span><u class="on"></u>T</span><span><u class=""></u>F</span><span><u class="on"></u>S</span><span><u class=""></u>S</span></div></div></div></div></div><div class="col"><div class="tag">C · Your photos from the run</div><div class="desc">Offers the photos taken during the activity. iPhone app only: a website cannot read the photo library.</div><div class="phone"><div class="status"><span>7:04</span><span>91</span></div><div class="nav"><span class="logo">RIVAL</span><span style="display:flex;gap:14px;align-items:center"><span class="mi" style="font-size:24px;color:#ffb59e">notifications_none</span><span class="av"></span></span></div><div class="pad"><div class="seg"><div class="s"><span class="on"><span class="mi" style="font-size:15px">calendar_today</span>Week</span><span><span class="mi" style="font-size:15px">grid_view</span>Month</span><span><span class="mi" style="font-size:15px">bar_chart</span>Year</span></div><div class="f"><span class="mi" style="font-size:16px">tune</span>Filter</div></div><div class="pc" style="padding:14px 16px 16px"><span class="mi x">close</span><div class="ki">Morning Run · 7.1 km</div><div class="ti" style="font-size:24px;line-height:30px;margin-top:4px">Effort deserves to be seen.</div><div class="me" style="margin-top:3px">Taken during this activity</div><div class="tiles"><div style="background-image:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg)"></div><div style="background-image:url(../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg)"></div><div style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div></div><span class="pill" style="width:100%;margin-top:12px">Add photo</span></div><div class="wk2"><div class="h"><div><div class="ki">Oct 26 – Nov 1</div><div class="tt">This week</div></div><div class="ef">142<i>EFFORT</i></div></div><div class="d"><span><u class=""></u>M</span><span><u class="on"></u>T</span><span><u class=""></u>W</span><span><u class="on"></u>T</span><span><u class=""></u>F</span><span><u class="on"></u>S</span><span><u class=""></u>S</span></div></div></div></div></div></div><div class="words"><div class="ki">Wording to choose from</div><p><b>Show the effort.</b> &nbsp;·&nbsp; <b>What did it look like?</b> &nbsp;·&nbsp; <b>Effort deserves to be seen.</b></p><p><b>Keep this one.</b> &nbsp;·&nbsp; <b>Put a picture to it.</b> &nbsp;·&nbsp; <b>Worth remembering.</b></p></div></body></html>

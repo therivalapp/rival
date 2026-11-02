@@ -31,7 +31,7 @@ const DISTANCE_SPORTS = new Set([
 const TYPE_NOUN: Record<string, string> = {
   Run: 'run', VirtualRun: 'run', Ride: 'ride', VirtualRide: 'ride',
   Swim: 'swim', Rowing: 'row', Walk: 'walk', Hike: 'hike',
-  WeightTraining: 'lift', Workout: 'workout', CrossFit: 'CrossFit workout',
+  WeightTraining: 'lift', Calisthenics: 'calisthenics workout', Gymnastics: 'gymnastics workout', Workout: 'workout', CrossFit: 'CrossFit workout',
   Hyrox: 'Hyrox', HIIT: 'HIIT workout', Bootcamp: 'bootcamp', Yoga: 'yoga practice',
   AlpineSki: 'ski', NordicSki: 'ski',
 };

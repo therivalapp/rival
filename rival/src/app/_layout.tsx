@@ -20,6 +20,9 @@ import { supabase } from '../lib/supabase';
 import { savePendingInvite } from '../lib/pendingInvite';
 import { RivalAlertHost } from '../components/rival';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
+import { PhotoPrompt } from '../components/rival/PhotoPrompt';
+import { SavedActivityNote } from '../components/rival/SavedActivityNote';
+import { requestPromptCheck } from '../lib/photoPrompt';
 
 // Screens that make sense without an account.
 const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/strava-callback', '/confirm-delete']);
@@ -109,7 +112,7 @@ export default function RootLayout() {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
         },
-      }).then((r) => { if (r.ok) invalidateActivityCache(); }).catch(() => {});
+      }).then((r) => { if (r.ok) { invalidateActivityCache(); requestPromptCheck(); } }).catch(() => {});
     }
 
     // A few seconds after opening, not during: the sync is a background
@@ -216,10 +219,14 @@ export default function RootLayout() {
           <Stack.Screen name="join-league" options={popUp} />
           <Stack.Screen name="weekly-scan" options={popUp} />
           <Stack.Screen name="add-workout" options={popUp} />
+          <Stack.Screen name="start" options={{ animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="races" options={({ route }) => (phone && (route.params as { add?: string } | undefined)?.add === 'true' ? { presentation: 'transparentModal', animation: 'none' } : {})} />
         </Stack>
       </View>
       {/* Once a day, over whichever page opens first — it loads underneath. */}
       <DailyQuoteSplash />
+      <PhotoPrompt />
+      <SavedActivityNote />
       <RivalAlertHost />
     </SafeAreaProvider>
   );

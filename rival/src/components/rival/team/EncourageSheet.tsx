@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Modal } from '../RivalModal';
 import { sidePageWide } from '../../../constants/breakpoints';
 import { supabase } from '../../../lib/supabase';
 import { RivalColors } from '../../../constants/rivalTheme';

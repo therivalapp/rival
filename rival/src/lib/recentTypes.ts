@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { supabase, getAuthUser } from './supabase';
 import { useSnapState } from './snapState';
+import { getPrefs } from './prefs';
 
 // The person's own activity types first, wherever a type is picked (Log an
 // activity, Plan an activity, Scan): their activity is a tap away rather than
@@ -24,7 +25,13 @@ export function tilesFor(recent: string[], defaults: string[], perRow = 4): stri
   return tiles;
 }
 
-/** The person's last 30 activity types, newest first. Kept between visits, so
+/** Logged types, then the ones picked on Choose activities: a new member's
+ *  picks lead until their own history outranks them. */
+export function withUsual(types: string[], usual = getPrefs().usualTypes): string[] {
+  return [...types, ...usual.filter((t) => !types.includes(t))];
+}
+
+/** The person's last 30 activity types, newest first, then their picks. Kept between visits, so
  *  the tiles don't shuffle as a page opens. */
 export function useRecentTypes(): string[] {
   const [recent, setRecent] = useSnapState<string[]>('recentTypes', []);
@@ -37,5 +44,5 @@ export function useRecentTypes(): string[] {
       if (data) setRecent(data.map((r: any) => r.activity_type).filter(Boolean));
     })();
   }, []);
-  return recent;
+  return withUsual(recent);
 }

@@ -21,6 +21,10 @@ export type Prefs = {
   dailyQuote: boolean;
   notify: Record<NotifyKey, boolean>;
   mutedTeams: string[];
+  /** Hid the Build profile card on their own profile. */
+  hideBuildProfile: boolean;
+  /** Picked on Choose activities after sign-up; logged history outranks them. */
+  usualTypes: string[];
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -28,6 +32,8 @@ export const DEFAULT_PREFS: Prefs = {
   dailyQuote: true,
   notify: { reaction: true, comment: true, team_joined: true, tag_accepted: true },
   mutedTeams: [],
+  hideBuildProfile: false,
+  usualTypes: [],
 };
 
 const KEY = 'rival_prefs';
@@ -39,6 +45,8 @@ function normalise(raw: any): Prefs {
     dailyQuote: p.dailyQuote !== false,
     notify: { ...DEFAULT_PREFS.notify, ...(p.notify && typeof p.notify === 'object' ? p.notify : {}) },
     mutedTeams: Array.isArray(p.mutedTeams) ? p.mutedTeams.filter((x: unknown) => typeof x === 'string') : [],
+    hideBuildProfile: p.hideBuildProfile === true,
+    usualTypes: Array.isArray(p.usualTypes) ? p.usualTypes.filter((x: unknown) => typeof x === 'string') : [],
   };
 }
 

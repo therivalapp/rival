@@ -10,7 +10,8 @@ import { fitPhoto } from '../../lib/imageResize';
 import { ROUTE_MAPS_ENABLED } from '../../lib/features';
 import { formatActivityDistance } from '../../lib/units';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, Platform, ScrollView, Image, ImageBackground, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, Platform, ScrollView, Image, ImageBackground, TouchableOpacity, TextInput } from 'react-native';
+import { Modal } from '../../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { buildDayRollups, mergeRollups, rollsUpIntoDayCard, type DayRollup, type RollupRow } from '@/lib/dayRollup';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -704,18 +705,32 @@ export default function TeamFeedScreen() {
           {pullIndicator}
           <HeroPhoto style={styles.hero}>
             <View style={styles.heroTextBlock}>
-              <View style={styles.heroGlyphRow}>
-                <View style={styles.heroRule} />
-                <RivalIcon name="elevation" size={22} color={RivalColors.accentText} />
-                <View style={styles.heroRule} />
-              </View>
-              <Text style={styles.heroTitle}>All Teams Feed</Text>
-              <Text style={styles.heroTagline}>Every Effort, Together</Text>
-              <View style={styles.heroTaglineUnderline} />
+              {mobile ? (
+                // Activity's title block (Ricky, 2026-11-02).
+                <>
+                  <Text style={styles.mHeroTitle}>All Teams Feed</Text>
+                  <View style={styles.mHeroSubRow}>
+                    <View style={styles.mHeroSubRule} />
+                    <Text style={styles.mHeroSub}>Every effort, together</Text>
+                    <View style={styles.mHeroSubRule} />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.heroGlyphRow}>
+                    <View style={styles.heroRule} />
+                    <RivalIcon name="elevation" size={22} color={RivalColors.accentText} />
+                    <View style={styles.heroRule} />
+                  </View>
+                  <Text style={styles.heroTitle}>All Teams Feed</Text>
+                  <Text style={styles.heroTagline}>Every Effort, Together</Text>
+                  <View style={styles.heroTaglineUnderline} />
+                </>
+              )}
             </View>
 
             {teams.length > 0 && (
-              <View style={styles.railWrap}>
+              <View style={[styles.railWrap, mobile && styles.mRailWrap]}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rail} contentContainerStyle={styles.railContent}>
                 {teams.map((t) => {
                   const tint = tintFor(t.name);
@@ -1356,6 +1371,14 @@ const styles = StyleSheet.create({
   heroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '600', fontSize: 22, color: '#fff' },
   heroTagline: { fontSize: 12, color: 'rgba(255,255,255,0.6)' },
   heroTaglineUnderline: { width: 102, height: 1, marginTop: 8, backgroundColor: 'rgba(255,255,255,0.3)' },
+  mHeroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff' },
+  mHeroSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  mHeroSubRule: { width: 26, height: 1, backgroundColor: 'rgba(255,209,190,0.7)' },
+  // Sits on the photo, so it is larger and lighter than Activity's, with a
+  // dark shadow to lift it off bright skies (Ricky, 2026-11-02: hard to read).
+  mHeroSub: { fontSize: 12, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: '#ffd1be', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
+  // More room between the subtitle and the crests (Ricky, 2026-11-02).
+  mRailWrap: { marginTop: 30 },
 
   stateText: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
   emptyState: { alignItems: 'center', gap: 8, paddingVertical: 32, paddingHorizontal: 20 },

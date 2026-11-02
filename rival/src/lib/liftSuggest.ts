@@ -2,18 +2,23 @@
 // with what's already there, the person's own habits first (Ricky, 2026-10-30).
 import { matchCanonicalLift } from './lifts';
 
-type Muscle = 'chest' | 'triceps' | 'shoulders' | 'back' | 'biceps' | 'legs' | 'olympic';
+type Muscle = 'chest' | 'triceps' | 'shoulders' | 'back' | 'biceps' | 'legs' | 'core' | 'olympic';
 
 // Each list runs most common first; a lift sits under its main muscle.
 const LIFTS_BY_MUSCLE: Record<Muscle, string[]> = {
-  chest: ['Bench Press', 'Incline Bench Press', 'Dumbbell Bench Press', 'Incline Dumbbell Press', 'Push-up', 'Pause Bench Press'],
-  triceps: ['Dip', 'Tricep Extension', 'Close Grip Bench Press', 'Skullcrusher'],
-  shoulders: ['Overhead Press', 'Push Press', 'Strict Press', 'Face Pull'],
-  back: ['Pull-up', 'Barbell Row', 'Lat Pulldown', 'Deadlift', 'Cable Row', 'Dumbbell Row', 'Shrug', 'Rack Pull', 'Deficit Deadlift'],
+  chest: ['Bench Press', 'Incline Bench Press', 'Dumbbell Bench Press', 'Incline Dumbbell Press', 'Push-up', 'Pause Bench Press', 'Decline Push-up', 'Archer Push-up', 'Pseudo Planche Push-up'],
+  triceps: ['Dip', 'Tricep Extension', 'Close Grip Bench Press', 'Skullcrusher', 'Ring Dip', 'Bench Dip', 'Diamond Push-up'],
+  shoulders: ['Overhead Press', 'Push Press', 'Strict Press', 'Face Pull', 'Pike Push-up', 'Handstand Push-up', 'Handstand Hold', 'Planche'],
+  back: ['Pull-up', 'Barbell Row', 'Lat Pulldown', 'Deadlift', 'Cable Row', 'Dumbbell Row', 'Shrug', 'Rack Pull', 'Deficit Deadlift', 'Muscle-up', 'Inverted Row', 'Dead Hang', 'Archer Pull-up', 'Typewriter Pull-up', 'Front Lever', 'Back Lever'],
   biceps: ['Bicep Curl', 'Hammer Curl'],
   legs: [
     'Squat', 'Leg Press', 'Lunge', 'Romanian Deadlift', 'Hip Thrust', 'Front Squat', 'Leg Curl', 'Leg Extension', 'Calf Raise',
     'Bulgarian Split Squat', 'Split Squat', 'Box Squat', 'Pause Squat', 'Air Squat', 'Sumo Deadlift', 'Stiff Leg Deadlift', 'Trap Bar Deadlift', 'Good Morning',
+    'Pistol Squat', 'Shrimp Squat', 'Jump Squat', 'Nordic Curl', 'Step-up', 'Glute Bridge', 'Box Jump', 'Wall Sit',
+  ],
+  core: [
+    'Plank', 'Hanging Leg Raise', 'Sit-up', 'Toes to Bar', 'L-sit', 'Leg Raise', 'Hollow Hold', 'Side Plank', 'Crunch', 'V-up',
+    'Hollow Rock', 'Russian Twist', 'Knees to Elbows', 'Dragon Flag', 'Mountain Climber', 'Burpee', 'Human Flag',
   ],
   olympic: [
     'Clean', 'Snatch', 'Clean and Jerk', 'Power Clean', 'Power Snatch', 'Hang Clean', 'Hang Snatch',
@@ -28,7 +33,8 @@ const TRAINED_WITH: Record<Muscle, Muscle[]> = {
   shoulders: ['shoulders', 'triceps', 'chest'],
   back: ['back', 'biceps'],
   biceps: ['biceps', 'back'],
-  legs: ['legs'],
+  legs: ['legs', 'core'],
+  core: ['core'],
   olympic: ['olympic'],
 };
 

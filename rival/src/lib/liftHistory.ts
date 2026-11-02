@@ -35,6 +35,55 @@ export function lastTimeFor(history: LiftActivity[], name: string, beforeMs = In
   return best;
 }
 
+/** The numbers most often used for a lift in the last eight weeks. */
+export function usualFor(history: LiftActivity[], name: string, now = Date.now()): LiftLine | null {
+  const key = liftKey(name);
+  const count = new Map<string, { line: LiftLine; n: number }>();
+  for (const a of history) {
+    if (now - new Date(a.startedAt).getTime() > 56 * 86_400_000) continue;
+    for (const e of a.exercises) {
+      if (!e?.name || liftKey(e.name) !== key || !(e.sets || e.reps || e.weight)) continue;
+      const id = `${e.sets}|${e.reps}|${e.weight}`;
+      const hit = count.get(id);
+      if (hit) hit.n += 1; else count.set(id, { line: e, n: 1 });
+    }
+  }
+  return [...count.values()].sort((a, b) => b.n - a.n)[0]?.line ?? null;
+}
+
+/** The person's lifts, most logged first, by name as they last wrote it. */
+export function liftsByUse(history: LiftActivity[]): string[] {
+  const seen = new Map<string, { name: string; n: number }>();
+  const newestFirst = [...history].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+  for (const a of newestFirst) {
+    for (const e of a.exercises) {
+      if (!e?.name?.trim()) continue;
+      const hit = seen.get(liftKey(e.name));
+      if (hit) hit.n += 1; else seen.set(liftKey(e.name), { name: e.name, n: 1 });
+    }
+  }
+  return [...seen.values()].sort((a, b) => b.n - a.n).map((v) => v.name);
+}
+
+/** What usually follows the last lift logged, else the most logged lift not
+ *  done yet. Null with nothing to go on. */
+export function upNext(history: LiftActivity[], doneNames: string[]): string | null {
+  const done = new Set(doneNames.map(liftKey));
+  const after = new Map<string, { name: string; n: number }>();
+  const last = doneNames.length ? liftKey(doneNames[doneNames.length - 1]) : null;
+  if (last) {
+    for (const a of history) {
+      const at = a.exercises.findIndex((e) => e?.name && liftKey(e.name) === last);
+      const next = at >= 0 ? a.exercises[at + 1] : null;
+      if (!next?.name || done.has(liftKey(next.name))) continue;
+      const hit = after.get(liftKey(next.name));
+      if (hit) hit.n += 1; else after.set(liftKey(next.name), { name: next.name, n: 1 });
+    }
+  }
+  const usual = [...after.values()].sort((a, b) => b.n - a.n)[0]?.name;
+  return usual ?? liftsByUse(history).find((n) => !done.has(liftKey(n))) ?? null;
+}
+
 /** One logged lift, for working out a best: weight in kg. */
 export type LiftEntry = { name: string; weightKg: number; reps?: number | null; at: string };
 

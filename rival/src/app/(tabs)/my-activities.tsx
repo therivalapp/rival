@@ -5,6 +5,7 @@ import { arrivedFromTab, goToTab, onTabReselect } from '../../lib/tabNav';
 import { clearShareRequest, onShareRequest, pendingShare } from '../../lib/shareRequest';
 import { onActivityDeleted } from '../../lib/activityEvents';
 import { type LiftPb } from '../../lib/liftPb';
+import { isHoldLift } from '../../lib/lifts';
 import { activityPbs, DISTANCE_SPORTS } from '../../lib/activityPbs';
 import { fetchReactionsOn } from '../../lib/reactions';
 import { useSnapState } from '../../lib/snapState';
@@ -36,7 +37,7 @@ import { selectAll } from '../../lib/selectAll';
 import { DayColumns, EmptyWeek, MonthWeekColumns, WeekLadder, type Checkpoint, FilterButton, FilterSheet, ShowingLine, WeekCard, EventLegs, WeekEarned, WeekNote, WeekNumbers, filterCount, weekEffortCompactStyle, weekEffortStyle, type ActivityFilters } from '../../components/rival/WeekCard';
 import { getPrefs } from '../../lib/prefs';
 import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaRow } from '../../lib/activityMedia';
-import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, RivalGhost, RivalFontFamily, rivalTextShadow } from '../../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, RivalGhost, RivalFontFamily, rivalTextShadow, rivalPhoneVar } from '../../constants/rivalTheme';
 import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV, BREAKPOINT_WIDE_LAYOUT, sidePageWide } from '../../constants/breakpoints';
 import { cardPhoto, fullPhoto } from '../../lib/imageUrl';
 
@@ -1394,7 +1395,9 @@ export default function MyActivitiesScreen() {
       // without one, sets × reps. Compared with the same lift logged before;
       // the first time it is logged there is nothing struck through.
       const started = d.getTime();
-      const volume = (e: { sets?: number | null; reps?: number | null }) => (e.sets || 1) * (e.reps || 0);
+      // A hold is the longest single one, in seconds, not sets × seconds.
+      const hold = isHoldLift(ex.prLift);
+      const volume = (e: { sets?: number | null; reps?: number | null }) => (hold ? 1 : e.sets || 1) * (e.reps || 0);
       let prev: { weight: number; sets?: number | null; reps?: number | null } | null = null;
       allActivities.forEach((o) => {
         if (new Date(o.started_at).getTime() >= started) return;
@@ -1411,12 +1414,12 @@ export default function MyActivitiesScreen() {
       // sets × reps is the detail under the name (Ricky, 2026-10-16).
       const weighted = !!ex.weight;
       const was = weighted ? (p?.weight ? formatWeight(p.weight) : null) : (p && volume(p) > 0 ? String(volume(p)) : null);
-      const split = !weighted && ex.sets && ex.sets > 1 && ex.reps ? ` · ${ex.sets} × ${ex.reps}` : '';
+      const split = !weighted && ex.sets && ex.sets > 1 && ex.reps ? ` · ${ex.sets} × ${ex.reps}${hold ? ' sec' : ''}` : '';
       monthBests.push({
         key: `${a.id}-${ex.prLift}`, activityId: a.id, icon: 'weights', title: ex.prLift,
         sub: `${day}${split}`, was: was ?? undefined,
         value: weighted ? formatWeight(ex.weight!).split(' ')[0] : ex.reps ? String(volume(ex)) : '—',
-        unit: weighted ? formatWeight(ex.weight!).split(' ')[1] : ex.reps ? ' reps' : undefined,
+        unit: weighted ? formatWeight(ex.weight!).split(' ')[1] : ex.reps ? (hold ? ' sec' : ' reps') : undefined,
         date: a.started_at,
       });
     });
@@ -1468,9 +1471,9 @@ export default function MyActivitiesScreen() {
     <View style={styles.jTitleBlockB}>
       <Text style={styles.jTitleB}>Activity</Text>
       <View style={styles.jSubtitleRow}>
-        <View style={styles.jSubtitleRule} />
-        <Text style={styles.jSubtitleB}>Every effort tells a story</Text>
-        <View style={styles.jSubtitleRule} />
+        <View style={[styles.jSubtitleRule, mobileNav && styles.jSubtitleRulePhone]} />
+        <Text style={[styles.jSubtitleB, mobileNav && styles.jSubtitleBPhone]}>Every effort tells a story</Text>
+        <View style={[styles.jSubtitleRule, mobileNav && styles.jSubtitleRulePhone]} />
       </View>
     </View>
   );
@@ -1695,7 +1698,7 @@ export default function MyActivitiesScreen() {
           >
             {({ pressed }) => (
               <>
-                <RivalIcon name="add" size={16} color={pressed ? 'rgba(255,181,158,0.8)' : 'transparent'} style={styles.restDayPlus} />
+                <RivalIcon name="add" size={16} color="rgba(255,181,158,0.8)" style={[styles.restDayPlus, pressed && styles.restDayPlusPressed]} />
                 <Text style={styles.restDayNum}>{day.getDate()}</Text>
                 <Text style={styles.restDayName}>{DAY_SHORT_UP[i]}</Text>
               </>
@@ -3123,17 +3126,20 @@ const styles = StyleSheet.create({
   towardAdd: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   firstEmpty: { alignItems: 'center', marginTop: 24, paddingVertical: 24 },
   firstEmptyBtn: { alignSelf: 'stretch' },
-  root: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  root: { flex: 1, backgroundColor: rivalPhoneVar('rival-activity-ground', '#1b1a19', '#131313') },
   photoBand: { position: 'absolute', top: 0, left: 0, right: 0, height: 360, overflow: 'hidden' },
   photoBandFade: {
     backgroundColor: 'rgba(17,14,12,0.6)',
-    ...(Platform.OS === 'web' ? { backgroundColor: 'transparent', backgroundImage: 'linear-gradient(180deg, rgba(17,14,12,0.35) 0%, rgba(17,14,12,0.72) 55%, #131313 100%)' } : {}),
+    ...(Platform.OS === 'web' ? { backgroundColor: 'transparent', backgroundImage: 'linear-gradient(180deg, rgba(17,14,12,0.35) 0%, rgba(17,14,12,0.72) 55%, var(--rival-activity-ground, #131313) 100%)' } : {}),
   } as any,
   jTitleBlockB: { alignItems: 'center', marginTop: 10, marginBottom: 4 },
   jTitleB: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff' },
   jSubtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   jSubtitleRule: { width: 26, height: 1, backgroundColor: 'rgba(255,181,158,0.4)' },
   jSubtitleB: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText },
+  // Phones: matches the All Teams Feed subtitle, so switching tabs doesn't jump.
+  jSubtitleRulePhone: { backgroundColor: 'rgba(255,209,190,0.7)' },
+  jSubtitleBPhone: { fontSize: 12, color: '#ffd1be' },
   weekHero: {
     borderRadius: 18, paddingTop: 14, paddingBottom: 14, paddingHorizontal: 16, overflow: 'hidden', gap: 12,
     backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
@@ -3439,7 +3445,7 @@ const styles = StyleSheet.create({
   monthByWeek: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginBottom: -6 },
   jMonthCardPhone: {
     borderRadius: 22, borderWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderBottomColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: RivalGhost.ground, paddingBottom: 14,
+    backgroundColor: '#232120', paddingBottom: 14,
     ...(Platform.OS === 'web' ? { backgroundImage: 'none' } as any : {}),
   },
   jMonthTitlePhone: { fontWeight: '700', fontSize: 23, color: '#fff' },
@@ -3551,7 +3557,9 @@ const styles = StyleSheet.create({
   // A day with nothing logged: thin and darker, with its date.
   restDay: {
     width: 30, height: ROW_CARD_W * 4 / 3, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.32)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(0,0,0,0.32)', borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+    ...(Platform.OS === 'web' ? { transitionProperty: 'background-color, border-color', transitionDuration: '180ms' } as any : {}),
   },
   // A day of an event: the same thin card, marked in ivory (Ricky,
   // 2026-10-27, option 3).
@@ -3589,8 +3597,20 @@ const styles = StyleSheet.create({
   eventFoot: { marginTop: 'auto', flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   eventName: { fontSize: 12, fontWeight: '700', color: RivalColors.accentText },
   eventResult: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '800', fontSize: 20, lineHeight: 24, color: '#fff' },
-  restDayPressed: { backgroundColor: 'rgba(255,181,158,0.08)', borderColor: 'rgba(255,181,158,0.35)' },
-  restDayPlus: { position: 'absolute', top: 10 },
+  // The highlight waits a moment before showing, so swiping across the week
+  // from an empty day never lights it, and fades out if the swipe starts later.
+  restDayPressed: {
+    backgroundColor: 'rgba(255,181,158,0.08)', borderColor: 'rgba(255,181,158,0.35)',
+    ...(Platform.OS === 'web' ? { transitionDuration: '120ms', transitionDelay: '100ms' } as any : {}),
+  },
+  restDayPlus: {
+    position: 'absolute', top: 10, opacity: 0,
+    ...(Platform.OS === 'web' ? { transitionProperty: 'opacity', transitionDuration: '180ms' } as any : {}),
+  },
+  restDayPlusPressed: {
+    opacity: 1,
+    ...(Platform.OS === 'web' ? { transitionDuration: '120ms', transitionDelay: '100ms' } as any : {}),
+  },
   restDayNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 14, color: 'rgba(255,255,255,0.3)' },
   restDayName: {
     fontSize: 9, fontWeight: '800', letterSpacing: 0.6, color: 'rgba(255,255,255,0.25)',
@@ -3695,11 +3715,11 @@ const styles = StyleSheet.create({
   lwCard: {
     alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 14, overflow: 'hidden',
     paddingVertical: 12, paddingHorizontal: 16, borderRadius: 18,
-    backgroundColor: RivalGhost.ground, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: '#232120', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
   },
   lwGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 80, backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.14), rgba(232,131,95,0) 70%)' } as any,
   lwPhotos: { flexDirection: 'row' },
-  lwPhoto: { width: 44, height: 44, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: RivalGhost.ground, backgroundColor: '#2a2522' },
+  lwPhoto: { width: 44, height: 44, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#232120', backgroundColor: '#2a2522' },
   lwPhotoOverlap: { marginLeft: -12 },
   lwSky: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #2c3846, #4d5f72)' } as any : { backgroundColor: '#3a4a5c' },
   lwPhotoImg: { width: '100%', height: '100%' },
