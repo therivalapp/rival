@@ -63,7 +63,7 @@ export function EffortBreakdownSheet({ activity, onClose, onConfirmed }: {
   const enteredClimb = (activity?.elevation_meters ?? 0) > 0;
 
   const basisNote = !b ? '' : b.basis === 'distance'
-    ? 'Scored mostly on distance, with time and climbing added.'
+    ? 'Scored mostly on distance, with time and elevation added.'
     : hasDistanceRate
       ? 'No distance was recorded, so this activity was scored on time.'
       : `${label} is scored on time. Mixed and gym activities are scored this way.`;

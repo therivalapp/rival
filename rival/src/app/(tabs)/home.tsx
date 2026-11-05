@@ -106,6 +106,13 @@ function firstNameOnly(profile: { display_name?: string | null; email?: string |
 // one (Ricky, 2026-10-05).
 const HANGING_DIGITS = /[34579]/;
 
+// "8th", "21st", "22nd", "113th".
+function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const end = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+  return `${n}${end}`;
+}
+
 function weeklyRankStory(standings: WeeklyLeaderEntry[], selfIndex: number): RankStory {
   const leader = standings[0];
   if (selfIndex === 0) {
@@ -1884,7 +1891,14 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
                             ) : null}
                             <View style={styles.mStatusCountdown}>
                               <View style={[styles.mStatusRule, styles.mStatusRuleLeft]} />
-                              <Text style={styles.mStatusCountdownText}>{endsLabel}</Text>
+                              <Text style={styles.mStatusCountdownText}>
+                                {/* Off the podium, your place joins the countdown
+                                    (Ricky, 2026-11-03, option B). */}
+                                {selfIndex > 2 ? (
+                                  <Text style={styles.mStatusPlace}>{`${ordinal(selfIndex + 1)} of ${Math.max(leader.memberCount ?? 0, standings.length)}  ·  `}</Text>
+                                ) : null}
+                                {endsLabel}
+                              </Text>
                               <View style={[styles.mStatusRule, styles.mStatusRuleRight]} />
                             </View>
                           </View>
@@ -2616,7 +2630,10 @@ export default function HomeScreen() {
                   number — a single string in the serif italic style rendered
                   "h"/"m" as oversized swash letters welded onto the digits
                   instead of reading as units. */}
-              {!loaded ? <SkeletonBar width={72} height={18} style={{ marginTop: 5 }} /> : (
+              {!loaded ? <SkeletonBar width={72} height={18} style={{ marginTop: 5 }} /> : totalTimeMinutes === 0 ? (
+                // Before any time is earned, never a bare "0m" (Ricky, 2026-11-03).
+                <Text style={styles.mTimeEarnedValue} numberOfLines={1}>Day One</Text>
+              ) : (
               <Text numberOfLines={1}>
                 {heroHours > 0 && (
                   <>
@@ -4612,6 +4629,7 @@ const styles = StyleSheet.create({
   mStatusNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 34, fontWeight: '700' },
   mStatusCountdown: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   mStatusCountdownText: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
+  mStatusPlace: { color: '#fff' },
   mStatusRule: { width: 34, height: 1 },
   mStatusRuleLeft: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.5) 100%)' } as any)

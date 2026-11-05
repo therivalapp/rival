@@ -34,7 +34,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   {
     icon: 'check',
     title: 'Only what can be measured',
-    body: 'Each sport has a realistic top speed, such as 24 km/h running or 60 km/h cycling, and climbing is limited to 2,500 m an hour. An activity faster than that is sent to you to check: edit it, or confirm it is correct and all of it counts. There is no bonus for heart rate or intensity.',
+    body: 'Each sport has a realistic top speed, such as 24 km/h running or 60 km/h cycling, and elevation gain is limited to 2,500 m an hour. An activity faster than that is sent to you to check: edit it, or confirm it is correct and all of it counts. There is no bonus for heart rate or intensity.',
   },
 ];
 
@@ -103,7 +103,7 @@ export default function EffortScreen() {
                 const parts = b.basis === 'time' && b.climbScore === 0 ? 'Scored on time' : [
                   `${Math.round(b.timeScore)} time`,
                   ...(b.distanceScore > 0 ? [`${Math.round(b.distanceScore)} distance`] : []),
-                  ...(b.climbScore > 0 ? [`${Math.round(b.climbScore)} climbing`] : []),
+                  ...(b.climbScore > 0 ? [`${Math.round(b.climbScore)} elevation`] : []),
                 ].join(' + ');
                 const what = [
                   ex.meters > 0 ? formatActivityDistance(ex.meters, ex.type) : null,

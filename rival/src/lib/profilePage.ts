@@ -101,7 +101,7 @@ export type Milestone = {
 };
 
 export function milestoneWords(kind: MilestoneKind): string {
-  return kind === 'activities' ? 'activities' : kind === 'km' ? 'km' : kind === 'elevation' ? 'metres climbed' : 'hours';
+  return kind === 'activities' ? 'activities' : kind === 'km' ? 'km' : kind === 'elevation' ? 'm elevation' : 'hours';
 }
 
 export type NextMilestone = { key: string; kind: MilestoneKind; target: number; current: number };

@@ -54,6 +54,8 @@ RIVAL is a social fitness app: friends form **Teams**, log workouts (manual entr
 
 User-facing copy says **Team, Effort, Respect, Inspired, Impact, Unrivaled**. The code/DB deliberately still says `leagues`, `league_members`, `xp`, `effort_score`, route paths `/league`, `/create-league`, etc. **Never rename DB columns, internal identifiers, or route paths to match display copy** — display strings only. Reactions are stored as the strings `'respect'` and `'inspired'` (old emoji rows were migrated to `'respect'`); only `'inspired'` feeds the Impact stat.
 
+**Elevation, never climb.** Height gained is always "Elevation" in user-facing copy: labels, tiles, sentences, mockups ("212 m elevation", not "Climb" or "m climbed"). Code names like `climb` stay. Exercise names (Rope climb, Mountain climber) and the Climbing sport are not affected (Ricky, 2026-11-04).
+
 Voice: always encourage, never pressure or shame. Streaks are pure consistency info — no bonus/penalty language. Gate new copy against the brand-voice bible (in Claude's memory: "RIVAL Brand Voice" / "Daily Perspectives").
 
 **Professional tone — every screen, including every new page.** Titles, labels and buttons are
@@ -73,7 +75,7 @@ RIVAL must look like one app. The current look is the Add an activity pop-up (`s
 - **Cards and fields:** ghost style, `RivalGhost.fill` with `RivalGhost.border`.
 - **Tiles:** a big faint icon behind the words, as part of the tile's background, words bottom left: `GreyArtTiles` / `TileArt`. The chosen or primary tile is lit with the peach button gradient. No round icon badges in new tiles.
 - **Type:** serif italic (Georgia, `RivalSerifFamily`) for titles and big numbers, small spaced caps for labels, professional copy (the tone rules above).
-- **Colour:** coral/peach accents from `rivalTheme.ts`. One gradient pill per screen, the main action. Personal bests use `RivalColors.rankAnchors.unrivaled`, never a new gold, never coral. Events use `RivalColors.event`.
+- **Colour:** coral/peach accents from `rivalTheme.ts`. One gradient pill per screen, the main action. Personal bests use `RivalColors.rankAnchors.unrivaled`, never a new gold, never coral. Events use `RivalColors.event`. **No red on results or data**: the deep coral #D97757 (`accentFill`) reads as red, so it is only for the button gradient and filled buttons, never for times, bars, ranks, day markers or labels; data steps ivory (`RivalColors.event`) → light peach #ffd2bf → salmon #ffb59e (`accentText`). `danger` red is only for delete and errors (Ricky, 2026-11-04).
 - **Icons:** `RivalIcon` only. No emoji, no halos or light sweeps. No X on phone pop-ups: tap outside or drag down.
 - **Photos:** `assets/images/backgrounds/optimized` only on designed pages, and sparingly. One photo moment per flow; never put text on a face.
 - **Pages:** no empty dark space, no plain default lists. Design empty and in-between states too.

@@ -72,7 +72,9 @@ export type Score = { kind: 'rounds' | 'time' | 'weight' | 'reps'; rounds?: numb
  *  one pair for a team score. A teammate picked as the opponent is tagged on
  *  save, like a training partner, and gets the result turned round on their
  *  own copy (supabase/mirror_match_result.sql). */
-export type MatchResult = { outcome: 'won' | 'lost' | 'drawn'; opponent?: string; opponentId?: string | null; sets: [number, number][] };
+/** outcome is no longer asked for or shown (Ricky, 2026-11-02); older
+ *  results may still carry it. */
+export type MatchResult = { outcome?: 'won' | 'lost' | 'drawn'; opponent?: string; opponentId?: string | null; sets: [number, number][] };
 
 /** Everything beyond the columns activities already has, kept in its stats
  *  column (supabase/add_activity_stats.sql). Device numbers arrive once

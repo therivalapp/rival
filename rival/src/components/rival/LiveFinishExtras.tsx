@@ -155,22 +155,22 @@ export function AddCard({ label, onPress, style }: { label: string; onPress: () 
   );
 }
 
-/** Won, lost or drawn, against whom, and the score by set. */
+/** Who was played and the score by set. Never won or lost (Ricky,
+ *  2026-11-02): the sets say it. */
 export function ResultCard({ result, me, onEdit, style }: { result: MatchResult; me: string; onEdit: () => void; /** Log an activity draws it in its own card style. */ style?: any }) {
   const who = (name: string) => name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const them = result.opponent?.trim() || 'Opponent';
   return (
     <TouchableOpacity style={[s.card, style]} onPress={onEdit} activeOpacity={0.85}>
       <View style={s.resTop}>
-        <Text style={[s.outcome, result.outcome !== 'won' && s.outcomePlain]}>{result.outcome.toUpperCase()}</Text>
-        {result.opponent ? <Text style={s.vs}>Against <Text style={{ color: '#fff', fontWeight: '800' }}>{result.opponent}</Text>{result.opponentId ? ' · tagged' : ''}</Text> : null}
+        <Text style={s.vs}>{result.opponent ? <>Played <Text style={{ color: '#fff', fontWeight: '800' }}>{result.opponent}</Text>{result.opponentId ? ' · tagged' : ''}</> : 'Result'}</Text>
       </View>
       {result.sets.length ? (
         <View style={{ marginTop: 9 }}>
           {[me, them].map((name, side) => (
             <View key={side} style={s.setRow}>
               <View style={s.who}><Text style={s.avatar}>{who(name)}</Text><Text style={s.name} numberOfLines={1}>{name}</Text></View>
-              {result.sets.map((set, i) => <Text key={i} style={[s.setNum, set[side] > set[1 - side] && { color: '#fff' }]}>{set[side]}</Text>)}
+              {result.sets.map((set, i) => <Text key={i} style={s.setNum}>{set[side]}</Text>)}
             </View>
           ))}
         </View>
@@ -277,7 +277,6 @@ export function ResultEditor({ value, onChange, team, teammates = [] }: {
   const put = (i: number, side: 0 | 1, n: number) => set({ sets: sets.map((p, k) => (k === i ? (side ? [p[0], n] : [n, p[1]]) as [number, number] : p)) });
   return (
     <View>
-      <Chips value={value.outcome} options={[['won', 'Won'], ['lost', 'Lost'], ['drawn', 'Drawn']]} onChange={(outcome) => set({ outcome })} />
       <View style={s.field}>
         <Text style={s.stepName}>{team ? 'AGAINST' : 'OPPONENT'}</Text>
         <TextInput style={s.fieldInput} value={value.opponent ?? ''} onChangeText={(opponent) => set({ opponent, opponentId: null })} placeholder={team ? 'Team name' : 'Name'} placeholderTextColor="#777" />
@@ -509,13 +508,11 @@ const s = StyleSheet.create({
   add: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 46, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)', marginTop: 10 },
   addText: { fontSize: 13.5, fontWeight: '800', color: RivalColors.accentText },
   resTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  outcome: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: '#5c1902', backgroundColor: '#e8835f', borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10, overflow: 'hidden', ...grad(135) },
-  outcomePlain: { color: '#fff', backgroundColor: 'rgba(255,255,255,0.1)', ...(Platform.OS === 'web' ? { backgroundImage: 'none' } as any : {}) },
   vs: { fontSize: 11.5, color: '#a0a0a0' },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   who: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#4a4644', color: '#fff', fontSize: 9.5, fontWeight: '800', textAlign: 'center', lineHeight: 22, overflow: 'hidden' },
-  setNum: { ...serif, width: 30, textAlign: 'center', fontSize: 18, color: '#a0a0a0' },
+  setNum: { ...serif, width: 30, textAlign: 'center', fontSize: 18, color: '#fff' },
   edit: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText, marginTop: 6, marginBottom: 2 },
   rx: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1, color: RivalColors.accentText, borderWidth: 1, borderColor: 'rgba(255,181,158,0.4)', borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6 },
   score: { ...serif, fontSize: 30, lineHeight: 38, color: '#fff', marginTop: 4 },

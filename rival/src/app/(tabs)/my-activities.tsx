@@ -40,6 +40,7 @@ import { MEDIA_COLUMNS, existingAsItems, saveArrangement, sortMedia, type MediaR
 import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColors, RivalGhost, RivalFontFamily, rivalTextShadow, rivalPhoneVar } from '../../constants/rivalTheme';
 import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV, BREAKPOINT_WIDE_LAYOUT, sidePageWide } from '../../constants/breakpoints';
 import { cardPhoto, fullPhoto } from '../../lib/imageUrl';
+import { EventSheet } from '../../components/rival/EventSheet';
 
 type ExerciseEntry = {
   name: string;
@@ -445,6 +446,8 @@ export default function MyActivitiesScreen() {
     previousUrl: string | null; previousFocalX: number | null; previousFocalY: number | null;
   } | null>(null);
   const [diaryIndex, setDiaryIndex] = useState(0);
+  // A one-day event opens its own page (Ricky, 2026-11-04, design/event-compare-v9.png).
+  const [openEvent, setOpenEvent] = useState<{ raceId: string; legs: Activity[] } | null>(null);
   // Mobile Activity Journal's full-screen weekly pager — each week is sized to
   // exactly this height (measured off the pager's own onLayout) so one week
   // fills the screen and vertical swipe/scroll snaps to the next, retro-app
@@ -1669,7 +1672,7 @@ export default function MyActivitiesScreen() {
             key={`event-${i}`}
             style={[styles.restDay, styles.eventDay]}
             activeOpacity={0.8}
-            onPress={() => openDiary(flatOrdered, ev.legs[0].id)}
+            onPress={() => openEventOrDiary(ev)}
             accessibilityRole="button"
             accessibilityLabel={`${formatRaceName(races[ev.raceId].name)}, ${day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`}
           >
@@ -1744,6 +1747,12 @@ export default function MyActivitiesScreen() {
   // left; its legs (one day) or its days (several) on the right; the finish
   // time and its Effort added up. Its edge is ivory, running into gold when
   // one of its activities was a PB (Ricky, 2026-10-27, option 3).
+  function openEventOrDiary(ev: { raceId: string; legs: Activity[] }) {
+    // Every event opens its own page, a multi-day one too (Ricky, 2026-11-04,
+    // design/event-placings-mockup.png).
+    setOpenEvent({ raceId: ev.raceId, legs: ev.legs });
+  }
+
   function renderEventCard(ev: { raceId: string; legs: Activity[]; pb: boolean }) {
     const race = races[ev.raceId];
     const tag = ['Triathlon', 'HYROX', 'CrossFit'].includes(race.race_type) ? race.race_type : 'Event';
@@ -1765,7 +1774,7 @@ export default function MyActivitiesScreen() {
         key={`eventcard-${ev.raceId}`}
         style={styles.eventCard}
         activeOpacity={0.88}
-        onPress={() => openDiary(flatOrdered, legs[0].id)}
+        onPress={() => openEventOrDiary(ev)}
         accessibilityRole="button"
         accessibilityLabel={formatRaceName(race.name)}
       >
@@ -2963,6 +2972,14 @@ export default function MyActivitiesScreen() {
             </TouchableOpacity>
           </TouchableOpacity>
         )}
+
+        <EventSheet
+          raceId={openEvent?.raceId ?? null}
+          legs={openEvent?.legs ?? []}
+          pbLegIds={new Set((openEvent?.legs ?? []).filter((a) => pbs[a.id] || fastest[a.id]?.length).map((a) => a.id))}
+          onClose={() => setOpenEvent(null)}
+          onOpenLeg={(id) => { setOpenEvent(null); openDiary(flatOrdered, id); }}
+        />
 
         {/* Mobile Activity Journal's full-screen diary viewer. */}
         {diaryList && (

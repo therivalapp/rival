@@ -23,6 +23,7 @@ import { notify } from '../../lib/notify';
 import { PROFILE_STAT_KEYS, readProfileStats, type ProfileStatKey } from '../../lib/profileStats';
 import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
 import { SkyBackdrop } from './SkyBackdrop';
+import { EventSheet } from './EventSheet';
 
 // A person's profile on phones: what a teammate sees when they tap someone
 // (Ricky, 2026-10-30, the cover). Cover, the year's numbers, Highlights,
@@ -355,6 +356,8 @@ export function ProfilePage({
   const [eventsOpen, setEventsOpen] = useState(false);
   const [patches, setPatches] = useState<Record<string, Partial<DiaryActivity>>>({});
   const [diaryIndex, setDiaryIndex] = useState<number | null>(null);
+  // A one-day event opens its own page (Ricky, 2026-11-04, design/event-compare-v9.png).
+  const [openEvent, setOpenEvent] = useState<{ raceId: string; legs: ProfileActivity[] } | null>(null);
   const [media, setMedia] = useState<Record<string, { url: string; type: 'photo' | 'video'; focalX?: number | null; focalY?: number | null }[]>>({});
 
   const newest = useMemo(() => activities.slice().sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()), [activities]);
@@ -640,7 +643,7 @@ export function ProfilePage({
                     const effort = Math.round(legs.reduce((t, a) => t + (a.effort_score || 0), 0));
                     const tag = race.race_type && ['Triathlon', 'HYROX', 'CrossFit'].includes(race.race_type) ? race.race_type : 'Event';
                     return (
-                      <TouchableOpacity key={race.id} style={[s.event, pb && { borderColor: PB_COLOR }]} activeOpacity={0.88} onPress={() => (legs[0] ? open(legs[0].id) : openEvents())} accessibilityRole="button" accessibilityLabel={formatRaceName(race.name)}>
+                      <TouchableOpacity key={race.id} style={[s.event, pb && { borderColor: PB_COLOR }]} activeOpacity={0.88} onPress={() => (!legs[0] ? openEvents() : setOpenEvent({ raceId: race.id, legs }))} accessibilityRole="button" accessibilityLabel={formatRaceName(race.name)}>
                         <View style={s.eventPhoto}>
                           {cover?.photo_url ? <CoverImage uri={cover.photo_url} focalX={cover.photo_focal_x} focalY={cover.photo_focal_y} style={s.fill} /> : (
                             <View style={[s.fill, s.tileArt]}><SkyBackdrop startedAt={legs[0]?.started_at ?? race.race_date} /><RivalIcon name="flag" size={56} color="rgba(255,255,255,0.16)" /></View>
@@ -805,6 +808,14 @@ export function ProfilePage({
         </GreySheet>
         </View>
       ) : null}
+
+      <EventSheet
+        raceId={openEvent?.raceId ?? null}
+        legs={openEvent?.legs ?? []}
+        pbLegIds={new Set((openEvent?.legs ?? []).filter((a) => bestIds.has(a.id)).map((a) => a.id))}
+        onClose={() => setOpenEvent(null)}
+        onOpenLeg={(id) => { setOpenEvent(null); open(id); }}
+      />
 
       {diaryIndex !== null ? (
         <ActivityDiaryViewer

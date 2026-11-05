@@ -29,6 +29,7 @@ import { MAX_STATS, STAMP_STYLES, chosenFigures, defaultStats, drawCountdownStam
 import { fullPhoto } from '../../lib/imageUrl';
 import { StatTiles } from './StatTiles';
 import { StampStage, defaultPlacement } from './StampStage';
+import { MatchCard, usePageMatch } from './MatchResult';
 
 /** "38 seconds", "1 min 12 s": how much faster a new best was. */
 function fasterBy(seconds: number): string {
@@ -191,6 +192,7 @@ export function ActivityDiaryViewer({
   const sheetDrag = useSheetDrag(onClose);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const details = useActivityDetails(wide ? null : activity?.id);
+  const match = usePageMatch(wide ? '' : activity?.id ?? '', activity?.activity_type ?? '', !!activity?.shared_from_activity_id);
   // Recorded on a phone and a watch: a line to choose the recording shown.
   const recordingCount = useRecordingCount(wide ? null : activity?.id, details?.provider);
   const [recordingsOpen, setRecordingsOpen] = useState(false);
@@ -1068,6 +1070,9 @@ export function ActivityDiaryViewer({
             // numbers straight under it with Effort among them, then the title,
             // then the journal as the most inviting thing on the page.
             <>
+              {/* Who was played and the sets, above the numbers (Ricky,
+                  2026-11-02). */}
+              {match ? <MatchCard match={match} /> : null}
               {/* The pop-up sheets' look (GreySheet): their lifted grey with the
                   warm glow from the top edge (Ricky, 2026-10-11). */}
               <View style={[styles.statCard, styles.statCardPop, styles.statCardStack, phonePb && styles.statCardPb, phoneRace && styles.statCardRace, Platform.OS === 'web' && !phonePb && !phoneRace && styles.statCardLit]}>
@@ -1325,7 +1330,7 @@ export function ActivityDiaryViewer({
           {/* Kept in place for the card too, unseen, so the layout holds still. */}
           {activity.photo_url ? (
             <TouchableOpacity onPress={() => sendShareCard(true)} disabled={shareChoice === 'card'} style={shareChoice === 'card' ? { opacity: 0 } : undefined} hitSlop={{ top: 6, bottom: 6, left: 16, right: 16 }}>
-              <Text style={styles.stampOnlyLink}>Share the stamp on its own</Text>
+              <Text style={styles.stampOnlyLink}>Save transparent stamp</Text>
             </TouchableOpacity>
           ) : null}
           {cardError ? <Text style={styles.shareError}>{cardError}</Text> : null}

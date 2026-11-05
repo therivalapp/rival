@@ -18,7 +18,8 @@ export type StampStyle = 'A' | 'A2' | 'E' | 'E2' | 'F' | 'F2' | 'G';
 // A1 (RIVAL centred over a left-set name) dropped, Ricky 2026-10-22.
 export const STAMP_STYLES: StampStyle[] = ['A2', 'G', 'A', 'E2', 'E', 'F2', 'F'];
 
-export type StampFigure = { value: string; unit?: string; label: string; gold?: boolean };
+/** `sup`: a raised ordinal after the value, as in 412th (event placings). */
+export type StampFigure = { value: string; unit?: string; label: string; gold?: boolean; sup?: string };
 
 export type StampActivity = {
   name?: string | null;
@@ -39,11 +40,13 @@ export type StampDetails = {
   max_speed?: number | null;
 } | null | undefined;
 
-export type StatKey = 'lift' | 'reps' | 'distance' | 'time' | 'pace' | 'speed' | 'climb' | 'avgHr' | 'maxHr' | 'cadence' | 'power' | 'calories' | 'maxSpeed';
+export type StatKey = 'lift' | 'reps' | 'distance' | 'time' | 'pace' | 'speed' | 'climb' | 'avgHr' | 'maxHr' | 'cadence' | 'power' | 'calories' | 'maxSpeed'
+  // Event shares (lib/eventShare.ts).
+  | 'finish' | 'pl0' | 'pl1' | 'pl2' | 'pl3' | 'pl4' | 'running' | 'stations' | 'roxzone' | 'events' | 'worked' | 'days' | 'bestEvent';
 
 /** One stat a person can put on a stamp or card. `extra` ones sit in a second
  *  row of choices, after the everyday ones. */
-export type StatOption = { key: StatKey; label: string; figure: StampFigure; extra?: boolean };
+export type StatOption = { key: StatKey; label: string; figure: StampFigure; extra?: boolean; /** A placing: an ivory edge in the tiles. */ placing?: boolean };
 
 /** Most a stamp or card holds besides Effort, which is always on. */
 export const MAX_STATS = 3;
@@ -201,17 +204,23 @@ function rival(x: Ctx, px: number, y: number, size: number, center = false) {
 function figure(x: Ctx, f: StampFigure, fx: number, y: number, size: number, center: boolean) {
   x.font = `italic 700 ${size * S}px ${SERIF}`;
   const vw = x.measureText(f.value).width;
+  x.font = `italic 700 ${size * 0.45 * S}px ${SERIF}`;
+  const sw = f.sup ? x.measureText(f.sup).width + size * 0.05 * S : 0;
   x.font = `600 ${size * 0.45 * S}px ${SANS}`;
   const uw = f.unit ? x.measureText(` ${f.unit}`).width : 0;
-  const start = center ? fx - (vw + uw) / 2 : fx;
+  const start = center ? fx - (vw + sw + uw) / 2 : fx;
   x.font = `italic 700 ${size * S}px ${SERIF}`;
   x.fillStyle = f.gold ? gold(x, y - size * S, y) : P.ink;
   x.textAlign = 'left';
   x.fillText(f.value, start, y);
+  if (f.sup) {
+    x.font = `italic 700 ${size * 0.45 * S}px ${SERIF}`;
+    x.fillText(f.sup, start + vw + size * 0.05 * S, y - size * 0.42 * S);
+  }
   if (f.unit) {
     x.font = `600 ${size * 0.45 * S}px ${SANS}`;
     x.fillStyle = P.soft;
-    x.fillText(` ${f.unit}`, start + vw, y);
+    x.fillText(` ${f.unit}`, start + vw + sw, y);
   }
   x.font = `800 ${8.5 * S}px ${SANS}`;
   x.fillStyle = f.gold ? goldLabel() : P.soft;
@@ -413,6 +422,96 @@ export function drawRankStamp(rankName: string, light: string, figs: StampFigure
     figure(x, f, fx, y, 19, true);
   });
   return c;
+}
+
+/** A finished event as a see-through stamp (Ricky, 2026-11-05,
+ *  design/event-share-mockup.png). Finish: RIVAL, the event's name, the
+ *  finish time large, then the chosen figures. Place: RIVAL, the place large
+ *  with its raised ordinal, its category and field under it, the name (and,
+ *  over several days, the dates), then the figures. Effort stays the one
+ *  colour, in gold, as on every activity stamp. */
+export type EventStampInput = {
+  name: string;
+  /** Finish: the time as the hero. */
+  time?: string | null;
+  /** Place: the place as the hero, "OPEN MEN · OF 1,240" under it. */
+  place?: { n: number; caption: string } | null;
+  /** "FRI 14 – SUN 16 AUG · 5 EVENTS", for an event over several days. */
+  sub?: string | null;
+};
+
+export function drawEventStamp(kind: 'finish' | 'place', ev: EventStampInput, figs: StampFigure[], mode: StampMode = 'light'): HTMLCanvasElement {
+  P = PALETTES[mode];
+  const n = figs.length;
+  const cw = 84;
+  const w = Math.max(250, n * cw + 30);
+  const placeMode = kind === 'place' && !!ev.place;
+  const h = placeMode ? 206 + (ev.sub ? 16 : 0) : 180 + (ev.sub ? 16 : 0);
+  const [c, x] = canvas(w, h);
+  const C = (w / 2) * S;
+  let y = 24 * S;
+  rival(x, C, y, 13, true);
+  const name = (size: number, gap: number) => {
+    y += gap * S;
+    x.font = `italic 700 ${size * S}px ${SERIF}`;
+    while (size > 13 && x.measureText(ev.name).width > (w - 24) * S) {
+      size -= 1;
+      x.font = `italic 700 ${size * S}px ${SERIF}`;
+    }
+    x.fillStyle = P.ink;
+    x.textAlign = 'center';
+    x.fillText(ev.name, C, y);
+  };
+  const sub = () => {
+    if (!ev.sub) return;
+    y += 16 * S;
+    x.font = `800 ${8 * S}px ${SANS}`;
+    x.fillStyle = P.soft;
+    spaced(x, ev.sub.toUpperCase(), C, y, 1.2 * S, true);
+  };
+  if (placeMode && ev.place) {
+    const v = ev.place.n.toLocaleString();
+    const sup = ordinalSup(ev.place.n);
+    y += 68 * S;
+    x.font = `italic 700 ${62 * S}px ${SERIF}`;
+    const vw = x.measureText(v).width;
+    x.font = `italic 700 ${24 * S}px ${SERIF}`;
+    const sw = x.measureText(sup).width + 2 * S;
+    const start = C - (vw + sw) / 2;
+    x.font = `italic 700 ${62 * S}px ${SERIF}`;
+    x.fillStyle = P.ink;
+    x.textAlign = 'left';
+    x.fillText(v, start, y);
+    x.font = `italic 700 ${24 * S}px ${SERIF}`;
+    x.fillText(sup, start + vw + 2 * S, y - 30 * S);
+    y += 20 * S;
+    x.font = `800 ${8.5 * S}px ${SANS}`;
+    x.fillStyle = P.soft;
+    spaced(x, ev.place.caption.toUpperCase(), C, y, 1.3 * S, true);
+    name(18, 28);
+    sub();
+  } else {
+    name(19, 30);
+    sub();
+    y += 46 * S;
+    x.font = `italic 700 ${44 * S}px ${SERIF}`;
+    x.fillStyle = P.ink;
+    x.textAlign = 'center';
+    x.fillText(ev.time ?? '', C, y);
+  }
+  y += 38 * S;
+  figs.forEach((f, i) => {
+    const fx = C + (i - (n - 1) / 2) * cw * S;
+    if (i) divider(x, fx - (cw / 2) * S, y - 19 * S, 19 * 1.55 * S);
+    figure(x, f, fx, y, 19, true);
+  });
+  return c;
+}
+
+function ordinalSup(n: number): string {
+  const t = n % 100;
+  if (t >= 11 && t <= 13) return 'th';
+  return ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
 }
 
 export type CountdownEvent = { name: string; race_type: string | null; race_date: string };

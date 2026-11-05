@@ -192,7 +192,7 @@ export default function ManualEntryScreen() {
   const [result, setResult] = useState<MatchResult | null>(null);
   const [score, setScore] = useState<Score | null>(null);
   const [statEditor, setStatEditor] = useState<'result' | 'score' | null>(null);
-  const [resultDraft, setResultDraft] = useState<MatchResult>({ outcome: 'won', sets: [] });
+  const [resultDraft, setResultDraft] = useState<MatchResult>({ sets: [] });
   const [scoreDraft, setScoreDraft] = useState<Score>({ kind: 'rounds', rounds: 0, reps: 0, rx: true });
   const [mates, setMates] = useState<{ id: string; name: string }[]>([]);
   const [myFirst, setMyFirst] = useState('You');
@@ -1258,7 +1258,7 @@ export default function ManualEntryScreen() {
   }, [statEditor, statFam, mates.length]);
   const resultCard = wantsResult ? (result
     ? <ResultCard result={result} me={myFirst} style={m.statCard} onEdit={() => { setResultDraft(result); setStatEditor('result'); }} />
-    : <AddCard label="Add result" style={m.statAdd} onPress={() => { setResultDraft({ outcome: 'won', sets: [] }); setStatEditor('result'); }} />) : null;
+    : <AddCard label="Add result" style={m.statAdd} onPress={() => { setResultDraft({ sets: [] }); setStatEditor('result'); }} />) : null;
   const scoreCard = wantsScore ? (score
     ? <ScoreCard score={score} style={m.statCard} onEdit={() => { setScoreDraft(score); setStatEditor('score'); }} />
     : <AddCard label="Add score" style={m.statAdd} onPress={() => { setScoreDraft({ kind: 'rounds', rounds: 0, reps: 0, rx: true }); setStatEditor('score'); }} />) : null;
@@ -2399,8 +2399,8 @@ export default function ManualEntryScreen() {
         {isTreadmill && Number(inclinePct) > 0 ? (
           <Text style={styles.classHint}>
             {elevationM
-              ? `About ${Number(elevationM).toLocaleString()} ${elevationUnit()} climbed at ${inclinePct}% over the distance.`
-              : 'Add the distance to work out the climb from the incline.'}
+              ? `About ${Number(elevationM).toLocaleString()} ${elevationUnit()} of elevation at ${inclinePct}% over the distance.`
+              : 'Add the distance to work out the elevation from the incline.'}
           </Text>
         ) : null}
         {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}

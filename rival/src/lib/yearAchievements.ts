@@ -124,7 +124,7 @@ export function achievementTitle(e: Pick<EarnedAchievement, 'ladder' | 'value' |
   switch (e.ladder) {
     case 'activities': return `${e.value} activities`;
     case 'distance': return `${e.value} km`;
-    case 'elevation': return e.label === 'One Everest' ? 'One Everest' : `${e.value} m climbed`;
+    case 'elevation': return e.label === 'One Everest' ? 'One Everest' : `${e.value} m elevation`;
     case 'time': return `${e.value} hours`;
     case 'streak': return `${e.value}-week streak`;
     case 'rank': return `${e.value} rank`;

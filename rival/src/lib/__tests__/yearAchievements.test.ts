@@ -38,7 +38,7 @@ describe('yearAchievements', () => {
 
   it('names what one activity earned', () => {
     const rows = Array.from({ length: 10 }, (_, i) => act(`2026-05-${String(i + 1).padStart(2, '0')}T12:00:00Z`));
-    expect(earnedBy(rows, rows[9].id).map(achievementTitle)).toEqual(['10 activities', '100 km', '1,000 m climbed']);
+    expect(earnedBy(rows, rows[9].id).map(achievementTitle)).toEqual(['10 activities', '100 km', '1,000 m elevation']);
     expect(earnedBy(rows, rows[0].id)).toEqual([]);
     expect(earnedBy(rows, rows[4].id)).toEqual([]);
   });

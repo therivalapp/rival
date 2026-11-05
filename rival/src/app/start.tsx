@@ -522,7 +522,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
   const wantsResult = family === 'racket' || family === 'team';
   const [editor, setEditor] = useState<'score' | 'result' | null>(null);
   const [scoreDraft, setScoreDraft] = useState<Score>({ kind: 'rounds', rounds: 0, reps: 0, rx: true });
-  const [resultDraft, setResultDraft] = useState<MatchResult>({ outcome: 'won', sets: [] });
+  const [resultDraft, setResultDraft] = useState<MatchResult>({ sets: [] });
   // Teammates you play most first, to pick as the opponent.
   const [teammates, setTeammates] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => {
@@ -1018,7 +1018,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
             ) : null}
             {wantsResult ? (stats.result
               ? <ResultCard result={stats.result} me={me} onEdit={() => { setResultDraft(stats.result!); setEditor('result'); }} />
-              : <AddCard label="Add result" onPress={() => { setResultDraft({ outcome: 'won', sets: [] }); setEditor('result'); }} />) : null}
+              : <AddCard label="Add result" onPress={() => { setResultDraft({ sets: [] }); setEditor('result'); }} />) : null}
             {wantsScore ? (score
               ? <ScoreCard score={score} wod={wod} onEdit={() => { setScoreDraft(score); setEditor('score'); }} />
               : <AddCard label="Add score" onPress={() => { setScoreDraft({ kind: 'rounds', rounds: 0, reps: 0, rx: true }); setEditor('score'); }} />) : null}

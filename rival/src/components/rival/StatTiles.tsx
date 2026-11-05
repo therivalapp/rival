@@ -26,7 +26,7 @@ export function StatTiles({ options, chosen, effort, onToggle, effortOn = true, 
     return (
       <TouchableOpacity
         key={o.key}
-        style={[t.tile, on && t.tileOn, !on && full && t.tileFull]}
+        style={[t.tile, o.placing && !on && t.tilePlacing, on && t.tileOn, !on && full && t.tileFull]}
         onPress={() => onToggle(o.key)}
         activeOpacity={0.85}
         accessibilityRole="button"
@@ -35,6 +35,7 @@ export function StatTiles({ options, chosen, effort, onToggle, effortOn = true, 
       >
         <Text style={[t.value, on && t.valueOn]} numberOfLines={1}>
           {o.figure.value}
+          {o.figure.sup ? <Text style={t.sup}>{o.figure.sup}</Text> : null}
           {o.figure.unit ? <Text style={[t.unit, on && t.unitOn]}>{` ${o.figure.unit}`}</Text> : null}
         </Text>
         <Text style={[t.label, on && t.labelOn]} numberOfLines={1}>{o.figure.label}</Text>
@@ -80,6 +81,9 @@ const t = StyleSheet.create({
     width: '23%', flexGrow: 1, maxWidth: '24%', alignItems: 'center', gap: 3, paddingVertical: 8, paddingHorizontal: 4,
     borderRadius: 12, borderWidth: 1, borderColor: RivalGhost.border, backgroundColor: RivalGhost.fill, overflow: 'hidden',
   },
+  // A placing on an event share: the events' ivory edge (design/event-share-mockup.png).
+  tilePlacing: { borderColor: 'rgba(244,234,216,0.32)', backgroundColor: 'rgba(244,234,216,0.07)' },
+  sup: { fontSize: 8, ...(Platform.OS === 'web' ? ({ verticalAlign: 'super', lineHeight: 0 } as any) : {}) },
   tileOn: { borderColor: 'transparent', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   tileFull: { opacity: 0.4 },
   // Solid gold with a gentle sheen, pale at the top left to deep at the

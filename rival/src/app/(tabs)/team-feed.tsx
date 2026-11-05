@@ -1,4 +1,6 @@
 import { getMyTeamRows } from '../../lib/myTeams';
+import { MatchBand, matchFrom } from '../../components/rival/MatchResult';
+import type { MatchResult } from '../../lib/activityStats';
 import { requestShare } from '../../lib/shareRequest';
 import { byRecentlyOpened } from '../../lib/recentTeams';
 import { liftPbChecker, liftsFromEntries } from '../../lib/liftPb';
@@ -172,6 +174,8 @@ type FeedPost =
       // A copy someone received by being tagged: a record of who they were
       // with, never a session they can add people to.
       isSharedCopy: boolean;
+      // Who was played and the sets, on racket and team activities.
+      match: MatchResult | null;
     }
   | {
       // One card per person per day gathering their auto-synced walks,
@@ -310,6 +314,7 @@ function activityRowToPost(ctx: FeedContext, a: any): FeedPost | null {
     teamNames: posterTeams.map((tid) => ctx.teamNameById[tid] ?? ''),
     companions: a.companions ?? null,
     isSharedCopy: !!a.shared_from_activity_id,
+    match: matchFrom(a.activity_type, a.stats),
   };
 }
 
@@ -334,7 +339,7 @@ const byNewestFirst = (a: FeedPost, b: FeedPost) => new Date(b.ts).getTime() - n
 // mid-scroll (an offset would shift and duplicate rows; a cursor won't).
 async function fetchActivityPage(ctx: FeedContext, cursor: string | null) {
   let q = supabase.from('activities')
-    .select('id, user_id, name, activity_type, provider, started_at, utc_offset_seconds, duration_seconds, distance_meters, elevation_meters, effort_score, exercises, notes, photo_url, companions, shared_from_activity_id')
+    .select('id, user_id, name, activity_type, provider, started_at, utc_offset_seconds, duration_seconds, distance_meters, elevation_meters, effort_score, exercises, notes, photo_url, companions, shared_from_activity_id, stats')
     .in('user_id', ctx.memberIds)
     .order('started_at', { ascending: false })
     .limit(PAGE_SIZE + 1);
@@ -1196,6 +1201,7 @@ function PostCard({
               accessibilityRole="button"
               accessibilityLabel="Show details"
             >
+              {post.match ? <MatchBand result={post.match} /> : null}
               {badge ? (
                 <View style={[styles.fcBand, isPb && styles.fcBandPb]}>
                   <RivalIcon name={badge.icon} size={13} color={badge.color} />
