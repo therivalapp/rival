@@ -1,4 +1,5 @@
 import { startTextFit } from '../lib/textFit';
+import { startMouseDragScroll } from '../lib/mouseDragScroll';
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
 // The Manrope webfont lives here. It used to be imported only by
 // constants/theme.ts, a starter-template module whose consumers were deleted --
@@ -175,6 +176,7 @@ export default function RootLayout() {
 
   // No "…" anywhere: overflowing text shrinks a little or wraps (lib/textFit).
   useEffect(() => (Platform.OS === 'web' ? startTextFit() : undefined), []);
+  useEffect(() => (Platform.OS === 'web' ? startMouseDragScroll() : undefined), []);
   // The app fades in over the loading wordmark once the first page has
   // drawn (lib/appReveal.ts). The fade is CSS (data-rival-fade, +html.tsx).
   useEffect(() => {

@@ -21,10 +21,11 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   --font-serif: Georgia, 'Times New Roman', serif;
 }
 
-/* Primary buttons on phones — see RivalButtonColors in constants/rivalTheme.ts.
-   639px matches BREAKPOINT_MOBILE_NAV (below 640 the app is the mobile app).
-   Unset on desktop, so every button falls back to its original colours. */
-@media (max-width: 639px) {
+/* Primary buttons — see RivalButtonColors in constants/rivalTheme.ts. Once
+   phones only (below 640px); the web app is the phone app at every width since
+   2026-11-06 (DESKTOP_COLUMN_WIDTH in constants/breakpoints.ts), so these
+   always apply. */
+@media all {
   :root {
     --rival-button-fill: #ffb59e;
     --rival-button-label: #5c1902;
@@ -32,10 +33,11 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   }
 }
 
-/* The neutral page grey on phones, with the pop-up's #282828 as the ground and
-   the top glow kept to each page's main card (Ricky, 2026-11-01). 839px matches
-   BREAKPOINT_WIDE_LAYOUT. Unset on desktop, so rivalPhoneVar falls back. */
-@media (max-width: 839px) {
+/* The neutral page grey, with the pop-up's #282828 as the ground and the top
+   glow kept to each page's main card (Ricky, 2026-11-01). Once phones only
+   (below 840px); always on since the web app became the phone app at every
+   width (2026-11-06). */
+@media all {
   :root {
     --rival-page: #282828;
     --rival-ground: #282828;

@@ -1,4 +1,5 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
+import { DESKTOP_COLUMN_WIDTH } from '../constants/breakpoints';
 
 // Custom root HTML shell for the web export. Adds "Add to Home Screen" support —
 // without these tags, iOS Safari always keeps its URL/back-forward bar visible;
@@ -70,17 +71,19 @@ export default function Root({ children }: { children: React.ReactNode }) {
           }}
         />
 
-        {/* A phone held sideways keeps the phone design, as the native app
-            stays portrait (app.json). Sideways a phone is wider than the
-            840px wide-layout cut-off, so it used to switch to the desktop
-            layout (Ricky, 2026-10-27: "it started showing the old website
-            version"). Here the page is held to the phone's portrait width,
-            centred, and the width the app reads (react-native-web takes it
-            from visualViewport) is that width too, so every page lays out
-            exactly as it does upright. Runs before the app's JavaScript. */}
+        {/* The web app is always the phone app (Ricky, 2026-11-06: "what
+            we've built on the mobile version, do the same for desktop").
+            Wider than a phone, the page is held to a centred phone-width
+            column, and the width the app reads (react-native-web takes it
+            from visualViewport) is that column's width, so every page, pop-up
+            and the bottom bar with Start lay out exactly as on a phone.
+            A phone held sideways gets its own portrait width, as the native
+            app stays portrait (Ricky, 2026-10-27). Runs before the app's
+            JavaScript. The column width is DESKTOP_COLUMN_WIDTH in
+            constants/breakpoints.ts. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var vv=window.visualViewport;if(!vv||!window.matchMedia||!matchMedia('(pointer: coarse)').matches)return;var d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv),'width');if(!d||!d.get)return;var el=document.documentElement;function col(){var s=Math.min(screen.width,screen.height);return s<500&&innerWidth>innerHeight?s:0;}function apply(){var c=col();el.classList.toggle('rival-phone-side',!!c);if(c)el.style.setProperty('--rival-phone-w',c+'px');}Object.defineProperty(vv,'width',{configurable:true,get:function(){var c=col();return c?c/(vv.scale||1):d.get.call(vv);}});apply();vv.addEventListener('resize',apply);})();`,
+            __html: `(function(){var vv=window.visualViewport;if(!vv)return;var d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv),'width');if(!d||!d.get)return;var el=document.documentElement;var coarse=!!(window.matchMedia&&matchMedia('(pointer: coarse)').matches);var W=${DESKTOP_COLUMN_WIDTH};function col(){var s=Math.min(screen.width,screen.height);if(coarse&&s<500&&innerWidth>innerHeight)return s;return W&&innerWidth>W?W:0;}function apply(){var c=col();el.classList.toggle('rival-phone-side',!!c);if(c)el.style.setProperty('--rival-phone-w',c+'px');}Object.defineProperty(vv,'width',{configurable:true,get:function(){var c=col();return c?c/(vv.scale||1):d.get.call(vv);}});apply();vv.addEventListener('resize',apply);window.addEventListener('resize',apply);})();`,
           }}
         />
 
@@ -162,9 +165,9 @@ export default function Root({ children }: { children: React.ReactNode }) {
              comment above warns against: overflow is untouched, so the app
              shell still scrolls internally and index.tsx still flows. */
           html, body, #root { height: 100vh; }
-          /* A phone held sideways: the page at the phone's portrait width,
-             centred (see the script above). The transform holds the fixed
-             parts (bottom bar, pop-ups) to that column too. */
+          /* Desktop, or a phone held sideways: the page held to a phone-width
+             column, centred (see the script above). The transform holds the
+             fixed parts (bottom bar, pop-ups) to that column too. */
           html.rival-phone-side body {
             width: var(--rival-phone-w); margin: 0 auto; transform: translateZ(0);
           }

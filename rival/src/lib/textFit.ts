@@ -61,7 +61,7 @@ function fit(el: HTMLElement) {
 // Phones only, like the rest of the mobile pass.
 const BUSY = 'data-busy-pulse';
 function pulse(el: HTMLElement) {
-  const busy = window.innerWidth < 640 && /…\s*$/.test(el.textContent || '') && !el.querySelector('[dir="auto"]');
+  const busy = (window.visualViewport?.width ?? window.innerWidth) < 640 && /…\s*$/.test(el.textContent || '') && !el.querySelector('[dir="auto"]');
   if (busy === el.hasAttribute(BUSY)) return;
   if (busy) {
     el.setAttribute(BUSY, '');

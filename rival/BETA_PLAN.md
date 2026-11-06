@@ -23,6 +23,8 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 - [ ] Privacy policy rewritten and Sharing with teams built 2026-11-02, uncommitted (/team-sharing before joining or creating a team, /privacy in the app). Contact email set; public URL and the date (UPDATED in src/app/privacy.tsx) still needed
 - [ ] Neutral grey on phones built 2026-11-01, uncommitted: side pages and pop-ups only. Main pages reverted to the live look; Chat on Today's black; team hub on black with a held photo; top bar is Today's colour everywhere
 
+- [x] Desktop is the phone app, 2026-11-06 (Ricky: "do the same for desktop"): wider than 480px the site is held to a centred 480px column and lays out exactly as on a phone (bottom bar with Start, pop-ups, colours). Old desktop layouts kept, off (DESKTOP_COLUMN_WIDTH in constants/breakpoints.ts). Mouse click-and-drag scrolls sideways rows (lib/mouseDragScroll.ts). Checked in headless Chrome at 1280 and 1440 on the QA account, not on Ricky's computer. Possible later: something designed for the empty space either side
+
 ## When Ricky is home
 - [ ] NEXT WEEK, first up (banked 2026-11-04): therivalapp.com BOUGHT 2026-11-05; Claude builds a one-page site and hosts the privacy policy (deploy with Ricky's OK); Ricky applies to Garmin Starter as an individual (not incorporating yet) and gets a Personal Garmin key so the importer can be built on his workouts. See Garmin application below
 - [ ] Ricky: sign up for the Apple Developer Program ($99 a year)
@@ -43,7 +45,7 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 - [ ] Disconnect Strava and delete everything that came through its API
 - [ ] Remove the unused AI share functions
 - [ ] Run a full compliance check for Apple
-- [ ] Review the daily quotes
+- [ ] Review the daily quotes (add Ricky's "Work hard until your idols become your rivals.", 2026-11-06)
 - [ ] Decide on video service, Supabase Pro, photo compression and off-site backup
 - [ ] Decide on the charity page
 - [ ] Spec the text-behind-you share image
