@@ -34,3 +34,11 @@ export function sidePageWide(width: number): boolean {
 // pop-up sheet within it.
 export const SIDE_PAGE_MAX_WIDTH = 680;
 export const SIDE_SHEET_MAX_WIDTH = 560;
+
+// The web app is the phone app at every width (Ricky, 2026-11-06: "what we've
+// built on the mobile version, do the same for desktop"). Wider than this, the
+// page is held to a centred column this wide and the app reads this as the
+// window width, so every screen takes its phone layout (see +html.tsx).
+// 0 brings back the old desktop layouts, which are kept, not deleted; the
+// phone colours in global.css would then need their width limits back.
+export const DESKTOP_COLUMN_WIDTH = 480;

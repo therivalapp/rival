@@ -74,7 +74,7 @@ export default function JoinLeagueScreen() {
 
   async function sendRequest(inviter: string | null) {
     if (!team) return;
-    if (!(await teamSharingAgreed())) return;
+    if (!(await teamSharingAgreed(() => sendRequest(inviter)))) return;
     setLoading(true);
     setError('');
     const res = await requestToJoin(code.trim().toUpperCase(), inviter);

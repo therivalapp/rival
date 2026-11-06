@@ -490,7 +490,11 @@ export default function ChatScreen() {
       )}
 
       <KeyboardAvoidingView
-        style={[styles.flex, !!keyboardInset && { marginBottom: keyboardInset }]}
+        // No keyboard margin here: the app itself now shrinks to the space
+        // above the keyboard (_layout.tsx, 2026-10-24), so adding the
+        // keyboard's height again lifted the composer a keyboard's height
+        // too far (found 2026-11-06). keyboardInset only trims the padding.
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         // SafeAreaView already applies the top inset; adding it here again
         // double-counted it and left a gap between composer and keyboard.

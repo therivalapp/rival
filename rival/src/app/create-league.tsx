@@ -473,11 +473,12 @@ export default function CreateLeagueScreen() {
   }, []);
 
   async function handleCreate() {
-    if (!(await teamSharingAgreed())) return;
+    // The name first, so an empty form doesn't open Sharing with teams.
     if (!name.trim()) {
       setError('Enter a team name.');
       return;
     }
+    if (!(await teamSharingAgreed(() => handleCreate()))) return;
 
     let goalTargetIso: string | null = null;
     if (teamGoalMode) {

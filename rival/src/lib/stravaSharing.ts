@@ -64,14 +64,27 @@ export const STRAVA_SHARING_NOTICE = {
   open: () => router.push('/team-sharing'),
 };
 
+// What to carry on with once Sharing with teams is agreed: the create, join
+// or request that opened it. "Agree and continue" used to drop people back on
+// the form to tap again (found 2026-11-06 signed in as a new user).
+let afterAgree: (() => void) | null = null;
+
 /** Before joining or creating a team: true once sharing is agreed. Otherwise
- *  opens Sharing with teams and returns false, and the person tries again. */
-export async function teamSharingAgreed(): Promise<boolean> {
+ *  opens Sharing with teams and returns false; `then` runs once they agree. */
+export async function teamSharingAgreed(then?: () => void): Promise<boolean> {
   if (agreedCache === true) return true;
   const sharing = await loadStravaSharing();
   if (sharing?.agreedAt) return true;
+  afterAgree = then ?? null;
   router.push('/team-sharing');
   return false;
+}
+
+/** The action waiting on the agreement, once (and forgets it). */
+export function takeAfterAgree(): (() => void) | null {
+  const next = afterAgree;
+  afterAgree = null;
+  return next;
 }
 
 export async function loadStravaSharing(): Promise<StravaSharing | null> {

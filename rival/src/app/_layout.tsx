@@ -1,4 +1,5 @@
 import { startTextFit } from '../lib/textFit';
+import { startMouseDragScroll } from '../lib/mouseDragScroll';
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
 // The Manrope webfont lives here. It used to be imported only by
 // constants/theme.ts, a starter-template module whose consumers were deleted --
@@ -155,7 +156,13 @@ export default function RootLayout() {
       // own scrolling list instead.
       if (keyboard && (window.scrollY > 0 || vv.offsetTop > 0)) window.scrollTo(0, 0);
       // After the app has shrunk to the space left (next frame).
-      if (keyboard) requestAnimationFrame(() => requestAnimationFrame(() => revealFocusedField(vv.height)));
+      if (keyboard) {
+        requestAnimationFrame(() => requestAnimationFrame(() => revealFocusedField(vv.height)));
+        // Again once the page has re-drawn at its new height: the first pass
+        // can measure the old layout and leave a low field behind the
+        // keyboard (found 2026-11-06, Manual entry's last field).
+        setTimeout(() => revealFocusedField(window.visualViewport?.height ?? vv.height), 320);
+      }
     };
     // Moving to another field while the keyboard is up: bring that one
     // down to the keyboard too.
@@ -175,6 +182,7 @@ export default function RootLayout() {
 
   // No "…" anywhere: overflowing text shrinks a little or wraps (lib/textFit).
   useEffect(() => (Platform.OS === 'web' ? startTextFit() : undefined), []);
+  useEffect(() => (Platform.OS === 'web' ? startMouseDragScroll() : undefined), []);
   // The app fades in over the loading wordmark once the first page has
   // drawn (lib/appReveal.ts). The fade is CSS (data-rival-fade, +html.tsx).
   useEffect(() => {

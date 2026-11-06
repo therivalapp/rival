@@ -28,7 +28,7 @@ import { getMyTeamIds } from '../../lib/myTeams';
 import { computeActivityInsight, InsightTone } from '../../lib/activityInsights';
 import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../../lib/effort';
 import { rm } from '../../components/rival/RivalMobile';
-import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage, RivalStartTiles } from '../../components/rival';
+import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage, RivalStartTiles, GreyArtTile } from '../../components/rival';
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
 import { RUN_TYPES, fastestBests, fastestTitle, pbStoodText, type FastestBest } from '../../lib/bestEfforts';
 import { activityDisplayName } from '../../lib/yearReview';
@@ -822,10 +822,8 @@ export default function MyActivitiesScreen() {
             { key: 'scan', icon: 'camera' as const, label: 'Scan workout', to: windowWidth >= BREAKPOINT_WIDE_LAYOUT ? '/scan-workout' : '/add-workout' },
             { key: 'manual', icon: 'manual' as const, label: 'Manual entry', to: '/manual-entry' },
           ].map((t) => (
-            <TouchableOpacity key={t.key} style={styles.fvTile} activeOpacity={0.85} onPress={() => router.push(t.to as any)}>
-              <View style={styles.fvBadge}><RivalIcon name={t.icon} size={17} color="#1a0d08" /></View>
-              <Text style={styles.fvTileText}>{t.label}</Text>
-            </TouchableOpacity>
+            // The Add an activity tile: icon large and faint behind the words.
+            <GreyArtTile key={t.key} label={t.label} icon={t.icon} style={{ flex: 1 }} onPress={() => router.push(t.to as any)} />
           ))}
         </View>
 
@@ -3702,16 +3700,6 @@ const styles = StyleSheet.create({
   fvOrLine: { flex: 1, height: 1, backgroundColor: '#2a2a2a' },
   fvOrText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
   fvTiles: { flexDirection: 'row', gap: 8 },
-  fvTile: {
-    flex: 1, alignItems: 'center', gap: 7, paddingVertical: 14, borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #2a1d18 0%, #1c1a19 70%)' } : { backgroundColor: '#241b17' }),
-  } as any,
-  fvBadge: {
-    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
-  } as any,
-  fvTileText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   fvListTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: '#fff', marginTop: 24, marginBottom: 10 },
   fvBar: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   fvBarFill: { height: '100%', backgroundColor: RivalColors.accentText, ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}) } as any,

@@ -26,7 +26,7 @@ import { formatDisplayName, formatTeamName, formatRaceName } from '../../lib/ide
 import { formatDuration } from '../../lib/format';
 import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../../lib/activityInsights';
 import { matchCanonicalLift } from '../../lib/lifts';
-import { RivalTopNav, RivalIcon, RivalIconName, activityIconName, TrainingPartners, RouteMap } from '../../components/rival';
+import { RivalTopNav, RivalIcon, RivalIconName, activityIconName, TrainingPartners, RouteMap, rm } from '../../components/rival';
 import { withinTagWindow } from '../../lib/tagWindow';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
@@ -772,12 +772,13 @@ export default function TeamFeedScreen() {
           {loading ? (
             <Text style={styles.stateText}>Loading…</Text>
           ) : teams.length === 0 ? (
-            <View style={styles.emptyState}>
-              <RivalIcon name="groups" size={28} color={RivalColors.accentText} />
+            // The same card as Chat's empty state: round icon, full-width button.
+            <View style={[styles.emptyState, rm.card, styles.emptyCard]}>
+              <View style={rm.iconCircle}><RivalIcon name="groups" size={20} color={RivalColors.accentText} /></View>
               <Text style={styles.emptyTitle}>No team yet</Text>
               <Text style={styles.emptyBody}>Join or create a team to see team activity here.</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/discover-leagues')}>
-                <Text style={styles.emptyBtnText}>Find a team</Text>
+              <TouchableOpacity style={[rm.primary, styles.emptyBtnWide]} onPress={() => router.push('/discover-leagues')}>
+                <Text style={rm.primaryText}>Find a team</Text>
               </TouchableOpacity>
             </View>
           ) : posts.length === 0 ? (
@@ -1387,11 +1388,11 @@ const styles = StyleSheet.create({
   mRailWrap: { marginTop: 30 },
 
   stateText: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
-  emptyState: { alignItems: 'center', gap: 8, paddingVertical: 32, paddingHorizontal: 20 },
-  emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff', marginTop: 4 },
+  emptyState: { alignItems: 'center', gap: 8, paddingVertical: 28, paddingHorizontal: 20 },
+  emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', marginTop: 4 },
   emptyBody: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center' },
-  emptyBtn: { marginTop: 8, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20 },
-  emptyBtnText: { fontSize: 13, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
+  emptyCard: { marginTop: 8 },
+  emptyBtnWide: { alignSelf: 'stretch', marginTop: 8 },
 
   railWrap: { position: 'relative', marginTop: 10 },
   rail: { flexGrow: 0 },

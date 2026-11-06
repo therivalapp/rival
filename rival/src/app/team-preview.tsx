@@ -81,7 +81,7 @@ export default function TeamPreviewScreen() {
   }
 
   async function requestToJoin() {
-    if (!(await teamSharingAgreed())) return;
+    if (!(await teamSharingAgreed(() => requestToJoin()))) return;
     const { data: { user } } = await getAuthUser();
     if (!user || !id) return;
     setJoining(true);
