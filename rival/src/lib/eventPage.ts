@@ -115,10 +115,10 @@ const EFFORT_NAMES: Record<string, string> = {
 
 /** Up to three fastest efforts inside the race, the longest first, never
  *  the whole race itself. */
-export function raceEfforts(best: BestEffort[] | null | undefined, raceMetres: number): { label: string; seconds: number; name: string }[] {
+export function raceEfforts(best: BestEffort[] | null | undefined, raceMetres: number): { label: string; seconds: number; name: string; distance: number }[] {
   const inside = (best ?? []).filter((b) => EFFORT_NAMES[b.name] && b.distance < raceMetres * 0.95 && b.seconds > 0);
   return inside.sort((a, b) => b.distance - a.distance).slice(0, 3).reverse()
-    .map((b) => ({ label: EFFORT_NAMES[b.name], seconds: b.seconds, name: b.name }));
+    .map((b) => ({ label: EFFORT_NAMES[b.name], seconds: b.seconds, name: b.name, distance: b.distance }));
 }
 
 // ---- HYROX -----------------------------------------------------------------------
@@ -163,3 +163,40 @@ export function byDay<T extends EventLegLike>(legs: T[], dayOf: (iso: string) =>
   }
   return out;
 }
+
+// ---- Transitions ----------------------------------------------------------------
+
+/** One gap between legs: its seconds, and whether it was worked out from the
+ *  remaining time rather than entered. */
+export type Transition = { seconds: number | null; filled: boolean };
+
+/** The transitions between `gaps + 1` legs (T1 and T2 for a triathlon), from
+ *  races.transitions (supabase/add_race_transitions.sql) and the official
+ *  finish. The total is the finish less the legs. When every gap but one was
+ *  entered, that one is filled in from the remaining time
+ *  (design/event-transitions-mockup.png). */
+export function transitionTimes(
+  saved: (number | null)[] | null | undefined,
+  gaps: number,
+  finishSeconds: number | null,
+  legSeconds: number,
+): { list: Transition[]; total: number | null } {
+  if (gaps < 1) return { list: [], total: null };
+  const list: Transition[] = Array.from({ length: gaps }, (_, i) => {
+    const v = saved?.[i];
+    return { seconds: typeof v === 'number' && v > 0 ? Math.round(v) : null, filled: false };
+  });
+  const known = list.reduce((t, x) => t + (x.seconds ?? 0), 0);
+  const missing = list.filter((x) => x.seconds == null);
+  const total = finishSeconds && legSeconds > 0 && finishSeconds > legSeconds
+    ? finishSeconds - legSeconds
+    : !missing.length ? known : null;
+  if (total != null && missing.length === 1 && total - known > 0) {
+    missing[0].seconds = total - known;
+    missing[0].filled = true;
+  }
+  return { list, total };
+}
+
+/** "T1", "T2". */
+export const transitionKey = (i: number) => `T${i + 1}`;

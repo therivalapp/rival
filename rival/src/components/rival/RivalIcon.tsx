@@ -126,6 +126,8 @@ const ICONS = {
   // Repeat a workout on Log an activity.
   replay: 'replay',
   swapVert: 'swap-vert',
+  // A transition between two legs of an event.
+  swap: 'swap-horiz',
   photoLibrary: 'photo-library',
   video: 'videocam',
   brain: 'psychology',

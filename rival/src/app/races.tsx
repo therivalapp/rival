@@ -8,7 +8,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { confirmAction, notify } from '../lib/notify';
 import { formatDisplayName, formatRaceName } from '../lib/identity';
 import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
-import { formatGoalTimeMask } from '../lib/format';
+import { formatTime, parseTime, showFinish, timeFieldProps } from '../lib/time';
 import { RivalTopNav, RivalPageHeader, RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, GreySegment, RivalSheet, RivalSheetCard, RivalTiles, RivalMoreRow, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
 import type { RivalIconName } from '../components/rival';
@@ -16,6 +16,9 @@ import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/r
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 import { useSheetDrag } from '../components/rival/useSheetDrag';
+import { EventSheet, type EventLeg } from '../components/rival/EventSheet';
+import { EventTimesSheet } from '../components/rival/EventTimesSheet';
+import { eventKind } from '../lib/eventPage';
 
 // An event's name is the week's title on the Activity page, beside its
 // Effort. 20 letters is about what fits on that line on a phone, so a name
@@ -98,16 +101,24 @@ type Race = {
   disciplines: Discipline[] | null;
   goal_finish_time: string | null;
   actual_finish_time: string | null;
+  /** Seconds between legs (supabase/add_race_transitions.sql). */
+  transitions?: (number | null)[] | null;
   users: { display_name: string | null; email: string };
   interest_count: number;
   i_am_interested: boolean;
 };
 
+const LEG_COLUMNS = 'id, activity_type, started_at, utc_offset_seconds, duration_seconds, distance_meters, effort_score, photo_url, photo_focal_x, photo_focal_y';
+
+/** Activities of an event with legs on one day (a triathlon), or null. */
+function legsOf(race: Race, legs: EventLeg[] | undefined): EventLeg[] | null {
+  if (!legs || legs.length < 2) return null;
+  return eventKind(race.race_type, legs, (iso) => new Date(iso).toDateString()) === 'legs' ? legs : null;
+}
+
+// Saved finish and goal times, read the one way (lib/time.ts).
 function parseTimeToSeconds(t: string): number {
-  const parts = t.trim().split(':').map(Number);
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  return 0;
+  return parseTime(t, 'hours') ?? 0;
 }
 
 function getFinishMessage(actualTime: string, goalTime: string | null): string {
@@ -166,7 +177,7 @@ export default function RacesScreen() {
   // Phones: drag the Find an event sheet down from anywhere to close it.
   const findDrag = useSheetDrag(() => setShowFind(false));
   // `then=back`: opened to add one event (the share's countdown), so saving returns there.
-  const { add, then } = useLocalSearchParams<{ add?: string; then?: string }>();
+  const { add, then, edit } = useLocalSearchParams<{ add?: string; then?: string; edit?: string }>();
   const [races, setRaces] = useState<Race[]>([]);
   const [completedRaces, setCompletedRaces] = useState<Race[]>([]);
   const [leagueMateIds, setLeagueMateIds] = useState<Set<string>>(new Set());
@@ -195,6 +206,10 @@ export default function RacesScreen() {
   const [crossfitFormat, setCrossfitFormat] = useState('Open');
   const [goalFinishTime, setGoalFinishTime] = useState('');
   const [finishModalRace, setFinishModalRace] = useState<Race | null>(null);
+  // Each finished event's activities, for its leg total and its page.
+  const [legsByRace, setLegsByRace] = useState<Record<string, EventLeg[]>>({});
+  // Official finish time for an event with legs (design/event-transitions-mockup.png).
+  const [timesRace, setTimesRace] = useState<Race | null>(null);
   const [actualFinishInput, setActualFinishInput] = useState('');
   const [savingFinish, setSavingFinish] = useState(false);
   const [customDisciplines, setCustomDisciplines] = useState<{ name: string; distance: string }[]>([{ name: '', distance: '' }]);
@@ -283,8 +298,26 @@ export default function RacesScreen() {
     });
 
     setRaces(withMeta);
-    setCompletedRaces((pastRes.data || []).map((r: any) => ({ ...r, interest_count: 0, i_am_interested: false })));
+    const past = (pastRes.data || []).map((r: any) => ({ ...r, interest_count: 0, i_am_interested: false })) as Race[];
+    setCompletedRaces(past);
     setLoading(false);
+
+    if (past.length) {
+      const { data: legRows } = await supabase.from('activities')
+        .select(`race_id, ${LEG_COLUMNS}`)
+        .in('race_id', past.map((r) => r.id));
+      const grouped: Record<string, EventLeg[]> = {};
+      for (const a of (legRows ?? []) as (EventLeg & { race_id: string })[]) (grouped[a.race_id] ??= []).push(a);
+      for (const k of Object.keys(grouped)) grouped[k].sort((x, y) => x.started_at.localeCompare(y.started_at));
+      setLegsByRace(grouped);
+    }
+
+    // Edit event details from an event page opened elsewhere (EventSheet's menu).
+    if (edit) {
+      const target = [...withMeta, ...past].find((r: Race) => r.id === edit);
+      if (target) openEdit(target);
+      router.setParams({ edit: undefined });
+    }
   }
 
   async function toggleInterest(race: Race) {
@@ -361,7 +394,7 @@ export default function RacesScreen() {
     setEditingRace(race);
     setRaceName(race.name); setRaceType(race.race_type); setRaceDate(isoToDisplayDate(race.race_date));
     setLocation(race.location || ''); setRegUrl(race.registration_url || '');
-    setGoalFinishTime(race.goal_finish_time || '');
+    setGoalFinishTime(formatTime(parseTime(race.goal_finish_time, 'hours'), 'field'));
     setShowDetails(!!(race.registration_url || race.goal_finish_time));
     if (race.race_type === 'Triathlon' && race.disciplines) {
       setTriSwim(String(race.disciplines.find((d) => d.name === 'Swim')?.distance_km ?? ''));
@@ -407,8 +440,21 @@ export default function RacesScreen() {
     setCompletedRaces((prev) => prev.filter((r) => r.id !== id));
   }
 
+  // A finished event's page, from a tap on its card, or with its share
+  // pop-up up from Share (Ricky, 2026-11-05).
+  const [eventOpen, setEventOpen] = useState<{ raceId: string; legs: EventLeg[]; share: boolean } | null>(null);
+  async function openEvent(race: Race, share = false) {
+    let legs = legsByRace[race.id];
+    if (!legs) {
+      const { data } = await supabase.from('activities').select(LEG_COLUMNS).eq('race_id', race.id);
+      legs = (data ?? []) as EventLeg[];
+    }
+    setEventOpen({ raceId: race.id, legs, share });
+  }
+  const shareEvent = (race: Race) => openEvent(race, true);
+
   async function saveActualFinishTime() {
-    if (!finishModalRace || !actualFinishInput.trim()) return;
+    if (!finishModalRace || !parseTime(actualFinishInput, 'hours')) return;
     setSavingFinish(true);
     const { error } = await supabase.from('races').update({ actual_finish_time: actualFinishInput.trim() }).eq('id', finishModalRace.id);
     if (error) {
@@ -573,7 +619,7 @@ export default function RacesScreen() {
               <TextInput style={inp} placeholder="https://…" placeholderTextColor={RivalColors.textSecondary} value={regUrl} onChangeText={setRegUrl} autoCapitalize="none" />
 
               <Text style={m ? rm.fieldLabel : styles.modalLabel}>{m ? 'Goal time' : 'Goal finish time (optional)'}</Text>
-              <TextInput style={inp} placeholder="00:00:00" placeholderTextColor={RivalColors.textSecondary} value={goalFinishTime} onChangeText={v => setGoalFinishTime(formatGoalTimeMask(v))} keyboardType="number-pad" autoCapitalize="none" />
+              <TextInput style={inp} placeholderTextColor={RivalColors.textSecondary} {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)} />
               <Text style={styles.goalTimeHint}>
                 {goalFinishTime.trim()
                   ? `Goal: ${goalFinishTime.trim()}.`
@@ -683,13 +729,38 @@ export default function RacesScreen() {
           <GreyRow icon="distance" label="Distance (km)"><GreyRowInput placeholder="21.1" value={distanceKm} onChangeText={setDistanceKm} keyboardType="decimal-pad" /></GreyRow>
         ) : null}
         <GreyRow icon="link" label="Registration"><GreyRowInput placeholder="Optional" value={regUrl} onChangeText={setRegUrl} autoCapitalize="none" keyboardType="url" /></GreyRow>
-        <GreyRow icon="timer" label="Goal time"><GreyRowInput placeholder="Optional" value={goalFinishTime} onChangeText={(v) => setGoalFinishTime(formatGoalTimeMask(v))} keyboardType="number-pad" /></GreyRow>
+        <GreyRow icon="timer" label="Goal time"><GreyRowInput {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)} placeholder="Optional" /></GreyRow>
       </GreyRows>
     </GreySheet>
   );
 
   const modals = (
     <>
+        <EventSheet
+          raceId={eventOpen?.raceId ?? null}
+          legs={eventOpen?.legs ?? []}
+          pbLegIds={new Set()}
+          startShare={eventOpen?.share}
+          onClose={() => setEventOpen(null)}
+          onEditDetails={(id) => { const r = [...races, ...completedRaces].find((x) => x.id === id); if (r) openEdit(r); }}
+          onChanged={load}
+        />
+        {/* Official finish time for an event with legs. */}
+        <Modal visible={!!timesRace} transparent animationType="slide" onRequestClose={() => setTimesRace(null)}>
+          <View style={ms.backdrop}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setTimesRace(null)} accessibilityLabel="Close" />
+            {timesRace ? (
+              <EventTimesSheet
+                mode="finish"
+                race={timesRace}
+                legs={legsByRace[timesRace.id] ?? []}
+                transitionGaps={Math.max(0, (legsByRace[timesRace.id]?.length ?? 1) - 1)}
+                onClose={() => setTimesRace(null)}
+                onSaved={() => { setTimesRace(null); load(); }}
+              />
+            ) : null}
+          </View>
+        </Modal>
         {/* Add / Edit Race Modal */}
         <Modal visible={showAdd} transparent animationType={addOnly ? 'fade' : 'slide'}>
           <View style={styles.modalOverlay}>
@@ -815,17 +886,17 @@ export default function RacesScreen() {
               <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { setFinishModalRace(null); setActualFinishInput(''); }} accessibilityLabel="Close" />
               <GreySheet
                 kicker="EVENTS"
-                title="Log finish time"
+                title={finishModalRace?.actual_finish_time ? 'Edit finish time' : 'Log finish time'}
                 onClose={() => { setFinishModalRace(null); setActualFinishInput(''); }}
-                footer={<GreyPrimary label={savingFinish ? 'Saving…' : 'Save finish time'} busy={savingFinish} disabled={!actualFinishInput.trim() || savingFinish} onPress={saveActualFinishTime} />}
+                footer={<GreyPrimary label={savingFinish ? 'Saving…' : 'Save'} busy={savingFinish} disabled={!actualFinishInput.trim() || savingFinish} onPress={saveActualFinishTime} />}
               >
                 <Text style={ms.finishRace}>{formatRaceName(finishModalRace?.name)}</Text>
                 <GreyRows>
                   {finishModalRace?.goal_finish_time ? (
-                    <GreyRow icon="flag" label="Goal time" value={finishModalRace.goal_finish_time} />
+                    <GreyRow label="Goal time" value={showFinish(finishModalRace.goal_finish_time)} />
                   ) : null}
-                  <GreyRow icon="timer" label="Finish time">
-                    <GreyRowInput value={actualFinishInput} onChangeText={setActualFinishInput} placeholder="1:52:34" autoCapitalize="none" autoFocus />
+                  <GreyRow label="Finish time">
+                    <GreyRowInput {...timeFieldProps('hms', actualFinishInput, setActualFinishInput)} autoFocus />
                   </GreyRow>
                 </GreyRows>
                 <GreyNote>
@@ -852,9 +923,8 @@ export default function RacesScreen() {
 
               <Text style={[m ? rm.label : styles.modalLabel, { marginTop: 16 }]}>Finish time</Text>
               <TextInput
-                style={inp} placeholder="1:52:34" placeholderTextColor={RivalColors.textSecondary}
-                value={actualFinishInput} onChangeText={setActualFinishInput}
-                autoCapitalize="none" autoFocus
+                style={inp} placeholderTextColor={RivalColors.textSecondary}
+                {...timeFieldProps('hms', actualFinishInput, setActualFinishInput)} autoFocus
               />
 
               {actualFinishInput.trim() ? (
@@ -961,12 +1031,13 @@ export default function RacesScreen() {
               && parseTimeToSeconds(race.actual_finish_time) <= parseTimeToSeconds(race.goal_finish_time);
 
             return (
-              // Your own race opens the editor; delete lives in there too.
+              // A finished event of your own opens its page, where its edits
+              // live (Ricky, 2026-11-05); an upcoming one opens its details.
               <TouchableOpacity
                 key={race.id}
                 activeOpacity={isOwn ? 0.85 : 1}
                 disabled={!isOwn}
-                onPress={() => openEdit(race)}
+                onPress={() => (past ? openEvent(race) : openEdit(race))}
                 style={[rb.card, hero && rb.hero]}
               >
                 {/* Ticket: the event on the left, the countdown on the right
@@ -974,7 +1045,12 @@ export default function RacesScreen() {
                 <View style={ms.ticket}>
                   <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                     <Text style={[rb.label, hero && { color: RivalColors.accentText }]} numberOfLines={1}>{hero ? 'Next event' : typeLine}</Text>
-                    <Text style={ms.ticketName} numberOfLines={2}>{formatRaceName(race.name)}</Text>
+                    {/* A finished event of your own opens its page: the arrow says so
+                        (design/event-transitions-mockup.png). */}
+                    <Text style={ms.ticketName} numberOfLines={2}>
+                      {formatRaceName(race.name)}
+                      {past && isOwn ? <Text style={ms.ticketArrow}>{' '}<RivalIcon name="chevronRight" size={20} color={RivalColors.textSecondary} /></Text> : null}
+                    </Text>
                     <Text style={ms.ticketMeta} numberOfLines={1}>
                       {[formatRaceDate(race.race_date), race.location].filter(Boolean).join(' · ')}
                     </Text>
@@ -1010,28 +1086,57 @@ export default function RacesScreen() {
                   </View>
                 ) : null}
 
-                {past && isOwn && race.actual_finish_time ? (
-                  <View style={ms.finish}>
-                    <View style={ms.goalRow}>
-                      <Text style={rm.label}>Finish time</Text>
-                      <Text style={ms.goalValue}>{race.actual_finish_time}</Text>
-                    </View>
-                    {race.goal_finish_time ? (
-                      <View style={ms.goalRow}>
-                        <Text style={rm.label}>Goal</Text>
-                        <Text style={[ms.goalValue, { color: beat ? RivalColors.accentGold : RivalWarm.soft }]}>{race.goal_finish_time}</Text>
-                      </View>
-                    ) : null}
-                    <Text style={ms.message}>{getFinishMessage(race.actual_finish_time, race.goal_finish_time)}</Text>
-                  </View>
-                ) : null}
-
-                {past && isOwn && !race.actual_finish_time ? (
-                  <TouchableOpacity style={rm.ghost} onPress={() => { setFinishModalRace(race); setActualFinishInput(''); }} activeOpacity={0.85}>
-                    <RivalIcon name="timer" size={16} color={RivalColors.accentText} />
-                    <Text style={rm.ghostText}>Log finish time</Text>
-                  </TouchableOpacity>
-                ) : null}
+                {past && isOwn ? (() => {
+                  const legs = legsOf(race, legsByRace[race.id]);
+                  const legTotal = legs ? legs.reduce((t, a) => t + (a.duration_seconds || 0), 0) : 0;
+                  const official = parseTime(race.actual_finish_time, 'hours');
+                  return (
+                    <>
+                      {official ? (
+                        <View style={ms.finish}>
+                          <View style={ms.goalRow}>
+                            <Text style={rm.label}>Finish time</Text>
+                            <Text style={ms.goalValue}>{showFinish(race.actual_finish_time)}</Text>
+                          </View>
+                          {legs && official > legTotal && legTotal > 0 ? (
+                            <Text style={ms.small}>{`Includes ${formatTime(official - legTotal, 'clock')} of transitions.`}</Text>
+                          ) : null}
+                          {race.goal_finish_time ? (
+                            <View style={ms.goalRow}>
+                              <Text style={rm.label}>Goal</Text>
+                              <Text style={[ms.goalValue, { color: beat ? RivalColors.accentGold : RivalWarm.soft }]}>{showFinish(race.goal_finish_time)}</Text>
+                            </View>
+                          ) : null}
+                          <Text style={ms.message}>{getFinishMessage(race.actual_finish_time!, race.goal_finish_time)}</Text>
+                        </View>
+                      ) : legs && legTotal > 0 ? (
+                        <View>
+                          <View style={ms.goalRow}>
+                            <Text style={rm.label}>Leg total</Text>
+                            <Text style={ms.goalValue}>{formatTime(legTotal, 'clock')}</Text>
+                          </View>
+                          <Text style={ms.small}>The official time also counts transitions.</Text>
+                        </View>
+                      ) : null}
+                      {!official ? (
+                        <TouchableOpacity
+                          style={rm.ghost}
+                          onPress={() => (legs ? setTimesRace(race) : (setFinishModalRace(race), setActualFinishInput('')))}
+                          activeOpacity={0.85}
+                          accessibilityRole="button"
+                        >
+                          <Text style={rm.ghostText}>{legs ? 'Add official finish time' : 'Log finish time'}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      {/* Share: solid salmon on a card; the gradient is each
+                          screen's one main action (AGENTS.md mockup checklist). */}
+                      <TouchableOpacity style={[rm.ghost, ms.share]} onPress={() => shareEvent(race)} activeOpacity={0.85} accessibilityRole="button">
+                        <RivalIcon name="share" size={16} color={SHARE_INK} />
+                        <Text style={[rm.ghostText, ms.shareText]}>Share</Text>
+                      </TouchableOpacity>
+                    </>
+                  );
+                })() : null}
 
                 {(!isOwn || race.interest_count > 0 || race.registration_url) ? (
                   <View style={ms.footer}>
@@ -1428,7 +1533,12 @@ const styles = StyleSheet.create({
 });
 
 // Mobile only — the RIVAL look (see RivalMobile.tsx).
+const SHARE_INK = '#2a1710';
+
 const ms = StyleSheet.create({
+  small: { fontSize: 11.5, color: RivalColors.textSecondary, marginTop: 4 },
+  share: { backgroundColor: RivalColors.accentText, borderColor: RivalColors.accentText },
+  shareText: { color: SHARE_INK, fontWeight: '800' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   dirRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11 },
   dirName: { fontSize: 14, fontWeight: '700', color: '#fff' },
@@ -1439,6 +1549,7 @@ const ms = StyleSheet.create({
   emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
   ticket: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   ticketName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, lineHeight: 24, color: '#fff' },
+  ticketArrow: { lineHeight: 24 },
   ticketMeta: { fontSize: 12.5, color: RivalColors.textSecondary },
   ticketType: { fontSize: 11.5, color: 'rgba(255,255,255,0.4)' },
   stub: { alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minWidth: 64, paddingLeft: 12, borderLeftWidth: 1.5, borderStyle: 'dashed', borderLeftColor: 'rgba(255,209,190,0.18)' },
@@ -1468,6 +1579,7 @@ const ms = StyleSheet.create({
   goalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   goalValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 18, fontWeight: '700', color: '#fff' },
   finish: { gap: 8 },
+  finishEdit: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   message: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 15, lineHeight: 21, color: RivalWarm.soft },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 2 },
   inBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,209,190,0.28)' },

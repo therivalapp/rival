@@ -4,6 +4,11 @@
 // run and station, or each event of a multi-day competition. Modelled on
 // scan-workout. The page asks the member to check the numbers before saving;
 // nothing is written here.
+//
+// With want: 'times' it reads the official finish and each transition
+// instead (Ricky, 2026-11-05, design/event-transitions-mockup.png), for the
+// Official finish time pop-up (EventTimesSheet.tsx). Times come back as
+// whole seconds, so nothing here reads clock text.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -19,6 +24,28 @@ const json = (body: unknown, status = 200) =>
 const posInt = (v: unknown): number | null => {
   const n = typeof v === 'string' ? parseInt(v.replace(/[^0-9]/g, ''), 10) : typeof v === 'number' ? Math.round(v) : NaN
   return Number.isFinite(n) && n > 0 ? n : null
+}
+
+/** One request to Claude for JSON read from the images. */
+async function askClaude(content: unknown[]): Promise<{ value: Record<string, unknown> } | { error: string; status: number }> {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') ?? '',
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 400, messages: [{ role: 'user', content }] }),
+  })
+  const data = await response.json()
+  if (!response.ok) {
+    console.log('Anthropic API error:', JSON.stringify(data))
+    return { error: 'The results could not be read. Try again, or type them in.', status: 500 }
+  }
+  const text = data.content?.find((c: { type: string }) => c.type === 'text')?.text ?? ''
+  const match = text.match(/\{[\s\S]*\}/)
+  if (!match) return { error: 'No times were found in the photo. Try a clearer photo, or type them in.', status: 422 }
+  return { value: JSON.parse(match[0]) }
 }
 
 serve(async (req) => {
@@ -43,6 +70,28 @@ serve(async (req) => {
       { type: 'text', text: `Image ${i + 1}:` },
       { type: 'image', source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.base64Image } },
     ])
+
+    if (body.want === 'times') {
+      const gaps = Math.max(0, Math.min(6, Number(body.transitions) || 0))
+      const read = await askClaude([
+        ...imageBlocks,
+        {
+          type: 'text',
+          text: `These images show one athlete's results from a race (a results website, an app screenshot, a printed sheet or a board). Read the athlete's official finish time${gaps ? ` and their ${gaps} transition times in race order (T1, T2${gaps > 2 ? ' and so on' : ''})` : ''}. Return JSON only, every time as a whole number of seconds:
+{ "finish": 11660, "transitions": [168, 166] }
+Use null for any time that is not shown. Never guess a number.`,
+        },
+      ])
+      if ('error' in read) return json({ error: read.error }, read.status)
+      const raw = read.value
+      const secs = (v: unknown) => { const n = posInt(v); return n && n < 7 * 24 * 3600 ? n : null }
+      const finish = secs(raw.finish)
+      const transitions = Array.from({ length: gaps }, (_, i) => secs(Array.isArray(raw.transitions) ? raw.transitions[i] : null))
+      if (!finish && !transitions.some(Boolean)) {
+        return json({ error: 'No times were found in the photo. Try a clearer photo, or type them in.' }, 422)
+      }
+      return json({ success: true, times: { finish, transitions } })
+    }
 
     const extra = kind === 'hyrox'
       ? `This is a HYROX result. Also return "parts": the athlete's rank for each 1 km run as "run1".."run8" and for each station as "st1".."st8", in race order (SkiErg, Sled push, Sled pull, Burpee broad jumps, Row, Farmers carry, Sandbag lunges, Wall balls). Use the rank within the athlete's division when both are shown. Leave out any part without a rank shown.`

@@ -13,7 +13,7 @@ import { RivalTopNav, RivalIcon, RivalFixedBackground } from '../components/riva
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 import { displayToIsoDate, isoToDisplayDate, friendlyDate } from '../lib/dateFormat';
-import { formatGoalTimeMask } from '../lib/format';
+import { timeFieldProps } from '../lib/time';
 import { Asset } from 'expo-asset';
 import { BusyText } from '../components/rival/BusyText';
 import { avatarImage } from '../lib/imageUrl';
@@ -1015,7 +1015,7 @@ export default function CreateLeagueScreen() {
                   <GreyRowInput value={regUrl} onChangeText={setRegUrl} placeholder="Optional" autoCapitalize="none" />
                 </GreyRow>
                 <GreyRow icon="flag" label="Goal time">
-                  <GreyRowInput value={goalFinishTime} onChangeText={(v) => setGoalFinishTime(formatGoalTimeMask(v))} placeholder="Optional" keyboardType="number-pad" />
+                  <GreyRowInput {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)} placeholder="Optional" />
                 </GreyRow>
               </GreyRows>
             </GreySheet>
@@ -1165,12 +1165,8 @@ export default function CreateLeagueScreen() {
                 <Text style={styles.panelLabel}>Goal Finish Time (Optional)</Text>
                 <TextInput
                   style={[styles.panelInput, styles.targetInput]}
-                  placeholder="00:00:00"
                   placeholderTextColor="rgba(219,193,185,0.4)"
-                  value={goalFinishTime}
-                  onChangeText={v => setGoalFinishTime(formatGoalTimeMask(v))}
-                  keyboardType="number-pad"
-                  autoCapitalize="none"
+                  {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)}
                 />
                 <View style={styles.goalTimeHintRow}>
                   {goalFinishTime.trim() ? <RivalIcon name="target" size={12} color={RivalColors.textSecondary} /> : null}

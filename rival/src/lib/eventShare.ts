@@ -62,8 +62,20 @@ export function eventStatOptions(f: EventShareFacts): StatOption[] {
   return out;
 }
 
-/** The first three choices start chosen: the mockup's picks. */
-export function defaultEventStats(options: StatOption[]): StatKey[] {
+/** The choices that start chosen: the first three, the mockup's picks. A
+ *  race (a marathon) starts with its finish, Overall and Age group
+ *  (design/event-share-mockup.png), falling back to its first placings. */
+export function defaultEventStats(options: StatOption[], facts?: Pick<EventShareFacts, 'kind' | 'placings'>): StatKey[] {
+  if (facts?.kind === 'race') {
+    const rows = facts.placings.slice(0, PLACE_KEYS.length);
+    const byRow = (k: string) => { const i = rows.findIndex((r) => r.key === k); return i >= 0 ? PLACE_KEYS[i] : null; };
+    const want = [byRow('overall'), byRow('age')].filter((k): k is StatKey => !!k);
+    const places = options.filter((o) => o.placing).map((o) => o.key);
+    const picked = [...want, ...places.filter((k) => !want.includes(k))].slice(0, 2);
+    const finish = options.some((o) => o.key === 'finish') ? ['finish' as StatKey] : [];
+    const keys = [...finish, ...picked];
+    return keys.length ? keys : options.slice(0, 3).map((o) => o.key);
+  }
   return options.slice(0, 3).map((o) => o.key);
 }
 

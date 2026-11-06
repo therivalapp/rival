@@ -1,5 +1,6 @@
 import { createElement, useMemo, useState } from 'react';
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Modal } from './RivalModal';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RivalColors, RivalRadius, RivalGhost } from '../../constants/rivalTheme';

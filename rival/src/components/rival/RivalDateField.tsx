@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, StyleProp, StyleSheet, TextInput, TextStyle, TouchableOpacity, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { StyleProp, StyleSheet, TextInput, TextStyle, TouchableOpacity, View, ViewStyle, useWindowDimensions } from 'react-native';
+import { Modal } from './RivalModal';
 import { sidePageWide } from '../../constants/breakpoints';
 import { GreyCalendar } from './RivalGreySheet';
 import { RivalColors, RivalRadius } from '../../constants/rivalTheme';

@@ -11,7 +11,7 @@ import { goToTab } from '../lib/tabNav';
 
 // Set both when the policy is published (BETA_PLAN.md).
 const CONTACT = 'getrivalapp@gmail.com';
-const UPDATED: string | null = null;
+const UPDATED: string | null = '6 November 2026';
 
 type Section = { title: string; paras: (string | { b: string; t: string })[]; bullets?: string[] };
 
@@ -38,6 +38,13 @@ const SECTIONS: Section[] = [
     paras: ['When you record an activity in RIVAL, the app uses your location only while that activity is recording, to measure distance and draw the route. Your live location is never shared.'],
   },
   {
+    title: 'Garmin Connect',
+    paras: [
+      'If you connect a Garmin account, RIVAL receives the activities your Garmin device records: activity type, start time, duration, distance, elevation, heart rate, pace and splits, route, and the exercises, sets, repetitions and weights of strength activities. RIVAL does not request sleep, stress, steps or other wellness data.',
+      'Garmin data is used only to record your activities, score Effort and show them to the teams you choose. Activities from Garmin are marked with the device that recorded them. RIVAL never sells Garmin data, never uses it for advertising and never shares it with anyone other than the service providers that run RIVAL. Disconnecting Garmin stops new activities arriving, and deleting your account deletes the Garmin data RIVAL holds.',
+    ],
+  },
+  {
     title: 'Imports from other apps',
     paras: [
       'You can import your history from a Strava or RIVAL archive file. The import reads the activities, routes, photos and videos in the file you choose. Nothing else on your device is read.',
@@ -61,7 +68,7 @@ const SECTIONS: Section[] = [
       'Your teammates see your name, photos, activities, Effort, rank, profile, reactions, comments and messages in the teams you join. RIVAL asks for your agreement before your activities are shared with any team.',
       'Public teams show their name, crest and member count in Discover. Joining one needs a member or an admin to confirm.',
       'Images you share go wherever you send them.',
-      'Service providers run RIVAL on its behalf: Supabase (database, sign-in and file storage), Vercel (web hosting), Anthropic and fal.ai (the AI features above), Expo (push notifications) and Resend (account emails).',
+      'Service providers run RIVAL on its behalf: Supabase (database, sign-in and file storage), Vercel (web hosting), Cloudflare (domain), Anthropic and fal.ai (the AI features above), Expo (push notifications) and Resend (account emails).',
       'RIVAL never sells personal information and does not share it with anyone else except where the law requires.',
     ],
   },

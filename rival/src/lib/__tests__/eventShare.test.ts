@@ -15,6 +15,15 @@ describe('event share choices', () => {
     expect(defaultEventStats(o)).toEqual(['finish', 'pl0', 'pl1']);
   });
 
+  it('starts a marathon on its finish, Overall and Age group, whatever order they were entered in', () => {
+    const facts = { kind: 'race' as const, finishSeconds: 12025, placings };
+    const o = eventStatOptions(facts);
+    // placings: division (pl0), overall (pl1), age (pl2).
+    expect(defaultEventStats(o, facts)).toEqual(['finish', 'pl1', 'pl2']);
+    const noAge = { ...facts, placings: placings.slice(0, 2) };
+    expect(defaultEventStats(eventStatOptions(noAge), noAge)).toEqual(['finish', 'pl1', 'pl0']);
+  });
+
   it('leads HYROX with the division place, then the finish and its splits', () => {
     const o = eventStatOptions({ kind: 'hyrox', finishSeconds: 5076, placings, hyrox: { running: 2406, stations: 2093, roxzone: 577 } });
     expect(o.map((x) => x.key)).toEqual(['pl0', 'finish', 'pl1', 'pl2', 'running', 'stations', 'roxzone']);

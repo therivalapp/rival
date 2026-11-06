@@ -1,5 +1,6 @@
-import { createContext, useContext } from 'react';
-import { Modal as RNModal, Platform, type ModalProps } from 'react-native';
+import { createContext, useContext, type ReactNode } from 'react';
+import { Modal as RNModal, Platform, View, type ModalProps } from 'react-native';
+import { useKeyboardFitHeight } from '../../lib/keyboard';
 
 // React Native Web's "slide" moves the whole full-screen layer, dark backdrop
 // included, so closing a pop-up dragged a black screen down behind it (Ricky,
@@ -10,13 +11,24 @@ const SheetOpen = createContext<boolean | null>(null);
 
 export function Modal({ animationType, visible = true, children, ...rest }: ModalProps) {
   if (Platform.OS !== 'web' || animationType !== 'slide') {
-    return <RNModal {...rest} animationType={animationType} visible={visible}>{children}</RNModal>;
+    return <RNModal {...rest} animationType={animationType} visible={visible}><KeyboardFit>{children}</KeyboardFit></RNModal>;
   }
   return (
     <SheetOpen.Provider value={visible}>
-      <RNModal {...rest} animationType="fade" visible={visible}>{children}</RNModal>
+      <RNModal {...rest} animationType="fade" visible={visible}><KeyboardFit>{children}</KeyboardFit></RNModal>
     </SheetOpen.Provider>
   );
+}
+
+// A pop-up's layer covers the whole screen and doesn't shrink with the
+// keyboard the way the app does (_layout.tsx), so a bottom sheet stayed
+// behind the keyboard and typing happened out of sight (Ricky, 2026-11-05).
+// While the keyboard is up the layer takes only the space above it; the
+// app's focus handler then scrolls the field into view inside the sheet.
+function KeyboardFit({ children }: { children: ReactNode }) {
+  const h = useKeyboardFitHeight();
+  if (Platform.OS !== 'web') return <>{children}</>;
+  return <View style={h != null ? { height: h, overflow: 'hidden' } : { flex: 1 }}>{children}</View>;
 }
 
 /** For the sheet inside a sliding Modal: rises on open, drops on close. The

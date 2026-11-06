@@ -1,3 +1,4 @@
+import { formatTime } from './time';
 import { ACTIVITY_TYPE_GROUPS, localDay } from './goalProgress';
 import { liftKey, type LiftEntry } from './liftHistory';
 
@@ -79,20 +80,9 @@ export function performanceState(goal: PerformanceGoal, activities: PerformanceA
   return { start, current, pct, done };
 }
 
+/** A time on a goal: "19:59", "1:02:30" (lib/time.ts, the one time format). */
 export function clock(seconds: number): string {
-  const s = Math.round(seconds);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const ss = String(s % 60).padStart(2, '0');
-  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
-}
-
-/** "19:59", "1:02:30" or "90" as seconds; null if it isn't a time. */
-export function parseClock(text: string): number | null {
-  const parts = text.trim().split(':').map((p) => p.trim());
-  if (!parts.length || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) return null;
-  const secs = parts.reduce((sum, p) => sum * 60 + Number(p), 0);
-  return secs > 0 ? secs : null;
+  return formatTime(seconds, 'clock');
 }
 
 export const distanceName = (meters: number) => (meters === 21097.5 ? 'half marathon' : meters === 42195 ? 'marathon' : meters >= 1000 ? `${(meters / 1000).toLocaleString()} km` : `${meters} m`);

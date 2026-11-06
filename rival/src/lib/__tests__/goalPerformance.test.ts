@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bestSince, clock, gainedText, parseClock, performanceState, performanceTitle, toGoText, type PerformanceActivity, type PerformanceGoal } from '../goalPerformance';
+import { bestSince, clock, gainedText, performanceState, performanceTitle, toGoText, type PerformanceActivity, type PerformanceGoal } from '../goalPerformance';
 
 const run = (at: string, meters: number, seconds: number, extra: Partial<PerformanceActivity> = {}): PerformanceActivity => ({ activity_type: 'Run', started_at: at, distance_meters: meters, duration_seconds: seconds, ...extra });
 const five: PerformanceGoal = { goal_type: 'fastest_time', target_value: 1199, activity_filter: 'Run', start_date: '2026-10-01', distance_m: 5000, start_value: 1323 };
@@ -41,9 +41,6 @@ describe('Performance goals', () => {
     expect(performanceState(lift, [], entries).pct).toBeCloseTo(0.25);
   });
   it('reads and writes times', () => {
-    expect(parseClock('19:59')).toBe(1199);
-    expect(parseClock('1:02:30')).toBe(3750);
-    expect(parseClock('abc')).toBeNull();
     expect(clock(3750)).toBe('1:02:30');
   });
   it('titles goals plainly', () => {

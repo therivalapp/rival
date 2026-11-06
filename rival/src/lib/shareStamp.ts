@@ -585,3 +585,45 @@ export function stampBlob(c: HTMLCanvasElement): Promise<Blob> {
     c.toBlob((b) => (b ? resolve(b) : reject(new Error('The stamp could not be made.'))), 'image/png');
   });
 }
+
+/** A saved transparent stamp, trimmed to its lettering and shadow with the
+ *  same margin on every side, so it sits in the middle of the file (Ricky,
+ *  2026-11-05). Several stamps are drawn on a wider canvas with room to the
+ *  right; saved as drawn, they came out off-centre. */
+export async function centredStamp(blob: Blob): Promise<Blob> {
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('The stamp could not be read.'));
+      i.src = url;
+    });
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const src = document.createElement('canvas');
+    src.width = w; src.height = h;
+    const sx = src.getContext('2d', { willReadFrequently: true })!;
+    sx.drawImage(img, 0, 0);
+    const a = sx.getImageData(0, 0, w, h).data;
+    let l = w, t = h, r = -1, b = -1;
+    for (let y = 0; y < h; y++) {
+      for (let i = 0; i < w; i++) {
+        // Faint shadow counts, so it is never cut off at the edge.
+        if (a[(y * w + i) * 4 + 3] < 6) continue;
+        if (i < l) l = i;
+        if (i > r) r = i;
+        if (y < t) t = y;
+        if (y > b) b = y;
+      }
+    }
+    if (r < 0) return blob;
+    const cw = r - l + 1, ch = b - t + 1;
+    const pad = Math.round(Math.max(24, Math.min(cw, ch) * 0.08));
+    const out = document.createElement('canvas');
+    out.width = cw + pad * 2; out.height = ch + pad * 2;
+    out.getContext('2d')!.drawImage(src, l, t, cw, ch, pad, pad, cw, ch);
+    return await stampBlob(out);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

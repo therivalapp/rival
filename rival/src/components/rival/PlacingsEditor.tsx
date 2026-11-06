@@ -137,6 +137,22 @@ export function PlacingsEditor({ raceId, eventName, initial, kind, events, onBac
   const rankCells = kind === 'hyrox'
     ? HYROX_STATIONS.map((s, i) => ({ key: `st${i + 1}`, name: s.replace(/\s[\d,]+ m$/, '') }))
     : kind === 'days' ? events.map((e) => ({ key: e.id, name: e.name })) : [];
+  // HYROX runs can be typed as well as scanned (2026-11-05): run1..run8.
+  const runCells = kind === 'hyrox' ? HYROX_STATIONS.map((_, i) => ({ key: `run${i + 1}`, name: `Run ${i + 1}` })) : [];
+  const inDivision = division ? ` IN ${division.toUpperCase()}` : '';
+  const grid = (cells: { key: string; name: string }[]) => (
+    <View style={e.grid}>
+      {cells.map((c) => (
+        <View key={c.key} style={e.cell}>
+          <Text style={e.cellName} numberOfLines={1}>{c.name}</Text>
+          <TextInput
+            style={e.cellInput} value={parts[c.key] ?? ''} onChangeText={(v) => setParts((p) => ({ ...p, [c.key]: v.replace(/[^0-9]/g, '') }))}
+            placeholder="Rank" placeholderTextColor="rgba(255,255,255,0.3)" keyboardType="number-pad"
+          />
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <GreySheet
@@ -184,20 +200,20 @@ export function PlacingsEditor({ raceId, eventName, initial, kind, events, onBac
       {rankCells.length ? (
         <>
           <View style={e.rankHead}>
-            <Text style={e.rowLabel}>{kind === 'hyrox' ? `STATION RANKS${division ? ` IN ${division.toUpperCase()}` : ''}` : 'EVENT PLACES'}</Text>
+            <Text style={e.rowLabel}>{kind === 'hyrox' ? `STATION RANKS${inDivision}` : 'EVENT PLACES'}</Text>
             <Text style={e.optional}>Optional</Text>
           </View>
-          <View style={e.grid}>
-            {rankCells.map((c) => (
-              <View key={c.key} style={e.cell}>
-                <Text style={e.cellName} numberOfLines={1}>{c.name}</Text>
-                <TextInput
-                  style={e.cellInput} value={parts[c.key] ?? ''} onChangeText={(v) => setParts((p) => ({ ...p, [c.key]: v.replace(/[^0-9]/g, '') }))}
-                  placeholder="Rank" placeholderTextColor="rgba(255,255,255,0.3)" keyboardType="number-pad"
-                />
-              </View>
-            ))}
+          {grid(rankCells)}
+        </>
+      ) : null}
+
+      {runCells.length ? (
+        <>
+          <View style={e.rankHead}>
+            <Text style={e.rowLabel}>{`RUN RANKS${inDivision}`}</Text>
+            <Text style={e.optional}>Optional</Text>
           </View>
+          {grid(runCells)}
         </>
       ) : null}
 

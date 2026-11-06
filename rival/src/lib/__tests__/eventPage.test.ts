@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byDay, cleanPlacings, eventKind, halves, hyroxRows, ordinal, paceBars, raceEfforts, shownPlacings } from '../eventPage';
+import { byDay, cleanPlacings, eventKind, halves, hyroxRows, ordinal, paceBars, raceEfforts, shownPlacings, transitionTimes } from '../eventPage';
 
 const day = (iso: string) => iso.slice(0, 10);
 const leg = (id: string, at: string, extra: Record<string, unknown> = {}) =>
@@ -61,5 +61,35 @@ describe('byDay', () => {
   it('groups activities by day in order', () => {
     const g = byDay([leg('b', '2026-08-15T09:00'), leg('a', '2026-08-14T09:00'), leg('c', '2026-08-15T14:00')], day);
     expect(g.map((d) => [d.day, d.legs.map((l) => l.id), d.seconds])).toEqual([['2026-08-14', ['a'], 600], ['2026-08-15', ['b', 'c'], 1200]]);
+  });
+});
+
+describe('transitionTimes', () => {
+  // 39:50 swim, 1:37:28 bike, 51:28 run = 3:08:46 of legs; finish 3:14:20.
+  const legs = 2390 + 5848 + 3088;
+
+  it('totals the transitions from the finish and fills the last one in', () => {
+    const t = transitionTimes([168, null], 2, 11660, legs);
+    expect(t.total).toBe(334);
+    expect(t.list).toEqual([{ seconds: 168, filled: false }, { seconds: 166, filled: true }]);
+  });
+
+  it('fills whichever one is missing', () => {
+    expect(transitionTimes([null, 166], 2, 11660, legs).list[0]).toEqual({ seconds: 168, filled: true });
+  });
+
+  it('gives only the total when neither was entered', () => {
+    const t = transitionTimes(null, 2, 11660, legs);
+    expect(t.total).toBe(334);
+    expect(t.list.every((x) => x.seconds == null)).toBe(true);
+  });
+
+  it('adds up entered transitions when there is no official finish', () => {
+    expect(transitionTimes([168, 166], 2, null, legs).total).toBe(334);
+    expect(transitionTimes([168, null], 2, null, legs).total).toBeNull();
+  });
+
+  it('has none for a single leg', () => {
+    expect(transitionTimes([1], 0, 100, 50)).toEqual({ list: [], total: null });
   });
 });

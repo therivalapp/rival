@@ -1,6 +1,7 @@
 import { useSnapState } from '../lib/snapState';
-import { clock, distanceName, formatValue, gainedText, GOAL_GROUP_LIMIT, isPerformance, OPEN_END_DATE, parseClock, performanceKind, performanceState, performanceTitle, toGoText, bestSince, type PerformanceActivity, type PerformanceGoal, type PerformanceState } from '../lib/goalPerformance';
+import { clock, distanceName, formatValue, gainedText, GOAL_GROUP_LIMIT, isPerformance, OPEN_END_DATE, performanceKind, performanceState, performanceTitle, toGoText, bestSince, type PerformanceActivity, type PerformanceGoal, type PerformanceState } from '../lib/goalPerformance';
 import { loadPerformanceData } from '../lib/goalPerformanceData';
+import { formatTime, parseTime, timeFieldProps } from '../lib/time';
 import type { LiftEntry } from '../lib/liftHistory';
 import { formatWeight, toDisplayWeight, weightUnit } from '../lib/units';
 import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
@@ -474,7 +475,7 @@ export default function GoalsScreen() {
     setTargetValue(String(goal.target_value));
     if (goal.perf) {
       const stored = goal.storedTarget ?? 0;
-      setTargetValue(goal.goal_type === 'lift' ? String(Math.round(toDisplayWeight(stored) * 10) / 10) : clock(stored));
+      setTargetValue(goal.goal_type === 'lift' ? String(Math.round(toDisplayWeight(stored) * 10) / 10) : formatTime(stored, 'field', goal.goal_type === 'pace' ? 'ms' : 'hms'));
       if (goal.activity_filter && SPORTS.includes(goal.activity_filter as Sport)) setSport(goal.activity_filter as Sport);
       if (goal.distance_m) setDistanceM(Number(goal.distance_m));
       if (goal.lift_name) { setLiftName(goal.lift_name); setCustomLift(!MAIN_LIFTS.includes(goal.lift_name)); }
@@ -513,7 +514,7 @@ export default function GoalsScreen() {
   const draftBest = performance ? bestSince(draftGoal, perfSource.activities, perfSource.entries) : null;
   const perfTarget = goalType === 'lift'
     ? (parseFloat(targetValue) > 0 ? (weightUnit() === 'lb' ? parseFloat(targetValue) / LB_PER_KG : parseFloat(targetValue)) : null)
-    : parseClock(targetValue);
+    : parseTime(targetValue, goalType === 'pace' ? 'minutes' : 'hours');
 
   async function saveGoal() {
     if (goalWriting.current) return;
@@ -923,13 +924,17 @@ export default function GoalsScreen() {
       <GreyRows>
         <GreyRow icon="target" label={goalType === 'lift' ? 'Weight' : goalType === 'pace' ? 'Pace' : 'Time'}>
           <View style={ms.targetRow}>
-            <GreyRowInput
-              value={targetValue}
-              onChangeText={setTargetValue}
-              placeholder={goalType === 'lift' ? '100' : goalType === 'pace' ? (sport === 'Swim' ? '2:00' : '5:00') : '19:59'}
-              keyboardType={goalType === 'lift' ? 'decimal-pad' : 'numbers-and-punctuation'}
-              style={ms.targetInput}
-            />
+            {goalType === 'lift' ? (
+              <GreyRowInput value={targetValue} onChangeText={setTargetValue} placeholder="100" keyboardType="decimal-pad" style={ms.targetInput} />
+            ) : (
+              // The time box (lib/time.ts): a best time in hours, minutes and
+              // seconds, a pace in minutes and seconds.
+              <GreyRowInput
+                {...timeFieldProps(goalType === 'pace' ? 'ms' : 'hms', targetValue, setTargetValue)}
+                placeholder={goalType === 'pace' ? (sport === 'Swim' ? '02:00' : '05:00') : '00:19:59'}
+                style={ms.targetInput}
+              />
+            )}
             <Text style={ms.targetUnit}>{goalType === 'lift' ? weightUnit() : goalType === 'pace' ? (sport === 'Swim' ? '/ 100 m' : '/ km') : ''}</Text>
           </View>
         </GreyRow>

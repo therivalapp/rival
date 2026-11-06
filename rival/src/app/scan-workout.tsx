@@ -1,4 +1,5 @@
 import { defaultActivityName } from '../lib/activityName';
+import { formatTime, parseTime, timeFieldProps } from '../lib/time';
 import { fitPhoto } from '../lib/imageResize';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
@@ -80,11 +81,9 @@ function dateToLocalStr(d: Date): string {
 }
 
 // Matches races.tsx's finish-time parser — typed directly as "1:31:25" (h:mm:ss) or "31:25" (mm:ss).
+// A scanned workout's time: two parts are minutes and seconds (lib/time.ts).
 function parseTimeToSeconds(t: string): number {
-  const parts = t.trim().split(':').map(Number);
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  return 0;
+  return parseTime(t, 'minutes') ?? 0;
 }
 
 function todayLocalStr(): string {
@@ -142,7 +141,7 @@ export default function ScanWorkoutScreen() {
   useEffect(() => {
     const current = parseTimeToSeconds(durationText);
     if (extractedWorkout?.duration !== current) {
-      setDurationText(extractedWorkout?.duration ? formatDurationHMS(extractedWorkout.duration) : '');
+      setDurationText(extractedWorkout?.duration ? formatTime(extractedWorkout.duration, 'field') : '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [extractedWorkout?.duration]);
@@ -1287,14 +1286,11 @@ export default function ScanWorkoutScreen() {
                   <Text style={st.fieldLabel}>Duration:</Text>
                   <TextInput
                     style={st.fieldValueInput}
-                    value={durationText}
-                    onChangeText={(v) => {
+                    placeholderTextColor={RivalColors.textSecondary}
+                    {...timeFieldProps('hms', durationText, (v) => {
                       setDurationText(v);
                       setExtractedWorkout({ ...extractedWorkout, duration: parseTimeToSeconds(v) });
-                    }}
-                    placeholder="1:31:25"
-                    placeholderTextColor={RivalColors.textSecondary}
-                    autoCapitalize="none"
+                    })}
                   />
                 </View>
                 {isShortClass(extractedWorkout.workoutType, extractedWorkout.duration) && (

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useScreenHeight } from '../../lib/keyboard';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Modal, sheetMotion } from './RivalModal';
 import { supabase } from '../../lib/supabase';
@@ -172,7 +173,8 @@ export function PlanSessionSheet({
   const wheelTime = timeFor === 'now' && nowAt ? nowAt : time;
   const setWheelTime = (v: string) => (timeFor === 'now' ? setNowAt(v) : setTime(v));
   const [hh, mm] = [wheelTime.split(':')[0] ?? '07', wheelTime.split(':')[1] ?? '00'];
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const windowHeight = useScreenHeight();
   // Phones get the tile grid and centred title; desktop keeps the chips.
   const m = !sidePageWide(windowWidth);
   // Phones: the person's own types first, as in Log an activity (lib/recentTypes.ts).

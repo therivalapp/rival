@@ -1,0 +1,141 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+/* Triathlon transitions (Ricky, 2026-11-05). Built on the real event page
+   (EventSheet.tsx, the "legs" layout in Ricky's T100 screenshot), the
+   Events page card (races.tsx phone branch) and the Log finish time sheet
+   (GreySheet + GreyRows). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:22px;display:flex;gap:24px}
+.col{width:375px;flex-shrink:0}
+.tag{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 6px;font-weight:800}
+.desc{font-size:12px;color:rgba(255,255,255,.6);margin:0 4px 12px;line-height:17px;min-height:68px}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle}
+.ph{position:relative;width:375px;height:860px;border-radius:28px;overflow:hidden;background:#0d0d0d}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:40px;background:#282828;border-top:1px solid #323232;border-radius:22px 22px 0 0;overflow:hidden}
+.hero{height:200px;background:url('../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg') center 40%/cover;position:relative}
+.more{position:absolute;right:14px;top:14px;width:32px;height:32px;border-radius:16px;background:rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;z-index:2;color:#fff}
+.hero:after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,#282828 0%,rgba(40,40,40,.85) 22%,rgba(40,40,40,0) 62%)}
+.ht{position:absolute;left:18px;right:18px;bottom:4px;z-index:1}
+.pill{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:999px;background:#f4ead8;color:#2a2116;font-size:9.5px;font-weight:800;letter-spacing:.6px}
+.tt{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin-top:8px}
+.mt{font-size:12.5px;color:rgba(255,255,255,.7);margin-top:3px}
+.body{padding:12px 18px}
+.lbl{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#A0A0A0}
+.res{display:flex;justify-content:space-between;align-items:flex-end}
+.fin{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:46px;line-height:50px}
+.side{text-align:right;padding-bottom:6px}.side b{display:block;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:18px}.side span{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#A0A0A0}
+.split{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;margin-top:14px}.split i{display:block;height:100%}
+.keys{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0}
+.trn{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;color:#A0A0A0}.trn .sw{width:14px;height:6px;border-radius:2px;background:rgba(255,255,255,.38)}.trn b{color:#fff;font-weight:700}
+.addpl{display:flex;align-items:center;gap:7px;margin-top:13px;padding:11px 12px;border-radius:14px;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05);font-size:13.5px;font-weight:700;color:#ffb59e}.addpl span{margin-left:auto;font-size:11.5px;font-weight:500;color:#A0A0A0}
+.tl{margin-top:14px;padding-left:30px}
+.node{position:relative;display:flex;align-items:center;gap:10px;min-height:58px;padding:4px 0}
+.node .seg{position:absolute;left:-19px;top:50%;height:100%;width:2px;background:#f4ead8;opacity:.4}
+.dot{position:absolute;left:-30px;width:24px;height:24px;border-radius:12px;background:#323232;border:1.5px solid #f4ead8;display:flex;align-items:center;justify-content:center;font-size:13px;color:#f4ead8;z-index:1}
+.k{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#A0A0A0}
+.d{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:20px}.d small{font-family:Manrope;font-style:normal;font-size:12px;color:#A0A0A0;font-weight:700}
+.p{font-size:11.5px;color:#A0A0A0}
+.tm{margin-left:auto;text-align:right}.tm b{display:block;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:18px}.tm span{font-size:10px;font-weight:800;letter-spacing:1px;color:#ffb59e}
+/* a transition: a small node between legs */
+.node.t{min-height:30px}.node.t .dot{left:-24px;width:12px;height:12px;border-radius:6px;border-color:rgba(255,255,255,.45);background:#2c2c2c}
+.node.t .k{color:rgba(255,255,255,.62)}.node.t .tm b{font-size:14px;color:rgba(255,255,255,.85)}
+.foot{position:absolute;left:0;right:0;bottom:0;padding:12px 18px 24px;display:flex;gap:8px;background:linear-gradient(0deg,#282828 70%,rgba(40,40,40,0))}
+.ghost{flex:1;height:52px;border-radius:999px;border:1px solid rgba(255,181,158,.35);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#ffb59e}
+.btn{flex:1.4;height:52px;border-radius:999px;background:linear-gradient(90deg,#D97757,#ffb59e);color:#2a1710;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px}
+/* Events page card */
+.pg{position:absolute;inset:0;background:#282828;padding:18px 18px}
+.pgh{text-align:center}.pgh .k2{font-size:9.5px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}.pgh .t2{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px}
+.card{margin-top:14px;border-radius:18px;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05);padding:16px}
+.card .ck{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#A0A0A0}
+.card .cn{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:24px;margin-top:3px}
+.card .cm{font-size:12.5px;color:#A0A0A0;margin-top:2px}
+.chips{display:flex;gap:6px;margin-top:10px}.chips span{font-size:11.5px;padding:5px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
+.chk{position:absolute;right:16px;top:20px;width:24px;height:24px;border-radius:12px;background:#F5B759;display:flex;align-items:center;justify-content:center;color:#2a1710;font-size:16px}
+.grow{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.grow .lab{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#ffb59e}.grow b{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:18px}.grow .ed{display:flex;align-items:center;gap:6px}.grow .ed .ew{font-size:13px;font-weight:700;color:#ffb59e}
+.small{font-size:11.5px;color:#A0A0A0;margin-top:4px}
+.gb{margin-top:12px;height:46px;border-radius:999px;border:1px solid rgba(255,181,158,.35);display:flex;align-items:center;justify-content:center;gap:7px;color:#ffb59e;font-weight:700;font-size:14.5px}
+.gb.sh{background:#ffb59e;border-color:#ffb59e;color:#2a1710;font-weight:800}.gbsub{text-align:center;font-size:11.5px;color:#A0A0A0;margin-top:6px}
+/* sheet */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.72)}
+.gs{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #323232;border-radius:22px 22px 0 0;padding:10px 18px 22px;overflow:hidden}
+.glow{position:absolute;left:0;right:0;top:0;height:160px;background:radial-gradient(ellipse 80% 160px at 50% 0%,rgba(217,119,87,.16),rgba(217,119,87,0) 70%)}
+.grab{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.3);margin:0 auto 10px}
+.kick{font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.st{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:24px;text-align:center;margin-top:3px}
+.sub{font-size:12.5px;color:#A0A0A0;text-align:center;margin-top:2px}
+.gl{font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;margin:15px 0 8px;text-transform:uppercase;display:flex;justify-content:space-between}.gl em{font-style:normal;text-transform:none;letter-spacing:0;color:#ffb59e;font-size:11px;font-weight:700}
+.rows{border-radius:14px;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05)}
+.row{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 13px}.row+.row{border-top:1px solid rgba(255,209,190,.08)}
+.row .ic{font-size:16px;color:#ffb59e}.row .l{flex:1;font-size:14px;font-weight:600}.row .v{font-size:15px;color:#fff;font-family:Georgia,serif;font-style:italic;font-weight:700}.row .v.ph2{color:rgba(255,255,255,.3)}
+.row .v.focus{border-right:2px solid #ffb59e;padding-right:2px}
+.row .v.calc{color:rgba(255,255,255,.75)}
+.note{font-size:12px;line-height:17px;color:#A0A0A0;margin-top:8px;display:flex;gap:6px}.note .mi{font-size:14px;color:#ffb59e;margin-top:1px}.note b{color:#fff}
+.sc{display:flex;gap:10px}.sc div{flex:1;height:84px;border-radius:16px;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
+.sc .on{background:linear-gradient(135deg,#ffb59e,#D97757);color:#2a120a}.sc .of{border:1px solid rgba(255,181,158,.35);background:rgba(255,209,190,.05)}
+.sc b{font-size:15px;font-weight:800;position:relative}.sc span{font-size:11px;opacity:.75;position:relative}.sc .bi{position:absolute;right:8px;top:6px;font-size:52px;opacity:.25}
+.lblr{display:flex;align-items:center;gap:10px}.lblr .ew{font-size:12.5px;font-weight:700;color:#ffb59e}
+.row .v.on{border-right:2px solid #ffb59e;padding-right:2px}.row.tr .l{color:rgba(255,255,255,.75);font-size:13px}.row.tr .v{font-size:13.5px;color:rgba(255,255,255,.85)}.ok{display:flex;align-items:center;gap:6px;font-size:12px;color:#A0A0A0;margin-top:8px}.ok .mi{font-size:15px;color:#f4ead8}.ok b{color:#fff}
+.primary{height:52px;border-radius:999px;background:linear-gradient(90deg,#D97757,#ffb59e);color:#2a1710;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;margin-top:14px}
+</style></head><body>
+<script>
+const leg=(icon,k,d,u,p,t,e,last)=>`<div class="node">${last?'':'<div class="seg"></div>'}<div class="dot"><span class="mi" style="font-size:13px">${icon}</span></div><div><div class="k">${k}</div><div class="d">${d}<small> ${u}</small></div><div class="p">${p}</div></div><div class="tm"><b>${t}</b><span>EFFORT ${e}</span></div></div>`;
+const tr=(k,t)=>`<div class="node t"><div class="seg"></div><div class="dot"></div><div><div class="k">${k}</div></div><div class="tm"><b>${t}</b></div></div>`;
+// 39:50 swim, 2:48 T1, 1:37:28 bike, 2:46 T2, 51:28 run = 3:14:20
+const bar=`<div class="split"><i style="flex:2390;background:#f4ead8"></i><i style="flex:168;background:rgba(255,255,255,.38)"></i><i style="flex:5848;background:#ffd2bf"></i><i style="flex:166;background:rgba(255,255,255,.38)"></i><i style="flex:3088;background:#ffb59e"></i></div>`;
+
+const page=`<div class="ph"><div class="sheet"><div class="hero"><div class="more"><span class="mi" style="font-size:20px">more_horiz</span></div><div class="ht"><span class="pill"><span class="mi" style="font-size:11px">flag</span>TRIATHLON</span><div class="tt">T100</div><div class="mt">Sat, 15 Aug · Vancouver, CA · 51.5 km</div></div></div>
+<div class="body"><div class="res"><div><div class="lblr"><span class="lbl">FINISH TIME</span><span class="ew">Edit times</span></div><div class="fin">3:14:20</div></div><div class="side"><b>First time</b><span>TIME TO BEAT</span></div></div>
+${bar}<div class="keys"><span>SWIM 1.8 KM · 21%</span><span>BIKE 40.7 KM · 50%</span><span>RUN 10 KM · 26%</span></div>
+<div class="trn"><span class="sw"></span>Transitions <b>5:34</b> · 3% · T1 2:48 · T2 2:46</div>
+<div class="addpl"><span class="mi" style="font-size:17px">add</span>Add placings<span>Overall, age group, division</span></div>
+<div class="tl">${leg('pool','SWIM','1.8','km','2:16 /100m','39:50','94.4')}${tr('T1','2:48')}${leg('directions_bike','BIKE','40.7','km','25.1 km/h','1:37:28','155.5')}${tr('T2','2:46')}${leg('directions_run','RUN','10.0','km','5:09 /km','51:28','96.3',1)}</div>
+</div><div class="foot"><div class="ghost">Done</div><div class="btn"><span class="mi" style="font-size:18px">ios_share</span>Share</div></div></div></div>`;
+
+const cards=`<div class="ph"><div class="pg"><div class="pgh"><div class="k2">RACES AND COMPETITIONS</div><div class="t2">Events</div></div>
+<div class="card" style="position:relative"><div class="chk"><span class="mi">check</span></div><div class="ck">TRIATHLON · 51.5 KM</div><div class="cn">T100 <span class="mi" style="font-size:20px;color:#A0A0A0;vertical-align:-2px">chevron_right</span></div><div class="cm">August 15, 2026 · Vancouver, CA</div>
+<div class="chips"><span>Swim · 1.5 km</span><span>Bike · 40 km</span><span>Run · 10 km</span></div>
+<div class="grow"><span class="lab">LEG TOTAL</span><b>3:08:46</b></div>
+<div class="small">The official time also counts transitions.</div>
+<div class="gb">Add official finish time</div>
+<div class="gb sh" style="margin-top:8px"><span class="mi" style="font-size:16px">ios_share</span>Share</div>
+</div>
+<div class="card" style="position:relative"><div class="chk"><span class="mi">check</span></div><div class="ck">TRIATHLON · 51.5 KM</div><div class="cn">T100 <span class="mi" style="font-size:20px;color:#A0A0A0;vertical-align:-2px">chevron_right</span></div><div class="cm">After adding it</div>
+<div class="grow"><span class="lab">FINISH TIME</span><span class="ed"><b>3:14:20</b></span></div>
+<div class="small">Includes 5:34 of transitions.</div>
+<div class="gb sh"><span class="mi" style="font-size:16px">ios_share</span>Share</div>
+</div></div></div>`;
+
+const sheet=`<div class="ph"><div class="pg" style="opacity:.5"><div class="pgh"><div class="t2">Events</div></div></div><div class="dim"></div>
+<div class="gs"><div class="glow"></div><div class="grab"></div><div class="kick">EVENTS</div><div class="st">Official finish time</div><div class="sub">T100</div>
+<div class="gl">Photo scan</div>
+<div class="sc"><div class="on"><span class="mi bi">photo_camera</span><b>Take photo</b><span>Use the camera</span></div><div class="of"><span class="mi bi" style="color:#ffb59e">file_upload</span><b>Upload</b><span>Screenshot or saved photo</span></div></div>
+<div class="gl">Manual entry</div>
+<div class="rows"><div class="row"><span class="l">Finish time</span><span class="v focus">03:14:20</span></div></div>
+<div class="note"><span>Leg total <b>3:08:46</b>. Transitions <b>5:34</b>.</span></div>
+<div class="gl">Transitions<em>Optional</em></div>
+<div class="rows"><div class="row"><span class="mi ic">swap_horiz</span><span class="l">T1 · swim to bike</span><span class="v">02:48</span></div>
+<div class="row"><span class="mi ic">swap_horiz</span><span class="l">T2 · bike to run</span><span class="v calc">02:46</span></div></div>
+<div class="note"><span>T2 is filled in from the remaining time.</span></div>
+<div class="primary">Save</div></div></div>`;
+
+const edit=`<div class="ph"><div class="pg" style="opacity:.5"><div class="pgh"><div class="t2">T100</div></div></div><div class="dim"></div>
+<div class="gs"><div class="glow"></div><div class="grab"></div><div class="kick">EVENTS</div><div class="st">Edit times</div><div class="sub">T100</div>
+<div class="gl">Official finish</div>
+<div class="rows"><div class="row"><span class="l">Finish time</span><span class="v">03:14:20</span></div></div>
+<div class="gl">Legs and transitions</div>
+<div class="rows"><div class="row"><span class="mi ic">pool</span><span class="l">Swim · 1.8 km</span><span class="v on">00:39:50</span></div>
+<div class="row tr"><span class="mi ic">swap_horiz</span><span class="l">T1 · swim to bike</span><span class="v">02:48</span></div>
+<div class="row"><span class="mi ic">directions_bike</span><span class="l">Bike · 40.7 km</span><span class="v">01:37:28</span></div>
+<div class="row tr"><span class="mi ic">swap_horiz</span><span class="l">T2 · bike to run</span><span class="v">02:46</span></div>
+<div class="row"><span class="mi ic">directions_run</span><span class="l">Run · 10.0 km</span><span class="v">00:51:28</span></div></div>
+<div class="note"><span>Total <b>3:14:20</b>, matching the finish time.</span></div>
+<div class="note" style="margin-top:2px"><span>Changing a leg updates its pace and Effort.</span></div>
+<div class="primary">Save</div></div></div>`;
+document.write(`
+<div class="col"><div class="tag">1 · EVENT PAGE</div><div class="desc">The official finish leads. The bar gains two thin white slivers for T1 and T2, with one line under the keys. Each transition sits between its legs as a small node, no Effort. Edit times sits beside the finish. The menu top right holds Edit event details and Delete.</div>${page}</div>
+<div class="col"><div class="tag">2 · EVENTS PAGE CARD</div><div class="desc">Tapping anywhere on the card opens the event page (1), where every edit lives: times, placings, event details. Before: the leg total and "Add official finish time". After: the official time and how much of it was transitions.</div>${cards}</div>
+<div class="col"><div class="tag">3 · OFFICIAL FINISH TIME</div><div class="desc">The same pop-up, renamed for events with legs. Type the finish and the transition time is worked out; T1 and T2 are optional, the second filled in from the remaining time.</div>${sheet}</div>
+<div class="col"><div class="tag">4 · EDIT TIMES</div><div class="desc">One pop-up for every time in the event: the official finish, each leg and both transitions, all in the time box. A line shows their total against the finish. Changing a leg updates that activity, so its pace and Effort follow.</div>${edit}</div>
+`);
+</script></body></html>

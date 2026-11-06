@@ -1,6 +1,7 @@
 import { Children, Fragment, isValidElement, useRef, type ReactNode } from 'react';
 import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps } from 'react-native';
 import { useSheetMotion } from './RivalModal';
+import { useScreenHeight } from '../../lib/keyboard';
 import { RivalButtonColors, RivalColors, RivalGhost, RivalMainGlow, RivalSerifFamily, rivalPhoneVar } from '../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { RivalCalendarGrid } from './RivalCalendarGrid';
@@ -33,7 +34,9 @@ export function GreySheet({
   /** Drawn over the whole sheet, for the calendar or time picker. */
   overlay?: ReactNode;
 }) {
-  const { height, width } = useWindowDimensions();
+  const { width } = useWindowDimensions();
+  // Above the keyboard while it is up, so a tall sheet isn't cut off at the top.
+  const height = useScreenHeight();
   // On a wide screen the pop-up is a centred dialog rather than a sheet
   // rising from the bottom edge.
   const dialog = width >= BREAKPOINT_WIDE_LAYOUT;
@@ -103,7 +106,8 @@ export function GreyRows({ children, glow }: { children: ReactNode; /** The page
 export function GreyRow({
   icon, label, value, placeholder, onPress, children,
 }: {
-  icon: RivalIconName;
+  /** Left out on a lone row such as Finish time (AGENTS.md mockup checklist). */
+  icon?: RivalIconName;
   label: string;
   value?: string;
   placeholder?: string;
@@ -112,7 +116,7 @@ export function GreyRow({
 }) {
   const body = (
     <>
-      <RivalIcon name={icon} size={16} color={RivalColors.accentText} style={g.rowIcon} />
+      {icon ? <RivalIcon name={icon} size={16} color={RivalColors.accentText} style={g.rowIcon} /> : null}
       <Text style={g.rowLabel} numberOfLines={1}>{label}</Text>
       <View style={g.rowControl}>
         {children ?? (

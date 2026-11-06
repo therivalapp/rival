@@ -1,3 +1,4 @@
+import { parseTime } from './time';
 import { activityPbs, DISTANCE_SPORTS, type PbActivity } from './activityPbs';
 import { tileLabel } from './activityTypes';
 import { formatRaceName } from './identity';
@@ -163,12 +164,9 @@ function pbTile(a: CelebrationActivity, lift: { lift: string; weightKg: number }
 }
 
 /** "06:00:00" or "3:30" (h:mm[:ss]) as seconds; null when it isn't one. */
+/** A saved finish or goal time as seconds; the one reader (lib/time.ts). */
 export function parseFinishTime(t: string | null | undefined): number | null {
-  if (!t) return null;
-  const parts = t.trim().split(':').map(Number);
-  if (parts.length < 2 || parts.some((n) => !Number.isFinite(n))) return null;
-  const [h, m, sec = 0] = parts;
-  return h * 3600 + m * 60 + sec;
+  return parseTime(t, 'hours');
 }
 
 // "3:30" for a whole-minute goal, "3:30:15" otherwise.

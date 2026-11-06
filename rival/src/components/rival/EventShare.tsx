@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Modal } from './RivalModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RivalBackButton } from './RivalBackButton';
 import { RivalIcon } from './RivalIcon';
@@ -9,6 +10,7 @@ import { StampStage } from './StampStage';
 import { RivalButtonColors, RivalColors, RivalGhost } from '../../constants/rivalTheme';
 import { composeStampOnPhoto, makeShareCard, shareCardFile, type StampPlacement } from '../../lib/shareCard';
 import {
+  centredStamp,
   MAX_STATS, STAMP_STYLES, chosenFigures, drawEventStamp, drawStamp, inkMargins, stampBlob, stampFontsReady,
   type InkMargins, type StampMode, type StampStyle, type StatKey,
 } from '../../lib/shareStamp';
@@ -58,12 +60,14 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const urls = useRef<string[]>([]);
+  const [enlarged, setEnlarged] = useState(false);
 
   const options = eventStatOptions(facts);
 
   useEffect(() => {
     if (!open) return;
-    const k = defaultEventStats(options);
+    setEnlarged(false);
+    const k = defaultEventStats(options, facts);
     setKeys(k);
     // HYROX and several days lead with the place; a race with its time.
     const lead: Choice = (facts.kind === 'hyrox' || facts.kind === 'days') && placeHero(options, k) ? 'place' : 'finish';
@@ -143,7 +147,7 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
     try {
       let done: 'shared' | 'saved' | 'cancelled';
       if (!stamp) done = await shareCardFile(card.blob, `${base}.jpg`);
-      else if (stampOnly || !photo) done = await shareCardFile(stamp.blob, `${base}-stamp.png`);
+      else if (stampOnly || !photo) done = await shareCardFile(await centredStamp(stamp.blob), `${base}-stamp.png`);
       else done = await shareCardFile(await composeStampOnPhoto({ photoUrl: photo.url, focalX: photo.focalX, focalY: photo.focalY, stampUrl: stamp.url, placement }), `${base}.jpg`);
       if (done !== 'cancelled') onClose();
     } catch {
@@ -155,6 +159,34 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
 
   const h = Math.min(wh * 0.46, (ww - 96) * 16 / 9);
   const stamp = chosen();
+
+  // The photo with the card or the placed stamp, and the corner button that
+  // enlarges it to the full screen or brings it back, as on an activity's
+  // share (ActivityDiaryViewer sharePreview). The button sits beside the
+  // stage, not in it, so it never starts a drag.
+  function preview(height: number, full: boolean) {
+    if (!card) return null;
+    return (
+      <View>
+        {stamp
+          ? <StampStage photoUrl={photo?.url ?? null} stampUrl={stamp.url} inkHint={stamp.ink} height={height} placement={placement} onChange={setPlacement} />
+          : (
+            <>
+              <Image source={{ uri: card.url }} style={[e.cardPreview, { height }]} resizeMode="contain" />
+              <Text style={e.hintSpace} aria-hidden>Drag to move</Text>
+            </>
+          )}
+        <TouchableOpacity
+          style={e.enlargeBtn}
+          onPress={() => setEnlarged(!full)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={full ? 'Make smaller' : 'Enlarge'}
+        >
+          <RivalIcon name={full ? 'shrink' : 'enlarge'} size={15} color="rgba(255,255,255,0.6)" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
   const eventTile = (c: 'finish' | 'place', pic: Pic | null, label: string) => (pic ? (
     <TouchableOpacity
       key={c}
@@ -171,16 +203,7 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       <View style={e.sheet}>
         <ScrollView contentContainerStyle={[e.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
-          {card ? (
-            stamp
-              ? <StampStage photoUrl={photo?.url ?? null} stampUrl={stamp.url} inkHint={stamp.ink} height={h} placement={placement} onChange={setPlacement} />
-              : (
-                <View>
-                  <Image source={{ uri: card.url }} style={[e.cardPreview, { height: h }]} resizeMode="contain" />
-                  <Text style={e.hintSpace} aria-hidden>Drag to move</Text>
-                </View>
-              )
-          ) : <View style={[e.cardPreview, e.placeholder, { height: h }]} />}
+          {card ? preview(h, false) : <View style={[e.cardPreview, e.placeholder, { height: h }]} />}
 
           <View style={e.wrap}>
             <View style={e.head}>
@@ -230,6 +253,11 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
           {error ? <Text style={e.error}>{error}</Text> : null}
         </ScrollView>
         <RivalBackButton onPress={onClose} color="#fff" style={[e.back, { top: insets.top + 12 }]} />
+        {enlarged && card ? (
+          <View style={[e.sheet, e.enlarged, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}>
+            {preview(Math.min(wh - insets.top - insets.bottom - 24 - 34, ww * 16 / 9), true)}
+          </View>
+        ) : null}
       </View>
     </Modal>
   );
@@ -238,6 +266,13 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
 // The activity share pop-up's styles (ActivityDiaryViewer cardSheet), so the
 // two read as one thing.
 const e = StyleSheet.create({
+  enlarged: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  // The activity share's corner button (ActivityDiaryViewer enlargeBtn).
+  enlargeBtn: {
+    position: 'absolute', top: 10, right: 10, width: 30, height: 30, borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)',
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}),
+  },
   sheet: {
     flex: 1, backgroundColor: RivalGhost.ground,
     ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' } as any : {}),

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useScreenHeight } from '../../lib/keyboard';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Modal, useSheetMotion } from './RivalModal';
 import { useSheetDrag } from './useSheetDrag';
@@ -15,10 +16,15 @@ import { tileLabel } from '../../lib/activityTypes';
 import { distanceUnit, elevationUnit, formatSpeedOrPace, formatWeight, KM_PER_MILE, toDisplayDistance, toDisplayElevation } from '../../lib/units';
 import { WOD_LABEL, type ActivityStats } from '../../lib/activityStats';
 import {
-  byDay, eventKind, halves, hyroxRows, ordinalSuffix, paceBars, placingCaption, raceEfforts, shownPlacings,
+  byDay, eventKind, halves, hyroxRows, ordinalSuffix, paceBars, placingCaption, raceEfforts, shownPlacings, transitionKey, transitionTimes,
   type BestEffort, type EventKind, type Placings, type Split,
 } from '../../lib/eventPage';
 import { PlacingsEditor } from './PlacingsEditor';
+import { EventTimesSheet, type TimesSaved } from './EventTimesSheet';
+import { router } from 'expo-router';
+import { legDistance, legName } from '../../lib/eventLegs';
+import { effortDistance, fastestBests, RUN_TYPES, type EffortRow } from '../../lib/bestEfforts';
+
 import { EventShare } from './EventShare';
 import type { EventShareFacts } from '../../lib/eventShare';
 
@@ -56,6 +62,8 @@ type Race = {
   actual_finish_time: string | null;
   disciplines: { name?: string }[] | null;
   placings?: Placings | null;
+  /** Seconds between each leg and the next (supabase/add_race_transitions.sql). */
+  transitions?: (number | null)[] | null;
 };
 
 /** What the page reads beyond the card's own fields. */
@@ -78,25 +86,7 @@ const web = Platform.OS === 'web';
 // The same event in another year: "T100 Wellington 2025" and "t100 wellington" match.
 const sameEvent = (name: string) => name.toLowerCase().replace(/\b(19|20)\d{2}\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
-/** A leg's distance as a number and unit: swims in metres up to a kilometre. */
-function legDistance(a: EventLeg): { num: string; unit: string } | null {
-  const m = a.distance_meters ?? 0;
-  if (m < 1) return null;
-  if (a.activity_type === 'Swim' && m < 1000) return { num: String(Math.round(m)), unit: 'm' };
-  const swim = a.activity_type === 'Swim';
-  const v = swim ? m / 1000 : toDisplayDistance(m / 1000);
-  const num = v >= 10 && Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1);
-  return { num, unit: swim ? 'km' : distanceUnit() };
-}
-
-function legName(race: Race | null, a: EventLeg, i: number): string {
-  const named = race?.disciplines?.[i]?.name;
-  if (named) return named;
-  if (a.activity_type === 'Ride' || a.activity_type === 'VirtualRide') return 'Bike';
-  return tileLabel(a.activity_type);
-}
-
-export function EventSheet({ raceId, legs, pbLegIds, onClose, onOpenLeg }: {
+export function EventSheet({ raceId, legs, pbLegIds, onClose, onOpenLeg, startShare, onEditDetails, onChanged }: {
   raceId: string | null;
   /** The event's activities on its one day. */
   legs: EventLeg[];
@@ -104,12 +94,18 @@ export function EventSheet({ raceId, legs, pbLegIds, onClose, onOpenLeg }: {
   pbLegIds: Set<string>;
   onClose: () => void;
   onOpenLeg?: (id: string) => void;
+  /** Open with the share pop-up up, from a Share button elsewhere. */
+  startShare?: boolean;
+  /** Edit event details from the menu; without it the Events page opens with the event's form. */
+  onEditDetails?: (raceId: string) => void;
+  /** After times change, so the page that opened it can reload. */
+  onChanged?: () => void;
 }) {
   return (
     <Modal visible={!!raceId} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel="Close" />
-        {raceId ? <Sheet raceId={raceId} legs={legs} pbLegIds={pbLegIds} onClose={onClose} onOpenLeg={onOpenLeg} /> : null}
+        {raceId ? <Sheet raceId={raceId} legs={legs} pbLegIds={pbLegIds} onClose={onClose} onOpenLeg={onOpenLeg} startShare={startShare} onEditDetails={onEditDetails} onChanged={onChanged} /> : null}
       </View>
     </Modal>
   );
@@ -139,10 +135,16 @@ function eventTag(race: Race | null, kind: EventKind, legs: EventLeg[]): string 
   return t && ['Triathlon', 'HYROX', 'CrossFit'].includes(t) ? t : 'Event';
 }
 
-function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
-  raceId: string; legs: EventLeg[]; pbLegIds: Set<string>; onClose: () => void; onOpenLeg?: (id: string) => void;
+function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, onEditDetails, onChanged }: {
+  raceId: string; legs: EventLeg[]; pbLegIds: Set<string>; onClose: () => void; onOpenLeg?: (id: string) => void; startShare?: boolean;
+  onEditDetails?: (raceId: string) => void; onChanged?: () => void;
 }) {
-  const { height } = useWindowDimensions();
+  // Leg times changed in Edit times show at once.
+  const [legEdits, setLegEdits] = useState<TimesSaved['legs']>({});
+  const unsorted = useMemo(() => given.map((a) => (legEdits[a.id] ? { ...a, ...legEdits[a.id] } : a)), [given, legEdits]);
+  const [times, setTimes] = useState<'edit' | 'finish' | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const height = useScreenHeight();
   const motion = useSheetMotion();
   const dragRef = useSheetDrag(onClose);
   const legs = useMemo(() => [...unsorted].sort((x, y) => x.started_at.localeCompare(y.started_at)), [unsorted]);
@@ -153,7 +155,7 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [me, setMe] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [sharing, setSharing] = useState(false);
+  const [sharing, setSharing] = useState(!!startShare);
 
   useEffect(() => {
     let live = true;
@@ -167,7 +169,9 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
       // placings arrives with supabase/add_race_placings.sql; until it is run
       // the page reads the race without it.
       const cols = 'id, user_id, name, race_type, race_date, location, distance_km, actual_finish_time, disciplines';
-      let { data, error } = await supabase.from('races').select(`${cols}, placings`).eq('id', raceId).maybeSingle();
+      // transitions arrives with supabase/add_race_transitions.sql.
+      let { data, error } = await supabase.from('races').select(`${cols}, placings, transitions`).eq('id', raceId).maybeSingle();
+      if (error) ({ data, error } = await supabase.from('races').select(`${cols}, placings`).eq('id', raceId).maybeSingle());
       if (error) ({ data } = await supabase.from('races').select(cols).eq('id', raceId).maybeSingle());
       if (!live || !data) return;
       const r = data as Race;
@@ -246,7 +250,11 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
   const kind = eventKind(race?.race_type, withStats, dayOf);
   const days = kind === 'days' ? byDay(withStats, dayOf) : [];
   const legSecs = legs.reduce((t, a) => t + (a.duration_seconds || 0), 0);
-  const finish = parseFinishTime(race?.actual_finish_time) ?? legSecs;
+  const official = parseFinishTime(race?.actual_finish_time);
+  const finish = official ?? legSecs;
+  // T1, T2: shown between the legs once known (design/event-transitions-mockup.png).
+  const gapCount = kind === 'legs' ? Math.max(0, legs.length - 1) : 0;
+  const trans = transitionTimes(race?.transitions, gapCount, official, legSecs);
   const beat = !!last && finish > 0 && finish < last.seconds;
   const cover = legs.find((a) => a.photo_url);
   const tag = eventTag(race, kind, legs);
@@ -295,6 +303,25 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
   const totalEffort = legs.reduce((t, a) => t + (Number(a.effort_score) || 0), 0);
   const sharePhoto = photos[0] ?? (cover?.photo_url ? { activityId: cover.id, url: cover.photo_url, focalX: cover.photo_focal_x ?? 0.5, focalY: cover.photo_focal_y ?? 0.4 } : null);
 
+  if (times && race) {
+    return (
+      <EventTimesSheet
+        mode={times}
+        race={race}
+        legs={legs}
+        transitionGaps={gapCount}
+        showFinish={kind !== 'days'}
+        onClose={() => setTimes(null)}
+        onSaved={(saved) => {
+          setRace({ ...race, actual_finish_time: saved.actual_finish_time, ...(gapCount ? { transitions: saved.transitions } : {}) });
+          setLegEdits((cur) => ({ ...cur, ...saved.legs }));
+          setTimes(null);
+          onChanged?.();
+        }}
+      />
+    );
+  }
+
   if (editing && race) {
     return (
       <PlacingsEditor
@@ -323,6 +350,40 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
           )}
           <View style={[s.heroShade, { pointerEvents: 'none' }]} />
           <View style={s.grabber} />
+          {/* Your own event: its edits sit in the menu, top right, as on an
+              activity (Ricky, 2026-11-05). */}
+          {own && race ? (
+            <View style={s.menuWrap}>
+              <TouchableOpacity style={s.moreBtn} onPress={() => setMenuOpen((v) => !v)} accessibilityRole="button" accessibilityLabel="More">
+                <RivalIcon name="moreHoriz" size={20} color="#fff" />
+              </TouchableOpacity>
+              {menuOpen ? (
+                <>
+                  <TouchableOpacity style={s.menuBackdrop} activeOpacity={1} onPress={() => setMenuOpen(false)} accessibilityLabel="Close menu" />
+                  <View style={[s.menu, web ? ({ animationName: 'rivalMenuIn', animationDuration: '160ms', animationTimingFunction: 'ease-out' } as any) : null]}>
+                    <View style={[s.menuCaret, { pointerEvents: 'none' }]} />
+                    <TouchableOpacity style={s.menuItem} onPress={() => { setMenuOpen(false); setTimes('edit'); }} accessibilityRole="button">
+                      <RivalIcon name="timer" size={16} color={RivalColors.onSurface} />
+                      <Text style={s.menuText}>Edit times</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.menuItem}
+                      onPress={() => {
+                        setMenuOpen(false);
+                        onClose();
+                        if (onEditDetails) onEditDetails(race.id);
+                        else router.push(`/races?edit=${race.id}`);
+                      }}
+                      accessibilityRole="button"
+                    >
+                      <RivalIcon name="calendar" size={16} color={RivalColors.onSurface} />
+                      <Text style={s.menuText}>Edit event details</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : null}
+            </View>
+          ) : null}
           <View style={s.heroText}>
             <View style={s.pills}>
               <View style={[s.pill, { backgroundColor: RivalColors.event }]}>
@@ -350,7 +411,14 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
           {kind !== 'days' ? (
             <View style={s.res}>
               <View style={{ flexShrink: 1 }}>
-                <Text style={s.lbl}>FINISH TIME</Text>
+                <View style={s.lblRow}>
+                  <Text style={s.lbl}>FINISH TIME</Text>
+                  {own ? (
+                    <TouchableOpacity onPress={() => setTimes(official == null && gapCount ? 'finish' : 'edit')} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={s.editWord}>{official == null && gapCount ? 'Add official time' : 'Edit times'}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
                 <Text style={[s.big, beat && s.bigGold]} numberOfLines={1}>{finish > 0 ? liveClock(finish) : '--:--'}</Text>
               </View>
               {last !== undefined ? (
@@ -367,18 +435,32 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
           {kind === 'legs' && legSecs > 0 ? (
             <>
               <View style={s.split}>
-                {legs.map((a, i) => (a.duration_seconds ? (
-                  <View key={a.id} style={{ flex: a.duration_seconds, backgroundColor: BAR[i % BAR.length] }} />
-                ) : null))}
+                {legs.flatMap((a, i) => {
+                  const gap = trans.list[i]?.seconds;
+                  return [
+                    a.duration_seconds ? <View key={a.id} style={{ flex: a.duration_seconds, backgroundColor: BAR[i % BAR.length] }} /> : null,
+                    gap ? <View key={`t${i}`} style={{ flex: gap, minWidth: 3, backgroundColor: 'rgba(255,255,255,0.38)' }} /> : null,
+                  ];
+                })}
               </View>
               {showSplitLabels ? (
                 <View style={s.splitKeys}>
                   {legs.map((a, i) => {
                     const d = legDistance(a);
-                    const pct = Math.round(((a.duration_seconds || 0) / legSecs) * 100);
+                    const pct = Math.round(((a.duration_seconds || 0) / (legSecs + (trans.total ?? 0))) * 100);
                     const dist = d ? ` ${d.num.replace(/\.0$/, '')} ${d.unit.toUpperCase()}` : '';
-                    return <Text key={a.id} style={s.splitKey}>{`${legName(race, a, i).toUpperCase()}${dist} · ${pct}%`}</Text>;
+                    return <Text key={a.id} style={s.splitKey} numberOfLines={1}>{`${legName(race, a, i).toUpperCase()}${dist} · ${pct}%`}</Text>;
                   })}
+                </View>
+              ) : null}
+              {trans.total ? (
+                <View style={s.trn}>
+                  <View style={s.trnSwatch} />
+                  <Text style={s.trnText}>
+                    {'Transitions '}<Text style={s.trnB}>{liveClock(trans.total)}</Text>
+                    {` · ${Math.max(1, Math.round((trans.total / (legSecs + trans.total)) * 100))}%`}
+                    {trans.list.every((t) => t.seconds) ? trans.list.map((t, i) => ` · ${transitionKey(i)} ${liveClock(t.seconds!)}`).join('') : ''}
+                  </Text>
                 </View>
               ) : null}
             </>
@@ -390,7 +472,6 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
                 <Text style={s.plhT}>PLACINGS</Text>
                 {own ? (
                   <TouchableOpacity style={s.plhE} onPress={() => setEditing(true)} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <RivalIcon name="edit" size={13} color={RivalColors.accentText} />
                     <Text style={s.plhEText}>Edit</Text>
                   </TouchableOpacity>
                 ) : null}
@@ -416,18 +497,27 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
             </TouchableOpacity>
           ) : null}
 
-          {kind === 'race' && one ? <RaceDetail leg={one} d={oneDetail} /> : null}
+          {kind === 'race' && one ? <RaceDetail leg={one} d={oneDetail} ownerId={race?.user_id ?? null} /> : null}
           {kind === 'hyrox' ? <HyroxTable stats={hyroxStats ?? null} parts={parts} /> : null}
           {kind === 'days' ? <Days days={days} detail={detail} parts={parts} onOpenLeg={onOpenLeg} /> : null}
 
           {kind === 'legs' ? (
             <View style={s.tl}>
-              {legs.map((a, i) => {
+              {legs.flatMap((a, i) => {
                 const d = legDistance(a);
                 const pb = pbLegIds.has(a.id);
                 const pace = a.distance_meters && a.duration_seconds ? formatSpeedOrPace(a.distance_meters, a.duration_seconds, a.activity_type) : null;
                 const effort = Math.round((Number(a.effort_score) || 0) * 10) / 10;
-                return (
+                const gap = trans.list[i]?.seconds;
+                const gapNode = gap ? (
+                  <View key={`t${i}`} style={[s.node, s.nodeT]}>
+                    <View style={[s.segment, beat && s.segmentPb, { pointerEvents: 'none' }]} />
+                    <View style={s.dotT} />
+                    <Text style={[s.kick, s.kickT]}>{transitionKey(i)}</Text>
+                    <Text style={s.tmT}>{liveClock(gap)}</Text>
+                  </View>
+                ) : null;
+                return [(
                   <TouchableOpacity key={a.id} style={s.node} activeOpacity={0.8} disabled={!onOpenLeg} onPress={() => onOpenLeg?.(a.id)} accessibilityRole="button" accessibilityLabel={legName(race, a, i)}>
                     {i < legs.length - 1 ? <View style={[s.segment, beat && s.segmentPb, { pointerEvents: 'none' }]} /> : null}
                     <View style={[s.dot, pb && { borderColor: PB_GOLD }]}>
@@ -451,7 +541,7 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
                       <Text style={s.tmEffort}>{`EFFORT ${effort}`}</Text>
                     </View>
                   </TouchableOpacity>
-                );
+                ), gapNode];
               })}
             </View>
           ) : null}
@@ -537,7 +627,30 @@ function Sheet({ raceId, legs: unsorted, pbLegIds, onClose, onOpenLeg }: {
 
 // ---- A race: halves, pace per km, fastest efforts, details ---------------------------
 
-function RaceDetail({ leg, d }: { leg: EventLeg; d: Detail | undefined }) {
+/** The set distances (in metres) at which this run was a new fastest time,
+ *  by the app's one rule (lib/bestEfforts.ts fastestBests): faster than every
+ *  earlier run of the owner's at that distance. */
+function useEffortPbs(leg: EventLeg, ownerId: string | null): Set<number> {
+  const [pbs, setPbs] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    if (!ownerId || !RUN_TYPES.has(leg.activity_type)) return;
+    let live = true;
+    (async () => {
+      const { data } = await supabase.from('activities')
+        .select('id, user_id, activity_type, started_at, distance_meters, duration_seconds, best_efforts')
+        .eq('user_id', ownerId).in('activity_type', [...RUN_TYPES]).lte('started_at', leg.started_at)
+        .order('started_at', { ascending: false }).limit(1000);
+      if (!live) return;
+      const won = fastestBests((data ?? []) as EffortRow[], distanceUnit() === 'mi')[leg.id] ?? [];
+      setPbs(new Set(won.map((b) => b.meters)));
+    })();
+    return () => { live = false; };
+  }, [leg.id, leg.started_at, leg.activity_type, ownerId]);
+  return pbs;
+}
+
+function RaceDetail({ leg, d, ownerId }: { leg: EventLeg; d: Detail | undefined; ownerId: string | null }) {
+  const effortPbs = useEffortPbs(leg, ownerId);
   const h = halves(d?.splits);
   const bars = paceBars(d?.splits);
   const efforts = raceEfforts(d?.best_efforts, leg.distance_meters ?? 0);
@@ -601,7 +714,15 @@ function RaceDetail({ leg, d }: { leg: EventLeg; d: Detail | undefined }) {
           <View style={s.row3}>
             {efforts.map((e) => (
               <View key={e.name} style={s.tile3}>
-                <Text style={s.tileK}>{e.label.toUpperCase()}</Text>
+                <View style={s.tileKRow}>
+                  <Text style={s.tileK}>{e.label.toUpperCase()}</Text>
+                  {effortPbs.has(effortDistance(e.distance)?.meters ?? -1) ? (
+                    <View style={s.miniPb}>
+                      <RivalIcon name="trophy" size={10} color="#2a2116" />
+                      <Text style={s.miniPbText}>PB</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={s.tileNum}>{liveClock(e.seconds)}</Text>
               </View>
             ))}
@@ -809,6 +930,34 @@ const s = StyleSheet.create({
   body: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 8 },
   res: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 },
   lbl: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, color: RivalColors.textSecondary },
+  lblRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // Edit is a word, never a pencil (AGENTS.md mockup checklist).
+  editWord: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
+  trn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  trnSwatch: { width: 14, height: 6, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.38)' },
+  trnText: { fontSize: 11.5, color: RivalColors.textSecondary },
+  trnB: { color: '#fff', fontWeight: '700' },
+  nodeT: { minHeight: 32, paddingVertical: 2 },
+  dotT: { position: 'absolute', left: -24, zIndex: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: '#2c2c2c', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)' },
+  kickT: { flex: 1, color: 'rgba(255,255,255,0.62)' },
+  tmT: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 14, color: 'rgba(255,255,255,0.85)' },
+  menuWrap: { position: 'absolute', top: 14, right: 14, zIndex: 5 },
+  moreBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.38)', alignItems: 'center', justifyContent: 'center', ...(web ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}) },
+  menuBackdrop: { position: web ? ('fixed' as any) : 'absolute', top: -2000, left: -2000, right: -2000, bottom: -2000 },
+  // The pop-ups' grey, as an activity's ⋯ menu.
+  menu: {
+    position: 'absolute', top: 40, right: 0, minWidth: 200,
+    borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    ...(web ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {}),
+  },
+  menuCaret: {
+    position: 'absolute', top: -6, right: 10, width: 12, height: 12,
+    backgroundColor: RivalColors.surfaceHigh, borderTopWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    transform: [{ rotate: '45deg' }],
+  },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14 },
+  menuText: { fontSize: 14, fontWeight: '600', color: RivalColors.onSurface },
   big: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 46, lineHeight: 50, color: '#fff' },
   bigGold: web
     ? ({ backgroundImage: `linear-gradient(180deg, #FFF6CC 0%, ${PB_GOLD} 55%, #C9962B 100%)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } as any)
@@ -819,7 +968,8 @@ const s = StyleSheet.create({
   sideLbl: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: RivalColors.textSecondary },
   split: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2, marginTop: 14 },
   splitKeys: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  splitKey: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  // One line each at phone width, as in the mockup.
+  splitKey: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, color: RivalColors.textSecondary },
 
   tl: { marginTop: 16, paddingLeft: 30 },
   node: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 62, paddingVertical: 5 },
@@ -898,6 +1048,7 @@ const s = StyleSheet.create({
   tile3: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 14, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
   grid3: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   gridTile: { width: '31.9%', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 14, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },
+  tileKRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   tileK: { fontSize: 9, fontWeight: '800', letterSpacing: 1.1, color: RivalColors.textSecondary },
   tileNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, lineHeight: 21, color: '#fff', marginTop: 2 },
   tileUnit: { fontFamily: 'Manrope', fontStyle: 'normal', fontSize: 10.5, fontWeight: '700', color: RivalColors.textSecondary },

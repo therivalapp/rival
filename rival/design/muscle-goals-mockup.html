@@ -1,0 +1,118 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+/* Muscle group goals (Ricky, 2026-11-03/05). Built on the real New goal
+   pop-up (goals.tsx phoneForm: GreySheet "GOALS / New goal", GreyLabel,
+   GreyArtTiles, GreyRows, GreyPrimary) and the Goals page Main focus card
+   (design/focus-built.png). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:22px;display:flex;gap:24px}
+.col{width:375px;flex-shrink:0}
+.tag{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 6px;font-weight:800}
+.desc{font-size:12px;color:rgba(255,255,255,.6);margin:0 4px 12px;line-height:17px;min-height:68px}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle}
+.ph{position:relative;width:375px;height:812px;border-radius:28px;overflow:hidden;background:#131313}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.72)}
+.under{position:absolute;left:0;right:0;top:60px;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;color:rgba(255,255,255,.35)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #323232;border-radius:22px 22px 0 0;padding:10px 18px 24px;overflow:hidden}
+.glow{position:absolute;left:0;right:0;top:0;height:160px;background:radial-gradient(ellipse 80% 160px at 50% 0%,rgba(217,119,87,.16),rgba(217,119,87,0) 70%);pointer-events:none}
+.grab{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.3);margin:0 auto 10px}
+.back{position:absolute;left:14px;top:26px;width:30px;height:30px;border-radius:15px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:20px}
+.kick{font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.title{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:24px;text-align:center;margin-top:3px}
+.lab{font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;margin:15px 0 8px;text-transform:uppercase;display:flex;justify-content:space-between}
+.lab em{font-style:normal;letter-spacing:0;text-transform:none;color:#ffb59e;font-weight:700;font-size:11px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.tiles.c3{grid-template-columns:repeat(3,1fr)}
+.at{position:relative;height:78px;border-radius:16px;padding:0 10px 9px;display:flex;align-items:flex-end;overflow:hidden;border:1px solid rgba(255,181,158,.3);background:rgba(255,209,190,.05);box-sizing:border-box}
+.at .bi{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;color:rgba(255,181,158,.2)}
+.at b{position:relative;font-size:12.5px;font-weight:800;line-height:14px}
+.at.on{background:linear-gradient(135deg,#ffb59e,#D97757);border-color:transparent}.at.on .bi{color:rgba(255,255,255,.32)}.at.on b{color:#2a120a}
+.at.sm{height:62px}.at.sm .bi{font-size:44px}.at.sm b{font-size:11.5px}
+.rows{border-radius:14px;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05)}
+.row{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 13px}.row+.row{border-top:1px solid rgba(255,209,190,.08)}
+.row .ic{font-size:16px;color:#ffb59e}.row .l{flex:1;font-size:14px;font-weight:600}.row .v{font-size:14px;color:rgba(255,255,255,.75)}
+.big{display:flex;align-items:center;justify-content:space-between;border-radius:16px;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05);padding:10px 12px}
+.big .n{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:40px;line-height:44px}.big .n small{font-family:Manrope;font-style:normal;font-size:13px;font-weight:600;color:rgba(255,255,255,.65)}
+.step{width:38px;height:38px;border-radius:19px;border:1px solid rgba(255,181,158,.35);display:flex;align-items:center;justify-content:center;color:#ffb59e;font-size:20px}
+.note{font-size:12px;line-height:17px;color:#A0A0A0;margin-top:7px;display:flex;gap:6px}.note .mi{font-size:14px;color:#ffb59e;margin-top:1px}
+.note b{color:#fff;font-weight:700}
+.lift{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 13px}.lift+.lift{border-top:1px solid rgba(255,209,190,.08)}
+.lift .nm{flex:1}.lift .nm b{display:block;font-size:14px;font-weight:700}.lift .nm span{font-size:11.5px;color:#A0A0A0}
+.lift .tg{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:20px}.lift .tg small{font-family:Manrope;font-style:normal;font-size:11px;color:rgba(255,255,255,.65);font-weight:600}
+.add{display:flex;align-items:center;gap:6px;padding:12px 13px;color:#ffb59e;font-weight:700;font-size:13.5px;border-top:1px solid rgba(255,209,190,.08)}
+.seg{display:flex;gap:7px}.seg div{flex:1;height:40px;border-radius:12px;border:1px solid rgba(255,181,158,.3);background:rgba(255,209,190,.05);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.seg div.on{border-color:#ffb59e;color:#ffb59e;background:rgba(255,181,158,.12)}
+.primary{height:52px;border-radius:999px;background:linear-gradient(90deg,#D97757,#ffb59e);color:#2a1710;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;margin-top:16px}
+/* Goals page */
+.pg{position:absolute;inset:0;background:#1b1a19;padding:18px 16px}
+.pgh{text-align:center;margin-top:8px}.pgh .k{font-size:9.5px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}.pgh .t{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px}
+.pgback{position:absolute;left:16px;top:30px;font-size:24px}
+.mf{margin-top:14px;border-radius:22px;border:1px solid rgba(255,181,158,.18);background:linear-gradient(180deg,rgba(217,119,87,.10),rgba(255,255,255,.03) 45%);padding:16px 16px 14px;text-align:center}
+.mf .k{font-size:9.5px;font-weight:800;letter-spacing:1.6px;color:#A0A0A0;text-align:left}
+.mf .t{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;margin-top:4px}
+.ring{position:relative;width:150px;height:150px;margin:12px auto 0}
+.ring svg{position:absolute;inset:0}
+.ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .c b{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:40px;line-height:42px}.ring .c span{font-size:12px;color:rgba(255,255,255,.7);font-weight:600}
+.two{display:flex;justify-content:center;margin-top:12px}.two>div{padding:0 20px}.two>div+div{border-left:1px solid rgba(255,255,255,.12)}
+.two b{display:block;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:24px}.two span{font-size:9.5px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}
+.wk{display:flex;justify-content:center;gap:5px;margin-top:12px}.wk i{width:22px;height:6px;border-radius:3px;background:rgba(255,255,255,.12)}.wk i.h{background:#ffb59e}.wk i.n{background:linear-gradient(90deg,#ffb59e 75%,rgba(255,255,255,.12) 75%)}
+.go{font-size:13px;font-weight:700;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px}.go .mi{font-size:15px;color:#ffb59e}
+.split{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin-top:9px}.split span{font-size:11px;color:rgba(255,255,255,.75);padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.06)}.split span b{color:#fff}
+.mk{margin-top:12px;text-align:left;border-top:1px solid rgba(255,255,255,.08);padding-top:10px}
+.mk .r{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:700;margin-top:6px}.mk .r span{font-size:12px;color:rgba(255,255,255,.7);font-weight:600}.mk .r span b{color:#fff;font-family:Georgia,serif;font-style:italic;font-size:15px}
+.bar{height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:5px;overflow:hidden}.bar i{display:block;height:100%;background:#ffb59e;border-radius:3px}
+.og{font-size:10px;font-weight:800;letter-spacing:1.6px;color:#A0A0A0;margin:16px 4px 8px}
+.oc{border-radius:16px;border:1px solid rgba(255,181,158,.18);background:rgba(255,255,255,.04);padding:12px 14px}
+.oc .r{display:flex;justify-content:space-between;align-items:baseline}.oc .r b{font-size:15px}.oc .r span{font-size:13px;color:rgba(255,255,255,.7)}.oc .r span b{color:#fff;font-size:14px}
+.oc .m{font-size:12px;color:#A0A0A0;margin-top:7px}
+</style></head><body>
+<script>
+const at=(icon,label,c='')=>`<div class="at ${c}"><span class="mi bi">${icon}</span><b>${label}</b></div>`;
+
+const s1=`<div class="ph"><div class="under">Goals</div><div class="dim"></div><div class="sheet" style="top:282px"><div class="glow"></div><div class="grab"></div>
+<div class="kick">GOALS</div><div class="title">New goal</div>
+<div class="lab">Volume</div><div class="tiles">${at('straighten','Distance')}${at('landscape','Elevation')}${at('calendar_month','Activities')}${at('accessibility_new','Muscle group','on new')}</div>
+<div class="lab">Performance</div><div class="tiles c3">${at('timer','Best time')}${at('monitor_heart','Pace')}${at('fitness_center','Lift')}</div>
+<div class="lab">Muscle group</div>
+<div class="tiles">${at('airline_seat_flat','Posterior chain','sm on')}${at('back_hand','Grip','sm')}${at('directions_walk','Legs','sm')}${at('rowing','Back','sm')}
+${at('self_improvement','Chest','sm')}${at('sports_gymnastics','Shoulders','sm')}${at('sports_martial_arts','Arms','sm')}${at('accessibility','Core','sm')}</div>
+<div class="primary">Next</div></div></div>`;
+
+const s2=`<div class="ph"><div class="under">Goals</div><div class="dim"></div><div class="sheet" style="top:70px"><div class="glow"></div><div class="grab"></div><div class="back"><span class="mi">chevron_left</span></div>
+<div class="kick">MUSCLE GROUP</div><div class="title">Posterior chain</div>
+<div class="lab">Sets a week</div>
+<div class="big"><div class="step"><span class="mi">remove</span></div><div class="n">12<small> sets / week</small></div><div class="step"><span class="mi">add</span></div></div>
+<div class="note"><span>Last 4 weeks: <b>7 sets a week</b> on average.</span></div>
+<div class="note"><span>Counts Deadlift, Romanian deadlift, Hip thrust and 11 more.</span></div>
+<div class="lab">Key lifts<em>Optional, up to 2</em></div>
+<div class="rows">
+<div class="lift"><div class="nm"><b>Deadlift</b><span>Best now 165 kg for 1</span></div><div class="tg">180<small> kg</small></div></div>
+<div class="lift"><div class="nm"><b>Hip thrust</b><span>Best now 140 kg for 8</span></div><div class="tg">160<small> kg × 8</small></div></div>
+</div>
+<div class="lab">Until</div>
+<div class="seg"><div>4 weeks</div><div>12 weeks</div><div class="on">Date</div><div>Ongoing</div></div>
+<div class="rows" style="margin-top:8px"><div class="row"><span class="l">By</span><span class="v">31 Mar 2027</span></div></div>
+<div class="primary">Save</div></div></div>`;
+
+const r=58,C=2*Math.PI*r,p=9/12;
+const ring=`<div class="ring"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="${r}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="12"/><circle cx="75" cy="75" r="${r}" fill="none" stroke="#ffb59e" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C*p} ${C}" transform="rotate(-90 75 75)"/></svg><div class="c"><b>9</b><span>/ 12 sets</span></div></div>`;
+const s3=`<div class="ph"><div class="pg"><span class="mi pgback">chevron_left</span><div class="pgh"><div class="k">SHOWN ON TODAY</div><div class="t">Goals</div></div>
+<div class="mf"><div class="k">MAIN FOCUS</div><div class="t">Posterior chain</div>${ring}
+<div class="two"><div><b>3 of 5</b><span>WEEKS HIT</span></div><div><b>4</b><span>DAYS LEFT</span></div></div>
+<div class="wk"><i class="h"></i><i class="h"></i><i></i><i class="h"></i><i class="n"></i></div>
+<div class="go">3 sets left this week</div>
+<div class="split"><span><b>4</b> Deadlift</span><span><b>3</b> Romanian deadlift</span><span><b>2</b> Kettlebell swing</span></div>
+<div class="mk"><div class="r">Deadlift<span><b>165</b> / 180 kg</span></div><div class="bar"><i style="width:62%"></i></div>
+<div class="r">Hip thrust<span><b>150</b> / 160 kg × 8</span></div><div class="bar"><i style="width:55%"></i></div></div>
+</div>
+<div class="og">OTHER GOALS</div>
+<div class="oc"><div class="r"><b>Grip</b><span><b>6</b> / 8 sets</span></div><div class="bar"><i style="width:75%"></i></div><div class="m">Muscle group · This week · 4 days left</div></div>
+</div></div>`;
+
+document.write(`
+<div class="col"><div class="tag">1 · CHOOSE IT</div><div class="desc">The same New goal pop-up. Muscle group joins Volume as a fourth tile. Picking it shows the eight groups, Posterior chain lit. Grip is its own group, as you train it.</div>${s1}</div>
+<div class="col"><div class="tag">2 · SET IT UP</div><div class="desc">A weekly number of sets, with last month's average as a guide. Up to two key lifts with a target, each showing your best now. It runs to a date, for a block of 4 or 12 weeks, or with no end.</div>${s2}</div>
+<div class="col"><div class="tag">3 · TRACK IT</div><div class="desc">The Main focus card: this week's sets in the ring, weeks hit, one bar per week (this one filling), the lifts that made up the sets, and the key lifts against their targets. As another goal it's one bar.</div>${s3}</div>
+`);
+</script></body></html>

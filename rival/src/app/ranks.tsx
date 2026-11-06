@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Image, Modal } from 'react-native';
+import { Image } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { makeRankCard, shareCardFile, type ShareFigure } from '../lib/shareCard';
-import { drawRankStamp, stampBlob, stampFontsReady } from '../lib/shareStamp';
+import { centredStamp, drawRankStamp, stampBlob, stampFontsReady } from '../lib/shareStamp';
 import { fullPhoto } from '../lib/imageUrl';
 import { distanceUnit, toDisplayDistance } from '../lib/units';
 import { RivalButtonColors, RivalGhost, rivalPhoneVar } from '../constants/rivalTheme';
@@ -151,7 +152,7 @@ export default function RanksScreen() {
     if (!share) return;
     const file = shareChoice === 'card' ? share.card : share.stamp;
     try {
-      const done = await shareCardFile(file.blob, `rival-${currentLevel.name.toLowerCase()}${shareChoice === 'stamp' ? '-stamp.png' : '.jpg'}`);
+      const done = await shareCardFile(shareChoice === 'stamp' ? await centredStamp(file.blob) : file.blob, `rival-${currentLevel.name.toLowerCase()}${shareChoice === 'stamp' ? '-stamp.png' : '.jpg'}`);
       if (done !== 'cancelled') closeRankShare();
     } catch {
       setShareError('Sharing did not open. Try again.');

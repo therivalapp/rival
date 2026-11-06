@@ -4,7 +4,8 @@ import { bandFit } from '../../lib/titleFit';
 import { SkyBackdrop } from './SkyBackdrop';
 import { defaultActivityName } from '../../lib/activityName';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
+import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
+import { Modal } from './RivalModal';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuthUser, supabase } from '../../lib/supabase';
@@ -25,7 +26,7 @@ import { RecordingsSheet, useRecordingCount } from './RecordingsSheet';
 import { STACKED_BESTS, fastestRest, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
 import { useSheetDrag } from './useSheetDrag';
 import { composeStampOnPhoto, makeShareCard, shareCardFile, type ShareBest, type ShareFigure, type StampPlacement } from '../../lib/shareCard';
-import { MAX_STATS, STAMP_STYLES, chosenFigures, defaultStats, drawCountdownStamp, drawStamp, inkMargins, stampBlob, type InkMargins, type StampMode, stampFontsReady, statOptions, type StampStyle, type StatKey, type StatOption } from '../../lib/shareStamp';
+import { MAX_STATS, STAMP_STYLES, centredStamp, chosenFigures, defaultStats, drawCountdownStamp, drawStamp, inkMargins, stampBlob, type InkMargins, type StampMode, stampFontsReady, statOptions, type StampStyle, type StatKey, type StatOption } from '../../lib/shareStamp';
 import { fullPhoto } from '../../lib/imageUrl';
 import { StatTiles } from './StatTiles';
 import { StampStage, defaultPlacement } from './StampStage';
@@ -717,7 +718,7 @@ export function ActivityDiaryViewer({
     try {
       let done: 'shared' | 'saved' | 'cancelled';
       if (!stamp) done = await shareCardFile(card.blob, `${base}.jpg`);
-      else if (stampOnly || !activity.photo_url) done = await shareCardFile(stamp.blob, `${base}-stamp.png`);
+      else if (stampOnly || !activity.photo_url) done = await shareCardFile(await centredStamp(stamp.blob), `${base}-stamp.png`);
       else {
         const blob = await composeStampOnPhoto({ photoUrl: activity.photo_url, focalX: activity.photo_focal_x, focalY: activity.photo_focal_y, stampUrl: stamp.url, placement });
         done = await shareCardFile(blob, `${base}.jpg`);
