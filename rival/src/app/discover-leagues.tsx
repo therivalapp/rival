@@ -318,7 +318,7 @@ export default function DiscoverLeaguesScreen() {
   }
 
   async function join(leagueId: string) {
-    if (!(await teamSharingAgreed())) return;
+    if (!(await teamSharingAgreed(() => join(leagueId)))) return;
     const { data: { user } } = await getAuthUser();
     if (!user) return;
     setJoining(leagueId);

@@ -25,6 +25,11 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 
 - [x] Desktop is the phone app, 2026-11-06 (Ricky: "do the same for desktop"): wider than 480px the site is held to a centred 480px column and lays out exactly as on a phone (bottom bar with Start, pop-ups, colours). Old desktop layouts kept, off (DESKTOP_COLUMN_WIDTH in constants/breakpoints.ts). Mouse click-and-drag scrolls sideways rows (lib/mouseDragScroll.ts). Checked in headless Chrome at 1280 and 1440 on the QA account, not on Ricky's computer. Possible later: something designed for the empty space either side
 
+- [x] App scan 2026-11-06 (every page on the QA account and a brand-new test account, production build, phone size): fixed the chat typing bar sitting a keyboard's height above the keyboard (counted twice since 2026-10-24); a low field (Manual entry's last one) could stay behind the keyboard; "Agree and continue" on Sharing with teams now carries on creating, joining or requesting the team instead of dropping you back on the form; Activity's empty-state tiles use the Add an activity tiles; Team feed's empty state matches Chat's; "Effort" capitalised in team standings. Checked: every navigation target exists, tab switches 35-50 ms once loaded, pages settle in 2-3 s, no app errors. Keyboard checked with a simulated keyboard, not on a phone
+- [ ] Ricky to decide: Effort shows one decimal on Activity and the activity page (89.6) but whole numbers on Today and the feed (90)
+- [ ] Ricky to decide: chat's empty line "Say something — it's how a team stops being a list of names." reads casual next to the professional tone rules
+- [ ] Later: the first visit to Activity has one ~270 ms pause while it builds; a team crest takes about 15 s to generate
+
 ## When Ricky is home
 - [ ] NEXT WEEK, first up (banked 2026-11-04): therivalapp.com BOUGHT 2026-11-05; Claude builds a one-page site and hosts the privacy policy (deploy with Ricky's OK); Ricky applies to Garmin Starter as an individual (not incorporating yet) and gets a Personal Garmin key so the importer can be built on his workouts. See Garmin application below
 - [ ] Ricky: sign up for the Apple Developer Program ($99 a year)

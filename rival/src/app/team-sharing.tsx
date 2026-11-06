@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { RivalColors, RivalFontFamily } from '../constants/rivalTheme';
 import { sidePageWide } from '../constants/breakpoints';
 import { GreyLabel, GreyPageHead, GreyPrimary, GreyRows, GREY_PAGE_BG, RivalIcon, type RivalIconName } from '../components/rival';
-import { agreeToStravaSharing, loadStravaSharing } from '../lib/stravaSharing';
+import { agreeToStravaSharing, loadStravaSharing, takeAfterAgree } from '../lib/stravaSharing';
 import { goToTab } from '../lib/tabNav';
 
 // Sharing with teams (Ricky, 2026-11-02; design/team-sharing-consent-mockup.png).
@@ -29,6 +29,8 @@ export default function TeamSharingScreen() {
   }, []);
 
   const back = () => (router.canGoBack() ? router.back() : goToTab('/home'));
+  // Leaving without agreeing drops whatever was waiting on it.
+  const leave = () => { takeAfterAgree(); back(); };
 
   async function agree() {
     setError(null);
@@ -36,7 +38,10 @@ export default function TeamSharingScreen() {
     const res = await agreeToStravaSharing(shareRoutes);
     setSaving(false);
     if (!res.ok) { setError(res.error ?? 'The choice could not be saved. Try again.'); return; }
+    // Back to the form, then carry on with the create or join that asked.
+    const next = takeAfterAgree();
     back();
+    if (next) setTimeout(next, 350);
   }
 
   const row = (icon: RivalIconName, title: string, body: string, extra?: ReactNode) => (
@@ -54,7 +59,7 @@ export default function TeamSharingScreen() {
   return (
     <SafeAreaView style={[s.page, !phone && s.pageWide]} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={s.content}>
-        <GreyPageHead kicker="TEAMS" title="Sharing with teams" sub="Agreed once, for every team you join." onBack={back} />
+        <GreyPageHead kicker="TEAMS" title="Sharing with teams" sub="Agreed once, for every team you join." onBack={leave} />
 
         <GreyLabel>What teammates see</GreyLabel>
         <GreyRows>
@@ -90,7 +95,7 @@ export default function TeamSharingScreen() {
           <GreyPrimary label={agreed ? 'Save' : 'Agree and continue'} busy={saving} disabled={saving} onPress={agree} />
           {error ? <Text style={s.error}>{error}</Text> : null}
           {!agreed ? (
-            <TouchableOpacity style={s.ghost} onPress={back} accessibilityRole="button">
+            <TouchableOpacity style={s.ghost} onPress={leave} accessibilityRole="button">
               <Text style={s.ghostText}>Not now</Text>
             </TouchableOpacity>
           ) : null}

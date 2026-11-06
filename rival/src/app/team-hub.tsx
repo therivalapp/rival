@@ -130,7 +130,7 @@ function feedTargetKey(id: string) {
 
 type GoalMetric = 'xp' | 'distance' | 'elevation' | 'duration' | 'activities';
 const GOAL_METRIC_UNIT: Record<GoalMetric, string> = {
-  xp: 'effort', distance: 'km', elevation: 'm', duration: 'hrs', activities: 'activities',
+  xp: 'Effort', distance: 'km', elevation: 'm', duration: 'hrs', activities: 'activities',
 };
 const GOAL_METRIC_LABEL: Record<GoalMetric, string> = {
   xp: 'Effort earned', distance: 'Distance', elevation: 'Elevation', duration: 'Time', activities: 'Activities Logged',
@@ -965,7 +965,7 @@ export default function TeamHub() {
   const noGoalSource = noGoalPeriod === 'week' ? weeklyActivitiesRaw : goalActivitiesRaw;
   const standingsMetric: GoalMetric = hasGoal ? (league.goal_metric as GoalMetric) : 'xp';
   const standingsSource = hasGoal ? goalActivitiesRaw : noGoalSource;
-  const standingsUnit = hasGoal ? unit : 'effort';
+  const standingsUnit = hasGoal ? unit : 'Effort';
   const goalContributors = (() => {
     const byUser: Record<string, number> = {};
     standingsSource
