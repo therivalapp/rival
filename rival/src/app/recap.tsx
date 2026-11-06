@@ -66,7 +66,8 @@ export default function RecapScreen() {
 
   return (
     <SafeAreaView style={[styles.container, m && rb.page]} edges={['top', 'left', 'right']}>
-      <RivalTopNav active="today" />
+      {/* A page for reading through once: back arrow only on phones, no top or bottom bar (Ricky, 2026-11-02). */}
+      {m ? null : <RivalTopNav active="today" />}
       <ScrollView contentContainerStyle={[styles.content, m && ms.content]}>
         {m ? (
           <GreyPageHead kicker={recap?.label ? String(recap.label).toUpperCase() : 'RECAP'} title="Recap" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
@@ -194,7 +195,7 @@ export default function RecapScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
   header: { marginBottom: 16 },
   back: { color: RivalColors.accentFill, fontSize: 16 },

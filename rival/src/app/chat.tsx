@@ -15,7 +15,7 @@ import { RivalIcon, RivalBackButton, PlanSessionSheet, RivalWarm } from '../comp
 import { SessionCard } from '../components/rival/SessionCard';
 import type { EditableSession } from '../components/rival/PlanSessionSheet';
 import { CalendarAddIcon } from '../components/rival/CalendarAddIcon';
-import { RivalColors, RivalRadius, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalRadius, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { goToTab } from '../lib/tabNav';
 import { avatarImage } from '../lib/imageUrl';
@@ -455,10 +455,10 @@ export default function ChatScreen() {
             </View>
           )}
         </TouchableOpacity>
-        <View style={styles.headerMid}>
+        <TouchableOpacity style={styles.headerMid} activeOpacity={0.7} onPress={() => router.push({ pathname: '/team-hub', params: { id: String(id) } })} accessibilityRole="button" accessibilityLabel={`Open ${teamName}`}>
           <Text style={[styles.headerTitle, mob && ms.headerTitle]} numberOfLines={1}>{teamName}</Text>
           <Text style={[styles.headerSub, mob && ms.headerSub]}>{members.length} {members.length === 1 ? 'member' : 'members'}</Text>
-        </View>
+        </TouchableOpacity>
         {/* Meet-ups are the one thing people come back to a chat to FIND, and
             scrolling a transcript for them is the worst way to look. */}
         {hasAnySession && (
@@ -825,7 +825,7 @@ const webEditorStyle: any = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
 
@@ -1002,7 +1002,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,
     paddingHorizontal: 14, paddingTop: 10,
     borderTopWidth: 1, borderTopColor: RivalColors.surfaceContainerHigh,
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
   },
   // minHeight matches the send button exactly (12 + 20 line + 12 = 44), so at
   // rest the two are the same height and the pill radius is a true half-round
@@ -1063,10 +1063,7 @@ const styles = StyleSheet.create({
 // bubbles) on the screen's chrome.
 const ms = StyleSheet.create({
   container: {
-    backgroundColor: RivalColors.surfaceContainer,
-    ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'radial-gradient(ellipse 80% 22% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.05) 55%, rgba(32,32,31,0) 100%)' } as any)
-      : {}),
+    backgroundColor: RivalColors.pageGround,
   },
   // Your own messages keep the brand gradient.
   bubbleMe: Platform.OS === 'web'
@@ -1076,13 +1073,13 @@ const ms = StyleSheet.create({
   headerLogo: { borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright },
   headerTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', lineHeight: 24 },
   headerSub: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 2 },
-  band: { backgroundColor: RivalColors.surfaceLowest, borderColor: RivalColors.surfaceBright },
+  band: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
   sepText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   // The 1px border is taken back out of the padding so text keeps the exact
   // position the avatar nudge is measured against.
-  bubbleThem: { backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 13, paddingVertical: 8 },
-  composer: { backgroundColor: RivalColors.surfaceContainer, borderTopColor: RivalColors.surfaceBright },
+  bubbleThem: { backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 13, paddingVertical: 8 },
+  composer: { backgroundColor: RivalColors.pageGround, borderTopColor: RivalColors.surfaceBright },
   // No border: it would make the field 46 tall against the 44 send button.
-  field: { backgroundColor: RivalColors.surfaceLowest },
+  field: { backgroundColor: RivalGhost.fill },
   emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700' },
 });

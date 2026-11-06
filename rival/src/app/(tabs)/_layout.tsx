@@ -29,6 +29,9 @@ export default function TabsLayout() {
         load(() => import('./my-activities'));
         load(() => import('./team-feed'));
         load(() => import('./messages'));
+        // Start: its page and what it reads, so the tap opens at once.
+        load(() => import('../start'));
+        load(() => import('../../lib/startData').then((m) => m.loadStartData()));
       };
       idle = w.requestIdleCallback ? w.requestIdleCallback(warm, { timeout: 4000 }) : (warm(), 0);
     }, 4000);

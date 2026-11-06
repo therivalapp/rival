@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   inputGroup: { gap: 8 },
   label: { color: RivalColors.textPrimary, fontSize: 14, fontWeight: '600' },
   input: {
-    backgroundColor: RivalColors.surfaceLow, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: RivalColors.pageGround, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
     color: RivalColors.textPrimary, fontSize: 16, borderWidth: 1, borderColor: RivalColors.accentText,
   },
   primaryButton: { backgroundColor: RivalColors.accentFill, paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },

@@ -5,6 +5,7 @@ import { Animated, Easing, ImageBackground, Platform, Pressable, StyleSheet, Tex
 import { supabase } from '../../lib/supabase';
 import { getDailyQuote, type Quote, type QuoteTone } from '../../lib/quotes';
 import { getPrefs } from '../../lib/prefs';
+import { setQuoteUp } from '../../lib/photoPrompt';
 import { getDailyBackground } from '../../lib/dailyBackground';
 import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
 
@@ -141,6 +142,9 @@ export function DailyQuoteSplash() {
     });
     return () => { off(); if (t) clearTimeout(t); };
   }, [quote]);
+
+  // The photo pop-up waits for this to finish.
+  useEffect(() => { setQuoteUp(!!quote); }, [quote]);
 
   if (!quote) return null;
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { GreyPageHead, GREY_PAGE_BG, GreySheet, GreyLabel, GreyField, GreyPrimary, GreyNote, RivalIcon } from '../components/rival';

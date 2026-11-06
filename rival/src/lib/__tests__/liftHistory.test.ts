@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bestFor, exerciseCount, lastDoneText, lastTimeFor, orderSaved, percentWeight, repeatOptions, todaysWorkout, type LiftActivity } from '../liftHistory';
+import { liftsByUse, upNext, usualFor } from '../liftHistory';
 
 const act = (id: string, iso: string, exercises: any[]): LiftActivity => ({ id, startedAt: iso, activityType: 'WeightTraining', exercises });
 
@@ -82,5 +83,33 @@ describe('saved workouts order', () => {
     expect(exerciseCount(list[0])).toBe('1 exercise');
     expect(lastDoneText(list[1].lastUsedAt, list[1].createdAt, now)).toBe('last done 7 days ago');
     expect(lastDoneText(list[2].lastUsedAt, list[2].createdAt, now)).toBe('not done yet');
+  });
+});
+
+describe('lifts for the live screen', () => {
+  const at = (d: string, ...names: [string, number?, number?, number?][]) => ({
+    id: d, startedAt: `2026-10-${d}T08:00:00Z`, activityType: 'WeightTraining',
+    exercises: names.map(([name, sets, reps, weight]) => ({ name, sets, reps, weight })),
+  });
+  const history = [
+    at('27', ['Bench Press', 3, 10, 60], ['Barbell Row', 3, 10, 50]),
+    at('20', ['Bench Press', 3, 8, 57.5], ['Barbell Row', 3, 10, 50]),
+    at('13', ['Squat', 3, 8, 85], ['Bench Press', 3, 8, 57.5], ['Dip', 3, 8]),
+  ];
+  const now = new Date('2026-10-31T08:00:00Z').getTime();
+
+  it('finds the usual numbers', () => {
+    expect(usualFor(history, 'bench', now)).toMatchObject({ sets: 3, reps: 8, weight: 57.5 });
+    expect(usualFor(history, 'Bench Press', now + 90 * 86_400_000)).toBeNull();
+  });
+  it('orders lifts by use', () => {
+    expect(liftsByUse(history).slice(0, 2)).toEqual(['Bench Press', 'Barbell Row']);
+  });
+  it('suggests what usually follows the last lift', () => {
+    expect(upNext(history, ['Bench Press'])).toBe('Barbell Row');
+  });
+  it('suggests the most used lift to begin with, and nothing with no history', () => {
+    expect(upNext(history, [])).toBe('Bench Press');
+    expect(upNext([], [])).toBeNull();
   });
 });

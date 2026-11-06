@@ -1,6 +1,7 @@
 import { supabase, getAuthUser } from './supabase';
 import { getPrefs, onPrefsChanged } from './prefs';
 import { calculateEffortScore, loadScoringConfig } from './effort';
+import { groupJoinNotices } from './teamInvite';
 
 // The in-app inbox. Items are created by database triggers, never by the app —
 // see supabase/add_inbox_triggers.sql — so everything here reads, marks read,
@@ -15,6 +16,8 @@ export type InboxKind =
   | 'activity_tag'
   | 'tag_accepted'
   | 'pace_review'
+  | 'join_confirm'
+  | 'join_declined'
   // Ricky only: someone close to or reaching Unrivaled (rank_alerts.sql).
   | 'rank_alert';
 
@@ -39,7 +42,7 @@ const COLUMNS =
 // Kinds that ask a question. An informational item is done the moment it has
 // been seen; one of these stays open until it is actually answered, which is
 // why `resolved_at` is tracked separately from `read_at`.
-const ACTIONABLE: InboxKind[] = ['join_request', 'short_activity', 'activity_tag', 'pace_review'];
+const ACTIONABLE: InboxKind[] = ['join_request', 'join_confirm', 'short_activity', 'activity_tag', 'pace_review'];
 
 export function isActionable(item: InboxItem): boolean {
   return ACTIONABLE.includes(item.kind) && !item.resolved_at;
@@ -87,7 +90,7 @@ export async function fetchInbox(limit = 50): Promise<InboxItem[]> {
     // Room for items the settings hide, so the list still fills.
     .limit(limit * 2);
   if (error) return [];
-  return ((data ?? []) as InboxItem[]).filter(wanted).slice(0, limit);
+  return groupJoinNotices(((data ?? []) as InboxItem[]).filter(wanted)).slice(0, limit);
 }
 
 // Drives the bell's badge. Counts unread, plus anything still waiting for an
@@ -181,6 +184,28 @@ export async function respondToJoinRequest(
   const { error } = await supabase.from('league_members').delete().eq('id', item.subject_id).eq('status', 'pending');
   if (error) return { ok: false, error: error.message };
   return resolveItem(item.id, 'acted');
+}
+
+// "Did you invite Jordan?" Confirm lets them in; Not me moves the request to
+// the admins. Only the named teammate can answer, and the database checks it.
+export async function respondToJoinConfirm(
+  item: InboxItem,
+  confirm: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!item.subject_id) return { ok: false, error: 'This request is no longer available.' };
+  const { data, error } = await supabase.rpc('respond_to_join_confirm', { p_member: item.subject_id, p_confirm: confirm });
+  inboxChanged();
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: 'That request has already been handled.' };
+  return { ok: true };
+}
+
+/** Avatars for the people in these notifications. */
+export async function loadActorAvatars(ids: string[]): Promise<Record<string, string | null>> {
+  if (!ids.length) return {};
+  const { data, error } = await supabase.from('users').select('id, avatar_url').in('id', ids);
+  if (error || !data) return {};
+  return Object.fromEntries((data as { id: string; avatar_url: string | null }[]).map((u) => [u.id, u.avatar_url]));
 }
 
 // Keep or remove an activity the app flagged as suspiciously short. The record

@@ -5,7 +5,8 @@ import { isPrivateOnStrava, removeAllStravaData, removeStravaActivity } from '..
 function fakeDb(tables: Record<string, Record<string, any>[]>) {
   const from = (table: string) => {
     const filters: ((r: any) => boolean)[] = [];
-    let mode: 'select' | 'delete' = 'select';
+    let mode: 'select' | 'delete' | 'update' = 'select';
+    let patch: Record<string, unknown> = {};
     let page: [number, number] | null = null;
     const rows = () => tables[table].filter((r) => filters.every((f) => f(r)));
     const run = () => {
@@ -14,11 +15,16 @@ function fakeDb(tables: Record<string, Record<string, any>[]>) {
         tables[table] = tables[table].filter((r) => !hit.includes(r));
         return { data: null, count: hit.length, error: null };
       }
+      if (mode === 'update') {
+        hit.forEach((r) => Object.assign(r, patch));
+        return { data: null, count: hit.length, error: null };
+      }
       return { data: page ? hit.slice(page[0], page[1] + 1) : hit, count: hit.length, error: null };
     };
     const q: any = {
       select: () => q,
       delete: () => { mode = 'delete'; return q; },
+      update: (p: Record<string, unknown>) => { mode = 'update'; patch = p; return q; },
       eq: (k: string, v: unknown) => { filters.push((r) => r[k] === v); return q; },
       in: (k: string, vs: unknown[]) => { filters.push((r) => vs.includes(r[k])); return q; },
       range: (a: number, b: number) => { page = [a, b]; return q; },
@@ -34,17 +40,18 @@ const seed = () => fakeDb({
   activity_sources: [
     { id: 's1', user_id: 'u', provider: 'strava', provider_activity_id: '1', activity_id: 'a1' },
     { id: 's2', user_id: 'u', provider: 'strava', provider_activity_id: '2', activity_id: 'a2' },
-    { id: 's3', user_id: 'u', provider: 'strava_archive', provider_activity_id: '2', activity_id: 'a2' },
+    { id: 's3', user_id: 'u', provider: 'strava_archive', provider_activity_id: '2', activity_id: 'a2', raw_payload: { imported_from: 'archive', route: false } },
     { id: 's4', user_id: 'other', provider: 'strava', provider_activity_id: '1', activity_id: 'b1' },
   ],
   activities: [
     { id: 'a1', user_id: 'u', provider: 'strava', provider_activity_id: '1' },
-    { id: 'a2', user_id: 'u', provider: 'strava', provider_activity_id: '2' },
+    { id: 'a2', user_id: 'u', provider: 'strava', provider_activity_id: '2', avg_heartrate: 152, best_efforts: [{ name: '5k' }], distance_meters: 5000 },
     { id: 'a3', user_id: 'u', provider: 'strava', provider_activity_id: '3' },
     { id: 'm1', user_id: 'u', provider: 'manual', provider_activity_id: null },
     { id: 'b1', user_id: 'other', provider: 'strava', provider_activity_id: '1' },
   ],
   fitness_connections: [{ user_id: 'u', provider: 'strava' }, { user_id: 'other', provider: 'strava' }],
+  activity_routes: [{ activity_id: 'a2', user_id: 'u', polyline: 'abc' }, { activity_id: 'b1', user_id: 'other', polyline: 'xyz' }],
 });
 
 describe('isPrivateOnStrava', () => {
@@ -88,5 +95,16 @@ describe('removeAllStravaData', () => {
     expect(db.tables.activities.map((a) => a.id).sort()).toEqual(['a2', 'b1', 'm1']);
     expect(db.tables.fitness_connections).toEqual([{ user_id: 'other', provider: 'strava' }]);
     expect(db.tables.activity_sources.filter((s) => s.user_id === 'u').map((s) => s.provider)).toEqual(['strava_archive']);
+  });
+  it('keeps archived activities as RIVAL\'s own, without what only Strava supplied', async () => {
+    const db = seed();
+    await removeAllStravaData(db, 'u');
+    const a2 = db.tables.activities.find((a) => a.id === 'a2')!;
+    expect(a2.provider).toBe('strava_archive');
+    expect(a2.avg_heartrate).toBeNull();
+    expect(a2.best_efforts).toBeNull();
+    expect(a2.distance_meters).toBe(5000);
+    // The archive had no route, so the stored one was Strava's.
+    expect(db.tables.activity_routes.map((r) => r.activity_id)).toEqual(['b1']);
   });
 });

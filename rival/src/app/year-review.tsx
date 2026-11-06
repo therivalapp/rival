@@ -1,6 +1,7 @@
 import { formatDistance, formatDistanceWhole, formatElevation } from '../lib/units';
 import { useEffect, useState } from 'react';
-import { Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { sidePageWide } from '../constants/breakpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
@@ -34,6 +35,7 @@ export default function YearReviewScreen() {
   const currentYear = getCurrentSeasonYear();
   const year = Number(params.year) || currentYear;
   const isCurrent = year === currentYear;
+  const phone = !sidePageWide(useWindowDimensions().width);
 
   const [review, setReview] = useState<YearReview | null>(null);
   const [rank, setRank] = useState<{ name: string; level: number } | null>(null);
@@ -102,7 +104,8 @@ export default function YearReviewScreen() {
 
   return (
     <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
-      <RivalTopNav active="today" />
+      {/* A page for reading through once: back arrow only on phones, no top or bottom bar (Ricky, 2026-11-02). */}
+      {phone ? null : <RivalTopNav active="today" />}
       <ScrollView contentContainerStyle={[rb.content, s.content]}>
         <GreyPageHead kicker={isCurrent ? 'SO FAR THIS YEAR' : String(year)} title="Year in review" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
 

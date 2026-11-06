@@ -329,7 +329,7 @@ export default function AddWorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   bg: { flex: 1 },
   // Faint atmospheric backdrop, like the mockup's opacity-10 image behind a scrim.
   bgImage: { opacity: 0.12 },

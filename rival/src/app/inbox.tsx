@@ -10,11 +10,12 @@ import {
   markRead,
   resolveItem,
   respondToActivityTag,
-  respondToJoinRequest,
+  respondToJoinRequest, respondToJoinConfirm, loadActorAvatars,
   respondToShortActivity,
   respondToPaceReview,
   type InboxItem,
 } from '@/lib/inbox';
+import { RivalAvatar } from '@/components/rival/RivalAvatar';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { RivalBackButton, RivalIcon, RivalTopNav, GreySheet, GreyLabel } from '@/components/rival';
 import { INBOX_ICON_FOR, goToInboxSubject, inboxTimeAgo } from '@/components/rival/NotificationsMenu';
@@ -23,6 +24,8 @@ import { BusyText } from '../components/rival/BusyText';
 import { ShortActivityPreview, loadShortActivities, shortActivityLine, type ShortActivity } from '../components/rival/ShortActivityPreview';
 import { goToTab } from '../lib/tabNav';
 import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../lib/stravaSharing';
+
+const JOIN_KINDS: InboxItem['kind'][] = ['join_confirm', 'join_request', 'team_joined'];
 
 // The inbox. Items are answered where they sit rather than sending you off to
 // another screen to find the thing they are about — a notification you have to
@@ -86,6 +89,19 @@ export default function InboxScreen() {
     return { ok: true };
   }
 
+  // Who a join notification is about, by their picture.
+  const [avatars, setAvatars] = useState<Record<string, string | null>>({});
+  useEffect(() => {
+    const ids = [...new Set(items.filter((i) => JOIN_KINDS.includes(i.kind) && i.actor_id).map((i) => i.actor_id!))];
+    loadActorAvatars(ids).then(setAvatars, () => {});
+  }, [items]);
+  const personFor = (item: InboxItem, size: number, icon: number) => {
+    const uri = item.actor_id && JOIN_KINDS.includes(item.kind) ? avatars[item.actor_id] : null;
+    return uri ? <RivalAvatar uri={uri} name={item.title} size={size} /> : (
+      <View style={m.badge}><RivalIcon name={INBOX_ICON_FOR[item.kind]} size={icon} color={RivalColors.accentText} /></View>
+    );
+  };
+
   const unresolvedFirst = [...items].sort((a, b) => {
     const aOpen = isActionable(a) ? 0 : 1;
     const bOpen = isActionable(b) ? 0 : 1;
@@ -107,6 +123,7 @@ export default function InboxScreen() {
       </View>
     );
     if (item.kind === 'join_request') return pair('Decline', 'Approve', '…', (ok) => respondToJoinRequest(item, ok));
+    if (item.kind === 'join_confirm') return pair('Not me', 'Confirm', 'Confirming…', (ok) => respondToJoinConfirm(item, ok));
     if (item.kind === 'short_activity') return pair('Remove', 'Keep', '…', (ok) => respondToShortActivity(item, ok));
     if (item.kind === 'activity_tag') return pair('Decline', 'Confirm', 'Confirming…', (ok) => respondToActivityTag(item, ok));
     if (item.kind === 'pace_review') return pair('Edit', "It's correct", 'Saving…', (ok) => answerPaceReview(item, ok));
@@ -148,7 +165,7 @@ export default function InboxScreen() {
                   accessibilityRole={short ? 'button' : undefined}
                   accessibilityLabel={short ? (isOpen ? 'Hide the activity' : 'Show the activity') : undefined}
                 >
-                  <View style={m.badge}><RivalIcon name={INBOX_ICON_FOR[item.kind]} size={16} color={RivalColors.accentText} /></View>
+                  {personFor(item, 32, 16)}
                   <View style={styles.textWrap}>
                     <Text style={styles.cardTitle}>{item.title}</Text>
                     {short ? <Text style={styles.cardBody}>{shortActivityLine(short)}</Text> : item.body ? <Text style={styles.cardBody}>{item.body}</Text> : null}
@@ -172,8 +189,8 @@ export default function InboxScreen() {
                   {earlier.map((item, i) => (
                     <View key={item.id} style={[m.row, i > 0 && m.rowRule]}>
                       <TouchableOpacity style={m.rowMain} activeOpacity={0.7} onPress={() => goToInboxSubject(item)}>
-                        <View style={m.badge}>
-                          <RivalIcon name={INBOX_ICON_FOR[item.kind]} size={15} color={RivalColors.accentText} />
+                        <View>
+                          {personFor(item, 32, 15)}
                           {!item.read_at && <View style={m.dot} />}
                         </View>
                         <View style={styles.textWrap}>

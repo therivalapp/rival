@@ -8,7 +8,7 @@ const act = (id: string, started_at: string, extra: Partial<ProfileActivity> = {
 describe('yearTotals', () => {
   it('counts only that year', () => {
     const t = yearTotals([act('a', '2025-12-30T12:00:00Z'), act('b', '2026-03-01T12:00:00Z'), act('c', '2026-04-01T12:00:00Z')], 2026);
-    expect(t).toEqual({ activities: 2, effort: 20, hours: 2 });
+    expect(t).toEqual({ activities: 2, effort: 20, hours: 2, km: 20, elevation: 200 });
   });
 });
 

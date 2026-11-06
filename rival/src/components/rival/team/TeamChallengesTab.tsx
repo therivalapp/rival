@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Modal } from '../RivalModal';
 import { RivalStartTiles, GreySheet, GreyLabel, GreyTiles, GreyRows, GreyRow, GreyField, GreyNote, GreyPrimary } from '../RivalGreySheet';
 import { sidePageWide } from '../../../constants/breakpoints';
 import { supabase } from '../../../lib/supabase';
 import { notify } from '../../../lib/notify';
 import { formatTeamName } from '../../../lib/identity';
-import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors, rivalPhoneVar } from '../../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from '../RivalIcon';
 import { sheet, sheetPhone } from './sheetStyles';
 import { BusyText } from '../BusyText';
@@ -258,7 +259,7 @@ export function TeamChallengesTab({
       {/* Phone: challenges not started yet, as tiles at the top. Each becomes
           its own section below once there's one. */}
       {phone && (
-        <RivalStartTiles ghost={phone}
+        <RivalStartTiles ghost={phone} art={phone} titleStyle={s.nextTitle}
           tiles={[
             ...(isAdmin && !teamGoal && onEditTeamGoal ? [{ key: 'team', icon: 'target' as const, label: 'Team challenge', onPress: onEditTeamGoal }] : []),
             ...(noTeammate && onOpenMembers ? [{ key: 'mate', icon: 'person' as const, label: 'Challenge a teammate', onPress: onOpenMembers }] : []),
@@ -276,7 +277,7 @@ export function TeamChallengesTab({
           {teamGoal ? (
             <View style={s.card}>
               <Text style={s.cardKicker}>TOGETHER</Text>
-              <Text style={s.cardTitle}>{teamGoal.title}</Text>
+              <Text style={[s.cardTitle, s.cardTitleSerif]}>{teamGoal.title}</Text>
               <Text style={s.cardDetail}>{teamGoal.detail}</Text>
               {isAdmin && (
                 <View style={s.btnRow}>
@@ -318,7 +319,7 @@ export function TeamChallengesTab({
               return (
                 <View key={c.id} style={s.card}>
                   <Text style={s.cardKicker}>PENDING</Text>
-                  <Text style={s.cardTitle}>
+                  <Text style={[s.cardTitle, s.cardTitleSerif]}>
                     {mine ? `You challenged ${nameFor(other)}` : c.opponent_id === currentUserId ? `${nameFor(other)} challenged you` : `${nameFor(c.challenger_id)} challenged ${nameFor(c.opponent_id)}`}
                   </Text>
                   <Text style={s.cardDetail}>{metricLabel(c.metric)} · {shortDate(c.start_date)} to {shortDate(c.end_date)}</Text>
@@ -343,7 +344,7 @@ export function TeamChallengesTab({
               return (
                 <View key={c.id} style={s.card}>
                   <Text style={s.cardKicker}>ACTIVE · ENDS {shortDate(c.end_date).toUpperCase()}</Text>
-                  <Text style={s.cardTitle}>{nameFor(c.challenger_id)} vs {nameFor(c.opponent_id)}</Text>
+                  <Text style={[s.cardTitle, s.cardTitleSerif]}>{nameFor(c.challenger_id)} vs {nameFor(c.opponent_id)}</Text>
                   <Text style={s.cardDetail}>{metricLabel(c.metric)}</Text>
                   <ScoreBars
                     a={{ label: nameFor(c.challenger_id), value: p.challenger }}
@@ -357,7 +358,7 @@ export function TeamChallengesTab({
             {done.length > 0 && <Text style={s.subTitle}>History</Text>}
             {done.map(c => (
               <View key={c.id} style={[s.card, s.cardDone]}>
-                <Text style={s.cardTitle}>{nameFor(c.challenger_id)} vs {nameFor(c.opponent_id)}</Text>
+                <Text style={[s.cardTitle, s.cardTitleSerif]}>{nameFor(c.challenger_id)} vs {nameFor(c.opponent_id)}</Text>
                 <Text style={s.cardDetail}>{metricLabel(c.metric)} · {shortDate(c.start_date)} to {shortDate(c.end_date)}</Text>
                 <ResultLine text={c.winner_id ? `${nameFor(c.winner_id)} won` : 'Draw'} won={!!c.winner_id} />
               </View>
@@ -394,7 +395,7 @@ export function TeamChallengesTab({
           return (
             <View key={t.id} style={s.card}>
               <Text style={s.cardKicker}>PENDING</Text>
-              <Text style={s.cardTitle}>{weSent ? `${teamName} challenged ${other}` : `${other} challenged ${teamName}`}</Text>
+              <Text style={[s.cardTitle, s.cardTitleSerif]}>{weSent ? `${teamName} challenged ${other}` : `${other} challenged ${teamName}`}</Text>
               <Text style={s.cardDetail}>{metricLabel(t.metric)} · {shortDate(t.start_date)} to {shortDate(t.end_date)}</Text>
               {!weSent && isAdmin ? (
                 <View style={s.btnRow}>
@@ -421,7 +422,7 @@ export function TeamChallengesTab({
           return (
             <View key={t.id} style={s.card}>
               <Text style={s.cardKicker}>ACTIVE · ENDS {shortDate(t.end_date).toUpperCase()}</Text>
-              <Text style={s.cardTitle}>{teamName} vs {other}</Text>
+              <Text style={[s.cardTitle, s.cardTitleSerif]}>{teamName} vs {other}</Text>
               <Text style={s.cardDetail}>{metricLabel(t.metric)}</Text>
               <ScoreBars
                 a={{ label: teamName, value: weAreChallenger ? p.challenger : p.opponent }}
@@ -437,7 +438,7 @@ export function TeamChallengesTab({
           const won = t.winner_league_id === leagueId;
           return (
             <View key={t.id} style={[s.card, s.cardDone]}>
-              <Text style={s.cardTitle}>{teamName} vs {other}</Text>
+              <Text style={[s.cardTitle, s.cardTitleSerif]}>{teamName} vs {other}</Text>
               <Text style={s.cardDetail}>{metricLabel(t.metric)} · {shortDate(t.start_date)} to {shortDate(t.end_date)}</Text>
               <ResultLine text={t.winner_league_id === null ? 'Draw' : won ? `${teamName} won` : `${other} won`} won={won} />
             </View>
@@ -793,6 +794,7 @@ function MetricAndDuration({
 }
 
 const s = StyleSheet.create({
+  nextTitle: { color: '#fff', textShadowColor: 'rgba(0,0,0,0.65)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   linkText: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText },
   sectionTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff' },
@@ -804,12 +806,14 @@ const s = StyleSheet.create({
   },
   emptyText: { fontSize: 13.5, color: RivalColors.textSecondary, textAlign: 'center' },
   card: {
-    backgroundColor: '#1c1a19', borderRadius: 18, borderWidth: 1, borderColor: `${RivalColors.accentFill}33`,
+    backgroundColor: rivalPhoneVar('rival-hub-card', '#32312f', '#1c1a19'), borderRadius: 18, borderWidth: 1, borderColor: rivalPhoneVar('rival-solid-border', 'rgba(255,181,158,0.22)', `${RivalColors.accentFill}33`),
     padding: 14, gap: 4,
   },
-  cardDone: { borderColor: 'rgba(255,255,255,0.08)' },
+  cardDone: { borderColor: rivalPhoneVar('rival-row-border', 'rgba(255,209,190,0.08)', 'rgba(255,255,255,0.08)') },
   cardKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: RivalColors.accentText },
   cardTitle: { fontSize: 15.5, fontWeight: '800', color: '#fff' },
+  // Serif italic on phones, like every other card title; desktop keeps its own.
+  cardTitleSerif: { fontFamily: rivalPhoneVar('rival-card-title-font', RivalSerifFamily, 'inherit'), fontStyle: rivalPhoneVar('rival-card-title-style', 'italic', 'normal') as any, fontWeight: '700' },
   cardDetail: { fontSize: 13, color: RivalColors.textSecondary },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   primaryBtn: { flex: 1, minHeight: 44, borderRadius: 999, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, alignItems: 'center', justifyContent: 'center' },

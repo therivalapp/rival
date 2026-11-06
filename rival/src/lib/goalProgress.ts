@@ -2,7 +2,7 @@
 // dashboard's featured-goal card. Extracted from goals.tsx so the dashboard
 // doesn't fork the math (same rule as effort.ts / activityIcons.ts).
 
-export const GYM_TYPES = new Set(['WeightTraining', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Workout']);
+export const GYM_TYPES = new Set(['WeightTraining', 'Calisthenics', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Workout']);
 
 // Groups indoor + outdoor variants of the same sport together
 export const ACTIVITY_TYPE_GROUPS: Record<string, string[]> = {
@@ -41,6 +41,8 @@ export const GOAL_ACTIVITY_TYPES: { value: string; label: string; distance: bool
   { value: 'IceSkate', label: 'Ice skate', distance: true },
   { value: 'RockClimbing', label: 'Rock climbing', distance: false },
   { value: 'WeightTraining', label: 'Weight training', distance: false },
+  { value: 'Calisthenics', label: 'Calisthenics', distance: false },
+  { value: 'Gymnastics', label: 'Gymnastics', distance: false },
   { value: 'CrossFit', label: 'CrossFit', distance: false },
   { value: 'Hyrox', label: 'Hyrox', distance: false },
   { value: 'HIIT', label: 'HIIT', distance: false },

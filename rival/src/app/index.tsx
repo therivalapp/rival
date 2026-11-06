@@ -82,9 +82,9 @@ const styles = StyleSheet.create({
   // Plain block container — no flex:1 (that requires a height-bounded ancestor,
   // which this screen deliberately no longer has).
   page: {
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
   },
-  pending: { flex: 1, minHeight: '100%', backgroundColor: RivalColors.surfaceLow },
+  pending: { flex: 1, minHeight: '100%', backgroundColor: RivalColors.pageGround },
   // minHeight, not height: fills at least one screen but is free to grow, same as
   // any ordinary hero section on a real webpage.
   // 100dvh, not 100vh: on iOS 100vh is the LARGE viewport (741px of an 852px

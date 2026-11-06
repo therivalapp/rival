@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { supabase, getAuthUser } from './supabase';
 import { connectStrava } from './strava';
 import { inboxChanged } from './inbox';
+import { getMyTeamIds } from './myTeams';
 
 // Consent for showing someone's Strava data to their teams.
 //
@@ -48,21 +49,30 @@ export function stravaSharingNeedsAnswer(): Promise<boolean> {
   return value;
 }
 
+// Everyone in a team who hasn't agreed is asked once (since 2026-11-02 the
+// agreement covers all activities, not only Strava's).
 async function askStravaSharingNeedsAnswer(): Promise<boolean> {
   const { data: { user } } = await getAuthUser();
   if (!user) return false;
-  const [{ data: conn }, sharing] = await Promise.all([
-    supabase.from('fitness_connections').select('user_id').eq('user_id', user.id).eq('provider', 'strava').maybeSingle(),
-    loadStravaSharing(),
-  ]);
-  return !!conn && !!sharing && !sharing.agreedAt;
+  const [teamIds, sharing] = await Promise.all([getMyTeamIds(user.id).catch(() => [] as string[]), loadStravaSharing()]);
+  return teamIds.length > 0 && !!sharing && !sharing.agreedAt;
 }
 
 export const STRAVA_SHARING_NOTICE = {
-  title: 'Confirm Strava sharing',
-  body: 'Strava asks for agreement before your activities are shown to your teams.',
-  open: () => router.push({ pathname: '/connect-strava', params: { review: '1' } }),
+  title: 'Sharing with teams',
+  body: 'Confirm what teammates can see of your activities.',
+  open: () => router.push('/team-sharing'),
 };
+
+/** Before joining or creating a team: true once sharing is agreed. Otherwise
+ *  opens Sharing with teams and returns false, and the person tries again. */
+export async function teamSharingAgreed(): Promise<boolean> {
+  if (agreedCache === true) return true;
+  const sharing = await loadStravaSharing();
+  if (sharing?.agreedAt) return true;
+  router.push('/team-sharing');
+  return false;
+}
 
 export async function loadStravaSharing(): Promise<StravaSharing | null> {
   // The consent date isn't readable from the users table (only its owner may

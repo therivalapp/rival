@@ -1,0 +1,96 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;width:1300px;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}.col{width:393px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:76px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#131313}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.s{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.k{font-size:10.5px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;color:#ffb59e}
+.btn{height:52px;border-radius:26px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px}
+.later{text-align:center;font-size:13.5px;font-weight:700;color:rgba(255,255,255,.6);margin-top:14px}
+.page{position:absolute;inset:0;filter:brightness(.35)}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sky{background:linear-gradient(180deg,#5b5f7d 0%,#a7786a 50%,#e0a46a 100%)}
+
+/* A */
+.a{position:absolute;inset:0;background:rgba(19,19,19,.94);border:1px solid rgba(255,255,255,.06);border-radius:40px;display:flex;flex-direction:column;align-items:center;padding:96px 26px 34px}
+.a .tile{position:relative;width:250px;height:320px;border-radius:24px;overflow:hidden;margin-top:26px;transform:rotate(-2deg);border:1px solid rgba(255,209,190,.3)}
+.a .tile .ic{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:84px;color:rgba(255,255,255,.35)}
+.a .tile .shade{position:absolute;inset:40% 0 0;background:linear-gradient(180deg,transparent,rgba(10,9,8,.9))}
+.a .tile .pill{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:3px 10px;border-radius:999px;background:rgba(14,13,12,.55);font-size:13px}
+.a .tile .foot{position:absolute;left:14px;bottom:14px}
+.a .tile .v{font-size:40px;line-height:44px}.a .tile .v small{font-size:17px;opacity:.6}
+.a .tile .l{font-size:14px;font-weight:800}.a .tile .n{font-size:12.5px;font-weight:700;color:#ffb59e;margin-top:2px}
+.a .slot{margin-top:18px;background:#282828;border:1px dashed rgba(255,181,158,.5);border-radius:14px;padding:9px 12px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#ffd1be}
+.a .t{font-size:34px;line-height:40px;margin-top:24px;text-align:center}
+.a .sub{font-size:13.5px;color:rgba(255,255,255,.6);text-align:center;margin-top:6px;line-height:19px}
+.a .more{margin-top:12px;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:#ffb59e}
+.a .act{width:100%;margin-top:auto}
+
+/* B */
+.b{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:110px 26px 34px}
+.b .fade{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(180deg,rgba(19,19,19,0),#131313 70%)}
+.b .ghost{position:absolute;right:-40px;top:150px;font-size:300px;color:rgba(255,255,255,.08)}
+.b .k{position:relative;color:#fff;opacity:.85}
+.b .big{position:relative;font-size:150px;line-height:150px;margin-top:22px;letter-spacing:-3px}
+.b .unit{position:relative;font-size:26px;margin-top:-6px;opacity:.85}
+.b .rule{position:relative;width:46px;height:1px;background:rgba(255,255,255,.5);margin:22px 0}
+.b .t{position:relative;font-size:26px;line-height:32px;text-align:center}
+.b .sub{position:relative;font-size:13.5px;color:rgba(255,255,255,.65);text-align:center;margin-top:8px;line-height:19px}
+.b .steps{position:relative;display:flex;gap:6px;margin-top:22px}
+.b .steps i{width:30px;height:5px;border-radius:3px;background:rgba(255,255,255,.14)}.b .steps i.on{background:linear-gradient(90deg,#D97757,#ffb59e)}
+.b .stepl{position:relative;font-size:11.5px;color:rgba(255,255,255,.5);margin-top:8px}
+.b .act{position:relative;width:100%;margin-top:auto}
+
+/* C: PB */
+.gold{color:#FFD700}
+.c .k{color:#FFD700}
+.c .big{font-size:112px;line-height:120px;letter-spacing:-2px}
+.c .delta{position:relative;margin-top:12px;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,215,0,.45);font-size:13px;font-weight:800;color:#FFD700}
+.c .was{position:relative;font-size:12.5px;color:rgba(255,255,255,.55);margin-top:10px}
+</style></head><body><div class="row">
+
+<div class="col"><div class="tag">A · The tile arrives</div>
+<div class="desc">The achievement tile drops in tilted, the way it will sit on the Achievements page, with the activity's sky until a photo is added. The photo slot shows what the photo is for. Motion: tile falls and settles, then the words fade up.</div>
+<div class="phone"><div class="page sky"></div><div class="a">
+  <div class="k">Achievement earned · 2026</div>
+  <div class="tile sky"><span class="mi ic">directions_run</span><div class="shade"></div><div class="pill s">Nov 2</div>
+    <div class="foot"><div class="v s">500<small> km</small></div><div class="l">Distance</div><div class="n">Morning Run</div></div></div>
+  <div class="slot"><span class="mi" style="font-size:16px">add_a_photo</span>A photo becomes this tile</div>
+  <div class="t s">500 km this year.</div>
+  <div class="sub">Every kilometre since 1 January.<br>Next: 1,000 km.</div>
+  <div class="more">Also earned · 100 activities</div>
+  <div class="act"><div class="btn"><span class="mi" style="font-size:19px">add_a_photo</span>Add photo</div><div class="later">Not now</div></div>
+</div></div></div>
+
+<div class="col"><div class="tag">B · Full screen</div>
+<div class="desc">The whole screen becomes the activity's sky with one huge number, like a poster. A ladder of steps shows where it sits. Motion: the number counts up from the last step, then the step fills.</div>
+<div class="phone sky"><span class="mi ghost">directions_run</span><div class="b"><div class="fade"></div>
+  <div class="k">Achievement earned</div>
+  <div class="big s">500</div><div class="unit s">km</div>
+  <div class="rule"></div>
+  <div class="t s">Distance, 2026</div>
+  <div class="sub">Reached on Morning Run, 2 November.<br>Also earned: 100 activities.</div>
+  <div class="steps"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+  <div class="stepl">2 of 5 · Next 1,000 km</div>
+  <div class="act"><div class="btn"><span class="mi" style="font-size:19px">add_a_photo</span>Add photo</div><div class="later">Not now</div></div>
+</div></div></div>
+
+<div class="col"><div class="tag">B for a personal best</div>
+<div class="desc">The same screen for a PB, in the app's PB gold, with how much faster and what it beat. Lifts show the weight, distance PBs the distance.</div>
+<div class="phone sky"><span class="mi ghost">directions_run</span><div class="b c"><div class="fade"></div>
+  <div class="k">Personal best · 5 km</div>
+  <div class="big s">21:48</div>
+  <div class="delta">34 seconds faster</div>
+  <div class="was">Previous best 22:22, set in March</div>
+  <div class="rule"></div>
+  <div class="t s">Fastest 5 km.</div>
+  <div class="sub">Set on Morning Run, 2 November.</div>
+  <div class="act"><div class="btn"><span class="mi" style="font-size:19px">add_a_photo</span>Add photo</div><div class="later">Not now</div></div>
+</div></div></div>
+
+</div></body></html>

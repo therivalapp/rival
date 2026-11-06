@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import { formatDisplayName } from '../../../lib/identity';
-import { RivalColors, RivalSerifFamily } from '../../../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, rivalPhoneVar } from '../../../constants/rivalTheme';
 import { RivalIcon } from '../RivalIcon';
 import { RivalAvatar } from '../RivalAvatar';
 import { useSnapState } from '../../../lib/snapState';
@@ -222,7 +222,7 @@ const s = StyleSheet.create({
   weekArrowOff: { opacity: 0.3 },
   weekLabel: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 17, color: '#fff' },
   card: {
-    backgroundColor: '#1c1a19', borderRadius: 20, borderWidth: 1, borderColor: `${RivalColors.accentFill}33`,
+    backgroundColor: rivalPhoneVar('rival-hub-card', '#32312f', '#1c1a19'), borderRadius: 20, borderWidth: 1, borderColor: rivalPhoneVar('rival-solid-border', 'rgba(255,181,158,0.22)', `${RivalColors.accentFill}33`),
     paddingHorizontal: 12,
   },
   row: {

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Modal, Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Modal } from './RivalModal';
 import { RivalButtonColors, RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
 import { GreyCalendar, GreyLabel, GreyRows, GreySheet } from './RivalGreySheet';

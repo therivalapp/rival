@@ -48,6 +48,7 @@ const ICONS = {
   // Instagram's post menu.
   moreHoriz: 'more-horiz',
   close: 'close',
+  flipCamera: 'flip-camera-ios',
   // Enlarge the share preview to the full screen, and back.
   enlarge: 'open-in-full',
   shrink: 'close-fullscreen',
@@ -98,9 +99,12 @@ const ICONS = {
   openInNew: 'open-in-new',
   apps: 'apps',
   person: 'person',
+  accountOff: 'no-accounts',
   groups: 'groups',
   home: 'home',
   flag: 'flag',
+  play: 'play-arrow',
+  pause: 'pause',
   key: 'vpn-key',
   globe: 'public',
   // Ricky's pick from a side-by-side icon comparison, 2026-08-24
@@ -116,10 +120,14 @@ const ICONS = {
   manual: 'edit-note',
   batch: 'calendar-view-week',
   addPhoto: 'add-a-photo',
+  history: 'history',
+  formatQuote: 'format-quote',
   crop: 'crop',
   // Repeat a workout on Log an activity.
   replay: 'replay',
   swapVert: 'swap-vert',
+  // A transition between two legs of an event.
+  swap: 'swap-horiz',
   photoLibrary: 'photo-library',
   video: 'videocam',
   brain: 'psychology',
@@ -170,6 +178,7 @@ const ICONS = {
   // a workout — this is the classic Olympic-lifting pictogram (barbell
   // overhead), a closer match for CrossFit's actual training style.
   crossfit: ['mci', 'weight-lifter'] as const,
+  calisthenics: 'sports-gymnastics',
   hyrox: 'local-fire-department',
   hiit: 'bolt',
   bootcamp: 'sports',
@@ -312,7 +321,7 @@ const ACTIVITY_TYPE_TO_ICON: Record<string, RivalIconName> = {
   Rowing: 'rowing', VirtualRow: 'rowing',
   Kayaking: 'paddle', Canoeing: 'paddle', StandUpPaddling: 'surf',
   Surfing: 'surf', Kitesurf: 'kitesurf', Windsurf: 'surf', Sail: 'sail',
-  WeightTraining: 'weights', Workout: 'bicep',
+  WeightTraining: 'weights', Workout: 'bicep', Calisthenics: 'calisthenics', Gymnastics: 'calisthenics',
   CrossFit: 'crossfit',
   Hyrox: 'hyroxRun',
   HIIT: 'hiit',

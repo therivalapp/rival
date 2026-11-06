@@ -4,7 +4,8 @@ import { bandFit } from '../../lib/titleFit';
 import { SkyBackdrop } from './SkyBackdrop';
 import { defaultActivityName } from '../../lib/activityName';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
+import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
+import { Modal } from './RivalModal';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuthUser, supabase } from '../../lib/supabase';
@@ -25,10 +26,11 @@ import { RecordingsSheet, useRecordingCount } from './RecordingsSheet';
 import { STACKED_BESTS, fastestRest, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
 import { useSheetDrag } from './useSheetDrag';
 import { composeStampOnPhoto, makeShareCard, shareCardFile, type ShareBest, type ShareFigure, type StampPlacement } from '../../lib/shareCard';
-import { MAX_STATS, STAMP_STYLES, chosenFigures, defaultStats, drawCountdownStamp, drawStamp, inkMargins, stampBlob, type InkMargins, type StampMode, stampFontsReady, statOptions, type StampStyle, type StatKey, type StatOption } from '../../lib/shareStamp';
+import { MAX_STATS, STAMP_STYLES, centredStamp, chosenFigures, defaultStats, drawCountdownStamp, drawStamp, inkMargins, stampBlob, type InkMargins, type StampMode, stampFontsReady, statOptions, type StampStyle, type StatKey, type StatOption } from '../../lib/shareStamp';
 import { fullPhoto } from '../../lib/imageUrl';
 import { StatTiles } from './StatTiles';
 import { StampStage, defaultPlacement } from './StampStage';
+import { MatchCard, usePageMatch } from './MatchResult';
 
 /** "38 seconds", "1 min 12 s": how much faster a new best was. */
 function fasterBy(seconds: number): string {
@@ -191,6 +193,7 @@ export function ActivityDiaryViewer({
   const sheetDrag = useSheetDrag(onClose);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const details = useActivityDetails(wide ? null : activity?.id);
+  const match = usePageMatch(wide ? '' : activity?.id ?? '', activity?.activity_type ?? '', !!activity?.shared_from_activity_id);
   // Recorded on a phone and a watch: a line to choose the recording shown.
   const recordingCount = useRecordingCount(wide ? null : activity?.id, details?.provider);
   const [recordingsOpen, setRecordingsOpen] = useState(false);
@@ -715,7 +718,7 @@ export function ActivityDiaryViewer({
     try {
       let done: 'shared' | 'saved' | 'cancelled';
       if (!stamp) done = await shareCardFile(card.blob, `${base}.jpg`);
-      else if (stampOnly || !activity.photo_url) done = await shareCardFile(stamp.blob, `${base}-stamp.png`);
+      else if (stampOnly || !activity.photo_url) done = await shareCardFile(await centredStamp(stamp.blob), `${base}-stamp.png`);
       else {
         const blob = await composeStampOnPhoto({ photoUrl: activity.photo_url, focalX: activity.photo_focal_x, focalY: activity.photo_focal_y, stampUrl: stamp.url, placement });
         done = await shareCardFile(blob, `${base}.jpg`);
@@ -1068,6 +1071,9 @@ export function ActivityDiaryViewer({
             // numbers straight under it with Effort among them, then the title,
             // then the journal as the most inviting thing on the page.
             <>
+              {/* Who was played and the sets, above the numbers (Ricky,
+                  2026-11-02). */}
+              {match ? <MatchCard match={match} /> : null}
               {/* The pop-up sheets' look (GreySheet): their lifted grey with the
                   warm glow from the top edge (Ricky, 2026-10-11). */}
               <View style={[styles.statCard, styles.statCardPop, styles.statCardStack, phonePb && styles.statCardPb, phoneRace && styles.statCardRace, Platform.OS === 'web' && !phonePb && !phoneRace && styles.statCardLit]}>
@@ -1325,7 +1331,7 @@ export function ActivityDiaryViewer({
           {/* Kept in place for the card too, unseen, so the layout holds still. */}
           {activity.photo_url ? (
             <TouchableOpacity onPress={() => sendShareCard(true)} disabled={shareChoice === 'card'} style={shareChoice === 'card' ? { opacity: 0 } : undefined} hitSlop={{ top: 6, bottom: 6, left: 16, right: 16 }}>
-              <Text style={styles.stampOnlyLink}>Share the stamp on its own</Text>
+              <Text style={styles.stampOnlyLink}>Save transparent stamp</Text>
             </TouchableOpacity>
           ) : null}
           {cardError ? <Text style={styles.shareError}>{cardError}</Text> : null}

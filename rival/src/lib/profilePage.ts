@@ -31,6 +31,8 @@ export function yearTotals(activities: ProfileActivity[], year: number) {
     activities: rows.length,
     effort: Math.round(rows.reduce((t, a) => t + (a.effort_score || 0), 0)),
     hours: Math.floor(rows.reduce((t, a) => t + (a.duration_seconds || 0), 0) / 3600),
+    km: rows.reduce((t, a) => t + (a.distance_meters || 0), 0) / 1000,
+    elevation: rows.reduce((t, a) => t + (a.elevation_meters || 0), 0),
   };
 }
 
@@ -83,7 +85,7 @@ export function profileBests(activities: ProfileActivity[], runs: { id: string; 
 
 export type MilestoneKind = 'activities' | 'km' | 'elevation' | 'hours';
 
-const LADDERS: Record<MilestoneKind, number[]> = {
+export const MILESTONE_LADDERS: Record<MilestoneKind, number[]> = {
   activities: [10, 25, 50, 100, 250, 500, 1000, 2500],
   km: [100, 500, 1000, 5000, 10000],
   elevation: [1000, 8849, 50000, 100000],
@@ -99,7 +101,7 @@ export type Milestone = {
 };
 
 export function milestoneWords(kind: MilestoneKind): string {
-  return kind === 'activities' ? 'activities' : kind === 'km' ? 'km' : kind === 'elevation' ? 'metres climbed' : 'hours';
+  return kind === 'activities' ? 'activities' : kind === 'km' ? 'km' : kind === 'elevation' ? 'm elevation' : 'hours';
 }
 
 export type NextMilestone = { key: string; kind: MilestoneKind; target: number; current: number };
@@ -109,7 +111,7 @@ export type NextMilestone = { key: string; kind: MilestoneKind; target: number; 
 export function profileMilestones(activities: ProfileActivity[]): { earned: Milestone[]; next: NextMilestone | null } {
   const totals: Record<MilestoneKind, number> = { activities: 0, km: 0, elevation: 0, hours: 0 };
   const earned: Milestone[] = [];
-  const reached = (kind: MilestoneKind) => LADDERS[kind].filter((t) => t <= totals[kind]).length;
+  const reached = (kind: MilestoneKind) => MILESTONE_LADDERS[kind].filter((t) => t <= totals[kind]).length;
 
   for (const a of byDate(activities)) {
     const before = { activities: reached('activities'), km: reached('km'), elevation: reached('elevation'), hours: reached('hours') };
@@ -117,10 +119,10 @@ export function profileMilestones(activities: ProfileActivity[]): { earned: Mile
     totals.km += (a.distance_meters || 0) / 1000;
     totals.elevation += a.elevation_meters || 0;
     totals.hours += (a.duration_seconds || 0) / 3600;
-    for (const kind of Object.keys(LADDERS) as MilestoneKind[]) {
+    for (const kind of Object.keys(MILESTONE_LADDERS) as MilestoneKind[]) {
       const now = reached(kind);
       for (let i = before[kind]; i < now; i++) {
-        const target = LADDERS[kind][i];
+        const target = MILESTONE_LADDERS[kind][i];
         earned.push({ key: `${kind}:${target}`, kind, target, activity: a });
       }
     }
@@ -128,8 +130,8 @@ export function profileMilestones(activities: ProfileActivity[]): { earned: Mile
 
   let next: NextMilestone | null = null;
   let closest = -1;
-  for (const kind of Object.keys(LADDERS) as MilestoneKind[]) {
-    const target = LADDERS[kind].find((t) => t > totals[kind]);
+  for (const kind of Object.keys(MILESTONE_LADDERS) as MilestoneKind[]) {
+    const target = MILESTONE_LADDERS[kind].find((t) => t > totals[kind]);
     if (!target) continue;
     const pct = totals[kind] / target;
     if (pct > closest) { closest = pct; next = { key: `${kind}:${target}`, kind, target, current: Math.floor(totals[kind]) }; }

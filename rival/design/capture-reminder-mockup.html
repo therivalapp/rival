@@ -1,0 +1,178 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;width:1300px;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.h{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;margin:26px 26px 0}
+.hs{color:#a8a097;font-size:13px;margin:4px 26px 0}
+.row{display:flex;gap:26px;padding:18px 22px 22px;align-items:flex-start}.col{width:393px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:58px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#111}
+.photo{position:absolute;inset:0;background:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg) top center/cover no-repeat}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,8,.55) 0%,rgba(8,8,8,.25) 26%,rgba(8,8,8,.82) 46%,#111 66%)}
+.shade.p{background:linear-gradient(180deg,rgba(8,8,8,.75),rgba(8,8,8,.8) 55%,#111 82%)}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.s{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.x{position:absolute;left:16px;top:54px;width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center}
+.x .mi{font-size:24px}
+.lock{position:absolute;right:16px;top:54px;width:38px;height:38px;border-radius:19px;background:rgba(14,13,12,.55);display:flex;align-items:center;justify-content:center}
+.lock .mi{font-size:19px;color:rgba(255,255,255,.8)}
+.kr{display:flex;align-items:center;justify-content:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:4px;background:#e8835f}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;color:#ffb59e}.k.p{color:rgba(255,255,255,.65)}
+.hero{font-size:96px;line-height:104px;text-align:center;margin-top:2px;font-variant-numeric:tabular-nums}
+.unit{font-size:9.5px;font-weight:800;letter-spacing:1.8px;color:#a0a0a0;text-align:center;margin-top:-4px}
+.sr{display:flex;margin:0 24px}.sr+.sr{margin-top:20px}
+.st{flex:1;text-align:center}.st+.st{border-left:1px solid rgba(255,255,255,.14)}
+.st b{display:block;font-family:Georgia,serif;font-style:italic;font-size:26px;line-height:31px}.st b small{font-size:13px;opacity:.6}
+.st i{font-style:normal;font-size:8.5px;letter-spacing:1.3px;font-weight:800;color:#ffb59e}
+.st b .hr{font-family:'Material Icons Round';font-style:normal;font-size:16px;color:#ff8f8f;vertical-align:2px;margin-right:3px}
+.pages{display:flex;justify-content:center;gap:6px;margin-top:22px}
+.pg{width:5px;height:5px;border-radius:3px;background:rgba(255,255,255,.3)}.pg.on{width:18px;background:#ffb59e}
+.pl{display:flex;justify-content:center;gap:18px;margin-top:8px;font-size:10px;font-weight:800;letter-spacing:1.3px;color:rgba(255,255,255,.4)}.pl .on{color:#ffb59e}
+.rem{text-align:center;margin-top:18px}
+.rem b{display:block;font-family:Georgia,serif;font-style:italic;font-size:20px}
+.rem span{font-size:12.5px;color:rgba(255,255,255,.6)}
+.dock{position:absolute;left:0;right:0;bottom:30px;display:flex;align-items:center;justify-content:center;gap:26px}
+.side{text-align:center}
+.sc{width:62px;height:62px;border-radius:31px;background:#232120;border:1.5px solid rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center}
+.sc .mi{font-size:26px}
+.mc{width:104px;height:104px;border-radius:52px;background:#232120;border:2.5px solid #e8835f;display:flex;align-items:center;justify-content:center}
+.mc .mi{font-size:44px}
+.dn{font-size:10px;font-weight:700;color:rgba(255,255,255,.65);margin-top:7px}
+.mini{display:flex;margin:0 24px;padding:12px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+.mini .st b{font-size:22px;line-height:27px}
+.cur{margin:18px 18px 0;padding:13px 14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07)}
+.cur .top{display:flex;justify-content:space-between;align-items:baseline}
+.cur .top b{font-size:13.5px;font-weight:800}.cur .top span{font-size:12px;color:#a0a0a0}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:9px;overflow:hidden}.bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#D97757,#ffb59e)}
+.spl{margin:10px 18px 0}
+.sp{display:flex;align-items:center;gap:12px;padding:9px 2px;border-top:1px solid rgba(255,255,255,.06)}.sp:first-child{border-top:0}
+.sp .n{width:38px;font-size:12px;font-weight:800;color:#a0a0a0}
+.sp .t{width:44px;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px}
+.sp .b{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.sp .b i{display:block;height:100%;border-radius:4px;background:rgba(255,181,158,.55)}
+.sp .b i.best{background:linear-gradient(90deg,#D97757,#ffb59e)}
+.sp .e{width:44px;text-align:right;font-size:11.5px;color:#a0a0a0}
+.sh{display:flex;gap:12px;margin:14px 20px 0;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.sh .n{width:38px}.sh .t{width:44px}.sh .b{flex:1}.sh .e{width:44px;text-align:right}
+.map{position:absolute;left:0;right:0;top:0;height:560px;background:#1e1f1e}
+.map svg{position:absolute;inset:0}
+.mapfade{position:absolute;left:0;right:0;top:420px;height:140px;background:linear-gradient(180deg,rgba(17,17,17,0),#111)}
+.mapstats{position:absolute;left:0;right:0;top:500px}
+.chip{position:absolute;left:50%;transform:translateX(-50%);top:58px;background:rgba(14,13,12,.7);border-radius:999px;padding:7px 14px;display:flex;gap:6px;align-items:center}
+.locate{position:absolute;right:16px;top:440px;width:40px;height:40px;border-radius:20px;background:rgba(14,13,12,.75);display:flex;align-items:center;justify-content:center}.locate .mi{font-size:20px;color:#ffb59e}
+/* finish */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #3a3939;border-radius:22px 22px 0 0;padding:10px 18px 30px;overflow:hidden}
+.gl{position:absolute;top:0;left:0;right:0;height:150px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.20),rgba(217,119,87,.07) 45%,rgba(217,119,87,0))}
+.grab{position:relative;width:38px;height:4px;border-radius:2px;background:#3a3939;margin:0 auto 14px}
+.sk{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.big{position:relative;font-size:56px;line-height:62px;text-align:center;margin-top:2px}
+.cap{position:relative;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;text-align:center;margin-top:-2px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.g{text-align:center;border-radius:14px;padding:10px 4px;background:rgba(255,255,255,.05)}
+.g b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}.g b small{font-size:12px;opacity:.6}
+.g i{font-style:normal;font-size:9px;letter-spacing:1.3px;font-weight:800;color:#a0a0a0}
+.photos{position:relative;display:flex;gap:8px;margin-top:10px}
+.add{flex:1;height:58px;border-radius:14px;border:1px dashed rgba(255,181,158,.4);display:flex;align-items:center;justify-content:center;gap:8px;color:#ffb59e;font-weight:800;font-size:14px}
+.add.small{flex:0 0 58px;flex-direction:column;gap:2px;font-size:10.5px}
+.th{flex:0 0 58px;height:58px;border-radius:14px;background:#444 center/cover}
+.btns{position:relative;display:flex;gap:10px;align-items:center;margin-top:16px}
+.resume{width:56px;height:56px;border-radius:28px;border:2px solid #e8835f;display:flex;align-items:center;justify-content:center;flex-shrink:0}.resume .mi{font-size:30px}
+.save{flex:1;height:56px;border-radius:28px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(217,119,87,.32)}
+.rl{position:relative;display:flex;margin-top:5px}.rl span{width:56px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6)}
+.sep{position:relative;height:1px;background:rgba(255,255,255,.07);margin:18px 0 12px}
+.discard{position:relative;text-align:center;font-size:13.5px;font-weight:700;color:#ff8f8f}
+.mt{position:relative;height:96px;border-radius:14px;overflow:hidden;background:#1e1f1e;margin-top:10px}
+.mt svg{position:absolute;inset:0}
+.chart{position:relative;margin-top:10px;border-radius:14px;background:rgba(255,255,255,.05);padding:10px 12px 8px}
+.chart .ct{display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}
+.chart .ct span{color:#ffb59e}
+.bars{display:flex;align-items:flex-end;gap:5px;height:44px;margin-top:8px}
+.bars i{flex:1;border-radius:3px 3px 0 0;background:rgba(255,181,158,.45)}.bars i.best{background:linear-gradient(180deg,#ffb59e,#D97757)}
+.bl{display:flex;gap:5px;margin-top:4px}.bl span{flex:1;text-align:center;font-size:9px;color:#a0a0a0}
+.tipw{position:absolute;right:20px;bottom:150px;width:186px}
+.tip{background:#282828;border:1px solid rgba(255,181,158,.3);border-radius:14px;padding:9px 11px;text-align:left}
+.tip b{display:block;font-family:Georgia,serif;font-style:italic;font-size:15px}.tip span{font-size:11px;color:rgba(255,255,255,.6)}
+.tipw:after{content:'';position:absolute;right:28px;bottom:-6px;width:11px;height:11px;background:#282828;border-right:1px solid rgba(255,181,158,.3);border-bottom:1px solid rgba(255,181,158,.3);transform:rotate(45deg)}
+.toast{position:absolute;left:16px;right:16px;top:104px;background:rgba(40,40,40,.92);border:1px solid rgba(255,181,158,.25);border-radius:16px;padding:11px 14px;display:flex;gap:11px;align-items:center}
+.toast .mi{color:#ffb59e;font-size:22px}.toast b{display:block;font-family:Georgia,serif;font-style:italic;font-size:16px}.toast span{font-size:11.5px;color:rgba(255,255,255,.6)}
+.ring{box-shadow:0 0 0 2px #e8835f inset}
+</style></head><body><div class="row"><div class="col"><div class="tag">A · Note above Photo</div><div class="desc">A small note points at the Photo button for the first minute, then fades. Gone for good once a photo is taken.</div><div class="phone"><div class="photo"></div><div class="shade"></div>
+  <div class="x"><span class="mi">expand_more</span></div>
+  <div style="position:absolute;left:0;right:0;top:302px">
+    <div class="kr"><div class="dot"></div><div class="k">RUN</div></div>
+    <div class="hero s">5.12</div>
+    <div class="unit">KILOMETRES</div>
+    <div class="sr" style="margin-top:26px">
+      <div class="st"><b>24:51</b><i>TIME</i></div>
+      <div class="st"><b>4:46<small> /km</small></b><i>PACE</i></div>
+      <div class="st"><b><span class="hr">favorite</span>152</b><i>BPM</i></div>
+    </div>
+    <div class="sr">
+      <div class="st"><b>4:51<small> /km</small></b><i>AVG PACE</i></div>
+      <div class="st"><b>48<small> m</small></b><i>ELEVATION</i></div>
+      <div class="st"><b>342</b><i>CALORIES</i></div>
+    </div>
+    <div class="pages"><div class="pg on"></div><div class="pg"></div><div class="pg"></div></div>
+  </div>
+  <div class="tipw"><div class="tip"><b>Capture The Moment.</b><span>While it is happening.</span></div></div>
+  <div class="dock">
+    <div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div>
+    <div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div>
+    <div class="side"><div class="sc"><span class="mi">add_a_photo</span></div><div class="dn">Photo</div></div>
+  </div>
+</div></div>
+
+<div class="col"><div class="tag">B · Note at the top</div><div class="desc">Slides in under the top bar when the run starts, stays a few seconds, then slides away. The stats stay clear the whole time.</div><div class="phone"><div class="photo"></div><div class="shade"></div>
+  <div class="toast"><span class="mi">add_a_photo</span><div><b>Capture The Moment.</b><span>Tap Photo while it is happening.</span></div></div>
+  <div class="x"><span class="mi">expand_more</span></div>
+  <div style="position:absolute;left:0;right:0;top:302px">
+    <div class="kr"><div class="dot"></div><div class="k">RUN</div></div>
+    <div class="hero s">5.12</div>
+    <div class="unit">KILOMETRES</div>
+    <div class="sr" style="margin-top:26px">
+      <div class="st"><b>24:51</b><i>TIME</i></div>
+      <div class="st"><b>4:46<small> /km</small></b><i>PACE</i></div>
+      <div class="st"><b><span class="hr">favorite</span>152</b><i>BPM</i></div>
+    </div>
+    <div class="sr">
+      <div class="st"><b>4:51<small> /km</small></b><i>AVG PACE</i></div>
+      <div class="st"><b>48<small> m</small></b><i>ELEVATION</i></div>
+      <div class="st"><b>342</b><i>CALORIES</i></div>
+    </div>
+    <div class="pages"><div class="pg on"></div><div class="pg"></div><div class="pg"></div></div>
+  </div>
+  <div class="dock">
+    <div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div>
+    <div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div>
+    <div class="side"><div class="sc"><span class="mi">add_a_photo</span></div><div class="dn">Photo</div></div>
+  </div>
+</div></div>
+
+<div class="col"><div class="tag">C · The button says it</div><div class="desc">No note. The Photo button is lit in peach and labelled Capture until the first photo, then turns plain and says Photo.</div><div class="phone"><div class="photo"></div><div class="shade"></div>
+  <div class="x"><span class="mi">expand_more</span></div>
+  <div style="position:absolute;left:0;right:0;top:302px">
+    <div class="kr"><div class="dot"></div><div class="k">RUN</div></div>
+    <div class="hero s">5.12</div>
+    <div class="unit">KILOMETRES</div>
+    <div class="sr" style="margin-top:26px">
+      <div class="st"><b>24:51</b><i>TIME</i></div>
+      <div class="st"><b>4:46<small> /km</small></b><i>PACE</i></div>
+      <div class="st"><b><span class="hr">favorite</span>152</b><i>BPM</i></div>
+    </div>
+    <div class="sr">
+      <div class="st"><b>4:51<small> /km</small></b><i>AVG PACE</i></div>
+      <div class="st"><b>48<small> m</small></b><i>ELEVATION</i></div>
+      <div class="st"><b>342</b><i>CALORIES</i></div>
+    </div>
+    <div class="pages"><div class="pg on"></div><div class="pg"></div><div class="pg"></div></div>
+  </div>
+  <div class="dock">
+    <div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div>
+    <div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div>
+    <div class="side"><div class="sc ring"><span class="mi" style="color:#ffb59e">add_a_photo</span></div><div class="dn" style="color:#ffb59e">Capture</div></div>
+  </div>
+</div></div>
+
+</div></body></html>

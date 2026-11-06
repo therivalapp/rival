@@ -269,7 +269,7 @@ export default function AdminScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
   },
   content: {
     paddingHorizontal: 24,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   table: {
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: RivalColors.accentText,
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: RivalColors.accentText,
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
   },
   tableHeaderText: {
     fontSize: 11,
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   multiplierInput: {
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,

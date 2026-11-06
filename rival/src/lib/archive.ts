@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import { fitPhoto } from './imageResize';
 import { buildDataExport } from './exportData';
 import { encodePolyline } from './polyline';
+import { fitPoints } from './fitRoute';
 import { getSeasonStartISO } from './season';
 
 // Archives (Ricky, 2026-10-17): a RIVAL archive to keep before deleting an
@@ -108,7 +109,9 @@ export async function buildArchive(userId: string, email: string | null, onProgr
 
 export type ImportItem = {
   key: string;
-  provider: 'strava' | 'rival_import';
+  /** strava_archive: a Strava activity read from an archive file, kept apart
+   *  from 'strava' (the API) so it stays when Strava's data is deleted. */
+  provider: 'strava_archive' | 'rival_import';
   providerId: string;
   name: string | null;
   type: string;
@@ -187,6 +190,13 @@ export function parseStravaDate(s: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function pointsToPolyline(pts: [number, number][]): string | null {
+  if (pts.length < 2) return null;
+  // Thin long recordings so the stored route stays small.
+  const step = Math.max(1, Math.floor(pts.length / 1500));
+  return encodePolyline(pts.filter((_, i) => i % step === 0 || i === pts.length - 1));
+}
+
 function gpxToPolyline(xml: string): string | null {
   const pts: [number, number][] = [];
   const re = /<trkpt[^>]*\blat="([-\d.]+)"[^>]*\blon="([-\d.]+)"|<trkpt[^>]*\blon="([-\d.]+)"[^>]*\blat="([-\d.]+)"/g;
@@ -196,13 +206,16 @@ function gpxToPolyline(xml: string): string | null {
     const lon = Number(m[2] ?? m[3]);
     if (isFinite(lat) && isFinite(lon)) pts.push([lat, lon]);
   }
-  if (pts.length < 2) return null;
-  // Thin long recordings so the stored route stays small.
-  const step = Math.max(1, Math.floor(pts.length / 1500));
-  return encodePolyline(pts.filter((_, i) => i % step === 0 || i === pts.length - 1));
+  return pointsToPolyline(pts);
 }
 
-const num = (v: string | undefined) => {
+/** The route in a Strava archive's GPX or FIT file, plain or gzipped. */
+export function routeFromFile(filename: string, bytes: Uint8Array): string | null {
+  const raw = /\.gz$/i.test(filename) ? gunzipSync(bytes) : bytes;
+  return /\.fit(\.gz)?$/i.test(filename) ? pointsToPolyline(fitPoints(raw)) : gpxToPolyline(strFromU8(raw));
+}
+
+const num =(v: string | undefined) => {
   const n = Number(String(v ?? '').replace(/,/g, ''));
   return isFinite(n) ? n : 0;
 };
@@ -210,10 +223,9 @@ const num = (v: string | undefined) => {
 export async function readArchive(file: Blob): Promise<ReadArchive> {
   const buf = new Uint8Array(await file.arrayBuffer());
   const entries = unzipSync(buf, {
-    // Only what is needed: the activity list, routes and photos. FIT files
-    // (binary) are skipped; their activity still imports, without a route.
+    // Only what is needed: the activity list, routes and photos.
     filter: (f) => /(^|\/)(activities\.csv|data\.json|routes\.json|media\.json)$/.test(f.name)
-      || /\.(gpx|gpx\.gz)$/i.test(f.name)
+      || /\.(gpx|fit)(\.gz)?$/i.test(f.name)
       || /\.(jpe?g|png|heic|mp4|mov|m4v|webm)$/i.test(f.name),
   });
   const find = (name: string) => Object.keys(entries).find((k) => k === name || k.endsWith(`/${name}`));
@@ -242,12 +254,11 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
       const key = `s${id}`;
       let polyline: string | null = null;
       const fname = r[iFile];
-      if (fname && /\.gpx(\.gz)?$/i.test(fname)) {
+      if (fname && /\.(gpx|fit)(\.gz)?$/i.test(fname)) {
         const entry = find(fname.replace(/^\.?\//, ''));
         if (entry) {
           try {
-            const raw = /\.gz$/i.test(fname) ? gunzipSync(entries[entry]) : entries[entry];
-            polyline = gpxToPolyline(strFromU8(raw));
+            polyline = routeFromFile(fname, entries[entry]);
           } catch { /* unreadable route: import without it */ }
         }
       }
@@ -261,7 +272,7 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
       }));
       if (rest.length) extras.set(key, rest);
       items.push({
-        key, provider: 'strava', providerId: String(id),
+        key, provider: 'strava_archive', providerId: String(id),
         name: r[iName] || null,
         type: (r[iType] || 'Workout').replace(/\s+/g, ''),
         startedAt, durationSeconds: Math.round(moving),
@@ -303,9 +314,10 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
       if (rest?.length) extras.set(key, rest.sort((x, y) => x.position - y.position).map(({ position, ...m }) => m));
       items.push({
         key,
-        // Strava activities keep their Strava id, so they match a Strava sync.
-        provider: a.provider === 'strava' && a.provider_activity_id ? 'strava' : 'rival_import',
-        providerId: a.provider === 'strava' && a.provider_activity_id ? String(a.provider_activity_id) : String(a.id),
+        // Strava activities keep their Strava id, so they line up with the
+        // same activity from a Strava archive or the Strava connection.
+        provider: (a.provider === 'strava' || a.provider === 'strava_archive') && a.provider_activity_id ? 'strava_archive' : 'rival_import',
+        providerId: (a.provider === 'strava' || a.provider === 'strava_archive') && a.provider_activity_id ? String(a.provider_activity_id) : String(a.id),
         name: a.name ?? null, type: a.activity_type, startedAt: a.started_at,
         utcOffsetSeconds: a.utc_offset_seconds ?? null,
         durationSeconds: a.duration_seconds ?? 0,

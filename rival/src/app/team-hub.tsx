@@ -23,7 +23,8 @@ import { useEffect, useState, useId } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
 import { setOpenTeam } from '../lib/tabNav';
-import { ActivityIndicator, Image, ImageBackground, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { RivalMiniTile, RivalStartTiles, GreySheet, GreyPrimary, GreyNote, GreyField, GreyLabel, GreyRows } from '../components/rival/RivalGreySheet';
 import { BREAKPOINT_WIDE_LAYOUT, sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
 import { RESPECT_COLOUR, INSPIRED_COLOUR, respectGivenText, inspiredGivenText, effortGoldText } from '../constants/reactionColours';
@@ -32,7 +33,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { confirmAction, notify } from '../lib/notify';
-import { formatDisplayName, formatTeamName } from '../lib/identity';
+import { formatDisplayName, formatTeamName, formatRaceName } from '../lib/identity';
 import { formatDuration } from '../lib/format';
 import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../lib/activityInsights';
 import { RivalAvatar } from '../components/rival/RivalAvatar';
@@ -46,7 +47,7 @@ import { SessionCard } from '../components/rival/SessionCard';
 import { TeamChallengesTab, ChallengeTeammateSheet } from '../components/rival/team/TeamChallengesTab';
 import { WeeklyStandings } from '../components/rival/team/WeeklyStandings';
 import { EncourageSheet, loadEncouragedToday } from '../components/rival/team/EncourageSheet';
-import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost, rivalTextShadow } from '../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalGhost, rivalTextShadow, RivalMainGlow, rivalPhoneVar } from '../constants/rivalTheme';
 import { matchCanonicalLift } from '../lib/lifts';
 import { BusyText } from '../components/rival/BusyText';
 import { RespectStar } from '../components/rival/RespectStar';
@@ -87,6 +88,14 @@ function tintFor(name: string): { bg: string; color: string } {
 
 const SERIF = RivalSerifFamily;
 const HERO_PHOTO = require('../../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg');
+// Phones: the photo stays still at this height and the page scrolls over it,
+// fading to black like Activity (Ricky, 2026-11-01).
+const HELD_PHOTO_H = 634;
+const heldPhotoStyle: any = { position: Platform.OS === 'web' ? 'fixed' : 'absolute', top: 0, left: 0, right: 0, height: HELD_PHOTO_H };
+// The black ground and the grey cards that sit on it, phones only.
+const HUB_FADE = rivalPhoneVar('rival-hub-fade', '19,19,19', '35,33,32');
+const HUB_GROUND = rivalPhoneVar('rival-hub-ground', '#131313', RivalGhost.ground);
+const HUB_CARD = rivalPhoneVar('rival-hub-card', '#32312f', RivalGhost.fill);
 
 // Swim/Rowing distances are shown in metres, not km — same convention as
 // my-activities.tsx's formatDistance/METERS_SPORTS.
@@ -106,7 +115,7 @@ const STANDINGS_FILTERS: { key: StandingsFilter; icon: RivalIconName }[] = [
 const RUN_TYPES = new Set(['Run', 'VirtualRun', 'TrailRun']);
 const RIDE_TYPES = new Set(['Ride', 'VirtualRide', 'EBikeRide', 'MountainBikeRide']);
 const SWIM_TYPES = new Set(['Swim']);
-const STRENGTH_TYPES = new Set(['WeightTraining', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Workout']);
+const STRENGTH_TYPES = new Set(['WeightTraining', 'Calisthenics', 'CrossFit', 'Hyrox', 'HIIT', 'Bootcamp', 'Workout']);
 function matchesStandingsFilter(activityType: string, filter: StandingsFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'run') return RUN_TYPES.has(activityType);
@@ -181,7 +190,8 @@ function getWeekWindow(): { start: Date; end: Date } {
 // the div that actually paints the photo, so web renders raw CSS instead.
 // `fade` is the colour the photo fades into at the bottom: the page's own
 // ground, so there's no seam where the photo ends.
-function HeroPhoto({ style, children, fade = '19,19,19', sideFade = false }: { style?: any; children?: React.ReactNode; fade?: string; sideFade?: boolean }) {
+function HeroPhoto({ style, children, fade = '19,19,19', sideFade = false, plain = false, photoX = 'center' }: { style?: any; children?: React.ReactNode; fade?: string; sideFade?: boolean; plain?: boolean; photoX?: string }) {
+  if (plain) return <View style={style}>{children}</View>;
   if (Platform.OS === 'web') {
     const uri = Asset.fromModule(HERO_PHOTO).uri;
     // In a centred column on a wide screen, the photo also fades into the
@@ -198,7 +208,7 @@ function HeroPhoto({ style, children, fade = '19,19,19', sideFade = false }: { s
               'radial-gradient(120% 70% at 50% 0%, rgba(217,119,87,0.28) 0%, rgba(217,119,87,0) 60%)',
               `url(${uri})`,
             ].join(', '),
-            backgroundPosition: [...sides.map(() => '0 0'), '0 0, 0 0, center 45%'].join(', '),
+            backgroundPosition: [...sides.map(() => '0 0'), `0 0, 0 0, ${photoX} 45%`].join(', '),
             backgroundSize: [...sides.map(() => 'auto'), 'auto, auto, cover'].join(', '),
             backgroundRepeat: [...sides.map(() => 'no-repeat'), 'no-repeat, no-repeat, no-repeat'].join(', '),
           } as any,
@@ -216,11 +226,26 @@ function HeroPhoto({ style, children, fade = '19,19,19', sideFade = false }: { s
 }
 
 const warmCardWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: 'radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)' } as any)
+  ? ({ backgroundImage: 'var(--rival-plain-image, radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%))' } as any)
   : null;
 const paceCardWeb = Platform.OS === 'web'
   ? ({ backgroundImage: 'linear-gradient(135deg, rgba(217,119,87,0.16), rgba(217,119,87,0.05))' } as any)
   : null;
+// Phones: plain cards, solid so they keep their grey on the black ground; the
+// On pace card is the page's one main card.
+const hubPhone = StyleSheet.create({
+  pace: { backgroundColor: HUB_CARD, borderColor: RivalGhost.border, ...RivalMainGlow },
+  paceIcon: { backgroundColor: 'transparent', width: 24, marginHorizontal: 7 },
+  statLbl: { fontFamily: undefined, fontStyle: 'normal', fontWeight: '800', fontSize: 10, letterSpacing: 1.4 },
+  // The add tile in the style of Activity's today card, smaller and quiet so
+  // the pinned notes beside it stay the focus.
+  // An empty note: same size and parts as a pinned one, waiting for its pin.
+  addNote: { width: '48.5%', alignSelf: 'stretch', alignItems: 'flex-start', justifyContent: 'center', position: 'relative', borderRadius: 16, padding: 10, gap: 4, backgroundColor: HUB_CARD, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.3)' },
+  addNotePin: { backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: 'rgba(255,181,158,0.6)' },
+  addNoteBody: { color: 'rgba(255,255,255,0.55)' },
+  // Stands clear of the photo behind it.
+  nextTitle: { color: '#fff', textShadowColor: 'rgba(0,0,0,0.65)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
+});
 const heroScrimWeb = Platform.OS === 'web'
   ? ({ backgroundImage: 'linear-gradient(0deg, rgba(19,19,19,0.95) 0%, transparent 45%)', backgroundColor: 'transparent' } as any)
   : null;
@@ -229,7 +254,7 @@ const heroScrimWeb = Platform.OS === 'web'
 // On a wide screen the phone design is held to a centred column.
 const hubColumn = { width: '100%' as const, maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' as const };
 const heroScrimPhoneWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: 'linear-gradient(0deg, rgb(35,33,32) 0%, rgba(35,33,32,0.9) 12%, transparent 45%)', backgroundColor: 'transparent' } as any)
+  ? ({ backgroundImage: `linear-gradient(0deg, rgb(${HUB_FADE}) 0%, rgba(${HUB_FADE},0.9) 12%, transparent 45%)`, backgroundColor: 'transparent' } as any)
   : null;
 const barFillWeb = Platform.OS === 'web'
   ? ({ backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any)
@@ -288,6 +313,7 @@ export default function TeamHub() {
   const winWidth = useWindowDimensions().width;
   const phone = !sidePageWide(winWidth);
   const wideWindow = winWidth >= BREAKPOINT_WIDE_LAYOUT;
+  const heldPhoto = !wideWindow;
   const styles = phone ? phoneHubStyles : desktopHubStyles;
   const { id } = useLocalSearchParams<{ id: string }>();
   useEffect(() => { setOpenTeam(id ?? null); if (id) markTeamOpened(id); }, [id]);
@@ -476,6 +502,16 @@ export default function TeamHub() {
       destructive: true,
     });
     if (!ok) return;
+    // Leaving as the last member deletes the team, so the name is typed too,
+    // as on Team settings (Ricky, 2026-11-02).
+    if (last) {
+      const name = formatTeamName(league.name);
+      const typed = typeof window !== 'undefined' && window.prompt ? window.prompt(`Type ${name} to delete the team.`) : null;
+      if ((typed ?? '').trim().toLowerCase() !== name.trim().toLowerCase()) {
+        if (typed !== null) notify('Team not deleted', 'The name did not match.');
+        return;
+      }
+    }
     const { error } = await supabase.rpc('leave_league', { p_league_id: id });
     if (error) { notify("Couldn't leave the team", error.message); return; }
     goToTab('/team-feed');
@@ -947,6 +983,11 @@ export default function TeamHub() {
 
   return (
     <View style={styles.root}>
+      {heldPhoto && (
+        <HeroPhoto fade={HUB_FADE} style={heldPhotoStyle} photoX="72%">
+          <View style={[styles.heroScrim, heroScrimPhoneWeb]} />
+        </HeroPhoto>
+      )}
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         {/* Bottom tab pill only (hideBar): the hero owns the top of this page
             with its own back and settings buttons. You arrive here from the
@@ -954,8 +995,8 @@ export default function TeamHub() {
         <RivalTopNav active="teams" hideBar />
         <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, phone && hubColumn]} {...pullProps}>
           {pullIndicator}
-          <HeroPhoto fade={phone ? '35,33,32' : undefined} sideFade={phone && wideWindow} style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
-            <View style={[styles.heroScrim, phone ? heroScrimPhoneWeb : heroScrimWeb]} />
+          <HeroPhoto plain={heldPhoto} fade={phone ? HUB_FADE : undefined} sideFade={phone && wideWindow} style={[styles.hero, (activeTab === 'Posts' || (phone && !hasGoal)) && styles.heroFit]}>
+            {!heldPhoto && <View style={[styles.heroScrim, phone ? heroScrimPhoneWeb : heroScrimWeb]} />}
 
             <View style={styles.header}>
               <RivalBackButton onPress={() => goToTab('/team-feed')} color="#fff" style={styles.backBtn} />
@@ -1153,9 +1194,20 @@ export default function TeamHub() {
                       );
                     })}
                   {!boardComposeOpen && (
-                    <TouchableOpacity style={styles.boardAddNote} onPress={() => setBoardComposeOpen(true)}>
-                      <RivalIcon name="add" size={14} color="rgba(255,255,255,0.6)" />
-                      <Text style={styles.boardAddNoteText}>Pin Note</Text>
+                    <TouchableOpacity style={[styles.boardAddNote, phone && hubPhone.addNote]} onPress={() => setBoardComposeOpen(true)}>
+                      {phone ? (
+                        <>
+                          <View style={[styles.boardPin, hubPhone.addNotePin]} />
+                          <Text style={styles.boardNoteTitle}>Pin note</Text>
+                          <View style={styles.boardNoteTitleRule} />
+                          <Text style={[styles.boardNoteBody, hubPhone.addNoteBody]}>Add a note for the team.</Text>
+                        </>
+                      ) : (
+                        <>
+                          <RivalIcon name="add" size={14} color="rgba(255,255,255,0.6)" />
+                          <Text style={styles.boardAddNoteText}>Pin Note</Text>
+                        </>
+                      )}
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1180,7 +1232,7 @@ export default function TeamHub() {
                 {/* Phone: what isn't set up yet, as tiles at the top. Each one
                     becomes its own titled section below once it exists. */}
                 {phone && (
-                  <RivalStartTiles ghost={phone}
+                  <RivalStartTiles ghost={phone} art={phone} titleStyle={phone ? hubPhone.nextTitle : undefined}
                     tiles={[
                       ...(isAdmin && !hasGoal ? [{ key: 'challenge', icon: 'target' as const, label: 'Team challenge', onPress: () => router.push({ pathname: '/create-team-challenge', params: { id } }) }] : []),
                       ...(sessions.length === 0 ? [{ key: 'plan', icon: 'calendar' as const, label: 'Plan activity', onPress: () => setPlanning(true) }] : []),
@@ -1191,8 +1243,8 @@ export default function TeamHub() {
                 {league.description ? <Text style={styles.teamAbout}>{league.description}</Text> : null}
                 {hasGoal && (
                   <>
-                    <View style={[styles.paceCard, paceCardWeb]}>
-                      <View style={styles.paceIcon}>
+                    <View style={[styles.paceCard, phone ? hubPhone.pace : paceCardWeb]}>
+                      <View style={[styles.paceIcon, phone && hubPhone.paceIcon]}>
                         <RivalIcon name="bolt" size={18} color={RivalColors.accentText} />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -1221,20 +1273,20 @@ export default function TeamHub() {
                     </View>
 
                     <View style={styles.statRow}>
-                      <View style={[styles.statCard, warmCardWeb]}>
+                      <View style={[styles.statCard, !phone && warmCardWeb]}>
                         <RivalIcon name="stats" size={16} color={RivalColors.accentText} style={styles.statIcon} />
                         <Text style={styles.statVal}>{hasPaceData ? (Math.round(avgPerDay * 10) / 10).toLocaleString() : '—'}</Text>
-                        <Text style={styles.statLbl}>{unit.toUpperCase()}/DAY{'\n'}TEAM AVG</Text>
+                        <Text style={[styles.statLbl, phone && hubPhone.statLbl]}>{unit.toUpperCase()}/DAY{'\n'}TEAM AVG</Text>
                       </View>
-                      <View style={[styles.statCard, warmCardWeb]}>
+                      <View style={[styles.statCard, !phone && warmCardWeb]}>
                         <RivalIcon name="schedule" size={16} color={RivalColors.accentText} style={styles.statIcon} />
                         <Text style={styles.statVal}>{(Math.round(remaining * 10) / 10).toLocaleString()}</Text>
-                        <Text style={styles.statLbl}>{unit.toUpperCase()} TO GO</Text>
+                        <Text style={[styles.statLbl, phone && hubPhone.statLbl]}>{unit.toUpperCase()} TO GO</Text>
                       </View>
-                      <View style={[styles.statCard, warmCardWeb]}>
+                      <View style={[styles.statCard, !phone && warmCardWeb]}>
                         <RivalIcon name="person" size={16} color={RivalColors.accentText} style={styles.statIcon} />
                         <Text style={styles.statVal}>{myContribution.toLocaleString()}</Text>
-                        <Text style={styles.statLbl}>{unit.toUpperCase()}{'\n'}CONTRIBUTED</Text>
+                        <Text style={[styles.statLbl, phone && hubPhone.statLbl]}>{unit.toUpperCase()}{'\n'}CONTRIBUTED</Text>
                       </View>
                     </View>
                   </>
@@ -1256,20 +1308,20 @@ export default function TeamHub() {
                       ))}
                     </View>
                     <View style={styles.statRow}>
-                      <View style={[styles.statCard, warmCardWeb]}>
+                      <View style={[styles.statCard, !phone && warmCardWeb]}>
                         <RivalIcon name="stats" size={16} color={RivalColors.accentText} style={styles.statIcon} />
                         <Text style={styles.statVal}>{noGoalTeamEffort.toLocaleString()}</Text>
-                        <Text style={styles.statLbl}>EFFORT{'\n'}{noGoalPeriod === 'week' ? 'THIS WEEK' : 'ALL TIME'}</Text>
+                        <Text style={[styles.statLbl, phone && hubPhone.statLbl]}>EFFORT{'\n'}{noGoalPeriod === 'week' ? 'THIS WEEK' : 'ALL TIME'}</Text>
                       </View>
-                      <View style={[styles.statCard, warmCardWeb]}>
+                      <View style={[styles.statCard, !phone && warmCardWeb]}>
                         <RivalIcon name="run" size={16} color={RivalColors.accentText} style={styles.statIcon} />
                         <Text style={styles.statVal}>{noGoalTeamDistanceKm.toLocaleString()}</Text>
-                        <Text style={styles.statLbl}>KM{'\n'}{noGoalPeriod === 'week' ? 'THIS WEEK' : 'ALL TIME'}</Text>
+                        <Text style={[styles.statLbl, phone && hubPhone.statLbl]}>KM{'\n'}{noGoalPeriod === 'week' ? 'THIS WEEK' : 'ALL TIME'}</Text>
                       </View>
-                      <View style={[styles.statCard, warmCardWeb]}>
+                      <View style={[styles.statCard, !phone && warmCardWeb]}>
                         <RivalIcon name="schedule" size={16} color={RivalColors.accentText} style={styles.statIcon} />
                         <Text style={styles.statVal}>{noGoalTeamDuration}</Text>
-                        <Text style={styles.statLbl}>TIME{'\n'}{noGoalPeriod === 'week' ? 'THIS WEEK' : 'ALL TIME'}</Text>
+                        <Text style={[styles.statLbl, phone && hubPhone.statLbl]}>TIME{'\n'}{noGoalPeriod === 'week' ? 'THIS WEEK' : 'ALL TIME'}</Text>
                       </View>
                     </View>
                   </>
@@ -1416,14 +1468,19 @@ export default function TeamHub() {
                           <TouchableOpacity key={ev.id} style={styles.evTicket} activeOpacity={0.85} onPress={() => router.push('/races')}>
                             <View style={styles.evMain}>
                               <Text style={styles.evWho} numberOfLines={1}>{ev.user_id === currentUserId ? 'You' : memberName(ev.user_id)}</Text>
-                              <Text style={styles.evName} numberOfLines={1}>{ev.name}</Text>
+                              <Text style={styles.evName} numberOfLines={2}>{formatRaceName(ev.name)}</Text>
                               <Text style={styles.evDate} numberOfLines={1}>
                                 {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{ev.location ? ` · ${ev.location}` : ''}
                               </Text>
                             </View>
+                            <View style={styles.evTear} />
                             <View style={styles.evStub}>
-                              <Text style={styles.evDays}>{days === 0 ? 'Today' : days}</Text>
-                              {days > 0 && <Text style={styles.evDaysLabel}>{days === 1 ? 'DAY' : 'DAYS'}</Text>}
+                              {days === 0 ? <Text style={styles.evToday}>Today</Text> : (
+                                <>
+                                  <Text style={styles.evDays}>{days}</Text>
+                                  <Text style={styles.evDaysLabel}>{days === 1 ? 'Day' : 'Days'}</Text>
+                                </>
+                              )}
                             </View>
                           </TouchableOpacity>
                         );
@@ -1436,6 +1493,9 @@ export default function TeamHub() {
                   </>
                 )}
 
+                {/* Phones: the Posts tab already shows these. */}
+                {!phone && (
+                <>
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionTitle}>Recent activity</Text>
                 </View>
@@ -1464,6 +1524,8 @@ export default function TeamHub() {
                       );
                     })}
                   </View>
+                )}
+                </>
                 )}
               </>
             )}
@@ -1888,15 +1950,18 @@ function ActivityPostCard({
   const dist = formatDistance(a.distance_meters, a.activity_type);
   const statsLine = [dist, formatDuration(a.duration_seconds)].filter(Boolean).join(' · ');
 
+  // Same rule as team-feed.tsx: on phones, bars mark a PB or your own post.
+  const showBars = !reactPhone || isPb || a.user_id === currentUserId;
+
   return (
-    <View style={styles.post}>
+    <View style={[styles.post, reactPhone && styles.postPhone]}>
       {deleting && (
         <View style={styles.postDeleting} accessibilityLiveRegion="polite">
           <ActivityIndicator color={RivalColors.accentText} />
           <Text style={styles.postDeletingText}>Deleting activity…</Text>
         </View>
       )}
-      {Platform.OS === 'web' ? (
+      {!showBars ? null : Platform.OS === 'web' ? (
         <>
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
           <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
@@ -2289,14 +2354,20 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   chipActive: { backgroundColor: RivalColors.accentFill, borderColor: 'transparent' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  evTicket: { flexDirection: 'row', backgroundColor: insetBg, borderRadius: 14, borderWidth: 1, borderColor: insetBorder, overflow: 'hidden' },
-  evMain: { flex: 1, minWidth: 0, paddingVertical: 10, paddingHorizontal: 12, gap: 2 },
-  evWho: { fontSize: 11.5, color: RivalColors.textSecondary },
-  evName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 15, color: '#fff' },
-  evDate: { fontSize: 11.5, color: RivalColors.textSecondary },
-  evStub: { width: 64, alignItems: 'center', justifyContent: 'center', borderLeftWidth: 2, borderStyle: 'dashed', borderLeftColor: 'rgba(255,209,190,0.15)' },
-  evDays: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: RivalColors.accentText, lineHeight: 22 },
-  evDaysLabel: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },
+  // The event card from the profile page (ProfilePage's ticket).
+  evTicket: { flexDirection: 'row', alignItems: 'stretch', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)', backgroundColor: '#232120' },
+  evMain: { flex: 1, minWidth: 0, paddingVertical: 13, paddingLeft: 16, paddingRight: 12 },
+  evWho: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: RivalColors.accentText },
+  evName: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 19, lineHeight: 24, color: '#fff', marginTop: 4 },
+  evDate: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  evTear: { width: 0, marginVertical: 10, borderLeftWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,209,190,0.15)' },
+  evStub: { width: 84, alignItems: 'center', justifyContent: 'center' },
+  evDays: {
+    fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 34, lineHeight: 36, color: RivalColors.accentText,
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } as any : {}),
+  },
+  evDaysLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 3 },
+  evToday: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 22, color: RivalColors.accentText },
   planBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
@@ -2344,6 +2415,15 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
       backgroundImage: 'radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
     } as any : {}),
     padding: 12, gap: 11,
+  },
+  // Phones: the same card as team-feed.tsx's postPhone (Ricky, 2026-11-01).
+  postPhone: {
+    backgroundColor: RivalColors.surfaceHigh,
+    ...(Platform.OS === 'web' ? {
+      borderWidth: 1, borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
+      backgroundImage: 'radial-gradient(ellipse 70% 220px at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
+      backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
+    } as any : {}),
   },
   postAccentBar: { position: 'absolute', top: 6, bottom: 6, width: 3 },
   postAccentBarNative: { position: 'absolute', top: 6, bottom: 6, width: 3, opacity: 0.7 },
@@ -2447,7 +2527,7 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
 });
 }
 const desktopHubStyles = makeHubStyles(CARD_BG, CARD_BORDER, RivalColors.surfaceLowest, RivalColors.surfaceBright, RivalColors.surfaceLow);
-const phoneHubStyles = makeHubStyles(RivalGhost.fill, RivalGhost.border, RivalGhost.fill, RivalGhost.border, RivalGhost.ground);
+const phoneHubStyles = makeHubStyles(HUB_CARD, RivalGhost.border, RivalGhost.fill, RivalGhost.border, HUB_GROUND);
 // The post card and other helpers outside TeamHub use the desktop set; none
 // of them draw these cards.
 const styles = desktopHubStyles;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { teamSharingAgreed } from '../lib/stravaSharing';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { RivalIcon, RivalBackButton, RivalCard, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily, RivalGhost } from '../constants/rivalTheme';
@@ -80,6 +81,7 @@ export default function TeamPreviewScreen() {
   }
 
   async function requestToJoin() {
+    if (!(await teamSharingAgreed())) return;
     const { data: { user } } = await getAuthUser();
     if (!user || !id) return;
     setJoining(true);
@@ -238,7 +240,7 @@ export default function TeamPreviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 48, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   centered: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
 

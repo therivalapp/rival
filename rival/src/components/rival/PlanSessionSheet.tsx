@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { useScreenHeight } from '../../lib/keyboard';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Modal, sheetMotion } from './RivalModal';
 import { supabase } from '../../lib/supabase';
 import { confirmAction, notify } from '../../lib/notify';
 import { displayToIsoDate, isoToDisplayDate, friendlyDate, friendlyTime } from '../../lib/dateFormat';
@@ -171,7 +173,8 @@ export function PlanSessionSheet({
   const wheelTime = timeFor === 'now' && nowAt ? nowAt : time;
   const setWheelTime = (v: string) => (timeFor === 'now' ? setNowAt(v) : setTime(v));
   const [hh, mm] = [wheelTime.split(':')[0] ?? '07', wheelTime.split(':')[1] ?? '00'];
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const windowHeight = useScreenHeight();
   // Phones get the tile grid and centred title; desktop keeps the chips.
   const m = !sidePageWide(windowWidth);
   // Phones: the person's own types first, as in Log an activity (lib/recentTypes.ts).
@@ -181,6 +184,7 @@ export function PlanSessionSheet({
   const dialog = windowWidth >= BREAKPOINT_WIDE_LAYOUT;
   // Drag down from anywhere on it to close (phones).
   const dragRef = useSheetDrag(onClose);
+  const motion = sheetMotion(visible);
 
   // Load the session being edited into the form. Keyed on the row's id rather
   // than the object, so a refetch that returns an equal-but-new object can't
@@ -379,7 +383,7 @@ export function PlanSessionSheet({
             cap exists only so a genuinely short viewport (landscape, or a small
             device with the keyboard up) degrades to scrolling instead of
             pushing the post button off-screen. */}
-        <View ref={dialog ? undefined : dragRef} style={[styles.sheet, dialog && styles.sheetDialog, { maxHeight: windowHeight * (dialog ? 0.86 : 0.92) }]}>
+        <View ref={dialog ? undefined : dragRef} style={[styles.sheet, dialog && styles.sheetDialog, !dialog && motion, { maxHeight: windowHeight * (dialog ? 0.86 : 0.92) }]}>
           {/* Warm glow bleeding down from the top edge. The sheet was one flat
               tone end to end, so nothing said "this is the top" — a light
               source does that without adding a single line of chrome. */}

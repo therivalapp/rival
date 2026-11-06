@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import { RivalColors } from '../../constants/rivalTheme';
+import { RivalColors, rivalPhoneVar, RivalGhost } from '../../constants/rivalTheme';
 import { formatAttendees } from '../../lib/attendees';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { RivalIcon, activityIconName } from './RivalIcon';
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   // Warm-tinted dark card with a hairline in the accent, per the planner card
   // mockup: an event reads as its own object in the thread, not a message.
   sessionCard: {
-    backgroundColor: '#1c1a19',
+    backgroundColor: rivalPhoneVar('rival-plain-fill', RivalGhost.fill, '#1c1a19'),
     borderRadius: 20,
     borderWidth: 1, borderColor: `${RivalColors.accentFill}40`,
     padding: 14,
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,181,158,0.6)',
     ...(Platform.OS === 'web'
       ? {
-          backgroundImage: 'linear-gradient(180deg, #2a1d18 0%, #1c1a19 60%)',
+          backgroundImage: 'var(--rival-plain-image, linear-gradient(180deg, #2a1d18 0%, #1c1a19 60%))',
           boxShadow: '0 0 0 1px rgba(255,181,158,0.12), 0 10px 34px rgba(217,119,87,0.22)',
         }
       : { backgroundColor: '#241b17' }),
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
       ? { backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' }
       : {}),
   },
-  sessionTilePast: { backgroundImage: 'none', backgroundColor: RivalColors.surfaceBright } as any,
+  sessionTilePast: { backgroundImage: 'none', backgroundColor: rivalPhoneVar('rival-badge-fill', 'transparent', RivalColors.surfaceBright) } as any,
   // minWidth 0 so a long location ellipsises instead of pushing Edit off the card.
   sessionInfo: { flex: 1, minWidth: 0, gap: 3 },
   sessionKicker: { fontSize: 11.5, fontWeight: '800', color: RivalColors.accentText, letterSpacing: 2 },

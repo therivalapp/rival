@@ -1,0 +1,160 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+/* Event shares (Ricky, 2026-11-05). Built on the real share pop-up
+   (ActivityDiaryViewer cardSheet: stage, "Swipe for more" + Light/Dark,
+   stamp strip, StatTiles, Share, "Save transparent stamp") and the real
+   stamp drawing (lib/shareStamp.ts: RIVAL white spaced caps, serif italic
+   figures, small units, spaced labels, Effort the one colour, in gold). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:22px;display:flex;gap:24px}
+.col{width:375px;flex-shrink:0}
+.tag{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 6px;font-weight:800}
+.desc{font-size:12px;color:rgba(255,255,255,.6);margin:0 4px 12px;line-height:17px;min-height:68px}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle}
+.scr{position:relative;width:375px;height:812px;border-radius:28px;overflow:hidden;background:#282828 radial-gradient(ellipse 80% 260px at 50% 0%,rgba(217,119,87,.16),rgba(217,119,87,0) 70%) no-repeat;padding:26px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:10px}
+.back{position:absolute;left:16px;top:18px;width:32px;height:32px;border-radius:16px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff}
+.stage{position:relative;width:236px;height:420px;border-radius:16px;background-size:cover;background-position:center;flex-shrink:0;overflow:hidden}
+.hint{font-size:11.5px;color:rgba(255,255,255,.55);margin-top:-2px}
+.head{align-self:stretch;display:flex;justify-content:space-between;align-items:center}
+.lab{font-size:9.5px;font-weight:800;letter-spacing:1.4px;color:rgba(255,255,255,.5)}
+.seg{display:flex;border-radius:999px;border:1px solid rgba(255,181,158,.22);padding:2px}.seg span{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:999px;color:rgba(255,255,255,.55)}.seg span.on{background:rgba(255,181,158,.18);color:#ffb59e}
+.strip{align-self:stretch;display:flex;gap:7px;overflow:hidden;position:relative}
+.ch{position:relative;width:44px;height:60px;flex-shrink:0;border-radius:8px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,209,190,.06);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.ch.on{border-color:#ffb59e}.ch.ph{background-size:cover;background-position:center}
+.ch .mini{transform:scale(.19);transform-origin:center;white-space:nowrap}
+.ch.chev{background:rgba(244,234,216,.10);border-color:rgba(244,234,216,.28)}.ch.chev.on{border-color:#ffb59e}
+.ch .evl{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:7px;font-weight:800;letter-spacing:.6px;color:#f4ead8}
+.fade{position:absolute;right:0;top:0;bottom:0;width:30px;background:linear-gradient(90deg,rgba(40,40,40,0),#282828)}
+.card{align-self:stretch;border-radius:16px;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05);padding:10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.t{border-radius:10px;padding:7px 2px 6px;text-align:center;border:1px solid rgba(255,181,158,.22);background:rgba(255,209,190,.05)}
+.t .v{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:13px;color:rgba(255,255,255,.75);white-space:nowrap}.t .v small{font-family:Manrope;font-style:normal;font-size:8px}.t .v sup{font-size:7px}
+.t .l{font-size:7px;font-weight:800;letter-spacing:.7px;color:rgba(255,255,255,.5);margin-top:2px;white-space:nowrap}
+.t.pl{border-color:rgba(244,234,216,.32);background:rgba(244,234,216,.07)}.t.pl .l{color:#f4ead8}
+.t.on{background:linear-gradient(135deg,#ffb59e,#D97757);border-color:transparent}.t.on .v,.t.on .l,.t.on.pl .l{color:#2a120a}
+.t.g{background:linear-gradient(160deg,#fff0b0,#f5c76a 45%,#c4932a);border-color:transparent}.t.g .v,.t.g .l{color:#3a2600}
+.t.full{opacity:.4}
+.btn{align-self:stretch;min-height:50px;border-radius:999px;background:linear-gradient(135deg,#ffb59e,#D97757);color:#2a120a;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0}
+.lnk{font-size:13px;font-weight:700;color:#ffb59e}
+
+/* Stamps: as drawStamp lays them out, at stage scale. */
+.st{position:absolute;left:0;right:0;text-align:center;color:#fff;text-shadow:0 1px 9px rgba(0,0,0,.55)}
+.rv{font-size:11px;font-weight:800;letter-spacing:4.6px;padding-left:4.6px}
+.nm{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.big{font-family:Georgia,serif;font-style:italic;font-weight:700;line-height:1}
+.meta{font-size:7.5px;font-weight:800;letter-spacing:1.2px;color:rgba(255,255,255,.82)}
+.row{display:flex;justify-content:center;margin-top:7px}
+.f{padding:0 9px;position:relative}.f+.f:before{content:'';position:absolute;left:0;top:2px;height:26px;width:1.5px;background:rgba(255,255,255,.6)}
+.f b{display:block;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px;line-height:18px;white-space:nowrap}
+.f b small{font-family:Manrope;font-style:normal;font-weight:600;font-size:7.5px;color:rgba(255,255,255,.82)}
+.f b sup{font-size:8px}
+.f i{display:block;font-style:normal;font-size:7px;font-weight:800;letter-spacing:1.1px;color:rgba(255,255,255,.82);margin-top:3px;white-space:nowrap}
+.gold{background:linear-gradient(180deg,#fff4d6,#ffc94d);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 1px 5px rgba(0,0,0,.5))}
+.f i.gl{color:#ffd27a}
+.sup{font-size:.42em;vertical-align:.95em;margin-left:1px}
+
+/* Column 1: the event page's foot. */
+.ev{position:relative;width:375px;height:812px;border-radius:28px;overflow:hidden;background:#0d0d0d}
+.ev .sheet{position:absolute;left:0;right:0;bottom:0;top:56px;background:#282828;border-top:1px solid #323232;border-radius:22px 22px 0 0;overflow:hidden}
+.ev .hero{height:232px;background-size:cover;background-position:center 35%;position:relative}
+.ev .hero:after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,#282828 0%,rgba(40,40,40,.85) 22%,rgba(40,40,40,0) 62%)}
+.ev .ht{position:absolute;left:18px;right:18px;bottom:6px;z-index:1}
+.pill{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:999px;background:#f4ead8;color:#2a2116;font-size:9.5px;font-weight:800;letter-spacing:.6px}
+.ev .tt{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin-top:8px}
+.ev .mt{font-size:12.5px;color:rgba(255,255,255,.7);margin-top:3px}
+.ev .body{padding:14px 18px}
+.ev .lbl{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#A0A0A0}
+.ev .fin{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:46px;line-height:50px}
+.plh{display:flex;justify-content:space-between;margin-top:13px;font-size:10px;font-weight:800;letter-spacing:1.4px;color:#f4ead8}.plh em{font-style:normal;letter-spacing:0;font-size:11px;color:#ffb59e;font-weight:700}
+.plg{margin-top:9px;border-radius:14px;background:linear-gradient(135deg,rgba(244,234,216,.15),rgba(244,234,216,.04) 65%);border:1px solid rgba(244,234,216,.28);display:flex;padding:8px 3px}
+.plg>div{flex:1;padding:0 9px}.plg>div+div{border-left:1px solid rgba(244,234,216,.18)}
+.plg .k{font-size:8px;font-weight:800;letter-spacing:1px;color:#f4ead8}
+.plg b{display:block;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:19px;line-height:22px;margin-top:2px}.plg .m b{font-size:24px;line-height:25px;color:#f4ead8}
+.plg b sup{font-size:9px}.plg span{font-size:10px;color:rgba(255,255,255,.72);font-weight:600}
+.fadeout{position:absolute;left:0;right:0;bottom:96px;height:120px;background:linear-gradient(0deg,#282828,rgba(40,40,40,0))}
+.foot{position:absolute;left:0;right:0;bottom:0;padding:12px 18px 26px;display:flex;gap:8px;background:#282828}
+.ghost{flex:1;height:52px;border-radius:999px;border:1px solid rgba(255,181,158,.35);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#ffb59e}
+.foot .btn{flex:1.4;min-height:52px}
+.callout{position:absolute;right:14px;bottom:92px;width:190px;font-size:11px;line-height:15px;color:#2a120a;background:#ffb59e;border-radius:10px;padding:8px 10px;font-weight:600}
+</style></head><body>
+<script>
+const B='../assets/images/backgrounds/optimized/';
+const sup=(n)=>{const s=n%100>=11&&n%100<=13?'th':({1:'st',2:'nd',3:'rd'})[n%10]||'th';return `<span class="sup">${s}</span>`};
+const place=(n)=>`${n.toLocaleString()}${sup(n)}`;
+
+// Stamp 1 · Finish: the time as the hero, the chosen figures under it.
+const stFinish=(name,time,figs)=>`<div class="rv">RIVAL</div>
+<div class="nm" style="font-size:17px;margin-top:6px">${name}</div>
+<div class="big" style="font-size:40px;margin-top:3px">${time}</div>
+<div class="row">${figs}</div>`;
+// Stamp 2 · Place: the place as the hero.
+const stPlace=(n,cat,name,figs)=>`<div class="rv">RIVAL</div>
+<div class="big" style="font-size:60px;margin-top:8px">${place(n)}</div>
+<div class="meta" style="margin-top:6px">${cat}</div>
+<div class="nm" style="font-size:16px;margin-top:9px">${name}</div>
+<div class="row">${figs}</div>`;
+const fig=(v,l,g)=>`<div class="f"><b class="${g?'gold':''}">${v}</b><i class="${g?'gl':''}">${l}</i></div>`;
+const tile=(v,l,c='')=>`<div class="t ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+const tsup=(n)=>{const s=n%100>=11&&n%100<=13?'th':({1:'st',2:'nd',3:'rd'})[n%10]||'th';return `${n.toLocaleString()}<sup>${s}</sup>`};
+
+function strip(photo,on,stamps){
+  return `<div class="head"><div class="lab">SWIPE FOR MORE</div><div class="seg"><span class="on">Light</span><span>Dark</span></div></div>
+  <div class="strip"><div class="ch ph" style="background-image:url('${B}${photo}')"></div>
+  ${stamps.map((s,i)=>`<div class="ch chev ${i===on?'on':''}"><div class="mini" style="position:relative;color:#fff">${s}</div><div class="evl">EVENT</div></div>`).join('')}
+  <div class="ch"></div><div class="ch"></div><div class="ch"></div><div class="fade"></div></div>`;
+}
+function screen(photo,pos,stampHtml,stampTop,stamps,on,tiles){
+  return `<div class="scr"><div class="back"><span class="mi">chevron_left</span></div>
+  <div class="stage" style="background-image:url('${B}${photo}');background-position:${pos}"><div class="st" style="top:${stampTop}px">${stampHtml}</div></div>
+  <div class="hint">Drag to move · pinch to resize · twist to turn</div>
+  ${strip(photo,on,stamps)}
+  <div class="card"><div class="lab" style="margin-bottom:8px">SELECT UP TO 3</div><div class="grid">${tiles}</div></div>
+  <div class="btn"><span class="mi" style="font-size:18px">ios_share</span>Share</div>
+  <div class="lnk">Save transparent stamp</div></div>`;
+}
+
+// Marathon
+const mFigs=fig(place(412),'OVERALL')+fig(place(52),'M 35-39')+fig('301','EFFORT',1);
+const m1=stFinish('Auckland Marathon','3:20:25',mFigs);
+const m2=stPlace(52,'M 35-39 · OF 410','Auckland Marathon',fig('3:20:25','FINISH')+fig('301','EFFORT',1));
+const mTiles=tile('3:20:25','FINISH','on')+tile(tsup(412),'OVERALL','on pl')+tile(tsup(52),'M 35-39','on pl')+tile(tsup(340),'MEN','pl full')
+ +tile('4:45<small> /km</small>','PACE','full')+tile('42.2<small> km</small>','DISTANCE','full')+tile('212<small> m</small>','ELEVATION','full')+tile('301','EFFORT','g');
+// HYROX
+const hFigs=fig('1:24:36','FINISH')+fig(place(214),'OVERALL')+fig('180','EFFORT',1);
+const h2=stPlace(86,'OPEN MEN · OF 1,240','HYROX Toronto',hFigs);
+const h1=stFinish('HYROX Toronto','1:24:36',fig(place(86),'OPEN MEN')+fig(place(19),'M 35-39')+fig('180','EFFORT',1));
+const hTiles=tile(tsup(86),'OPEN MEN','on pl')+tile('1:24:36','FINISH','on')+tile(tsup(214),'OVERALL','on pl')+tile(tsup(19),'M 35-39','pl full')
+ +tile('40:06','RUNNING','full')+tile('34:53','STATIONS','full')+tile('9:37','ROXZONE','full')+tile('180','EFFORT','g');
+// Multi-day
+const dFigs=fig(place(19),'OVERALL')+fig(place(3),'M 35-39')+fig('254','EFFORT',1);
+const d2=`<div class="rv">RIVAL</div>
+<div class="big" style="font-size:60px;margin-top:8px">${place(12)}</div>
+<div class="meta" style="margin-top:6px">RX MEN · OF 48</div>
+<div class="nm" style="font-size:16px;margin-top:9px">Throwdown Open</div>
+<div class="meta" style="margin-top:4px">FRI 14 – SUN 16 AUG · 5 EVENTS</div>
+<div class="row">${dFigs}</div>`;
+const dTiles=tile(tsup(12),'RX MEN','on pl')+tile(tsup(19),'OVERALL','on pl')+tile(tsup(3),'M 35-39','on pl')+tile('5','EVENTS','full')
+ +tile('1:33:15','WORKED','full')+tile('3','DAYS','full')+tile(tsup(6),'BEST EVENT','pl full')+tile('254','EFFORT','g');
+
+const evPage=`<div class="ev"><div class="sheet">
+<div class="hero" style="background-image:url('${B}ridge-runners-hazy-backlit.jpg')"><div class="ht"><span class="pill"><span class="mi" style="font-size:11px">flag</span>MARATHON</span><div class="tt">Auckland Marathon</div><div class="mt">Sun, Nov 1 · Auckland · 42.2 km</div></div></div>
+<div class="body"><div class="lbl">FINISH TIME</div><div class="fin">3:20:25</div>
+<div class="plh"><span>PLACINGS</span><em>Edit</em></div>
+<div class="plg"><div class="m"><div class="k">OVERALL</div><b>412<sup>th</sup></b><span>of 3,850</span></div><div><div class="k">MEN</div><b>340<sup>th</sup></b><span>of 2,100</span></div><div><div class="k">M 35-39</div><b>52<sup>nd</sup></b><span>of 410</span></div></div>
+<div class="lbl" style="margin-top:14px">HALVES</div>
+<div style="display:flex;margin-top:7px;border-radius:14px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22);padding:9px 12px"><div style="flex:1"><div class="lbl" style="font-size:9px">FIRST HALF</div><div style="font-family:Georgia;font-style:italic;font-weight:700;font-size:18px">1:41:48 <small style="font-family:Manrope;font-style:normal;font-size:11px;color:#A0A0A0;font-weight:500">4:50 /km</small></div></div><div style="flex:1;border-left:1px solid rgba(255,209,190,.1);padding-left:12px"><div class="lbl" style="font-size:9px">SECOND HALF</div><div style="font-family:Georgia;font-style:italic;font-weight:700;font-size:18px">1:38:37 <small style="font-family:Manrope;font-style:normal;font-size:11px;color:#A0A0A0;font-weight:500">4:41 /km</small></div></div></div>
+<div class="lbl" style="margin-top:14px">PACE PER KM</div>
+<div style="display:flex;align-items:flex-end;gap:3px;height:58px;margin-top:7px">${Array.from({length:42},(_,i)=>`<i style="flex:1;height:${40+Math.round(i*1.2)+(i%5)*3}%;background:${i===40?'#f4ead8':'#ffb59e'};opacity:.85;border-radius:3px 3px 1px 1px"></i>`).join('')}</div>
+</div>
+<div class="fadeout"></div>
+<div class="foot"><div class="ghost">Done</div><div class="btn"><span class="mi" style="font-size:18px">ios_share</span>Share</div></div>
+</div></div>`;
+
+document.write(`
+<div class="col"><div class="tag">1 · WHERE SHARE GOES</div><div class="desc">The event page's foot: Share becomes the one gradient pill, Done turns ghost beside it. Share opens the same pop-up as an activity's, with the whole event in it.</div>${evPage}</div>
+<div class="col"><div class="tag">2 · MARATHON · FINISH STAMP</div><div class="desc">Two new event stamps lead the strip, in the events' ivory and labelled "Event", like the countdown. Finish: the time large, the chosen figures under it. Placings join the stat tiles with an ivory edge; Effort stays gold and always on.</div>${screen('ridge-runners-hazy-backlit.jpg','center 35%',m1,236,[m1,m2],0,mTiles)}</div>
+<div class="col"><div class="tag">3 · HYROX · PLACE STAMP</div><div class="desc">Place: the division place as the hero, the field under it, then the name and the figures. The HYROX tiles add Running, Stations and Roxzone as choices.</div>${screen('handstand-crossfit-box.jpg','center 45%',h2,196,[h1,h2],1,hTiles)}</div>
+<div class="col"><div class="tag">4 · MULTI-DAY · PLACE STAMP</div><div class="desc">A competition over days adds its dates and event count under the name. Tiles offer events, time worked, days and the best single event place.</div>${screen('handstand-airy-warehouse-gym.jpg','center 30%',d2,182,[stFinish('Throwdown Open','12th',dFigs),d2],1,dTiles)}</div>
+`);
+</script></body></html>

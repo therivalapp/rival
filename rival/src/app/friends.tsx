@@ -311,7 +311,7 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
   },
   content: {
     paddingHorizontal: 24,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 12,
     padding: 14,
     color: RivalColors.textPrimary,
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   resultsCard: {
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: RivalColors.accentText,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: RivalColors.surfaceLow,
+    backgroundColor: RivalColors.pageGround,
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,

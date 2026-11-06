@@ -1,0 +1,104 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;width:1300px;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.h{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;margin:26px 26px 0}
+.hs{color:#a8a097;font-size:13px;margin:4px 26px 0}
+.row{display:flex;gap:26px;padding:18px 22px 22px;align-items:flex-start}.col{width:393px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:92px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#111}
+.photo{position:absolute;inset:0;background:url(../assets/images/backgrounds/optimized/trail-runner-summit-marker.jpg) top center/cover no-repeat}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,8,.55) 0%,rgba(8,8,8,.25) 26%,rgba(8,8,8,.82) 46%,#111 66%)}
+.shade.p{background:linear-gradient(180deg,rgba(8,8,8,.75),rgba(8,8,8,.8) 55%,#111 82%)}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.s{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.x{position:absolute;left:16px;top:54px;width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center}
+.x .mi{font-size:24px}
+.lock{position:absolute;right:16px;top:54px;width:38px;height:38px;border-radius:19px;background:rgba(14,13,12,.55);display:flex;align-items:center;justify-content:center}
+.lock .mi{font-size:19px;color:rgba(255,255,255,.8)}
+.kr{display:flex;align-items:center;justify-content:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:4px;background:#e8835f}
+.k{font-size:10px;font-weight:800;letter-spacing:1.8px;color:#ffb59e}.k.p{color:rgba(255,255,255,.65)}
+.hero{font-size:96px;line-height:104px;text-align:center;margin-top:2px;font-variant-numeric:tabular-nums}
+.unit{font-size:9.5px;font-weight:800;letter-spacing:1.8px;color:#a0a0a0;text-align:center;margin-top:-4px}
+.sr{display:flex;margin:0 24px}.sr+.sr{margin-top:20px}
+.st{flex:1;text-align:center}.st+.st{border-left:1px solid rgba(255,255,255,.14)}
+.st b{display:block;font-family:Georgia,serif;font-style:italic;font-size:26px;line-height:31px}.st b small{font-size:13px;opacity:.6}
+.st i{font-style:normal;font-size:8.5px;letter-spacing:1.3px;font-weight:800;color:#ffb59e}
+.st b .hr{font-family:'Material Icons Round';font-style:normal;font-size:16px;color:#ff8f8f;vertical-align:2px;margin-right:3px}
+.pages{display:flex;justify-content:center;gap:6px;margin-top:22px}
+.pg{width:5px;height:5px;border-radius:3px;background:rgba(255,255,255,.3)}.pg.on{width:18px;background:#ffb59e}
+.pl{display:flex;justify-content:center;gap:18px;margin-top:8px;font-size:10px;font-weight:800;letter-spacing:1.3px;color:rgba(255,255,255,.4)}.pl .on{color:#ffb59e}
+.rem{text-align:center;margin-top:18px}
+.rem b{display:block;font-family:Georgia,serif;font-style:italic;font-size:20px}
+.rem span{font-size:12.5px;color:rgba(255,255,255,.6)}
+.dock{position:absolute;left:0;right:0;bottom:30px;display:flex;align-items:center;justify-content:center;gap:26px}
+.side{text-align:center}
+.sc{width:62px;height:62px;border-radius:31px;background:#232120;border:1.5px solid rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center}
+.sc .mi{font-size:26px}
+.mc{width:104px;height:104px;border-radius:52px;background:#232120;border:2.5px solid #e8835f;display:flex;align-items:center;justify-content:center}
+.mc .mi{font-size:44px}
+.dn{font-size:10px;font-weight:700;color:rgba(255,255,255,.65);margin-top:7px}
+.mini{display:flex;margin:0 24px;padding:12px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+.mini .st b{font-size:22px;line-height:27px}
+.cur{margin:18px 18px 0;padding:13px 14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07)}
+.cur .top{display:flex;justify-content:space-between;align-items:baseline}
+.cur .top b{font-size:13.5px;font-weight:800}.cur .top span{font-size:12px;color:#a0a0a0}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:9px;overflow:hidden}.bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#D97757,#ffb59e)}
+.spl{margin:10px 18px 0}
+.sp{display:flex;align-items:center;gap:12px;padding:9px 2px;border-top:1px solid rgba(255,255,255,.06)}.sp:first-child{border-top:0}
+.sp .n{width:38px;font-size:12px;font-weight:800;color:#a0a0a0}
+.sp .t{width:44px;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px}
+.sp .b{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.sp .b i{display:block;height:100%;border-radius:4px;background:rgba(255,181,158,.55)}
+.sp .b i.best{background:linear-gradient(90deg,#D97757,#ffb59e)}
+.sp .e{width:44px;text-align:right;font-size:11.5px;color:#a0a0a0}
+.sh{display:flex;gap:12px;margin:14px 20px 0;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.sh .n{width:38px}.sh .t{width:44px}.sh .b{flex:1}.sh .e{width:44px;text-align:right}
+.map{position:absolute;left:0;right:0;top:0;height:560px;background:#1e1f1e}
+.map svg{position:absolute;inset:0}
+.mapfade{position:absolute;left:0;right:0;top:420px;height:140px;background:linear-gradient(180deg,rgba(17,17,17,0),#111)}
+.mapstats{position:absolute;left:0;right:0;top:500px}
+.chip{position:absolute;left:50%;transform:translateX(-50%);top:58px;background:rgba(14,13,12,.7);border-radius:999px;padding:7px 14px;display:flex;gap:6px;align-items:center}
+.locate{position:absolute;right:16px;top:440px;width:40px;height:40px;border-radius:20px;background:rgba(14,13,12,.75);display:flex;align-items:center;justify-content:center}.locate .mi{font-size:20px;color:#ffb59e}
+/* finish */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #3a3939;border-radius:22px 22px 0 0;padding:10px 18px 30px;overflow:hidden}
+.gl{position:absolute;top:0;left:0;right:0;height:150px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.20),rgba(217,119,87,.07) 45%,rgba(217,119,87,0))}
+.grab{position:relative;width:38px;height:4px;border-radius:2px;background:#3a3939;margin:0 auto 14px}
+.sk{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.big{position:relative;font-size:56px;line-height:62px;text-align:center;margin-top:2px}
+.cap{position:relative;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;text-align:center;margin-top:-2px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.g{text-align:center;border-radius:14px;padding:10px 4px;background:rgba(255,255,255,.05)}
+.g b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}.g b small{font-size:12px;opacity:.6}
+.g i{font-style:normal;font-size:9px;letter-spacing:1.3px;font-weight:800;color:#a0a0a0}
+.photos{position:relative;display:flex;gap:8px;margin-top:10px}
+.add{flex:1;height:58px;border-radius:14px;border:1px dashed rgba(255,181,158,.4);display:flex;align-items:center;justify-content:center;gap:8px;color:#ffb59e;font-weight:800;font-size:14px}
+.add.small{flex:0 0 58px;flex-direction:column;gap:2px;font-size:10.5px}
+.th{flex:0 0 58px;height:58px;border-radius:14px;background:#444 center/cover}
+.btns{position:relative;display:flex;gap:10px;align-items:center;margin-top:16px}
+.resume{width:56px;height:56px;border-radius:28px;border:2px solid #e8835f;display:flex;align-items:center;justify-content:center;flex-shrink:0}.resume .mi{font-size:30px}
+.save{flex:1;height:56px;border-radius:28px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(217,119,87,.32)}
+.rl{position:relative;display:flex;margin-top:5px}.rl span{width:56px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6)}
+.sep{position:relative;height:1px;background:rgba(255,255,255,.07);margin:18px 0 12px}
+.discard{position:relative;text-align:center;font-size:13.5px;font-weight:700;color:#ff8f8f}
+.mt{position:relative;height:96px;border-radius:14px;overflow:hidden;background:#1e1f1e;margin-top:10px}
+.mt svg{position:absolute;inset:0}
+.chart{position:relative;margin-top:10px;border-radius:14px;background:rgba(255,255,255,.05);padding:10px 12px 8px}
+.chart .ct{display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}
+.chart .ct span{color:#ffb59e}
+.bars{display:flex;align-items:flex-end;gap:5px;height:44px;margin-top:8px}
+.bars i{flex:1;border-radius:3px 3px 0 0;background:rgba(255,181,158,.45)}.bars i.best{background:linear-gradient(180deg,#ffb59e,#D97757)}
+.bl{display:flex;gap:5px;margin-top:4px}.bl span{flex:1;text-align:center;font-size:9px;color:#a0a0a0}
+
+body{width:1716px}.row{flex-wrap:nowrap}
+.dn.lit{color:#ffb59e}.sc.lit{border:2px solid #e8835f}
+.state{display:inline-block;margin-top:10px;border-radius:999px;padding:5px 12px;background:rgba(14,13,12,.6);font-size:11px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.state b{color:#ffb59e}
+.cur .sub2{font-size:12px;color:#a0a0a0}
+.zl{margin:0 18px}.zr{display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid rgba(255,255,255,.06)}.zr:first-child{border-top:0}
+.zr .zn{width:58px;white-space:nowrap;font-size:12px;font-weight:800;color:#a0a0a0}.zr .zd{width:58px;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px;color:#fff}
+.zr .zb{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.zr .zb i{display:block;height:100%;border-radius:4px;background:rgba(255,181,158,.55)}.zr .zb i.best{background:linear-gradient(90deg,#D97757,#ffb59e)}
+.zr .zv{width:66px;text-align:right;font-size:11.5px;color:#a0a0a0}
+.zh{display:flex;gap:10px;margin:14px 20px 4px;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.zh .zn{width:58px}.zh .zd{width:58px}.zh .zb{flex:1}.zh .zv{width:66px;text-align:right}
+</style></head><body><div class="row"><div class="col"><div class="tag">1 · Ski, stats (swipe 1 of 3)</div><div class="desc">Descent is the hero, the number skiers watch. Speed is km/h, never pace. Runs and the lifts are told apart by the altitude, so the clock never needs touching on a chairlift.</div><div class="phone"><div class="photo" style="background-image:url(../assets/images/backgrounds/optimized/a-solitary-majestic-snow-capped.jpg)"></div><div class="shade"></div><div class="x"><span class="mi">expand_more</span></div><div style="position:absolute;left:0;right:0;top:282px"><div class="kr"><div class="dot"></div><div class="k">ALPINE SKI</div></div><div class="hero s">2,140</div><div class="unit">METRES SKIED</div><div class="sr" style="margin-top:26px"><div class="st"><b>1:12:40</b><i>SKIING</i></div><div class="st"><b>54.2<small> km/h</small></b><i>SPEED</i></div><div class="st"><b><span class="hr">favorite</span>138</b><i>BPM</i></div></div><div class="sr"><div class="st"><b>6</b><i>RUNS</i></div><div class="st"><b>68.4<small> km/h</small></b><i>TOP SPEED</i></div><div class="st"><b>2,210<small> m</small></b><i>ELEVATION</i></div></div><div class="pages"><div class="pg on"></div><div class="pg"></div><div class="pg"></div></div></div><div class="dock"><div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div><div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div><div class="side"><div class="sc lit"><span class="mi">add_a_photo</span></div><div class="dn lit">Capture</div></div></div></div></div><div class="col"><div class="tag">2 · Ski, on the lift</div><div class="desc">On a chairlift the state reads On the lift and the speed is left out. Lift time is counted on its own, so skiing time stays honest. Nothing to tap.</div><div class="phone"><div class="photo" style="background-image:url(../assets/images/backgrounds/optimized/a-solitary-majestic-snow-capped.jpg)"></div><div class="shade"></div><div class="x"><span class="mi">expand_more</span></div><div style="position:absolute;left:0;right:0;top:282px"><div class="kr"><div class="dot"></div><div class="k">ALPINE SKI</div></div><div class="hero s">2,140</div><div class="unit">METRES SKIED</div><div style="text-align:center"><div class="state">ON THE LIFT · <b>4:12</b></div></div><div class="sr" style="margin-top:18px"><div class="st"><b>1:12:40</b><i>SKIING</i></div><div class="st"><b>-</b><i>SPEED</i></div><div class="st"><b><span class="hr">favorite</span>112</b><i>BPM</i></div></div><div class="sr"><div class="st"><b>6</b><i>RUNS</i></div><div class="st"><b>48:20</b><i>ON LIFTS</i></div><div class="st"><b>2,284<small> m</small></b><i>HIGHEST</i></div></div><div class="pages"><div class="pg on"></div><div class="pg"></div><div class="pg"></div></div></div><div class="dock"><div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div><div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div><div class="side"><div class="sc lit"><span class="mi">add_a_photo</span></div><div class="dn lit">Capture</div></div></div></div></div><div class="col"><div class="tag">3 · Ski, runs (swipe 2 of 3)</div><div class="desc">Runs replace splits: each descent with its drop and top speed, newest at the top, the longest lit. The run under way fills as you go. Swipe again for the map, as on a run.</div><div class="phone"><div class="photo" style="background-image:url(../assets/images/backgrounds/optimized/a-solitary-majestic-snow-capped.jpg)"></div><div class="shade p"></div><div class="dim" style="background:rgba(10,10,10,.6)"></div><div class="x"><span class="mi">expand_more</span></div><div style="position:absolute;left:0;right:0;top:110px"><div class="kr"><div class="dot"></div><div class="k">ALPINE SKI · RUNS</div></div><div class="mini" style="margin-top:14px"><div class="st"><b>2,140<small> m</small></b><i>DESCENT</i></div><div class="st"><b>1:12:40</b><i>SKIING</i></div><div class="st"><b>54.2<small> km/h</small></b><i>SPEED</i></div></div><div class="cur"><div class="top"><b>Run 7</b><span>186 m down · 0:52</span></div><div class="bar"><i style="width:45%"></i></div></div><div class="zh"><span class="zn">RUN</span><span class="zd">DESCENT</span><span class="zb"></span><span class="zv">TOP</span></div><div class="zl"><div class="zr"><span class="zn">Run 6</span><span class="zd">405 m</span><span class="zb"><i class="" style="width:76%"></i></span><span class="zv">58.2 km/h</span></div><div class="zr"><span class="zn">Run 5</span><span class="zd">350 m</span><span class="zb"><i class="" style="width:70%"></i></span><span class="zv">55.0 km/h</span></div><div class="zr"><span class="zn">Run 4</span><span class="zd">405 m</span><span class="zb"><i class="" style="width:76%"></i></span><span class="zv">58.2 km/h</span></div><div class="zr"><span class="zn">Run 3</span><span class="zd">612 m</span><span class="zb"><i class="best" style="width:100%"></i></span><span class="zv">68.4 km/h</span></div><div class="zr"><span class="zn">Run 2</span><span class="zd">388 m</span><span class="zb"><i class="" style="width:74%"></i></span><span class="zv">61.0 km/h</span></div><div class="zr"><span class="zn">Run 1</span><span class="zd">412 m</span><span class="zb"><i class="" style="width:77%"></i></span><span class="zv">54.1 km/h</span></div></div><div class="pages"><div class="pg"></div><div class="pg on"></div><div class="pg"></div></div></div><div class="dock"><div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div><div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div><div class="side"><div class="sc lit"><span class="mi">add_a_photo</span></div><div class="dn lit">Capture</div></div></div></div></div><div class="col"><div class="tag">4 · Surf, stats (swipe 1 of 3)</div><div class="desc">Waves are the hero: each ride is found from a burst of speed in the GPS, so nothing is tapped in the water. Time on the water, speed and heart rate under it. Works the same for kitesurf and windsurf.</div><div class="phone"><div class="photo" style="background-image:url(../assets/images/backgrounds/optimized/sunset-beach-group-walking.jpg)"></div><div class="shade"></div><div class="x"><span class="mi">expand_more</span></div><div style="position:absolute;left:0;right:0;top:282px"><div class="kr"><div class="dot"></div><div class="k">SURF</div></div><div class="hero s">14</div><div class="unit">WAVES</div><div class="sr" style="margin-top:26px"><div class="st"><b>1:24:10</b><i>TIME</i></div><div class="st"><b>18.6<small> km/h</small></b><i>SPEED</i></div><div class="st"><b><span class="hr">favorite</span>128</b><i>BPM</i></div></div><div class="sr"><div class="st"><b>142<small> m</small></b><i>LONGEST RIDE</i></div><div class="st"><b>31.2<small> km/h</small></b><i>TOP SPEED</i></div><div class="st"><b>4.8<small> km</small></b><i>DISTANCE</i></div></div><div class="pages"><div class="pg on"></div><div class="pg"></div><div class="pg"></div></div></div><div class="dock"><div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div><div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div><div class="side"><div class="sc lit"><span class="mi">add_a_photo</span></div><div class="dn lit">Capture</div></div></div></div></div><div class="col"><div class="tag">5 · Surf, waves (swipe 2 of 3)</div><div class="desc">Every wave with its length and how long it lasted, newest first, the longest lit. Between waves the card reads Paddling, with the time since the last one.</div><div class="phone"><div class="photo" style="background-image:url(../assets/images/backgrounds/optimized/sunset-beach-group-walking.jpg)"></div><div class="shade p"></div><div class="dim" style="background:rgba(10,10,10,.6)"></div><div class="x"><span class="mi">expand_more</span></div><div style="position:absolute;left:0;right:0;top:110px"><div class="kr"><div class="dot"></div><div class="k">SURF · WAVES</div></div><div class="mini" style="margin-top:14px"><div class="st"><b>14</b><i>WAVES</i></div><div class="st"><b>1:24:10</b><i>TIME</i></div><div class="st"><b>142<small> m</small></b><i>LONGEST</i></div></div><div class="cur"><div class="top"><b>Paddling</b><span>2:40 since wave 14</span></div></div><div class="zh"><span class="zn">WAVE</span><span class="zd">LENGTH</span><span class="zb"></span><span class="zv">RIDE</span></div><div class="zl"><div class="zr"><span class="zn">Wave 14</span><span class="zd">64 m</span><span class="zb"><i class="" style="width:61%"></i></span><span class="zv">0:12</span></div><div class="zr"><span class="zn">Wave 13</span><span class="zd">98 m</span><span class="zb"><i class="" style="width:78%"></i></span><span class="zv">0:18</span></div><div class="zr"><span class="zn">Wave 12</span><span class="zd">142 m</span><span class="zb"><i class="best" style="width:100%"></i></span><span class="zv">0:26</span></div><div class="zr"><span class="zn">Wave 11</span><span class="zd">51 m</span><span class="zb"><i class="" style="width:55%"></i></span><span class="zv">0:09</span></div><div class="zr"><span class="zn">Wave 10</span><span class="zd">77 m</span><span class="zb"><i class="" style="width:67%"></i></span><span class="zv">0:14</span></div><div class="zr"><span class="zn">Wave 9</span><span class="zd">88 m</span><span class="zb"><i class="" style="width:73%"></i></span><span class="zv">0:16</span></div></div><div class="pages"><div class="pg"></div><div class="pg on"></div><div class="pg"></div></div></div><div class="dock"><div class="side"><div class="sc"><span class="mi">flag</span></div><div class="dn">Finish</div></div><div class="side"><div class="mc"><span class="mi">pause</span></div><div class="dn">Pause</div></div><div class="side"><div class="sc lit"><span class="mi">add_a_photo</span></div><div class="dn lit">Capture</div></div></div></div></div></div></body></html>

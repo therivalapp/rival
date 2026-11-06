@@ -16,6 +16,10 @@ supabase.auth.onAuthStateChange((_event, session) => {
   if (id !== owner) { store.clear(); owner = id; }
 });
 
+/** Fill a screen's remembered state before it opens (a prefetch). */
+export function setSnap<T>(key: string, value: T) { store.set(key, value); }
+export function hasSnap(key: string): boolean { return store.has(key); }
+
 type SetState<T> = (next: T | ((prev: T) => T)) => void;
 
 export function useSnapState<T>(key: string, initial: T): [T, SetState<T>] {

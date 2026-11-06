@@ -1,17 +1,19 @@
 import { RivalCalendarGrid } from '../components/rival/RivalCalendarGrid';
 import { formatRaceName } from '../lib/identity';
 import { useState, useEffect } from 'react';
-import { Modal, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Platform, Image, Linking, useWindowDimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Platform, Image, Linking, useWindowDimensions } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { sidePageWide } from '../constants/breakpoints';
 import { GreySheet, GreyLabel, GreyField, GreyTiles, GreyRows, GreyRow, GreyRowInput, GreyPrimary, GreyCalendar, GreyNote, GreyPageHead, rb } from '../components/rival';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { teamSharingAgreed } from '../lib/stravaSharing';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { RivalTopNav, RivalIcon, RivalFixedBackground } from '../components/rival';
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors } from '../constants/rivalTheme';
 import { displayToIsoDate, isoToDisplayDate, friendlyDate } from '../lib/dateFormat';
-import { formatGoalTimeMask } from '../lib/format';
+import { timeFieldProps } from '../lib/time';
 import { Asset } from 'expo-asset';
 import { BusyText } from '../components/rival/BusyText';
 import { avatarImage } from '../lib/imageUrl';
@@ -471,6 +473,7 @@ export default function CreateLeagueScreen() {
   }, []);
 
   async function handleCreate() {
+    if (!(await teamSharingAgreed())) return;
     if (!name.trim()) {
       setError('Enter a team name.');
       return;
@@ -639,7 +642,8 @@ export default function CreateLeagueScreen() {
         </>
       )}
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <RivalTopNav active="teams" />
+        {/* A page for doing a task: back arrow only on phones, no top or bottom bar (Ricky, 2026-11-02). */}
+        {phone ? null : <RivalTopNav active="teams" />}
         <ScrollView contentContainerStyle={phone ? [rb.content, { paddingBottom: 120 }] : styles.content}>
           <View style={phone ? undefined : styles.panel}>
             {crestCandidates ? (
@@ -693,7 +697,7 @@ export default function CreateLeagueScreen() {
               <GreyNote>{isPrivate ? 'Invite only. Members join with a code.' : 'Anyone can find the team and ask to join.'}</GreyNote>
 
               <GreyLabel>Shared goal</GreyLabel>
-              <GreyRows>
+              <GreyRows glow>
                 <GreyRow icon="groups" label="No event" onPress={() => { setSelectedRaceId(null); setTeamGoalMode(false); }}>
                   {!teamGoalMode && selectedRaceId === null ? <RivalIcon name="check" size={17} color={RivalColors.accentText} /> : null}
                 </GreyRow>
@@ -1011,7 +1015,7 @@ export default function CreateLeagueScreen() {
                   <GreyRowInput value={regUrl} onChangeText={setRegUrl} placeholder="Optional" autoCapitalize="none" />
                 </GreyRow>
                 <GreyRow icon="flag" label="Goal time">
-                  <GreyRowInput value={goalFinishTime} onChangeText={(v) => setGoalFinishTime(formatGoalTimeMask(v))} placeholder="Optional" keyboardType="number-pad" />
+                  <GreyRowInput {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)} placeholder="Optional" />
                 </GreyRow>
               </GreyRows>
             </GreySheet>
@@ -1161,12 +1165,8 @@ export default function CreateLeagueScreen() {
                 <Text style={styles.panelLabel}>Goal Finish Time (Optional)</Text>
                 <TextInput
                   style={[styles.panelInput, styles.targetInput]}
-                  placeholder="00:00:00"
                   placeholderTextColor="rgba(219,193,185,0.4)"
-                  value={goalFinishTime}
-                  onChangeText={v => setGoalFinishTime(formatGoalTimeMask(v))}
-                  keyboardType="number-pad"
-                  autoCapitalize="none"
+                  {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)}
                 />
                 <View style={styles.goalTimeHintRow}>
                   {goalFinishTime.trim() ? <RivalIcon name="target" size={12} color={RivalColors.textSecondary} /> : null}
@@ -1342,7 +1342,7 @@ const pm = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  root: { flex: 1, backgroundColor: RivalColors.pageGround },
   scrim: { position: 'fixed' as any, top: 0, left: 0, right: 0, height: '100vh' as any, backgroundColor: 'rgba(14,14,14,0.55)' },
   container: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, maxWidth: 620, width: '100%', alignSelf: 'center', flexGrow: 1, justifyContent: 'center' },

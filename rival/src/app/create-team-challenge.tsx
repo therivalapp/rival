@@ -21,9 +21,9 @@ import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, Tou
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyPageHead, rb } from '../components/rival';
+import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyArtTile, GreyPageHead, rb } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
-import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost, rivalTextShadow } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost, RivalMainGlow, rivalTextShadow } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 
 type GoalMetric = 'xp' | 'distance' | 'elevation' | 'duration' | 'activities';
@@ -346,9 +346,9 @@ export default function CreateTeamChallenge() {
                     {METRICS.map((m) => {
                       const on = metric === m.value;
                       return (
-                        <TouchableOpacity key={m.value} style={[styles.metricTile, mob && ms.tile, on && styles.metricTileOn, mob && on && ms.tileOn]} onPress={() => setMetric(m.value)}>
-                          <View style={[styles.metricIcon, on && styles.metricIconOn, mob && on && ms.gradient]}>
-                            <RivalIcon name={m.icon} size={20} color={on ? (mob ? ms.onGradient.color as string : '#1a1411') : RivalColors.accentText} />
+                        mob ? <GreyArtTile key={m.value} label={m.label} icon={m.icon} on={on} style={ms.artTile} onPress={() => setMetric(m.value)} /> : <TouchableOpacity key={m.value} style={[styles.metricTile, on && styles.metricTileOn]} onPress={() => setMetric(m.value)}>
+                          <View style={[styles.metricIcon, on && styles.metricIconOn]}>
+                            <RivalIcon name={m.icon} size={20} color={on ? '#1a1411' : RivalColors.accentText} />
                           </View>
                           <Text style={[styles.metricTileText, on && styles.metricTileTextOn]}>{m.label}</Text>
                         </TouchableOpacity>
@@ -574,15 +574,15 @@ const ms = StyleSheet.create({
   // The app-wide terracotta→salmon gradient, not this page's own orange.
   gradient: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderColor: 'transparent' },
   onGradient: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
-  preview: { backgroundColor: RivalGhost.fill, borderColor: 'rgba(255,181,158,0.35)' },
+  preview: { backgroundColor: RivalGhost.fill, borderColor: 'rgba(255,181,158,0.35)', ...RivalMainGlow },
+  artTile: { flexBasis: '30%', flexGrow: 1 },
   previewValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
   modeRow: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
   step: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
   tile: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
-  tileOn: { backgroundColor: RivalGhost.fillOn, borderColor: RivalGhost.borderOn },
-  well: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  well: { backgroundColor: 'transparent', borderColor: RivalGhost.hairline },
   targetInput: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700' },
-  chip: { backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border },
+  chip: { backgroundColor: 'transparent', borderColor: RivalGhost.border },
   // The chosen half of the Team target / Event goal switch: a warm lift.
   modeOn: { backgroundColor: RivalGhost.fillOn, ...RivalButtonColors.noGradient, borderColor: 'transparent' },
   modeOnText: { color: '#fff' },

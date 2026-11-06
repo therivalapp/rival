@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal } from './RivalModal';
 import { supabase } from '../../lib/supabase';
 import { invalidateActivityCache } from '../../lib/fetchAllActivities';
 import { formatActivityDistance } from '../../lib/units';

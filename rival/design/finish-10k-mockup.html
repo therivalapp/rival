@@ -1,0 +1,113 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;width:880px;background:#151413;font-family:Manrope,sans-serif;color:#fff}
+.row{display:flex;gap:26px;padding:22px;align-items:flex-start}.col{width:393px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 4px 4px}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;height:74px}
+.phone{position:relative;width:393px;height:1130px;border-radius:40px;overflow:hidden;background:#111}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.s{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #3a3939;border-radius:22px 22px 0 0;padding:10px 18px 0;overflow:hidden}
+.gl{position:absolute;top:0;left:0;right:0;height:150px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.20),rgba(217,119,87,.07) 45%,rgba(217,119,87,0))}
+.grab{position:relative;width:38px;height:4px;border-radius:2px;background:#3a3939;margin:0 auto 12px}
+.k{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center}
+.big{position:relative;font-size:56px;line-height:62px;text-align:center;margin-top:2px}
+.cap{position:relative;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0;text-align:center;margin-top:8px}
+.times{position:relative;display:flex;justify-content:center;gap:0;margin-top:10px}
+.times div{padding:0 16px;text-align:center}.times div+div{border-left:1px solid rgba(255,255,255,.14)}
+.times b{font-family:Georgia,serif;font-style:italic;font-size:19px}.times i{display:block;font-style:normal;font-size:8.5px;letter-spacing:1.3px;font-weight:800;color:#ffb59e;margin-top:1px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.g{position:relative;text-align:center;border-radius:14px;padding:9px 4px 8px;background:rgba(255,255,255,.05);overflow:hidden}
+.g b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}.g b small{font-size:12px;opacity:.6}
+.g i{font-style:normal;font-size:8.5px;letter-spacing:1.2px;font-weight:800;color:#a0a0a0}
+.g .ic{display:flex;align-items:center;justify-content:center;gap:4px}
+.g .ic .mi{font-size:15px;color:#ffb59e}
+.g.effort{background:#2f2d2c;border:1.5px solid #e8835f}.g.effort b{color:#ffb59e}
+.g.effort i{color:#ffb59e}
+.mt{position:relative;height:84px;border-radius:14px;overflow:hidden;background:#1e1f1e;margin-top:10px}
+.mt svg{position:absolute;inset:0}
+.chart{position:relative;margin-top:10px;border-radius:14px;background:rgba(255,255,255,.05);padding:10px 12px 6px}
+.sr{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)}.ct+.sr{border-top:0;margin-top:4px}
+.sn{width:46px;font-size:12px;font-weight:800;color:#a0a0a0}
+.spc{width:52px;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:18px;line-height:22px}
+.sbar{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}.sbar i{display:block;height:100%;border-radius:4px;background:rgba(255,181,158,.55)}.sbar i.best{background:linear-gradient(90deg,#D97757,#ffb59e)}
+.ct{display:flex;justify-content:space-between;font-size:9px;font-weight:800;letter-spacing:1.3px;color:#a0a0a0}.ct span{color:#ffb59e}
+.bars{position:relative;display:flex;align-items:flex-end;height:46px;margin-top:8px}
+.bars i{flex:1;border-radius:3px 3px 0 0;background:rgba(255,181,158,.45)}
+.bars i.best{background:linear-gradient(180deg,#ffb59e,#D97757)}
+.bars.thin{gap:1px}.bars.thin i{border-radius:1px 1px 0 0}
+.bars.wide{gap:5px}
+.avg{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.35)}
+.bl{display:flex;gap:5px;margin-top:4px}.bl span{flex:1;text-align:center;font-size:9px;color:#a0a0a0}
+.axis{position:relative;height:12px;margin-top:4px}.axis span{position:absolute;font-size:9px;color:#a0a0a0;transform:translateX(-50%);white-space:nowrap}
+.legend{display:flex;justify-content:space-between;margin-top:6px;font-size:10.5px;color:#a0a0a0}.legend b{color:#fff;font-weight:800}
+.more{position:relative;display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:11px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800}
+.more span{font-size:11.5px;font-weight:600;color:#a0a0a0}.more .mi{font-size:20px;color:#a0a0a0}
+.photos{position:relative;display:flex;gap:8px;margin-top:10px}
+.add{flex:1;height:50px;border-radius:14px;border:1px dashed rgba(255,181,158,.4);display:flex;align-items:center;justify-content:center;gap:8px;color:#ffb59e;font-weight:800;font-size:14px}
+.btns{position:relative;display:flex;gap:10px;align-items:center;margin-top:14px}
+.resume{width:56px;height:56px;border-radius:28px;border:2px solid #e8835f;display:flex;align-items:center;justify-content:center;flex-shrink:0}.resume .mi{font-size:30px}
+.save{flex:1;height:56px;border-radius:28px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(217,119,87,.32)}
+.rl{position:relative;width:56px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6);margin-top:4px}
+.sep{position:relative;height:1px;background:rgba(255,255,255,.07);margin:10px 0 0}
+.discard{position:relative;text-align:center;font-size:13.5px;font-weight:700;color:#ff8f8f;padding:12px 0 34px}
+.note{color:#a8a097;font-size:12.5px;line-height:1.5;margin:4px 26px 26px;max-width:820px}
+.note b{color:#ffb59e}
+</style></head><body>
+<div class="row" id="row"></div>
+<div class="note" style="display:none"><b>Splits chart:</b> up to 12 splits show as labelled bars, as now. Past 12 (a half marathon and up) every split is still drawn, as thin bars, with distance marks under them, a dashed line for average pace and the fastest split named. The full list is under More details. Today the chart shows only the last 8 splits, so a 100 km run would show kilometres 93 to 100; this fixes that.</div>
+<script>
+function phone(o){
+  const tiles=o.tiles.map(t=>`<div class="g${t.effort?' effort':''}"><b class="${t.icon?'ic':''}">${t.icon?`<span class="mi">${t.icon}</span>`:''}${t.v}${t.u?`<small> ${t.u}</small>`:''}</b><i>${t.n}</i></div>`).join('');
+  return `<div class="col"><div class="tag">${o.tag}</div><div class="desc">${o.desc}</div>
+  <div class="phone"><div class="dim"></div><div class="sheet"><div class="gl"></div><div class="grab"></div>
+    <div class="k">RUN · PAUSED</div>
+    <div class="big s">${o.dist}</div><div class="cap">KILOMETRES</div>
+    <div class="times"><div><b>${o.moving}</b><i>MOVING TIME</i></div><div><b>${o.elapsed}</b><i>ELAPSED TIME</i></div></div>
+    <div class="grid">${tiles}</div>
+    <div class="mt"><svg viewBox="0 0 357 84" width="357" height="84">${o.route}</svg></div>
+    <div class="chart">${o.chart}</div>
+    <div class="more"><div>More details<br><span>Max heart rate, fastest kilometre, every split, pace and elevation charts</span></div><span class="mi">chevron_right</span></div>
+    <div class="photos"><div class="add"><span class="mi" style="font-size:20px">add_a_photo</span>Capture The Moment</div></div>
+    <div class="btns"><div class="resume"><span class="mi">play_arrow</span></div><div class="save">Save activity</div></div>
+    <div class="rl">Resume</div>
+    <div class="sep"></div><div class="discard">Discard activity</div>
+  </div></div></div>`;
+}
+const fmt=s=>{s=Math.round(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+// 5 km
+const five=[292,289,297,290,283];
+const f5=Math.min(...five),s5=Math.max(...five);
+const q=(v,f,s)=>s>f?(s-v)/(s-f):1;
+const avg5=five.reduce((a,b)=>a+b)/5;
+const row=(n,v,best,w)=>`<div class="sr"><span class="sn">${n}</span><span class="spc">${fmt(v)}</span><span class="sbar"><i class="${best?'best':''}" style="width:${w}%"></i></span></div>`;
+const chart5=`<div class="ct">SPLITS<span>FASTEST 4:43 · KM 5</span></div>
+${five.map((v,i)=>row(i+1,v,v===f5,45+q(v,f5,s5)*51)).join('')}`;
+// 100 km: steady start, fades late, a fast stretch at km 12, a walk at an aid station
+const hund=[];for(let k=1;k<=100;k++){let p=362+k*0.3+Math.sin(k/3)*11+(k>70?(k-70)*1.3:0);if(k===12)p=331;if(k%20===0)p+=48;hund.push(p);}
+const f1=Math.min(...hund),s1=Math.max(...hund),avg1=hund.reduce((a,b)=>a+b)/100;
+const fk=hund.indexOf(f1)+1;
+const sorted=[...hund].sort((a,b)=>a-b),p95=sorted[94];const h=v=>20+Math.max(0,Math.min(1,(p95-v)/(p95-f1)))*80;
+const blocks=[0,1,2,3,4].map(i=>hund.slice(i*20,i*20+20).reduce((x,y)=>x+y)/20);
+const bf=Math.min(...blocks),bs=Math.max(...blocks);
+const chart100=`<div class="ct">SPLITS · EVERY 20 KM<span>FASTEST KM ${fmt(f1)} · KM ${fk}</span></div>
+${blocks.map((v,i)=>row(`${i*20}–${i*20+20}`,v,v===bf,45+q(v,bf,bs)*51)).join('')}
+<div class="legend" style="margin-top:4px"><span>All 100 kilometres are in More details.</span></div>`;
+const route5=`<g stroke="#2a2b2a" stroke-width="0" fill="none"></g><path d="M96 74 C92 60 86 50 92 40 C98 28 126 28 150 26 C178 24 200 18 210 12 C220 8 236 8 258 12" stroke="#e8835f" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="96" cy="74" r="8" fill="#fff" stroke="#111" stroke-width="1.5"/><path d="M93.5 70 L100 74 L93.5 78Z" fill="#111"/><text x="110" y="78" font-family="Manrope" font-weight="800" font-size="9.5" stroke="#1e1f1e" stroke-width="4" paint-order="stroke" fill="#fff">Start</text><circle cx="258" cy="14" r="8" fill="#e8835f" stroke="#fff" stroke-width="1.5"/><text x="252" y="38" text-anchor="middle" font-family="Manrope" font-weight="800" font-size="9.5" stroke="#1e1f1e" stroke-width="4" paint-order="stroke" fill="#ffb59e">Finish</text>`;
+const route100=`<path d="M60 70 C40 50 50 20 90 14 C140 8 170 30 200 22 C240 12 260 8 290 18 C320 28 316 56 290 66 C260 76 230 60 200 64 C160 70 120 78 92 74" stroke="#e8835f" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="60" cy="70" r="8" fill="#fff" stroke="#111" stroke-width="1.5"/><path d="M57.5 66 L64 70 L57.5 74Z" fill="#111"/><text x="22" y="54" font-family="Manrope" font-weight="800" font-size="9.5" stroke="#1e1f1e" stroke-width="4" paint-order="stroke" fill="#fff">Start</text><circle cx="92" cy="74" r="8" fill="#e8835f" stroke="#fff" stroke-width="1.5"/><text x="122" y="62" font-family="Manrope" font-weight="800" font-size="9.5" stroke="#1e1f1e" stroke-width="4" paint-order="stroke" fill="#ffb59e">Finish</text>`;
+const tenk=[300,308,308,301,293,291,297,306,309,290];
+const tf=Math.min(...tenk),ts=Math.max(...tenk),tk=tenk.indexOf(tf)+1;
+const vert=`<div class="ct">SPLITS<span>FASTEST ${fmt(tf)} · KM ${tk}</span></div>
+<div class="bars wide" style="gap:4px">${tenk.map(v=>`<i class="${v===tf?'best':''}" style="height:${35+q(v,tf,ts)*65}%"></i>`).join('')}</div>
+<div class="bl" style="gap:4px">${tenk.map(v=>`<span>${fmt(v)}</span>`).join('')}</div>`;
+const horiz=`<div class="ct">SPLITS<span>FASTEST ${fmt(tf)} · KM ${tk}</span></div>
+${tenk.map((v,i)=>row(i+1,v,v===tf,45+q(v,tf,ts)*51)).join('')}`;
+const route10=`<path d="M70 72 C60 50 80 26 120 22 C160 18 190 34 220 28 C250 22 270 12 300 20 C318 26 312 48 290 56 C260 66 220 58 190 64 C150 72 110 74 84 70" stroke="#e8835f" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="70" cy="72" r="8" fill="#fff" stroke="#111" stroke-width="1.5"/><path d="M67.5 68 L74 72 L67.5 76Z" fill="#111"/><text x="30" y="56" font-family="Manrope" font-weight="800" font-size="9.5" stroke="#1e1f1e" stroke-width="4" paint-order="stroke" fill="#fff">Start</text><circle cx="84" cy="70" r="8" fill="#e8835f" stroke="#fff" stroke-width="1.5"/><text x="118" y="62" font-family="Manrope" font-weight="800" font-size="9.5" stroke="#1e1f1e" stroke-width="4" paint-order="stroke" fill="#ffb59e">Finish</text>`;
+const tiles10=[{v:'5:00',u:'/km',n:'AVG PACE'},{v:'86',u:'m',n:'ELEVATION'},{v:'164',n:'EFFORT',effort:true},{v:'152',n:'AVG BPM'},{v:'684',n:'CALORIES'},{v:'174',n:'CADENCE · SPM'}];
+document.getElementById('row').innerHTML=
+ phone({tag:'A · 10 km, vertical bars',desc:'The bar graph from before: ten bars, the time under each, the fastest lit.',dist:'10.02',moving:'50:12',elapsed:'53:40',route:route10,chart:vert,tiles:tiles10})+
+ phone({tag:'B · 10 km, horizontal rows',desc:'Every kilometre as its own row, the time large, a longer bar for a faster kilometre, the fastest lit.',dist:'10.02',moving:'50:12',elapsed:'53:40',route:route10,chart:horiz,tiles:tiles10});
+</script></body></html>

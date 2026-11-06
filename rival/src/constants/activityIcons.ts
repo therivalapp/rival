@@ -8,7 +8,7 @@
 export const ACTIVITY_ICONS: Record<string, string> = {
   Run: '🏃', Ride: '🚴', Swim: '🏊', WeightTraining: '🏋️',
   Workout: '💪', Hike: '🥾', Walk: '🚶', Yoga: '🧘',
-  CrossFit: '🤸', Rowing: '🚣', Hyrox: '🔥', HIIT: '⚡',
+  CrossFit: '🤸', Calisthenics: '🤸', Gymnastics: '🤸', Rowing: '🚣', Hyrox: '🔥', HIIT: '⚡',
   AlpineSki: '⛷️', NordicSki: '🎿', VirtualRide: '🚴', VirtualRun: '🏃',
 };
 

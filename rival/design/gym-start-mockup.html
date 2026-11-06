@@ -1,0 +1,119 @@
+<!doctype html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"><style>
+* { box-sizing:border-box; }
+body { margin:0; background:#151413; font-family:Manrope,sans-serif; color:#fff; }
+.row { display:flex; gap:26px; padding:22px; align-items:flex-start; }
+.col { width:393px; flex-shrink:0; }
+.tag { color:#ffb59e; font-size:12px; font-weight:800; letter-spacing:1.4px; text-transform:uppercase; margin:0 0 4px 4px; }
+.desc { color:#a8a097; font-size:12.5px; line-height:1.45; margin:0 4px 12px; min-height:90px; }
+.phone { position:relative; width:393px; height:852px; border-radius:40px; overflow:hidden; background:#141312; }
+.status { height:50px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; font-weight:700; font-size:16px; }
+.mi { font-family:'Material Icons Round'; font-weight:normal; font-style:normal; line-height:1; display:inline-block; }
+.serif { font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:700; }
+.nav { display:flex; justify-content:space-between; align-items:center; padding:4px 16px 10px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.logo { color:#ffb59e; font-weight:600; letter-spacing:0.32em; font-size:17px; }
+.av { width:34px; height:34px; border-radius:17px; background:url(../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg) center/cover; border:1.5px solid rgba(255,255,255,0.2); }
+.pad { padding:0 16px; }
+.bnav { position:absolute; left:16px; right:16px; bottom:24px; display:flex; background:rgba(30,29,28,0.95); border:1px solid rgba(255,255,255,0.07); border-radius:999px; padding:5px; z-index:5; }
+.bnav span { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0; border-radius:999px; font-size:10.5px; font-weight:700; color:#A0A0A0; }
+.bnav span .mi { font-size:19px; }
+.bnav span.on { background:rgba(255,181,158,0.14); color:#ffb59e; }
+
+/* The activity card, as now: 3:4, day on top, name and Effort at the foot. */
+.ac { width:170px; height:226px; flex-shrink:0; border-radius:18px; position:relative; overflow:hidden; background-size:cover; background-position:center; }
+.ac .sh { position:absolute; inset:0; background:linear-gradient(0deg, rgba(14,13,12,0.85) 0%, rgba(14,13,12,0.1) 45%, rgba(14,13,12,0) 70%, rgba(14,13,12,0.35) 100%); }
+.ac .dn { position:absolute; top:12px; left:0; right:0; text-align:center; font-family:Georgia,serif; font-style:italic; font-size:14px; color:rgba(255,255,255,0.85); }
+.ac .ft { position:absolute; left:12px; right:12px; bottom:12px; display:flex; justify-content:space-between; align-items:flex-end; }
+.ac .ft .nm { font-size:13px; font-weight:700; }
+.ac .ft .v { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:18px; }
+.ac .ft .el { font-size:8.5px; font-weight:800; letter-spacing:0.8px; color:#ffb59e; text-align:right; }
+.ac.mat { background:linear-gradient(160deg,#6e7884,#3a4048 60%,#262a2f); }
+.ac.mat .ico { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding-bottom:40px; font-size:120px; color:rgba(255,255,255,0.18); }
+.ac.pb { box-shadow: inset 0 0 0 2px #FFD700; }
+.ac.pb .el { color:#FFD700; }
+/* Retro's date stamp, in RIVAL type. */
+.stamp { position:absolute; top:10px; left:10px; text-align:center; width:44px; padding:5px 0 4px; border-radius:12px; background:rgba(14,13,12,0.55); }
+.stamp i { display:block; font-style:normal; font-size:8.5px; font-weight:800; letter-spacing:0.8px; color:#ffb59e; }
+.stamp b { display:block; font-family:Georgia,serif; font-style:italic; font-size:22px; line-height:24px; }
+.ac.today { background:rgba(255,209,190,0.05); border:1.5px dashed rgba(255,181,158,0.6); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+.ac.today .big { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:64px; line-height:64px; color:rgba(255,255,255,0.9); }
+.ac.today .lbl { font-size:10px; font-weight:800; letter-spacing:1.6px; color:#ffb59e; }
+.ac.today .pl { width:40px; height:40px; border-radius:20px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; display:flex; align-items:center; justify-content:center; margin-top:8px; }
+.ac.future { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ac.future .big { font-family:Georgia,serif; font-style:italic; font-weight:700; font-size:56px; color:rgba(255,255,255,0.22); }
+.ac.future .lbl { font-size:10px; font-weight:800; letter-spacing:1.6px; color:rgba(255,255,255,0.3); }
+.rest { width:34px; height:226px; flex-shrink:0; border-radius:14px; border:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.025); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+.rest i { font-style:normal; font-size:9px; font-weight:800; letter-spacing:0.6px; color:rgba(255,255,255,0.35); writing-mode:vertical-rl; transform:rotate(180deg); }
+.rest b { font-family:Georgia,serif; font-style:italic; font-size:15px; color:rgba(255,255,255,0.35); }
+.track { display:flex; gap:8px; margin-right:-16px; overflow:hidden; }
+.whead { display:flex; justify-content:space-between; align-items:flex-end; margin:18px 2px 10px; }
+.whead .k { font-size:10px; font-weight:800; letter-spacing:1.8px; color:#ffb59e; }
+.whead .t { font-size:24px; line-height:28px; }
+.whead .e { text-align:right; }
+.whead .e b { display:block; font-family:Georgia,serif; font-style:italic; font-size:30px; line-height:30px; }
+.whead .e span { font-size:9.5px; font-weight:800; letter-spacing:2px; color:#ffb59e; }
+.wline { font-size:11.5px; color:rgba(255,255,255,0.45); margin:8px 2px 0; }
+.dots { display:flex; gap:10px; margin-top:6px; }
+.dots span { font-size:9px; font-weight:800; color:rgba(255,255,255,0.4); text-align:center; width:12px; }
+.dots span i { display:block; width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,0.2); margin:4px auto 0; }
+.dots span.on i { background:#D97757; }
+.grid { display:flex; flex-wrap:wrap; gap:10px; }
+.card { position:relative; overflow:hidden; border-radius:22px; padding:16px; background:#232120; border:1px solid rgba(255,255,255,0.06); }
+.card .glow { position:absolute; top:0; left:0; right:0; height:120px; background:radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%); }
+.add { display:flex; align-items:center; justify-content:center; gap:6px; padding:13px 0; border-radius:999px; background:linear-gradient(135deg,#D97757,#ffb59e); color:#5c1902; font-weight:800; font-size:15px; margin-top:12px; }
+.seg { display:flex; justify-content:space-between; margin-top:12px; }
+.seg .s { display:flex; padding:3px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); }
+.seg .s span { display:flex; align-items:center; gap:4px; padding:7px 9px; border-radius:999px; font-size:12px; font-weight:700; color:#A0A0A0; }
+.seg .s span.on { border:1px solid rgba(255,255,255,0.5); color:#fff; }
+.seg .f { display:flex; align-items:center; gap:5px; padding:7px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); font-size:13px; font-weight:700; }
+.sep { display:flex; align-items:center; gap:10px; margin:6px 4px 0; font-size:11px; font-weight:700; color:rgba(255,255,255,0.35); }
+.sep i { flex:1; height:1px; background:rgba(255,255,255,0.08); }
+.pager { display:flex; justify-content:center; gap:5px; margin-top:10px; }
+.pager i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,0.2); }
+.pager i.on { width:16px; background:#ffb59e; }
+
+body{width:860px}.row{flex-wrap:wrap;row-gap:30px}.desc{min-height:58px}.phone{height:852px;background:#1b1a19}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-radius:22px 22px 0 0;padding:10px 18px 30px}
+.grab{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);margin:0 auto 12px}
+.ki{font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#ffb59e;text-align:center}
+.ttl{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;line-height:34px;text-align:center;margin-top:3px}
+.note{font-size:12px;color:#a0a0a0;text-align:center;margin-top:14px}
+.tiles{display:flex;gap:10px;margin-top:10px}
+.tile{flex:1;min-height:132px;border-radius:18px;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;border:1px solid rgba(255,181,158,.35);background:rgba(255,209,190,.05)}
+.tile b{font-size:17px;font-weight:800}.tile span.u{font-size:12px;font-weight:500;color:#a0a0a0}
+.ic{width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;background:rgba(255,181,158,.1);color:#ffb59e;font-size:24px;margin-bottom:auto}
+.start{display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:18px;background:linear-gradient(135deg,#ffb59e,#D97757);color:#1a1210}
+.start .ic{margin:0;background:rgba(0,0,0,.12);color:#1a1210}.start b{display:block;font-size:17px;font-weight:800}.start i{font-style:normal;font-size:12px;opacity:.75}
+.scr{padding:58px 16px 0}
+.live{text-align:center;padding-bottom:12px}
+.time{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:64px;line-height:72px}
+.lk{display:inline-flex;align-items:center;gap:6px}.dot{width:7px;height:7px;border-radius:4px;background:#e8835f}
+.c{background:#232120;border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:12px 14px;margin-top:10px}
+.ex{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ex b{font-size:15px;font-weight:800}.ex small{display:block;font-size:12px;color:#a0a0a0;margin-top:2px}
+.bar{display:flex;gap:7px;margin-top:10px}
+.bx{flex:1;height:42px;border-radius:12px;background:rgba(255,255,255,.05);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+.bx i{font-style:normal;font-size:8.5px;letter-spacing:1px;color:#a0a0a0;font-weight:800}
+.pill{display:flex;align-items:center;justify-content:center;gap:7px;height:44px;border-radius:999px;background:linear-gradient(135deg,#ffb59e,#D97757);color:#1a1210;font-size:14.5px;font-weight:800}
+.ghost{display:flex;align-items:center;justify-content:center;gap:7px;height:44px;border-radius:999px;border:1px solid rgba(255,181,158,.35);color:#ffb59e;font-size:14.5px;font-weight:800}
+.foot{position:absolute;left:16px;right:16px;bottom:26px}
+.sm{display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px;border-radius:18px;background:#232120;border:1px solid rgba(255,181,158,.3)}
+.sm .tn{width:44px;height:44px;border-radius:22px;background:rgba(255,181,158,.12);display:flex;align-items:center;justify-content:center;color:#ffb59e;font-size:22px}
+.sm b{font-family:Georgia,serif;font-style:italic;font-size:20px}.sm small{display:block;font-size:12px;color:#a0a0a0}
+.done{display:flex;gap:7px}.done div{width:64px;height:84px;border-radius:12px;background-size:cover;background-position:center}
+.mini{display:flex;align-items:center;gap:8px;margin:0 16px;padding:9px 14px;border-radius:999px;background:#2d2a28;border:1px solid rgba(255,181,158,.3);font-size:13px;font-weight:700}
+.hint{color:rgba(255,255,255,.35);text-align:center;padding-top:190px;font-size:13px;line-height:20px}
+</style></head><body><div class="row"><div class="col"><div class="tag">1 · Start</div><div class="desc">The Add an activity pop-up gains a Start row above the four tiles. A saved routine can also start with its lifts filled in.</div><div class="phone"><div style="position:absolute;inset:0;background:rgba(0,0,0,.72)"></div><div class="sheet"><div class="grab"></div><div class="ki">LOG</div><div class="ttl">Add an activity</div>
+<div class="start"><span class="mi ic">timer</span><div style="flex:1"><b>Start activity</b><i>Timer runs. Add lifts as you go.</i></div><span class="mi" style="font-size:24px">play_arrow</span></div>
+<div class="tiles"><div class="tile"><span class="mi ic">photo_camera</span><b>Take photo</b><span class="u">Use the camera</span></div><div class="tile"><span class="mi ic">upload</span><b>Upload</b><span class="u">One day or several</span></div></div>
+<div class="tiles"><div class="tile"><span class="mi ic">edit</span><b>Manual entry</b><span class="u">Type in the details</span></div><div class="tile"><span class="mi ic">replay</span><b>Saved activities</b><span class="u">Monday gym</span></div></div>
+<div class="note">Details are read automatically. Review before saving.</div></div></div></div><div class="col"><div class="tag">2 · Live</div><div class="desc">The timer, last time's numbers and one tap per set. Snap the moment stays at the top until a photo is added.</div><div class="phone"><div class="scr"><div class="live"><div class="ki lk"><span class="dot"></span>Weight training</div><div class="time">32:14</div></div>
+<div class="sm"><div class="mi tn">add_a_photo</div><div style="flex:1"><b>Snap the moment.</b><small>Between sets, while it is happening.</small></div><span class="mi" style="font-size:20px;color:rgba(255,255,255,.4)">chevron_right</span></div>
+<div class="c"><div class="ex"><div><b>Back Squat</b><small>Last time 3 × 8 at 80 kg</small></div><div class="ghost" style="height:36px;padding:0 13px;font-size:13px"><span class="mi" style="font-size:15px">check</span>Set done</div></div><div class="bar"><div class="bx">3<i>SETS</i></div><div class="bx">8<i>REPS</i></div><div class="bx">85<i>KG</i></div></div></div><div class="c"><div class="ex"><div><b>Bench Press</b><small>Last time 3 × 8 at 60 kg</small></div><div class="ghost" style="height:36px;padding:0 13px;font-size:13px"><span class="mi" style="font-size:15px">check</span>Set done</div></div><div class="bar"><div class="bx">2<i>SETS</i></div><div class="bx">8<i>REPS</i></div><div class="bx">60<i>KG</i></div></div></div>
+<div class="ghost" style="margin-top:12px"><span class="mi" style="font-size:17px">add</span>Add exercise</div></div>
+<div class="foot"><div class="pill">Finish</div></div></div></div><div class="col"><div class="tag">3 · Leaving the screen</div><div class="desc">A small bar keeps the timer in view on other pages. Tap it to return to the activity.</div><div class="phone"><div class="status"><span>7:32</span><span>88</span></div><div class="nav"><span class="logo">RIVAL</span><span style="display:flex;gap:14px;align-items:center"><span class="mi" style="font-size:24px;color:#ffb59e">notifications_none</span><span class="av"></span></span></div>
+<div style="padding:12px 0"><div class="mini"><span class="dot"></span><span style="flex:1">Weight training</span><span style="font-family:Georgia,serif;font-style:italic;font-size:17px">32:14</span><span class="mi" style="font-size:18px;color:rgba(255,255,255,.4)">chevron_right</span></div></div>
+<div class="hint">The rest of the app works as normal.<br>The timer keeps its time if the phone locks<br>or the app closes.</div></div></div><div class="col"><div class="tag">4 · Finish</div><div class="desc">A short summary, then the normal review screen, then back to where they started.</div><div class="phone"><div style="position:absolute;inset:0;background:rgba(0,0,0,.72)"></div><div class="sheet"><div class="grab"></div><div class="ki">Weight training</div><div class="ttl">58:12</div>
+<div class="bar" style="margin-top:14px"><div class="bx" style="height:58px">4<i>EXERCISES</i></div><div class="bx" style="height:58px">14<i>SETS</i></div><div class="bx" style="height:58px">1<i>PHOTO</i></div></div>
+<div class="done" style="margin-top:14px"><div style="background-image:url(../assets/images/backgrounds/optimized/handstand-crossfit-box.jpg)"></div><div class="mi" style="border:1.5px dashed rgba(255,181,158,.4);display:flex;align-items:center;justify-content:center;color:#ffb59e;font-size:22px">add_a_photo</div></div>
+<div class="note" style="text-align:left">Effort is worked out on the next screen, as with any activity.</div>
+<div class="pill" style="margin-top:16px">Review and save</div><div style="text-align:center;font-size:13.5px;font-weight:700;color:#ffb59e;margin-top:14px">Keep going</div></div></div></div></div></body></html>

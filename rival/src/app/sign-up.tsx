@@ -71,8 +71,8 @@ export default function SignUpScreen() {
       return;
     }
 
-    // A new account starts on the introduction, not an empty Home.
-    router.replace('/getting-started?welcome=1');
+    // A new account picks its activities, then the introduction, not an empty Home.
+    router.replace('/choose-activities');
   }
 
   return (

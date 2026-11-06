@@ -1,27 +1,31 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { fetchAllActivities } from '../../lib/fetchAllActivities';
+import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
+import type { Celebration, CelebrationActivity } from '../../lib/celebration';
+import { loadCelebration } from '../../lib/celebrationLoad';
+import { CelebrationScreen } from './CelebrationScreen';
 import { saveArrangement } from '../../lib/activityMedia';
-import { milestoneWords, profileMilestones, type Milestone } from '../../lib/profilePage';
 import { RivalColors } from '../../constants/rivalTheme';
 import { MediaPicker, pickMediaFiles, type MediaItem } from './MediaPicker';
 import { GreyNote, GreyPrimary, GreySheet } from './RivalGreySheet';
 
-// After saving an activity with no photo: when it reached a milestone, offer
-// to add one, since that photo becomes the milestone's picture on the profile
-// (Ricky, 2026-10-31). Otherwise it simply finishes.
+// After saving an activity with no photo: when it set a personal best or
+// earned one of the year's achievements, celebrate it and offer to add a
+// photo, which becomes the achievement's tile (Ricky, 2026-10-31; yearly
+// achievements and PBs, full screen on phones, 2026-11-02). Otherwise it
+// simply finishes.
 export function MilestonePhotoPrompt({ activityId, userId, onDone }: { activityId: string; userId: string; onDone: () => void }) {
-  const [hit, setHit] = useState<Milestone | null>(null);
+  const [hit, setHit] = useState<{ c: Celebration; activity: CelebrationActivity } | null>(null);
+  const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
   const [picked, setPicked] = useState<{ items: MediaItem[]; notice?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
-    fetchAllActivities(userId, 'id, activity_type, started_at, duration_seconds, distance_meters, elevation_meters, effort_score')
-      .then((rows) => {
+    loadCelebration(userId, activityId)
+      .then((found) => {
         if (!live) return;
-        const found = profileMilestones(rows).earned.find((m) => m.activity.id === activityId);
         if (found) setHit(found); else onDone();
       })
       .catch(() => { if (live) onDone(); });
@@ -46,12 +50,28 @@ export function MilestonePhotoPrompt({ activityId, userId, onDone }: { activityI
   }
 
   if (!hit) return null;
+  const picker = picked ? (
+    <MediaPicker
+      initial={picked.items}
+      initialNotice={picked.notice}
+      title="Photos and videos"
+      onCancel={() => setPicked(null)}
+      onDone={save}
+    />
+  ) : null;
+  if (phone) {
+    return (
+      <CelebrationScreen celebration={hit.c} activity={hit.activity} busy={saving} error={error} onAddPhoto={choose} onClose={onDone}>
+        {picker}
+      </CelebrationScreen>
+    );
+  }
   return (
     <View style={s.dim}>
       <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onDone} accessibilityLabel="Not now" />
       <GreySheet
-        kicker="Milestone"
-        title={`${hit.target.toLocaleString()} ${milestoneWords(hit.kind)}`}
+        kicker={hit.c.kicker}
+        title={hit.c.title.replace(/\.$/, '')}
         onClose={onDone}
         footer={(
           <View style={{ gap: 10 }}>
@@ -60,18 +80,13 @@ export function MilestonePhotoPrompt({ activityId, userId, onDone }: { activityI
           </View>
         )}
       >
-        <GreyNote>Add a photo to remember this achievement.</GreyNote>
+        <GreyNote>
+          {hit.c.also.length ? `Also earned: ${hit.c.also.join(', ')}. ` : ''}
+          Add a photo to remember it.
+        </GreyNote>
         {error ? <Text style={s.error}>{error}</Text> : null}
       </GreySheet>
-      {picked ? (
-        <MediaPicker
-          initial={picked.items}
-          initialNotice={picked.notice}
-          title="Photos and videos"
-          onCancel={() => setPicked(null)}
-          onDone={save}
-        />
-      ) : null}
+      {picker}
     </View>
   );
 }

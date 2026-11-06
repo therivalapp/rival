@@ -23,7 +23,7 @@ const IDEAS: { icon: RivalIconName; title: string; body: string }[] = [
   {
     icon: 'bolt',
     title: 'Every activity earns Effort',
-    body: 'Distance sports score mostly on distance, everything else on time, with credit for climbing. Weights, a swim and a long run all count.',
+    body: 'Distance sports score mostly on distance, everything else on time, with credit for elevation. Weights, a swim and a long run all count.',
   },
   {
     icon: 'groups',

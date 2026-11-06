@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Modal } from './RivalModal';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { RivalButtonColors } from '../../constants/rivalTheme';
 import { ConfirmOptions, setAlertListener, setConfirmListener } from '../../lib/alertBus';

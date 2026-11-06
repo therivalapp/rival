@@ -15,6 +15,7 @@ import { RivalColors } from '@/constants/rivalTheme';
 
 const THRESHOLD = 64;     // px of pull needed to commit to a refresh
 const MAX_PULL = 96;      // px the indicator can travel
+const DECIDE_PX = 10;     // movement before a gesture counts as a pull or a swipe
 const RESISTANCE = 0.5;   // drag feels weighted rather than 1:1 with the finger
 
 export function usePullToRefresh(onRefresh: () => void | Promise<void>) {
@@ -41,6 +42,8 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>) {
     if (Platform.OS !== 'web' || !node) return;
 
     let startY = 0;
+    let startX = 0;
+    let decided = false;
     let tracking = false;
     // Tracked here rather than read back from state at touchend: setPull only
     // reaches a ref on the next render, so a quick flick released right at the
@@ -52,6 +55,8 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>) {
       // belongs to the scroller, and stealing it would break normal scrolling.
       if (refreshingRef.current || node.scrollTop > 0 || e.touches.length !== 1) return;
       startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      decided = false;
       distance = 0;
       tracking = true;
     };
@@ -59,6 +64,15 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>) {
     const onTouchMove = (e: TouchEvent) => {
       if (!tracking) return;
       const delta = e.touches[0].clientY - startY;
+      // A sideways swipe (the Today team cards) is never a pull: once the
+      // finger has moved a little, whichever way is greater decides
+      // (Ricky, 2026-11-02).
+      if (!decided) {
+        const across = Math.abs(e.touches[0].clientX - startX);
+        if (across < DECIDE_PX && Math.abs(delta) < DECIDE_PX) return;
+        decided = true;
+        if (across > Math.abs(delta)) { tracking = false; distance = 0; return; }
+      }
       if (delta <= 0) {
         // Pulling back up: hand the gesture back rather than fighting it.
         tracking = false;

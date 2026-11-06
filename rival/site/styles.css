@@ -1,0 +1,44 @@
+/* therivalapp.com: the RIVAL look from the app (rival/AGENTS.md Design
+   parameters): neutral grey ground, ghost cards, serif italic titles, small
+   spaced caps in salmon, one gradient pill. */
+:root{--ground:#1b1a19;--card:rgba(255,209,190,.05);--line:rgba(255,181,158,.22);--ink:#fff;--soft:#a0a0a0;--salmon:#ffb59e;--ivory:#f4ead8;--coral:#D97757}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}
+a{color:var(--salmon);text-decoration:none}a:hover{text-decoration:underline}
+.serif{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:700}
+.kick{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--salmon)}
+.wrap{max-width:760px;margin:0 auto;padding:0 22px}
+header.top{position:absolute;top:0;left:0;right:0;z-index:2}
+header.top .wrap,footer .wrap{display:flex;align-items:center;justify-content:space-between}
+header.top .wrap{height:64px}
+.mark{font-size:15px;font-weight:800;letter-spacing:5px;color:var(--salmon)}
+nav a{color:rgba(255,255,255,.8);font-size:14px;font-weight:600;margin-left:20px}
+.hero{position:relative;min-height:88vh;display:flex;align-items:flex-end;background:url(img/hero.jpg) center 45%/cover}
+.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--ground) 0%,var(--ground) 5%,rgba(27,26,25,.75) 32%,rgba(27,26,25,.1) 70%,rgba(27,26,25,.45))}
+.hero .wrap{position:relative;z-index:1;padding-bottom:48px;width:100%}
+h1{font-size:clamp(40px,9vw,68px);line-height:1.02;margin:10px 0 14px}
+.lead{font-size:18px;color:rgba(255,255,255,.82);max-width:520px;margin:0 0 26px}
+.pill{display:inline-block;padding:15px 26px;border-radius:999px;background:linear-gradient(90deg,var(--coral),var(--salmon));color:#2a1710;font-weight:800;font-size:15px}
+.pill:hover{text-decoration:none}
+.note{font-size:13px;color:var(--soft);margin-top:12px}
+section{padding:56px 0 8px}
+h2{font-size:30px;margin:8px 0 18px}
+.cards{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.cards{grid-template-columns:1fr 1fr}}
+.card{border:1px solid var(--line);background:var(--card);border-radius:18px;padding:18px}
+.card h3{font-size:19px;margin:0 0 6px}
+.card p{margin:0;color:var(--soft);font-size:14.5px}
+.plain p{color:rgba(255,255,255,.82);font-size:16px;margin:0 0 14px}
+footer{margin-top:64px;border-top:1px solid rgba(255,255,255,.08);padding:26px 0 40px;color:var(--soft);font-size:13px}
+footer a{margin-left:18px}
+/* Privacy policy */
+.doc{padding-top:96px}
+.doc h1{font-size:clamp(34px,7vw,48px)}
+.doc .date{color:var(--soft);font-size:14px;margin:0 0 28px}
+.doc h2{font-size:23px;margin:34px 0 10px}
+.doc p,.doc li{color:rgba(255,255,255,.85);font-size:15.5px}
+.doc ul{padding-left:20px}
+.doc li{margin-bottom:8px}
+.doc strong{color:#fff}
+@media(max-width:640px){footer .wrap{flex-direction:column;align-items:flex-start;gap:10px}footer a{margin:0 18px 0 0}}

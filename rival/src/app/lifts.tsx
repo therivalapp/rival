@@ -1,7 +1,8 @@
 import { useSnapState } from '../lib/snapState';
 import { LB_PER_KG, toDisplayWeight, weightUnit } from '../lib/units';
 import { useState, useEffect, useCallback } from 'react';
-import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Modal, ImageBackground, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, ImageBackground, useWindowDimensions } from 'react-native';
+import { Modal } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
@@ -591,7 +592,7 @@ export default function LiftsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: RivalColors.surfaceLow },
+  container: { flex: 1, backgroundColor: RivalColors.pageGround },
   safe: { flex: 1 },
   // Bias the crop toward the lifter (right of frame) so she stays centred at
   // any width — objectPosition is resolution-independent, so this holds on a

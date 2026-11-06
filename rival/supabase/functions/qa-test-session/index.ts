@@ -49,10 +49,18 @@ serve(async (req) => {
     }
     if (!userId) throw new Error('Could not find or create QA test user')
 
-    // Reuse a real existing race row (read-only reference — never mutates
-    // `races`) so the race-linked test activity has a valid FK.
-    const { data: races } = await admin.from('races').select('id').limit(1)
-    const raceId = races?.[0]?.id ?? null
+    // The race-linked sample run belongs to the QA account's own test event,
+    // never someone else's (2026-11-05: it had been picking the first event in
+    // the database, which was a real member's).
+    const TEST_RACE = 'City 10K (test)'
+    let { data: own } = await admin.from('races').select('id').eq('user_id', userId).eq('name', TEST_RACE).limit(1)
+    if (!own?.length) {
+      const day = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      ;({ data: own } = await admin.from('races').insert({
+        user_id: userId, name: TEST_RACE, race_type: 'Run', distance_km: 10, race_date: day, is_public: false,
+      }).select('id'))
+    }
+    const raceId = own?.[0]?.id ?? null
 
     // Reseed: wipe this user's old test activities, insert a fresh known set.
     await admin.from('activities').delete().eq('user_id', userId)
