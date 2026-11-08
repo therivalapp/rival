@@ -22,7 +22,6 @@ import { TrainingPartners } from './TrainingPartners';
 import { BusyText } from './BusyText';
 import { EffortBreakdownSheet } from './EffortBreakdownSheet';
 import { DetailsBody, detailsSummary, hasDetails, useActivityDetails } from './ActivityDetails';
-import { RecordingsSheet, useRecordingCount } from './RecordingsSheet';
 import { STACKED_BESTS, fastestRest, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
 import { useSheetDrag } from './useSheetDrag';
 import { composeStampOnPhoto, makeShareCard, shareCardFile, type ShareBest, type ShareFigure, type StampPlacement } from '../../lib/shareCard';
@@ -195,8 +194,6 @@ export function ActivityDiaryViewer({
   const details = useActivityDetails(wide ? null : activity?.id);
   const match = usePageMatch(wide ? '' : activity?.id ?? '', activity?.activity_type ?? '', !!activity?.shared_from_activity_id);
   // Recorded on a phone and a watch: a line to choose the recording shown.
-  const recordingCount = useRecordingCount(wide ? null : activity?.id, details?.provider);
-  const [recordingsOpen, setRecordingsOpen] = useState(false);
   useEffect(() => { setDetailsOpen(false); }, [activity?.id]);
 
   // Drag-down-to-dismiss, like a native modal sheet — only claimed from the
@@ -1158,7 +1155,7 @@ export function ActivityDiaryViewer({
                     value={notes}
                     onChangeText={(v) => edit('notes', v)}
                     onContentSizeChange={(e) => setJournalHeight(Math.max(26, e.nativeEvent.contentSize.height))}
-                    placeholder="How did it go?"
+                    placeholder="Share your effort. You could be inspiring someone."
                     placeholderTextColor="#fff"
                     multiline
                   />
@@ -1178,7 +1175,7 @@ export function ActivityDiaryViewer({
 
               {/* The finer details, folded: one quiet line until opened
                   (Ricky, 2026-10-14). */}
-              {hasDetails(details) || (recordingCount > 1 && !viewOnly) ? (
+              {hasDetails(details) ? (
                 <View style={styles.finerCard}>
                   {hasDetails(details) ? (<>
                   <TouchableOpacity style={styles.detailsHead} onPress={() => setDetailsOpen((v) => !v)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }}>
@@ -1188,32 +1185,13 @@ export function ActivityDiaryViewer({
                   {detailsOpen ? (
                     <View style={styles.detailsOpenBody}>
                       <DetailsBody details={details!} bests={activity.fastest} />
-                      {details!.provider === 'strava' ? <Text style={styles.detailsAttribution}>Powered by Strava</Text> : null}
                     </View>
                   ) : detailsSummary(details) ? (
                     <Text style={styles.detailsSummary} numberOfLines={1}>{detailsSummary(details)}</Text>
                   ) : null}
                   </>) : null}
-                  {recordingCount > 1 && !viewOnly ? (
-                    <TouchableOpacity style={[styles.devicesRow, hasDetails(details) && styles.devicesRowRule]} onPress={() => setRecordingsOpen(true)} activeOpacity={0.8} accessibilityRole="button">
-                      <RivalIcon name="watch" size={15} color={RivalColors.accentText} />
-                      <Text style={styles.devicesText}>Recorded on {recordingCount} devices</Text>
-                      <Text style={styles.devicesAction}>Switch</Text>
-                      <RivalIcon name="chevronRight" size={16} color={RivalColors.accentText} />
-                    </TouchableOpacity>
-                  ) : null}
                 </View>
               ) : null}
-              <RecordingsSheet
-                activityId={recordingsOpen ? activity.id : null}
-                activityType={activity.activity_type}
-                title={activity.name || activityDisplayName(activity.activity_type)}
-                onClose={() => setRecordingsOpen(false)}
-                onSwitched={async () => {
-                  const { data } = await supabase.from('activities').select('name, duration_seconds, distance_meters, elevation_meters, effort_score').eq('id', activity.id).maybeSingle();
-                  if (data) onUpdate(activity.id, data as Partial<DiaryActivity>);
-                }}
-              />
 
               <View style={viewOnly && !location ? undefined : styles.detailsCard}>{whoAndWhere}</View>
             </>

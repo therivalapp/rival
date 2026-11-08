@@ -26,7 +26,7 @@ import { SavedActivityNote } from '../components/rival/SavedActivityNote';
 import { requestPromptCheck } from '../lib/photoPrompt';
 
 // Screens that make sense without an account.
-const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/strava-callback', '/confirm-delete']);
+const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/confirm-delete']);
 
 // Scrolls the nearest scrolling box so the focused field sits just above
 // the keyboard, where the thumbs are (Ricky, 2026-10-24). Web only.
@@ -80,50 +80,6 @@ export default function RootLayout() {
     });
     return () => { cancelled = true; };
   }, [pathname]);
-
-  // Pull fresh Strava activity on every app open/foreground, not just when
-  // someone remembers to tap "Sync now" in Settings — that manual button
-  // was previously the ONLY thing that ever called strava-backfill. Silent
-  // (no notify() calls) since this is a background refresh, not a
-  // user-initiated action; the webhook is the "real" real-time path when
-  // it's firing, this is the guaranteed fallback regardless of its status.
-  useEffect(() => {
-    let lastSyncAt = 0;
-    const MIN_INTERVAL_MS = 3 * 60 * 1000; // guards against rapid foreground/background flapping
-
-    async function autoSyncStrava() {
-      const now = Date.now();
-      if (now - lastSyncAt < MIN_INTERVAL_MS) return;
-      lastSyncAt = now;
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const { data: conn } = await supabase
-        .from('fitness_connections')
-        .select('user_id')
-        .eq('user_id', session.user.id)
-        .eq('provider', 'strava')
-        .maybeSingle();
-      if (!conn) return;
-
-      fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/strava-backfill`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-        },
-      }).then((r) => { if (r.ok) { invalidateActivityCache(); requestPromptCheck(); } }).catch(() => {});
-    }
-
-    // A few seconds after opening, not during: the sync is a background
-    // refresh, and the screen's own data should get the connection first.
-    const first = setTimeout(autoSyncStrava, 4000);
-    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') autoSyncStrava();
-    });
-    return () => { clearTimeout(first); sub.remove(); };
-  }, []);
 
   // iOS standalone (home-screen) web apps report two different heights, and
   // which one is bigger is the opposite of what this clamp originally

@@ -32,6 +32,7 @@ import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, Activit
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
 import { RUN_TYPES, fastestBests, fastestTitle, pbStoodText, type FastestBest } from '../../lib/bestEfforts';
 import { activityDisplayName } from '../../lib/yearReview';
+import { showFinish } from '../../lib/time';
 import { MonthBests, type MonthBest } from '../../components/rival/MonthBests';
 import { activityTypeLabel } from '../../components/rival/EffortBreakdownSheet';
 import { selectAll } from '../../lib/selectAll';
@@ -256,7 +257,10 @@ function computeMonthGroups(activities: Activity[]): MonthGroup[] {
 const TIME_OF_DAY_PREFIX = /^(morning|afternoon|evening|night)\s+/i;
 function cardDisplayName(name: string | null | undefined, activityType: string) {
   const raw = name || activityType;
-  return raw.replace(TIME_OF_DAY_PREFIX, '') || activityType;
+  const rest = raw.replace(TIME_OF_DAY_PREFIX, '');
+  // "Morning run" left just "run" (2026-11-08): what's left starts with a
+  // capital, like any other title.
+  return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : activityType;
 }
 
 function getMondayStart(date: Date) {
@@ -544,9 +548,16 @@ export default function MyActivitiesScreen() {
 
   // Bumped on every visit; keys the week's Effort so it counts up each time.
   const [journalVisit, setJournalVisit] = useState(0);
+  // Today builds this tab in the background (home.tsx, preload); it loads
+  // its data then too, so the first visit opens filled in. A visit within a
+  // few seconds of that load doesn't load it all again.
+  const lastLoadAt = useRef(0);
+  useEffect(() => { lastLoadAt.current = Date.now(); loadActivities(); }, []);
   useFocusEffect(useCallback(() => {
     // Only arriving from another tab: closing a page over Activity leaves it as it was.
     if (arrivedFromTab('/my-activities')) setJournalVisit((v) => v + 1);
+    if (Date.now() - lastLoadAt.current < 5000) return;
+    lastLoadAt.current = Date.now();
     loadActivities();
   }, []));
 
@@ -1072,7 +1083,9 @@ export default function MyActivitiesScreen() {
           <View style={{ flex: 1 }}>
             {/* Phones: the distance leads and the title steps back, the
                 two styles swapped (Ricky, 2026-10-11). */}
-            <Text style={wide ? styles.jCardName : [styles.jCardStat, { marginTop: 0, color: RivalColors.accentText }]} numberOfLines={1}>{cardDisplayName(activity.name, activity.activity_type)}</Text>
+            {/* Two lines on a phone tile, which is narrow beside Effort: one
+                line cut "Saturday long run" off (Ricky, 2026-11-08). */}
+            <Text style={wide ? styles.jCardName : [styles.jCardStat, { marginTop: 0, color: RivalColors.accentText }]} numberOfLines={wide ? 1 : 2}>{cardDisplayName(activity.name, activity.activity_type)}</Text>
             {!!cardStat && <Text style={wide ? styles.jCardStat : [styles.jCardName, { marginTop: 2 }]}>{cardStat}</Text>}
           </View>
           <View style={styles.jCardEffort}>
@@ -1763,7 +1776,7 @@ export default function MyActivitiesScreen() {
     const dayName = (i: number) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i];
     const effort = Math.round(legs.reduce((t, a) => t + (Number(a.effort_score) || 0), 0) * 10) / 10;
     const seconds = legs.reduce((t, a) => t + (a.duration_seconds || 0), 0);
-    const result = !multiDay && race.actual_finish_time ? race.actual_finish_time
+    const result = !multiDay && race.actual_finish_time ? showFinish(race.actual_finish_time)
       : multiDay ? `${legs.length} ${legs.length === 1 ? 'activity' : 'activities'}`
       : formatDurationClock(seconds);
     const shownLegs = legs.slice(0, 3);

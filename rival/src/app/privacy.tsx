@@ -10,8 +10,8 @@ import { goToTab } from '../lib/tabNav';
 // with teams. Same text as PRIVACY_POLICY.md; change both together.
 
 // Set both when the policy is published (BETA_PLAN.md).
-const CONTACT = 'getrivalapp@gmail.com';
-const UPDATED: string | null = '6 November 2026';
+const CONTACT = 'hello@therivalapp.com';
+const UPDATED: string | null = '8 November 2026';
 
 type Section = { title: string; paras: (string | { b: string; t: string })[]; bullets?: string[] };
 
@@ -20,7 +20,7 @@ const SECTIONS: Section[] = [
     title: 'What RIVAL collects',
     paras: [
       { b: 'Account.', t: 'Email address, display name, optional username, profile photo, cover photo and personal quote.' },
-      { b: 'Activities.', t: 'Each activity you add: type, date and time, duration, distance, elevation, exercises, sets and weights, notes, Effort, personal bests, goals, events and finish times. Activities come from manual entry, workout scanning, archive import and, on iPhone, Apple Health and RIVAL’s own GPS recording.' },
+      { b: 'Activities.', t: 'Each activity you add: type, date and time, duration, distance, elevation, exercises, sets and weights, notes, Effort, personal bests, goals, events and finish times. Activities come from manual entry, workout scanning, archive import and RIVAL’s own GPS recording, and, once available, Apple Health on iPhone and Garmin.' },
       { b: 'Routes.', t: 'When an activity has a GPS route, RIVAL stores a simplified outline of it. Teammates see route maps only if you turn on route sharing.' },
       { b: 'Photos and videos.', t: 'Files you attach to activities, set as a cover, or upload for workout scanning.' },
       { b: 'Team activity.', t: 'Messages, comments, reactions (Respect and Inspired), notes, challenges and planned activities you post in your teams, and who invited you to a team.' },
@@ -31,7 +31,7 @@ const SECTIONS: Section[] = [
   },
   {
     title: 'Apple Health',
-    paras: ['On iPhone, you can let RIVAL read your workouts from Apple Health. RIVAL reads workout type, time, duration, distance, elevation, energy and route, and only after you allow it in the Health permission screen. Health data is used only to record your activities, score Effort and show them to your teams. It is never used for advertising or marketing, never sold, never given to data brokers, and never stored in iCloud. RIVAL does not write anything to Apple Health. You can turn access off at any time in the iPhone’s Settings.'],
+    paras: ['This applies once RIVAL’s iPhone app is available. On iPhone, you can let RIVAL read your workouts from Apple Health. RIVAL reads workout type, time, duration, distance, elevation, energy and route, and only after you allow it in the Health permission screen. Health data is used only to record your activities, score Effort and show them to your teams. It is never used for advertising or marketing, never sold, never given to data brokers, and never stored in iCloud. RIVAL does not write anything to Apple Health. You can turn access off at any time in the iPhone’s Settings.'],
   },
   {
     title: 'GPS recording',
@@ -40,15 +40,14 @@ const SECTIONS: Section[] = [
   {
     title: 'Garmin Connect',
     paras: [
-      'If you connect a Garmin account, RIVAL receives the activities your Garmin device records: activity type, start time, duration, distance, elevation, heart rate, pace and splits, route, and the exercises, sets, repetitions and weights of strength activities. RIVAL does not request sleep, stress, steps or other wellness data.',
+      'This applies once Garmin connection is available. If you connect a Garmin account, RIVAL receives the activities your Garmin device records: activity type, start time, duration, distance, elevation, heart rate, pace and splits, route, and the exercises, sets, repetitions and weights of strength activities. RIVAL does not request sleep, stress, steps or other wellness data.',
       'Garmin data is used only to record your activities, score Effort and show them to the teams you choose. Activities from Garmin are marked with the device that recorded them. RIVAL never sells Garmin data, never uses it for advertising and never shares it with anyone other than the service providers that run RIVAL. Disconnecting Garmin stops new activities arriving, and deleting your account deletes the Garmin data RIVAL holds.',
     ],
   },
   {
     title: 'Imports from other apps',
     paras: [
-      'You can import your history from a Strava or RIVAL archive file. The import reads the activities, routes, photos and videos in the file you choose. Nothing else on your device is read.',
-      'RIVAL no longer connects to Strava. Data that earlier reached RIVAL through Strava’s connection will be deleted within 30 days of that connection ending, as Strava’s terms require. Activities you import from your own archive are kept.',
+      'You can import your history from an archive file, from RIVAL or another fitness app. The import reads the activities, routes, photos and videos in the file you choose. Nothing else on your device is read.',
     ],
   },
   {
@@ -57,7 +56,7 @@ const SECTIONS: Section[] = [
     bullets: [
       'Workout scanning sends the photo you choose, such as a whiteboard or gym screen, to read the workout details from it.',
       'Find events sends the event name you search for.',
-      'Team crests send the team’s name. The crest image is made by fal.ai.',
+      'Team crests send the team’s name. The crest image is made by fal.ai, and Anthropic reads its lettering back to check the name is spelled correctly.',
       'These providers process the content only to return the result. RIVAL does not send your activity history to them or use your content to train AI models. If a photo includes other people, make sure they are happy for it to be uploaded.',
     ],
   },
@@ -68,7 +67,7 @@ const SECTIONS: Section[] = [
       'Your teammates see your name, photos, activities, Effort, rank, profile, reactions, comments and messages in the teams you join. RIVAL asks for your agreement before your activities are shared with any team.',
       'Public teams show their name, crest and member count in Discover. Joining one needs a member or an admin to confirm.',
       'Images you share go wherever you send them.',
-      'Service providers run RIVAL on its behalf: Supabase (database, sign-in and file storage), Vercel (web hosting), Cloudflare (domain), Anthropic and fal.ai (the AI features above), Expo (push notifications) and Resend (account emails).',
+      'Service providers run RIVAL on its behalf: Supabase (database, sign-in and file storage), Vercel (web hosting), Cloudflare (domain and email forwarding), Anthropic and fal.ai (the AI features above), Expo (push notifications) and Resend (account emails).',
       'RIVAL never sells personal information and does not share it with anyone else except where the law requires.',
     ],
   },

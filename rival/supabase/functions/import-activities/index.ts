@@ -5,17 +5,12 @@ import { calculateEffortScore, loadScoringConfig } from '../_shared/effortScore.
 import { normaliseActivityType } from '../_shared/activityType.ts'
 import { saveActivityRoute } from '../_shared/activityRoute.ts'
 
-// Imports activities from an archive (Ricky, 2026-10-17): a Strava archive
+// Imports activities from an archive (Ricky, 2026-10-17): another app's export
 // (activities.csv) or a RIVAL archive, both read in the app and sent here in
-// small batches. Every item goes through the same matching as the Strava
-// sync (resolveCanonicalActivityId), so anything already in RIVAL is linked
-// rather than copied.
-//
-// Archive activities are RIVAL's own (Ricky, 2026-11-02). A Strava activity
-// read from an archive is recorded as 'strava_archive', never 'strava' (the
-// API), so when Strava's data is deleted (removeAllStravaData) the activity,
-// its reactions and its photos stay. One already here through the Strava
-// connection is matched by its Strava id and gains an archive source too.
+// small batches. Every item goes through the shared matching
+// (resolveCanonicalActivityId), so anything already in RIVAL is linked rather
+// than copied. RIVAL no longer connects to Strava (2026-11-08); an activity
+// from another app's export is recorded as 'strava_archive', RIVAL's own.
 //
 // `preview: true` only reports which items are new, without writing.
 
@@ -60,18 +55,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
-    // The same activity already here through the Strava connection, by its
-    // Strava id: through its source record, or the id on rows from before
-    // sources were recorded.
-    const viaStravaApi = async (it: Item): Promise<string | null> => {
-      if (it.provider !== 'strava_archive') return null
-      const { data: src } = await supabase.from('activity_sources').select('activity_id')
-        .eq('user_id', user.id).eq('provider', 'strava').eq('provider_activity_id', it.providerId).maybeSingle()
-      if (src?.activity_id) return src.activity_id
-      const { data: row } = await supabase.from('activities').select('id')
-        .eq('user_id', user.id).eq('provider', 'strava').eq('provider_activity_id', it.providerId).limit(1).maybeSingle()
-      return row?.id ?? null
-    }
 
     const body = await req.json().catch(() => ({}))
     const items: Item[] = Array.isArray(body?.items) ? body.items.slice(0, 50) : []
@@ -84,7 +67,7 @@ serve(async (req) => {
       for (const it of items) {
         const { data: src } = await supabase.from('activity_sources').select('activity_id')
           .eq('user_id', user.id).eq('provider', it.provider).eq('provider_activity_id', it.providerId).maybeSingle()
-        if (src || await viaStravaApi(it)) { results.push({ key: it.key, status: 'linked' }); continue }
+        if (src) { results.push({ key: it.key, status: 'linked' }); continue }
         const t = new Date(it.startedAt).getTime()
         const { data: near } = await supabase.from('activities').select('id')
           .eq('user_id', user.id)
@@ -101,16 +84,7 @@ serve(async (req) => {
     for (const it of items) {
       try {
         const type = normaliseActivityType(it.type)
-        // Whether the archive held a route, so the purge knows if the route
-        // stored on a matched activity is the archive's or Strava's.
         const payload = { imported_from: 'archive', route: !!it.polyline }
-        const existing = await viaStravaApi(it)
-        if (existing) {
-          await linkNewActivitySource(supabase, user.id, existing, it.provider, it.providerId, payload)
-          await saveActivityRoute(supabase, existing, user.id, it.polyline)
-          results.push({ key: it.key, status: 'linked' })
-          continue
-        }
         const resolved = await resolveCanonicalActivityId(supabase, {
           userId: user.id,
           provider: it.provider,

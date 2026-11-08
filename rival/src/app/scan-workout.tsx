@@ -1648,7 +1648,7 @@ export default function ScanWorkoutScreen() {
                     style={[st.nameInput, st.notesInput]}
                     value={userNotes}
                     onChangeText={setUserNotes}
-                    placeholder="How did it feel? Share your experience"
+                    placeholder="Share your effort. You could be inspiring someone."
                     placeholderTextColor={RivalColors.textSecondary}
                     multiline
                     numberOfLines={3}

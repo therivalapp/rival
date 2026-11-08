@@ -26,8 +26,6 @@ export default function AdminScreen() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
-  const [webhookStatus, setWebhookStatus] = useState<string | null>(null);
-  const [webhookBusy, setWebhookBusy] = useState(false);
 
   useEffect(() => {
     init();
@@ -119,45 +117,6 @@ export default function AdminScreen() {
     );
   }
 
-  // Strava only sends activity events while a push subscription is alive, and
-  // drops it silently if the callback ever stops answering — which is exactly
-  // what happened here (webhook-synced activities stop dead on 2026-08-04).
-  // Nothing in the app surfaced that, so it looked like Strava sync was just
-  // slow rather than off. This makes the state visible and repairable.
-  async function callSubscription(action: 'status' | 'create') {
-    setWebhookBusy(true);
-    setWebhookStatus(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/strava-subscription`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token ?? ''}`,
-          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-        },
-        body: JSON.stringify({ action }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setWebhookStatus(`Error: ${data.error ?? data.message ?? res.status}${data.detail ? ` — ${JSON.stringify(data.detail).slice(0, 160)}` : ''}`);
-      } else if (action === 'create') {
-        setWebhookStatus(`Connected. Strava will now push new activities as they happen.`);
-      } else if (data.subscribed) {
-        const cb = data.subscriptions?.[0]?.callback_url ?? '';
-        const matches = cb === data.expectedCallback;
-        setWebhookStatus(matches
-          ? `Live — Strava is pushing activities to RIVAL.`
-          : `Subscription points at the wrong URL (${cb}). Tap Reconnect.`);
-      } else {
-        setWebhookStatus('Not connected — Strava is not pushing activities. Tap Reconnect.');
-      }
-    } catch (e) {
-      setWebhookStatus(`Error: ${String(e)}`);
-    }
-    setWebhookBusy(false);
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -246,20 +205,6 @@ export default function AdminScreen() {
           selectable in manual entry and the scan screens too. Ask Claude to add it.
         </Text>
 
-        <Text style={styles.sectionTitle}>Strava Background Sync</Text>
-        <Text style={styles.webhookHelp}>
-          When this is live, activities land in RIVAL the moment they're posted to
-          Strava — no one has to open the app first.
-        </Text>
-        <View style={styles.webhookRow}>
-          <TouchableOpacity style={styles.webhookBtn} onPress={() => callSubscription('status')} disabled={webhookBusy}>
-            <BusyText busy={!!(webhookBusy)} style={styles.webhookBtnText}>{webhookBusy ? '…' : 'Check status'}</BusyText>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.webhookBtn, styles.webhookBtnPrimary]} onPress={() => callSubscription('create')} disabled={webhookBusy}>
-            <BusyText busy={!!(webhookBusy)} style={[styles.webhookBtnText, styles.webhookBtnPrimaryText]}>{webhookBusy ? '…' : 'Reconnect'}</BusyText>
-          </TouchableOpacity>
-        </View>
-        {webhookStatus && <Text style={styles.webhookStatus}>{webhookStatus}</Text>}
 
       </ScrollView>
     </SafeAreaView>

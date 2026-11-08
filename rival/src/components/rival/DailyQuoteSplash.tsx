@@ -26,7 +26,7 @@ const FADE_OUT_MS = 2000;
 
 // Pages the quote must never cover: mid-way through signing in, resetting a
 // password, or finishing the Strava connection.
-const SKIP_PATHS = ['/reset-password', '/strava-callback', '/sign-in', '/sign-up', '/getting-started'];
+const SKIP_PATHS = ['/reset-password', '/sign-in', '/sign-up', '/getting-started'];
 
 const CATEGORY_LABELS: Record<string, string> = {
   levelup: 'Level up',

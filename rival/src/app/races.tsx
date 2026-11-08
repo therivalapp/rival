@@ -1321,7 +1321,7 @@ export default function RacesScreen() {
                 <View style={styles.finishTimesBlock}>
                   <View style={styles.finishTimeRow}>
                     <Text style={styles.finishTimeLabel}>Finish time</Text>
-                    <Text style={styles.finishTimeValue}>{race.actual_finish_time}</Text>
+                    <Text style={styles.finishTimeValue}>{showFinish(race.actual_finish_time)}</Text>
                   </View>
                   {race.goal_finish_time && (
                     <View style={styles.finishTimeRow}>

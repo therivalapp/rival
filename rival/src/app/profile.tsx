@@ -8,15 +8,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
-import { runFullStravaImport } from '../lib/strava';
-import { loadStravaSharing, setShareRoutes, startStravaConnect, STRAVA_CONNECTIONS_OPEN } from '../lib/stravaSharing';
 import { ROUTE_MAPS_ENABLED } from '../lib/features';
 import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
 import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
 import { buildArchive } from '../lib/archive';
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
-import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, StravaImportReveal, RivalBackButton, invalidateNavIdentity } from '../components/rival';
+import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, invalidateNavIdentity } from '../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { sidePageWide, BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
@@ -102,39 +100,8 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState('');
   const [memberSince, setMemberSince] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [stravaConnected, setStravaConnected] = useState(false);
-  const [stravaAthleteName, setStravaAthleteName] = useState<string | null>(null);
-  const [shareRoutes, setShareRoutesState] = useState(false);
-  const [sharingAgreed, setSharingAgreed] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [importingHistory, setImportingHistory] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
-  const [importReveal, setImportReveal] = useState<{ seconds: number; effort: number; activities: number } | null>(null);
-
-  // The counter only ticks once per imported page, so between ticks nothing
-  // on screen moves and a long import reads as hung. A slow opacity breathe
-  // fills those gaps — deliberately a gentle pulse rather than a flash,
-  // which would read as an error/alert state.
-  const importPulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    if (!importingHistory) {
-      importPulse.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(importPulse, { toValue: 0.45, duration: 700, useNativeDriver: true }),
-        Animated.timing(importPulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [importingHistory, importPulse]);
-  const [syncing, setSyncing] = useState(false);
-  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
-  const [removeImported, setRemoveImported] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -170,9 +137,8 @@ export default function ProfileScreen() {
       setMemberSince(d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
     }
 
-    const [userRes, stravaRes, memberRes] = await Promise.all([
+    const [userRes, memberRes] = await Promise.all([
       supabase.from('users').select('display_name, is_admin, avatar_url, bio, quote_tone').eq('id', user.id).single(),
-      supabase.from('fitness_connections').select('athlete_firstname, athlete_lastname').eq('user_id', user.id).eq('provider', 'strava').maybeSingle(),
       supabase.from('league_members').select('league_id').eq('user_id', user.id).eq('status', 'active'),
     ]);
     const teamIds = (memberRes.data ?? []).map((m: any) => m.league_id);
@@ -192,14 +158,6 @@ export default function ProfileScreen() {
     setBio(userRes.data?.bio || '');
     setNewBio(userRes.data?.bio || '');
     setQuoteTone((userRes.data?.quote_tone as QuoteTone) || 'balanced');
-    setStravaConnected(!!stravaRes.data);
-    loadStravaSharing().then((sh) => {
-      setShareRoutesState(!!sh?.shareRoutes);
-      setSharingAgreed(!!sh?.agreedAt);
-    });
-    setStravaAthleteName(
-      stravaRes.data ? [stravaRes.data.athlete_firstname, stravaRes.data.athlete_lastname].filter(Boolean).join(' ') || null : null
-    );
 
     setLoading(false);
   }
@@ -249,16 +207,6 @@ export default function ProfileScreen() {
     setQuoteTone(tone);
     setQuotePreview(getQuote(tone).text);
     setSavingTone(false);
-  }
-
-  async function toggleShareRoutes(v: boolean) {
-    setPrefError(null);
-    setShareRoutesState(v);
-    const res = await setShareRoutes(v);
-    if (!res.ok) {
-      setShareRoutesState(!v);
-      setPrefError(res.error ?? 'The setting could not be saved. Try again.');
-    }
   }
 
   async function savePref(patch: Parameters<typeof updatePrefs>[0]) {
@@ -366,123 +314,6 @@ export default function ProfileScreen() {
       }
     };
     input.click();
-  }
-
-  async function disconnectStrava(wipeActivities: boolean) {
-    const { data: { user } } = await getAuthUser();
-    if (!user) return;
-    setDisconnecting(true);
-    if (wipeActivities) {
-      // Done server-side: activities also imported from the person's own
-      // archive stay, which the app can't tell apart (strava-disconnect).
-      const { data, error: wipeErr } = await supabase.functions.invoke('strava-disconnect');
-      invalidateActivityCache();
-      if (wipeErr || data?.error) {
-        notify("Couldn't finish disconnecting Strava", 'Some Strava data may still be here. Try again to remove the rest.');
-        setDisconnecting(false);
-        return;
-      }
-    } else {
-      // The connection row is the thing that actually keeps Strava linked. If this
-      // fails silently the UI shows "disconnected" while the sync keeps running.
-      const { error: connErr } = await supabase.from('fitness_connections').delete().eq('user_id', user.id).eq('provider', 'strava');
-      if (connErr) {
-        notify("Couldn't disconnect Strava", connErr.message);
-        setDisconnecting(false);
-        return;
-      }
-    }
-
-    if (wipeActivities) {
-      // Milestones are earned off total hours across all activities — if the
-      // Strava data being wiped was never legitimately yours (e.g. it landed
-      // here from an accidental cross-account connection), any badge it
-      // unlocked shouldn't survive the wipe either.
-      const HOUR_THRESHOLDS: Record<string, number> = { hours_100: 100, hours_500: 500, hours_1000: 1000, hours_5000: 5000 };
-      const [{ data: remaining }, { data: myMilestones }] = await Promise.all([
-        // Paged: a long history passes the 1,000-row limit.
-        selectAll((a, b) => supabase.from('activities').select('id, duration_seconds').eq('user_id', user.id).order('id').range(a, b))
-          .then((data) => ({ data, error: null })),
-        supabase.from('milestones').select('id, type').eq('user_id', user.id),
-      ]);
-      const remainingHours = (remaining || []).reduce((s, a) => s + (a.duration_seconds || 0), 0) / 3600;
-      const toRemove = (myMilestones || [])
-        .filter(m => (HOUR_THRESHOLDS[m.type] ?? 0) > remainingHours)
-        .map(m => m.id);
-      if (toRemove.length > 0) {
-        const { error: milestoneErr } = await supabase.from('milestones').delete().in('id', toRemove);
-        if (milestoneErr) notify("Couldn't update milestones", milestoneErr.message);
-      }
-    }
-
-    setStravaConnected(false);
-    setConfirmingDisconnect(false);
-    setDisconnecting(false);
-    loadProfile();
-  }
-
-  async function syncNow() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    setSyncing(true);
-    try {
-      const res = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/strava-backfill`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-        },
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        // `data.message` covers Supabase's own gateway errors (timeouts,
-        // resource limits), which use a different shape to our functions'
-        // `error` field — without it those surfaced as the generic line
-        // below and hid the real cause for several rounds of debugging.
-        notify('Sync failed', data.error || data.message || 'Could not sync with Strava. Try reconnecting Strava.');
-      } else if (!data.inserted) {
-        // `saved` counts every activity touched, including ones that already
-        // existed and just got their stats refreshed — data.inserted is the
-        // only true "new" count. Without this split, syncing an account with
-        // no new activity at all still said "Pulled in 30 new activities",
-        // which read as sync doing something it wasn't.
-        notify('Up to date', "You're already synced with Strava — nothing new to pull in.");
-      } else {
-        invalidateActivityCache();
-        notify('Synced', `${data.inserted} new activit${data.inserted === 1 ? 'y' : 'ies'} imported.`);
-      }
-    } catch {
-      notify('Sync failed', 'Could not reach the server. Check your connection and try again.');
-    } finally {
-      setSyncing(false);
-      // Fire-and-forget milestone check after every sync
-      supabase.auth.getSession().then(({ data: { session: s } }) => {
-        if (!s) return;
-        fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/check-milestones`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${s.access_token}`, 'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY! },
-        }).catch(() => {});
-      });
-    }
-  }
-
-  async function importFullHistory() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    setImportingHistory(true);
-    setImportProgress(0);
-    const result = await runFullStravaImport(session.access_token, (p) => setImportProgress(p.savedSoFar));
-    setImportingHistory(false);
-    if (!result.ok) {
-      notify('Import failed', result.error);
-      return;
-    }
-    // Same payoff screen the first-time Strava connect shows, rather than a
-    // plain "Import complete" alert — the point of the import is the time and
-    // Effort it just brought in, so show that instead of an activity count.
-    setImportReveal({ seconds: result.importedSeconds, effort: result.importedEffort, activities: result.saved });
-    loadProfile();
   }
 
   async function handleSignOut() {
@@ -705,130 +536,23 @@ export default function ProfileScreen() {
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
-      <Text style={styles.panelSub}>{stravaConnected || STRAVA_CONNECTIONS_OPEN ? 'Sync activities automatically from connected services.' : 'Bring past activities in from an archive file.'}</Text>
+      <Text style={styles.panelSub}>Bring past activities in from an archive file.</Text>
 
-      {(stravaConnected || STRAVA_CONNECTIONS_OPEN) && (
-      <View style={styles.appRow}>
-        <View style={styles.appRowLeft}>
-          <View style={styles.appDot} />
-          <View>
-            <Text style={styles.appName}>Strava</Text>
-            <Text style={styles.appStatus}>
-              {syncing
-                ? 'Syncing…'
-                : stravaConnected
-                  ? (stravaAthleteName ? `Connected · ${stravaAthleteName}` : 'Connected')
-                  : 'Not connected'}
-            </Text>
-          </View>
-        </View>
-        {stravaConnected
-          // The status line to the left already says "Connected · Name" — a
-          // second "Connected" pill repeating the same word read as clutter.
-          // A bare checkmark confirms the state without saying it twice.
-          ? <View style={styles.connectedCheck}><RivalIcon name="check" size={14} color={RivalColors.tertiary} /></View>
-          : <RivalButton label="Connect" onPress={() => startStravaConnect(loadProfile)} variant="secondary" style={styles.appConnectBtn} />}
-      </View>
-      )}
-
-      {/* A RIVAL or Strava archive file (Ricky, 2026-10-17). */}
+      {/* An archive file (Ricky, 2026-10-17). */}
       <TouchableOpacity style={styles.appRow} onPress={() => router.push('/import-archive')} activeOpacity={0.8}>
         <View style={styles.appRowLeft}>
           <RivalIcon name="upload" size={18} color={RivalColors.accentText} />
           <View>
             <Text style={styles.appName}>Import an archive</Text>
-            <Text style={styles.appStatus}>A RIVAL or Strava archive file</Text>
+            <Text style={styles.appStatus}>A .zip of past activities</Text>
           </View>
         </View>
         <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.35)" />
       </TouchableOpacity>
 
-      {stravaConnected && (
-        <>
-          {sharingAgreed
-            ? ROUTE_MAPS_ENABLED && switchRow('share-routes', 'Share route maps with teams', 'Teammates see the route of each Strava activity. A route can reveal where a person lives or trains.', shareRoutes, toggleShareRoutes)
-            : (
-              <RivalButton
-                label="Review Strava sharing"
-                onPress={() => router.push('/team-sharing')}
-                variant="secondary"
-                style={styles.actionBtn}
-              />
-            )}
-          {prefError && <Text style={styles.errorText}>{prefError}</Text>}
-          <RivalButton
-            busy={syncing}
-            label={syncing ? 'Syncing…' : 'Sync now'}
-            onPress={syncNow}
-            disabled={syncing}
-            variant="secondary"
-            style={styles.actionBtn}
-          />
-          <Animated.View style={{ opacity: importPulse }}>
-            <RivalButton
-              label={
-                importingHistory
-                  ? (importProgress > 0 ? `Importing… ${importProgress} activities` : 'Importing…')
-                  : 'Import full Strava history'
-              }
-              onPress={importFullHistory}
-              disabled={importingHistory}
-              variant="secondary"
-              style={styles.actionBtn}
-            />
-          </Animated.View>
-          {/* Phone: the choice opens as the grey pop-up. */}
-          {!wide ? (
-            <Modal visible={confirmingDisconnect} transparent animationType="slide" onRequestClose={() => setConfirmingDisconnect(false)}>
-              <View style={styles.mSheetBackdrop}>
-                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !disconnecting && setConfirmingDisconnect(false)} accessibilityLabel="Close" />
-                <GreySheet
-                  kicker="CONNECTED DEVICES"
-                  title="Disconnect Strava"
-                  onClose={() => setConfirmingDisconnect(false)}
-                  footer={<GreyPrimary label={disconnecting ? 'Disconnecting…' : removeImported ? 'Disconnect and remove' : 'Disconnect'} busy={disconnecting} disabled={disconnecting} onPress={() => disconnectStrava(removeImported)} />}
-                >
-                  <GreyNote>New activities stop syncing, and Strava cannot be connected again. Linked the wrong account? Remove its imported activities too.</GreyNote>
-                  <GreyLabel>Imported activities</GreyLabel>
-                  <GreyTiles
-                    columns={2}
-                    options={[
-                      { value: 'keep' as const, label: 'Keep them', icon: 'check' as const },
-                      { value: 'remove' as const, label: 'Remove them', icon: 'delete' as const },
-                    ]}
-                    value={removeImported ? 'remove' : 'keep'}
-                    onChange={(v) => setRemoveImported(v === 'remove')}
-                  />
-                </GreySheet>
-              </View>
-            </Modal>
-          ) : null}
-          {!confirmingDisconnect || !wide ? (
-            <RivalButton
-              label="Disconnect Strava"
-              onPress={() => { setRemoveImported(false); setConfirmingDisconnect(true); }}
-              variant="destructive"
-              style={styles.actionBtn}
-            />
-          ) : (
-            <RivalCard style={styles.disconnectConfirmCard}>
-              <Text style={styles.disconnectConfirmTitle}>Keep the imported activities?</Text>
-              <Text style={styles.disconnectConfirmSub}>
-                Strava cannot be connected again. Linked the wrong account? Remove its imported activities too, not just the connection.
-              </Text>
-              <RivalButton label={disconnecting ? '…' : 'Disconnect Only'} onPress={() => disconnectStrava(false)} disabled={disconnecting} variant="secondary" style={styles.disconnectConfirmBtn} />
-              <RivalButton label={disconnecting ? '…' : 'Disconnect & Remove'} onPress={() => disconnectStrava(true)} disabled={disconnecting} variant="destructive" style={[styles.disconnectConfirmBtn, styles.disconnectDestructiveBtn]} />
-              <TouchableOpacity onPress={() => setConfirmingDisconnect(false)} disabled={disconnecting} style={styles.disconnectCancelBtn}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-            </RivalCard>
-          )}
-        </>
-      )}
-
       <View style={styles.comingSoonRow}>
         <View style={styles.appRowLeft}>
-          <Text style={styles.appIcon}>⌚</Text>
+          <RivalIcon name="watch" size={18} color={RivalColors.accentText} />
           <View>
             <Text style={styles.appName}>Apple Health</Text>
             <Text style={styles.appStatus}>Connection coming soon</Text>
@@ -1015,7 +739,7 @@ export default function ProfileScreen() {
       </GreyRows>
       <GreyLabel>Connections</GreyLabel>
       <GreyRows>
-        <GreyRow icon="link" label="Connected devices" value={stravaConnected ? 'Strava' : 'None'} onPress={() => open('apps')} />
+        <GreyRow icon="link" label="Connected devices" value="None" onPress={() => open('apps')} />
         {/* The switch turns every notification on or off at once; the row
             itself opens the full list to choose them one by one. */}
         <GreyRow icon="notifications" label="Notifications" onPress={() => open('notifications')}>
@@ -1024,13 +748,6 @@ export default function ProfileScreen() {
             onChange={(v) => savePref({ notify: Object.fromEntries(Object.keys(prefs.notify).map((k) => [k, v])) as Record<NotifyKey, boolean> })}
           />
         </GreyRow>
-        {/* Route maps are switched off app-wide for now (ROUTE_MAPS_ENABLED);
-            the row appears with them. */}
-        {ROUTE_MAPS_ENABLED && stravaConnected && sharingAgreed && (
-          <GreyRow icon="distance" label="Share route maps">
-            <MenuSwitch value={shareRoutes} onChange={toggleShareRoutes} />
-          </GreyRow>
-        )}
       </GreyRows>
       {prefError ? <Text style={styles.mError}>{prefError}</Text> : null}
       <GreyLabel>More</GreyLabel>
@@ -1085,16 +802,6 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
 
-      {importReveal ? (
-        <View style={styles.revealOverlay}>
-          <StravaImportReveal
-            seconds={importReveal.seconds}
-            effort={importReveal.effort}
-            activities={importReveal.activities}
-            onDone={() => setImportReveal(null)}
-          />
-        </View>
-      ) : null}
     </SafeAreaView>
   );
 }

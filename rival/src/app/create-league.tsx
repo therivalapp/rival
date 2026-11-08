@@ -277,6 +277,10 @@ export default function CreateLeagueScreen() {
   // 3 candidates come back from one generation call; the admin picks one
   // before it's written to the league (see chooseCrest below).
   const [crestCandidates, setCrestCandidates] = useState<string[] | null>(null);
+  // While the three crests are drawn (about 10 s): three frames breathing
+  // where they will appear, instead of only the button's label (Ricky,
+  // 2026-11-06: "15 seconds is a long time").
+  const [generatingCrest, setGeneratingCrest] = useState(false);
   const [confirmingCrest, setConfirmingCrest] = useState(false);
 
   // Add-race: full parity with races.tsx's own Add Race form (same fields,
@@ -557,7 +561,9 @@ export default function CreateLeagueScreen() {
     }
 
     setLoadingLabel('Generating crest…');
+    setGeneratingCrest(true);
     const { data, error: genError } = await supabase.functions.invoke('generate-team-crest', { body: { leagueId: currentLeagueId } });
+    setGeneratingCrest(false);
     if (genError || data?.error) {
       setError(data?.error || genError?.message || 'Crest generation failed');
       setLoading(false);
@@ -583,6 +589,8 @@ export default function CreateLeagueScreen() {
     }
     setCrestCandidates(null);
     setRevealCrestUrl(url);
+    // The crests not picked are deleted; only the chosen one is kept.
+    supabase.functions.invoke('generate-team-crest', { body: { leagueId: leagueId, cleanup: true } }).catch(() => {});
   }
 
   function enterTeam() {
@@ -647,7 +655,22 @@ export default function CreateLeagueScreen() {
         {phone ? null : <RivalTopNav active="teams" />}
         <ScrollView contentContainerStyle={phone ? [rb.content, { paddingBottom: 120 }] : styles.content}>
           <View style={phone ? undefined : styles.panel}>
-            {crestCandidates ? (
+            {generatingCrest ? (
+              <View style={styles.revealBlock}>
+                <Text style={styles.revealEyebrow}>Designing crests</Text>
+                <Text style={styles.subtitle}>Three takes on {name.trim()}.</Text>
+                <View style={styles.crestPickRow}>
+                  {[0, 1, 2].map((i) => (
+                    <View
+                      key={i}
+                      style={[styles.crestPickFrame, styles.crestPending, Platform.OS === 'web' && ({ animationName: 'rivalSkelPulse', animationDuration: '1.4s', animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out', animationDelay: `${i * 0.2}s` } as any)]}
+                    >
+                      <RivalIcon name="groups" size={34} color="rgba(255,181,158,0.35)" />
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : crestCandidates ? (
               <View style={styles.revealBlock}>
                 <Text style={styles.revealEyebrow}>Choose a Crest</Text>
                 <Text style={styles.subtitle}>Three takes on {name.trim()} — choose the one that's your team.</Text>
@@ -1468,6 +1491,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   crestPickImg: { width: '100%', height: '100%' },
+  crestPending: { alignItems: 'center', justifyContent: 'center', borderColor: 'rgba(255,181,158,0.3)', backgroundColor: 'rgba(255,209,190,0.05)' },
 
   // RN Web's Modal portal renders with `position: absolute`, inheriting
   // whatever position it happens to land at in the DOM rather than covering
