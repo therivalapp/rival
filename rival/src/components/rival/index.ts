@@ -13,7 +13,6 @@ export { RivalDateField } from './RivalDateField';
 export { RivalTopNav, invalidateNavIdentity } from './RivalTopNav';
 export { RivalPageHeader } from './RivalPageHeader';
 export { RivalAlertHost } from './RivalAlertHost';
-export { StravaImportReveal } from './StravaImportReveal';
 export { RivalFixedBackground } from './RivalFixedBackground';
 export { ActivityDiaryViewer } from './ActivityDiaryViewer';
 export { PhotoPositioner } from './PhotoPositioner';

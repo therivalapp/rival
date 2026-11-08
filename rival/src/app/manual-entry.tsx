@@ -1002,7 +1002,7 @@ export default function ManualEntryScreen() {
         style={styles.notesInput}
         value={notes}
         onChangeText={setNotes}
-        placeholder="How did it feel? Share your experience"
+        placeholder="Share your effort. You could be inspiring someone."
         placeholderTextColor={RivalColors.textSecondary}
         multiline
         numberOfLines={4}
@@ -2348,7 +2348,7 @@ export default function ManualEntryScreen() {
             onChangeText={setNotes}
             onFocus={() => setJournalOpen(true)}
             onBlur={() => setJournalOpen(false)}
-            placeholder="How did it go?"
+            placeholder="Share your effort. You could be inspiring someone."
             placeholderTextColor="rgba(255,255,255,0.3)"
             multiline
           />

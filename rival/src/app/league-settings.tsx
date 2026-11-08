@@ -210,6 +210,8 @@ export default function LeagueSettingsScreen() {
     setLogoUrl(url);
     setCrestGeneratedAt(new Date().toISOString());
     setCrestCandidates(null);
+    // The crests not picked are deleted; only the chosen one is kept.
+    supabase.functions.invoke('generate-team-crest', { body: { leagueId: id, cleanup: true } }).catch(() => {});
   }
 
   const cooldownActive = currentUserId !== UNLIMITED_REGEN_USER_ID && crestOnCooldown(crestGeneratedAt);

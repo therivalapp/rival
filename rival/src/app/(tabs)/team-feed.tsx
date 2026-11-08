@@ -28,7 +28,7 @@ import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone }
 import { matchCanonicalLift } from '../../lib/lifts';
 import { RivalTopNav, RivalIcon, RivalIconName, activityIconName, TrainingPartners, RouteMap, rm } from '../../components/rival';
 import { withinTagWindow } from '../../lib/tagWindow';
-import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalButtonColors, RivalMainGlow } from '../../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { RESPECT_COLOUR, INSPIRED_COLOUR, respectGivenText, inspiredGivenText, effortGoldText } from '../../constants/reactionColours';
 import { BusyText } from '../../components/rival/BusyText';
@@ -37,7 +37,7 @@ import { CommentThread } from '../../components/rival/team/CommentThread';
 import { titleFit } from '../../lib/titleFit';
 import { InspiredBolt } from '../../components/rival/InspiredBolt';
 import { DetailsSheet } from '../../components/rival/ActivityDetails';
-import { GreySheet, GreyRows, GreyRow } from '../../components/rival/RivalGreySheet';
+import { GreySheet, GreyRows, GreyRow, GreyArtTile } from '../../components/rival/RivalGreySheet';
 import { RUN_TYPES, STACKED_BESTS, fastestBests, fastestRest, fastestTitle, type FastestBest } from '../../lib/bestEfforts';
 import { inChunks, selectAll } from '../../lib/selectAll';
 import { getPrefs } from '../../lib/prefs';
@@ -772,14 +772,22 @@ export default function TeamFeedScreen() {
           {loading ? (
             <Text style={styles.stateText}>Loading…</Text>
           ) : teams.length === 0 ? (
-            // The same card as Chat's empty state: round icon, full-width button.
-            <View style={[styles.emptyState, rm.card, styles.emptyCard]}>
-              <View style={rm.iconCircle}><RivalIcon name="groups" size={20} color={RivalColors.accentText} /></View>
-              <Text style={styles.emptyTitle}>No team yet</Text>
-              <Text style={styles.emptyBody}>Join or create a team to see team activity here.</Text>
-              <TouchableOpacity style={[rm.primary, styles.emptyBtnWide]} onPress={() => router.push('/discover-leagues')}>
-                <Text style={rm.primaryText}>Find a team</Text>
-              </TouchableOpacity>
+            // A call to action, not a dead end (Ricky, 2026-11-06: "make it
+            // enticing, like the other empty states"). Today's open podium
+            // seats, Today's line, and the Add an activity tiles.
+            <View style={[rm.card, styles.emptyCard, styles.emptyInvite, RivalMainGlow]}>
+              <View style={styles.seatRow}>
+                <View style={[styles.seat, styles.seatSide]}><RivalIcon name="add" size={18} color="rgba(255,181,158,0.55)" /></View>
+                <View style={[styles.seat, styles.seatMid]}><RivalIcon name="groups" size={26} color={RivalColors.accentText} /></View>
+                <View style={[styles.seat, styles.seatSide]}><RivalIcon name="add" size={18} color="rgba(255,181,158,0.55)" /></View>
+              </View>
+              <Text style={styles.emptyTitle}>Train better together</Text>
+              <Text style={styles.emptyBody}>Teammates' activities, Respect and the weekly podium, all in one feed.</Text>
+              <View style={styles.inviteTiles}>
+                <GreyArtTile label="Find a team" icon="search" on style={styles.inviteTile} onPress={() => router.push('/discover-leagues')} />
+                <GreyArtTile label="Create team" icon="add" style={styles.inviteTile} onPress={() => router.push('/create-league')} />
+                <GreyArtTile label="Invite code" icon="key" style={styles.inviteTile} onPress={() => router.push('/join-league')} />
+              </View>
             </View>
           ) : posts.length === 0 ? (
             <Text style={styles.stateText}>No activity yet. Team activity appears here.</Text>
@@ -1392,7 +1400,14 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff', marginTop: 4 },
   emptyBody: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center' },
   emptyCard: { marginTop: 8 },
-  emptyBtnWide: { alignSelf: 'stretch', marginTop: 8 },
+  emptyInvite: { alignItems: 'center', paddingTop: 22, paddingBottom: 16, gap: 8 },
+  // Today's unlit podium seats: dashed rings, the middle one lit.
+  seatRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginBottom: 6 },
+  seat: { alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderWidth: 1 },
+  seatSide: { width: 46, height: 46, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.4)', backgroundColor: 'rgba(255,255,255,0.03)', marginBottom: 6 },
+  seatMid: { width: 64, height: 64, borderColor: 'rgba(255,181,158,0.6)', backgroundColor: 'rgba(255,181,158,0.10)' },
+  inviteTiles: { flexDirection: 'row', gap: 8, alignSelf: 'stretch', marginTop: 10 },
+  inviteTile: { flex: 1 },
 
   railWrap: { position: 'relative', marginTop: 10 },
   rail: { flexGrow: 0 },

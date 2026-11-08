@@ -60,7 +60,7 @@ export function MonthBests({ month, bests, onOpen }: { month: string; bests: Mon
       <TouchableOpacity style={[s.card, s.cardFolded]} onPress={() => setOpen(true)} activeOpacity={0.85} accessibilityRole="button" accessibilityState={{ expanded: false }}>
         <RivalIcon name="trophy" size={20} color="#ffd27a" />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={s.kicker} numberOfLines={1}>{month} bests · {bests.length}</Text>
+          <Text style={s.kicker} numberOfLines={1}>{month} bests</Text>
           <Text style={s.rowTitle} numberOfLines={1}>{latest.title}</Text>
         </View>
         <Figure b={latest} small />

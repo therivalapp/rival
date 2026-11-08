@@ -41,11 +41,13 @@ function fit(el: HTMLElement) {
   const base = parseFloat(el.getAttribute(ORIGINAL) || cs.fontSize);
   if (!el.hasAttribute(ORIGINAL)) el.setAttribute(ORIGINAL, String(base));
   const current = parseFloat(cs.fontSize);
-  const next = Math.floor(current * (el.clientWidth / textWidth(el)) * 0.99 * 10) / 10;
+  // A little room to spare: an italic serif leans past its measured width,
+  // and a line set to the exact width still showed "…" (2026-11-08).
+  const next = Math.floor(current * (el.clientWidth / textWidth(el)) * 0.96 * 10) / 10;
   if (next >= base * MIN_SCALE) {
     el.style.fontSize = `${next}px`;
     // Units in their own smaller type don't scale with it; check again.
-    if (textWidth(el) <= el.clientWidth + 1) return;
+    if (textWidth(el) <= el.clientWidth - 2) return;
   }
   // Too long to shrink nicely: a second line, at the smallest allowed size.
   el.style.fontSize = `${Math.round(base * MIN_SCALE * 10) / 10}px`;

@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { supabase, getAuthUser } from './supabase';
-import { connectStrava } from './strava';
 import { inboxChanged } from './inbox';
 import { getMyTeamIds } from './myTeams';
 
@@ -29,14 +28,6 @@ let agreedCache: boolean | null = null;
 let answerCache: { at: number; value: Promise<boolean> } | null = null;
 const ANSWER_TTL_MS = 60_000;
 supabase.auth.onAuthStateChange(() => { agreedCache = null; answerCache = null; });
-
-/** Connect (or reconnect) Strava. The sharing screen is shown only until the
- *  person has agreed once; after that it goes straight to Strava. */
-export function startStravaConnect(onComplete?: () => void) {
-  if (!STRAVA_CONNECTIONS_OPEN) return;
-  if (agreedCache) connectStrava(onComplete);
-  else router.push('/connect-strava');
-}
 
 /** True when Strava is connected but sharing hasn't been agreed yet (people
  *  who connected before the consent step). Shown as a notification that needs

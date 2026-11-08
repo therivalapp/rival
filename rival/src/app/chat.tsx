@@ -507,11 +507,10 @@ export default function ChatScreen() {
             <Text style={[styles.emptyTitle, mob && ms.emptyTitle]}>
               {sessionsOnly ? 'No upcoming activities' : 'No messages yet'}
             </Text>
-            <Text style={styles.emptyBody}>
-              {sessionsOnly
-                ? 'Completed activities stay in the conversation. New ones appear here.'
-                : "Say something — it's how a team stops being a list of names."}
-            </Text>
+            {/* Chat needs no explaining: the title alone (Ricky, 2026-11-06). */}
+            {sessionsOnly ? (
+              <Text style={styles.emptyBody}>Completed activities stay in the conversation. New ones appear here.</Text>
+            ) : null}
           </View>
         ) : (
           <ScrollView

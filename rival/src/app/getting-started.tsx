@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { readPendingInvite } from '../lib/pendingInvite';
-import { loadStravaSharing, startStravaConnect } from '../lib/stravaSharing';
+import { loadStravaSharing } from '../lib/stravaSharing';
 import { RivalColors, RivalSerifFamily } from '../constants/rivalTheme';
 import { RivalIcon, RivalMobileHeader, RivalRowLink, RivalWarm, rm, rb, GreyPageHead, GreyRows, GreyRow, type RivalIconName } from '../components/rival';
 import { RivalButtonColors } from '../constants/rivalTheme';
@@ -46,7 +46,6 @@ export default function GettingStartedScreen() {
   const { welcome } = useLocalSearchParams<{ welcome?: string }>();
   const isWelcome = welcome === '1';
   const wide = sidePageWide(useWindowDimensions().width);
-  const [strava, setStrava] = useState<boolean | null>(null);
   const [inTeam, setInTeam] = useState<boolean | null>(null);
   const [firstName, setFirstName] = useState('');
 
@@ -54,12 +53,10 @@ export default function GettingStartedScreen() {
     (async () => {
       const { data: { user } } = await getAuthUser();
       if (!user) return;
-      const [conn, teams, profile] = await Promise.all([
-        supabase.from('fitness_connections').select('user_id').eq('user_id', user.id).eq('provider', 'strava').maybeSingle(),
+      const [teams, profile] = await Promise.all([
         supabase.from('league_members').select('league_id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'active'),
         supabase.from('users').select('display_name').eq('id', user.id).maybeSingle(),
       ]);
-      setStrava(!!conn.data);
       loadStravaSharing();
       setInTeam((teams.count ?? 0) > 0);
       setFirstName(((profile.data?.display_name as string | undefined) ?? '').split(' ')[0]);
@@ -105,7 +102,7 @@ export default function GettingStartedScreen() {
 
           <Text style={rb.section}>Get set up</Text>
           <GreyRows>
-            {setupRow('link', strava ? 'Device connected' : 'Import activity history', !!strava, () => router.push(strava ? { pathname: '/profile', params: { tab: 'apps' } } : '/import-archive'))}
+            {setupRow('link', 'Import activity history', false, () => router.push('/import-archive'))}
             {setupRow('add', 'Add an activity', false, () => router.push('/add-workout'))}
             {!inTeam && readPendingInvite() ? setupRow('groups', 'Join the team that invited you', false, () => router.push('/join-league')) : null}
             {inTeam ? setupRow('groups', 'In a team', true, () => {}) : setupRow('search', 'Find a team', false, () => router.push('/discover-leagues'))}
@@ -158,16 +155,12 @@ export default function GettingStartedScreen() {
 
         <Text style={[rm.label, s.sectionLabel]}>Get set up</Text>
 
-        {strava ? (
-          <DoneRow title="Device connected" body="New activities sync automatically." />
-        ) : (
-          <RivalRowLink
-            icon="refresh"
-            title="Import activity history"
-            body="Bring past activities in from an archive file."
-            onPress={() => router.push('/import-archive')}
-          />
-        )}
+        <RivalRowLink
+          icon="refresh"
+          title="Import activity history"
+          body="Bring past activities in from an archive file."
+          onPress={() => router.push('/import-archive')}
+        />
         <RivalRowLink
           icon="add"
           title="Add an activity yourself"

@@ -77,7 +77,7 @@ function when(iso: string): string {
   return `${label}, ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
 }
 
-const SOURCE: Record<string, string> = { strava: 'Strava', garmin: 'Garmin' };
+const SOURCE: Record<string, string> = { garmin: 'Garmin' };
 
 export function ShortActivityPreview({ a }: { a: ShortActivity }) {
   const distance = formatActivityDistance(a.meters, a.type);

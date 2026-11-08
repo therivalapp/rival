@@ -51,14 +51,14 @@ page = f'''<!doctype html>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<header class="top"><div class="wrap"><a class="mark" href="/">RIVAL</a><nav><a href="/">Home</a><a href="mailto:getrivalapp@gmail.com">Contact</a></nav></div></header>
+<header class="top"><div class="wrap"><a class="mark" href="/">RIVAL</a><nav><a href="/">Home</a><a href="mailto:hello@therivalapp.com">Contact</a></nav></div></header>
 <main class="wrap doc">
 <div class="kick">RIVAL</div>
 <h1 class="serif">Privacy policy</h1>
 <p class="date">{html.escape(date)}</p>
 {body}
 </main>
-<footer><div class="wrap"><span>© 2026 RIVAL</span><span><a href="/">Home</a><a href="mailto:getrivalapp@gmail.com">getrivalapp@gmail.com</a></span></div></footer>
+<footer><div class="wrap"><span>© 2026 RIVAL</span><span><a href="/">Home</a><a href="mailto:hello@therivalapp.com">hello@therivalapp.com</a></span></div></footer>
 </body>
 </html>
 '''

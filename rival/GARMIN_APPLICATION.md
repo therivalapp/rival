@@ -8,11 +8,9 @@ load (see "Before applying").
 
 ## Before applying
 
-1. In Cloudflare, add the two DNS records for the website (see the end of this
-   file) and check https://therivalapp.com opens.
-2. Optional but recommended: set up an address on the domain, such as
-   hello@therivalapp.com, with Cloudflare Email Routing forwarding to your
-   inbox. Until then the site and policy use getrivalapp@gmail.com.
+1. Done 2026-11-08: DNS records added, https://therivalapp.com is live.
+2. Done 2026-11-08: hello@therivalapp.com forwards to getrivalapp@gmail.com
+   (Cloudflare Email Routing). The site and policy use it.
 
 ## Answers
 
@@ -29,15 +27,15 @@ https://therivalapp.com/privacy
 [your mailing address]
 
 **Contact email**
-getrivalapp@gmail.com (or hello@therivalapp.com once set up)
+hello@therivalapp.com
 
 **Describe the application**
 RIVAL is a social fitness app for small teams of friends, clubs and training
 partners. Members record their activities, earn a single Effort score that
 compares different sports fairly, and share them with the teams they choose.
 It covers running, cycling, swimming, strength training, classes and events
-such as marathons, triathlons and HYROX. RIVAL is in a private beta on iPhone,
-with a web version.
+such as marathons, triathlons and HYROX. RIVAL is in private beta on the web,
+with an iPhone app in development.
 
 **How will Garmin data be used**
 Garmin activities will be imported so that a member's workouts appear in RIVAL
@@ -59,6 +57,7 @@ not request the Health API: no sleep, stress, steps or other wellness data.
 
 **Third-party services that will process Garmin data**
 - Supabase: database, sign-in and file storage (where activities are kept)
+- Cloudflare: domain and email forwarding
 - Vercel: hosting of the web app
 - Expo: push notifications, which can include an activity's name
 
@@ -73,7 +72,7 @@ today (Profile, Delete account). Members can also delete any single activity.
 0 to 100 during the beta.
 
 **Platforms**
-iOS (beta through TestFlight) and web.
+Web today; iPhone app in development (beta through TestFlight).
 
 ## Website DNS (Cloudflare)
 

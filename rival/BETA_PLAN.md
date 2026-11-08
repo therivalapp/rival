@@ -28,11 +28,11 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 - [x] App scan 2026-11-06 (every page on the QA account and a brand-new test account, production build, phone size): fixed the chat typing bar sitting a keyboard's height above the keyboard (counted twice since 2026-10-24); a low field (Manual entry's last one) could stay behind the keyboard; "Agree and continue" on Sharing with teams now carries on creating, joining or requesting the team instead of dropping you back on the form; Activity's empty-state tiles use the Add an activity tiles; Team feed's empty state matches Chat's; "Effort" capitalised in team standings. Checked: every navigation target exists, tab switches 35-50 ms once loaded, pages settle in 2-3 s, no app errors. Keyboard checked with a simulated keyboard, not on a phone
 - [ ] Ricky to decide: Effort shows one decimal on Activity and the activity page (89.6) but whole numbers on Today and the feed (90)
 - [ ] Ricky to decide: chat's empty line "Say something — it's how a team stops being a list of names." reads casual next to the professional tone rules
-- [ ] Later: the first visit to Activity has one ~270 ms pause while it builds; a team crest takes about 15 s to generate
+- [ ] Built 2026-11-06, uncommitted (Ricky: hold off): Activity built in the background from Today, first open 0.4-0.8 s to under 0.1 s; inviting "no team" Team feed (design/team-feed-no-team.png); chat empty state is the title only; crest frames pulse while generating; generate-team-crest draws its three crests side by side (same model and prompt): DEPLOYED 2026-11-07, real runs 7.2-8.2 s, down from 10-20 s; the rest of this line goes live when committed. Saving only the chosen crest was checked and dropped 2026-11-07 (Ricky: leave as is): full-size crests are 0.6 MB each, so the picker would download 1.8 MB instead of 0.3 MB, about 1 s faster on wifi and possibly slower on weak mobile signal. Instead (Ricky, 2026-11-07): the two crests not picked are deleted once one is chosen (generate-team-crest cleanup call from create-league and league-settings), each batch gets its own file names so a regenerate no longer overwrites the crest a team is showing, and an unpicked earlier batch is cleared on the next generate. Function DEPLOYED and tested 2026-11-07 (test team left with only the chosen crest); the app side goes live when committed. Crest spelling check (2026-11-08): each drawing is read back by Haiku and redrawn up to 3 times if the team name is misspelled; only correctly spelled crests are offered. DEPLOYED and tested 2026-11-08 (caught 6 misspellings in 2 test teams). Backup requests for stalled draws and cut-outs, plus one retry per failed crest (2026-11-08, after a 44 s cut-out): DEPLOYED and tested, 6 runs 3 at a time took 9-15 s with no failures
 
 ## When Ricky is home
 - [ ] NEXT WEEK, first up (banked 2026-11-04): therivalapp.com BOUGHT 2026-11-05; Claude builds a one-page site and hosts the privacy policy (deploy with Ricky's OK); Ricky applies to Garmin Starter as an individual (not incorporating yet) and gets a Personal Garmin key so the importer can be built on his workouts. See Garmin application below
-- [ ] Ricky: sign up for the Apple Developer Program ($99 a year)
+- [x] Ricky: sign up for the Apple Developer Program ($99 a year). Applied 2026-11-08, awaiting approval (up to 48 hours)
 - [ ] Get RIVAL running as an iPhone app
 - [ ] Make the look carry over to the iPhone app: gradients and other styling are web-only (about 210 gradient uses in 47 files) and fall back to flat colours
 - [ ] Get it on TestFlight
@@ -40,14 +40,15 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 - [ ] Build GPS tracking
 - [ ] Live activity: Start button, ready screen A, gym timer with lifts, pause, one-tap lifts, Up next tiles, "Capture The Moment" and its photo pop-up built 2026-10-31, uncommitted; needs a real run-through on the phone. Mid-run prompt waits for the iPhone app
 - [ ] Test with Ricky's Garmin
+- [ ] When building the Garmin API connection: use the deleted Strava functions as templates (connect/token refresh, webhook, history pull, disconnect + data removal, two-device recordings switcher). Removed 2026-11-08; recover from git history (`git log --diff-filter=D -- supabase/functions/strava-webhook`)
 - [ ] New Focus types: fastest time, pace, lift first, then longest distance, event time, weekly rhythm, variety, time earned, Effort, total reps, total weight (mock: design/focus-types-mockup.png; goal_types.sql run 2026-10-31. Fastest time, pace, lift and the 3 Volume + 3 Performance limit built, uncommitted; saving a real goal still to test)
 
 ## Before beta
 - [ ] Trademark clearance for the name before public launch (Ricky to decide on a lawyer search, roughly a few hundred to $1,500): RIVAL is registered in Class 9 by Rival Boxing Gear (sports brand, since 2012) and Rival Forces (9 and 41, 2025); RIVALFIT (fitness tracking and challenges) and RIVAL FIT are pending; other App Store apps are called Rival (Compete With Friends, RivalByM with HYROX challenges, Rival Fitness). Found 2026-11-05
 - [ ] Full legal review of everything built: privacy policy, consent, terms of service (none yet), Apple Health, Strava deletion, AI providers, photos of others (Ricky asked 2026-11-02)
 - [ ] Ricky: generate AI background images, one for each activity on the Start screen (Swim has none yet)
-- [ ] Ricky: import his Strava archive and check it
-- [ ] Disconnect Strava and delete everything that came through its API
+- [ ] Ricky: import his Strava archive and check it (as new activities; decided 2026-11-08 to purge first, reactions and RIVAL-only photos not kept)
+- [x] Disconnect Strava and delete everything that came through its API. Done 2026-11-08: 551 activities, 2 connections, 33 photos deleted. Strava-side revoke failed (tokens expired), Ricky to revoke on strava.com
 - [ ] Remove the unused AI share functions
 - [ ] Run a full compliance check for Apple
 - [ ] Review the daily quotes (add Ricky's "Work hard until your idols become your rivals.", 2026-11-06)

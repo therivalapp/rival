@@ -56,7 +56,7 @@ export default function ImportArchiveScreen() {
         setStep('preview');
       } catch (e: any) {
         setError(e?.message === 'not_an_archive'
-          ? 'This file is not a RIVAL or Strava archive. Choose the .zip as it was downloaded.'
+          ? 'This file is not a supported archive. Choose the .zip as it was downloaded.'
           : 'The file could not be read. Try again.');
         setStep('error');
       }
@@ -124,8 +124,8 @@ export default function ImportArchiveScreen() {
               {(['rival', 'strava'] as const).map((k) => (
                 <TouchableOpacity key={k} style={[s.tile, source === k && s.tileOn]} onPress={() => setSource(k)} activeOpacity={0.85}>
                   <RivalIcon name={k === 'rival' ? 'archive' : 'upload'} size={54} color={source === k ? 'rgba(42,20,8,0.16)' : 'rgba(255,255,255,0.08)'} style={s.tileMark} />
-                  <Text style={[s.tileTitle, source === k && s.tileTitleOn]}>{k === 'rival' ? 'RIVAL' : 'Strava'}</Text>
-                  <Text style={[s.tileSub, source === k && s.tileSubOn]}>{k === 'rival' ? 'An archive from RIVAL' : 'Request your archive'}</Text>
+                  <Text style={[s.tileTitle, source === k && s.tileTitleOn]}>{k === 'rival' ? 'RIVAL' : 'Other apps'}</Text>
+                  <Text style={[s.tileSub, source === k && s.tileSubOn]}>{k === 'rival' ? 'A RIVAL archive' : 'An archive from another app'}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -137,10 +137,8 @@ export default function ImportArchiveScreen() {
             {error ? <Text style={s.error}>{error}</Text> : null}
             {source === 'strava' ? (
               <View style={s.card}>
-                <Text style={s.label}>Getting the Strava archive</Text>
-                <Text style={s.body}>1. On strava.com, open Settings, then My Account.</Text>
-                <Text style={s.body}>2. Under Download or Delete Your Account, choose Request your archive.</Text>
-                <Text style={s.body}>3. Strava emails the .zip, usually within a few hours.</Text>
+                <Text style={s.label}>Archives from other apps</Text>
+                <Text style={s.body}>Most fitness apps can export past activities as a .zip from their account settings.</Text>
               </View>
             ) : (
               <View style={s.card}>

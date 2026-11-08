@@ -7,9 +7,8 @@ import { Modal } from '../../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import Svg, { Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { supabase, getAuthUser } from '../../lib/supabase';
-import { loadStravaSharing, startStravaConnect, STRAVA_CONNECTIONS_OPEN } from '../../lib/stravaSharing';
 import { fetchAllActivities } from '../../lib/fetchAllActivities';
 import { notify } from '../../lib/notify';
 import { getMondayOfWeek, calculateStreak, STREAK_MIN_ACTIVITIES } from '../../lib/streak';
@@ -193,7 +192,6 @@ const PODIUM_LENS_CLIP =
 const PODIUM_MOTION = Platform.OS === 'web' && typeof window !== 'undefined'
   && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 // Slowed for more drama (Ricky, 2026-09-27): 760ms → 1140ms (+50%) → 2050ms (+80%).
-const SHOW_STRAVA_SHARING_CARD = false;
 const RISE_MS = 2050;
 const RISE_EASE: [number, number, number, number] = [0.2, 0.9, 0.25, 1];
 const RISE_DELAY_MS: Record<0 | 1 | 2, number> = { 0: 1135, 1: 700, 2: 270 };
@@ -1912,9 +1910,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
 }
 
 export default function HomeScreen() {
-  const [stravaConnected, setStravaConnected] = useSnapState('home.stravaConnected', true);
   // Connected before the sharing consent existed: asked once, here.
-  const [stravaSharingUnanswered, setStravaSharingUnanswered] = useSnapState('home.stravaSharingUnanswered', false);
   const [leagues, setLeagues] = useSnapState<League[]>('home.leagues', []);
   // Populated by loadAll() below from real account data.
   // One entry per team the user belongs to (mobile Weekly Leader card swipes
@@ -1980,6 +1976,21 @@ export default function HomeScreen() {
   // so nobody ever sees placeholder figures that look like someone's real data.
   // Later reloads (returning to the tab, pull to refresh) keep the last data up.
   const [loaded, setLoaded] = useSnapState('home.loaded', false);
+  // Build the Activity tab quietly once Today has settled and the phone is
+  // idle, so the first tap on Activity opens at once instead of drawing the
+  // page then (about half a second, found 2026-11-06). Later visits were
+  // already instant: tabs are kept once built.
+  const tabNav = useNavigation();
+  useEffect(() => {
+    if (!loaded || Platform.OS !== 'web') return;
+    const w = window as any;
+    let idle: any;
+    const timer = setTimeout(() => {
+      const go = () => { try { (tabNav as any).preload?.('my-activities'); } catch { /* ignore */ } };
+      idle = w.requestIdleCallback ? w.requestIdleCallback(go, { timeout: 3000 }) : (go(), 0);
+    }, 3000);
+    return () => { clearTimeout(timer); if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle); };
+  }, [loaded, tabNav]);
   // The app fades in once Today has something to show (lib/appReveal.ts),
   // so it opens with the page drawn rather than filling in piece by piece.
   useEffect(() => { if (loaded) requestAnimationFrame(() => revealApp()); }, [loaded]);
@@ -2148,7 +2159,7 @@ export default function HomeScreen() {
 
     const today = todayLocalStr();
 
-    // Phase 1: own data + strava status
+    // Phase 1: own data
     // Every request is a round trip to the database, so nothing waits on
     // anything it doesn't need: the team standings only need the list of
     // teams, so they start the moment that arrives, alongside the person's
@@ -2157,8 +2168,7 @@ export default function HomeScreen() {
     const leaguesP = getMyTeamRows(uId).then((data) => ({ data }), () => ({ data: [] as any[] }));
     const teamsDone = leaguesP.then((res) => loadTeams(uId, res.data ?? [])).catch(() => {});
 
-    const [stravaRes, activitiesRes, leaguesRes, raceRes, userProfileRes, goalsRes] = await Promise.all([
-      supabase.from('fitness_connections').select('user_id').eq('user_id', uId).eq('provider', 'strava').maybeSingle(),
+    const [activitiesRes, leaguesRes, raceRes, userProfileRes, goalsRes] = await Promise.all([
       fetchAllActivities(uId, 'id, name, started_at, effort_score, distance_meters, elevation_meters, activity_type, duration_seconds'),
       leaguesP,
       supabase.from('races').select('name, race_date, location').eq('user_id', uId).gte('race_date', today).order('race_date', { ascending: true }).limit(1).maybeSingle(),
@@ -2183,10 +2193,6 @@ export default function HomeScreen() {
       }
     }
 
-    setStravaConnected(!!stravaRes.data);
-    // Also learns whether they've agreed before, so Connect can skip the
-    // sharing screen for someone reconnecting.
-    loadStravaSharing().then((s) => setStravaSharingUnanswered(!!stravaRes.data && !!s && !s.agreedAt));
     setNextRace(raceRes.data ?? null);
     const myAvatarUrl: string | null = userProfileRes.data?.avatar_url || null;
     setAvatarUrl(myAvatarUrl);
@@ -2571,9 +2577,6 @@ export default function HomeScreen() {
     }
   }
 
-  function handleConnectStrava() {
-    startStravaConnect(loadAll);
-  }
 
   // The mockup's 4-card row must stay 4-across on desktop — explicit quarter
   // widths above the breakpoint, natural wrapping (2-up/stacked) below it.
@@ -3984,30 +3987,6 @@ export default function HomeScreen() {
           </>
           )}
 
-          {/* Moved to notifications (Ricky, 2026-09-27); kept here, switched off. */}
-          {SHOW_STRAVA_SHARING_CARD && stravaConnected && stravaSharingUnanswered && (
-            <TouchableOpacity style={styles.stravaCard} onPress={() => router.push('/team-sharing')}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.stravaCardTitle}>Strava sharing</Text>
-                <Text style={styles.stravaCardSub}>Confirm what teammates can see from Strava.</Text>
-              </View>
-              <Text style={styles.stravaCardArrow}>→</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Strava connection prompt — only shown pre-connection. Once
-              connected, status/sync/disconnect live on the profile page
-              (Connected Apps panel) instead of taking up home real estate
-              on every visit. */}
-          {STRAVA_CONNECTIONS_OPEN && !stravaConnected && (
-            <TouchableOpacity style={styles.stravaCard} onPress={() => router.push({ pathname: '/profile', params: { tab: 'apps' } })}>
-              <View>
-                <Text style={styles.stravaCardTitle}>Connect a device</Text>
-                <Text style={styles.stravaCardSub}>Sync activities from a watch or app to earn Effort.</Text>
-              </View>
-              <Text style={styles.stravaCardArrow}>→</Text>
-            </TouchableOpacity>
-          )}
 
         </ScrollView>
     </SafeAreaView>

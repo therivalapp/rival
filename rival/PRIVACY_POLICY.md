@@ -1,6 +1,6 @@
 # RIVAL Privacy Policy
 
-**Last updated: 6 November 2026**
+**Last updated: 8 November 2026**
 
 RIVAL is a social fitness app. You log activities, earn Effort, and share them
 with the teams you join. This policy explains what RIVAL collects, who can see
@@ -15,7 +15,8 @@ cover photo and personal quote.
 **Activities.** Each activity you add: type, date and time, duration, distance,
 elevation, exercises, sets and weights, notes, Effort, personal bests, goals,
 events and finish times. Activities come from manual entry, workout scanning,
-archive import and, on iPhone, Apple Health and RIVAL's own GPS recording.
+archive import and RIVAL's own GPS recording, and, once available, Apple Health
+on iPhone and Garmin.
 
 **Routes.** When an activity has a GPS route, RIVAL stores a simplified outline
 of it. Teammates see route maps only if you turn on route sharing.
@@ -37,7 +38,8 @@ RIVAL does not collect contacts or advertising identifiers.
 
 ## Apple Health
 
-On iPhone, you can let RIVAL read your workouts from Apple Health. RIVAL reads
+This applies once RIVAL's iPhone app is available. On iPhone, you can let RIVAL
+read your workouts from Apple Health. RIVAL reads
 workout type, time, duration, distance, elevation, energy and route, and only
 after you allow it in the Health permission screen. Health data is used only to
 record your activities, score Effort and show them to your teams. It is never
@@ -53,7 +55,8 @@ location is never shared.
 
 ## Garmin Connect
 
-If you connect a Garmin account, RIVAL receives the activities your Garmin
+This applies once Garmin connection is available. If you connect a Garmin
+account, RIVAL receives the activities your Garmin
 device records: activity type, start time, duration, distance, elevation,
 heart rate, pace and splits, route, and the exercises, sets, repetitions and
 weights of strength activities. RIVAL does not request sleep, stress, steps or
@@ -68,14 +71,10 @@ deletes the Garmin data RIVAL holds.
 
 ## Imports from other apps
 
-You can import your history from a Strava or RIVAL archive file. The import
+You can import your history from an archive file, from RIVAL or another
+fitness app. The import
 reads the activities, routes, photos and videos in the file you choose. Nothing
 else on your device is read.
-
-RIVAL no longer connects to Strava. Data that earlier reached RIVAL through
-Strava's connection will be deleted within 30 days of that connection ending,
-as Strava's terms require. Activities you import from your own archive are
-kept.
 
 ## AI features
 
@@ -84,8 +83,9 @@ Some features send content to Anthropic, an AI provider, to produce a result:
 - **Workout scanning** sends the photo you choose, such as a whiteboard or gym
   screen, to read the workout details from it.
 - **Find events** sends the event name you search for.
-- **Team crests** send the team's name. The crest image is
-  made by fal.ai.
+- **Team crests** send the team's name. The crest image is made by fal.ai,
+  and Anthropic reads its lettering back to check the name is spelled
+  correctly.
 
 These providers process the content only to return the result. RIVAL does not
 send your activity history to them or use your content to train AI models. If
@@ -100,7 +100,7 @@ a photo includes other people, make sure they are happy for it to be uploaded.
   one needs a member or an admin to confirm.
 - **Images you share** go wherever you send them.
 - **Service providers** run RIVAL on its behalf: Supabase (database, sign-in and
-  file storage), Vercel (web hosting), Cloudflare (domain), Anthropic and fal.ai (the AI features
+  file storage), Vercel (web hosting), Cloudflare (domain and email forwarding), Anthropic and fal.ai (the AI features
   above), Expo (push notifications) and Resend (account emails).
 
 RIVAL never sells personal information and does not share it with anyone else
@@ -114,7 +114,7 @@ except where the law requires.
 - **Profile, Delete account** first saves an archive of your activities, photos
   and videos, then permanently deletes your account and its data. Teams you
   created pass to another member, or are deleted if you were the only one.
-- If anything goes wrong, contact **getrivalapp@gmail.com** and the deletion will be
+- If anything goes wrong, contact **hello@therivalapp.com** and the deletion will be
   completed within 14 days.
 
 ## Security
@@ -131,7 +131,7 @@ does not knowingly collect their information.
 
 Depending on where you live, including under Canada's PIPEDA, New Zealand's
 Privacy Act 2020 and the GDPR, you can ask to access, correct, export or delete
-your personal information. Contact **getrivalapp@gmail.com**.
+your personal information. Contact **hello@therivalapp.com**.
 
 ## Changes
 
@@ -140,4 +140,4 @@ update the date above.
 
 ## Contact
 
-**getrivalapp@gmail.com**
+**hello@therivalapp.com**

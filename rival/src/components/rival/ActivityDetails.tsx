@@ -214,7 +214,7 @@ export function DetailsSheet({ activityId, title, bests, onClose }: {
           onClose={onClose}
           // Strava's terms ask apps showing its data to say so; one small
           // line at the very bottom, nothing more (Ricky, 2026-10-14).
-          footer={details?.provider === 'strava' ? <Text style={s.attribution}>Powered by Strava</Text> : null}
+          footer={null}
         >
           {details ? <DetailsBody details={details} bests={bests} /> : <GreyNote>Loading…</GreyNote>}
         </GreySheet>
