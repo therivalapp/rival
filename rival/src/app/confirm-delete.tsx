@@ -83,7 +83,7 @@ export default function ConfirmDeleteScreen() {
         ) : status === 'expired' ? (
           <>
             <Text style={s.serif}>This link has expired</Text>
-            <Text style={[s.body, { textAlign: 'center' }]}>Nothing was deleted. Request deletion again from Profile, Delete account.</Text>
+            <Text style={[s.body, { textAlign: 'center' }]}>Nothing was deleted. Request deletion again from Settings, Account, Delete account.</Text>
             <TouchableOpacity style={s.ghost} onPress={() => (userId ? goToTab('/home') : router.replace('/'))}><Text style={s.ghostText}>Back to RIVAL</Text></TouchableOpacity>
           </>
         ) : (

@@ -11,7 +11,7 @@ import { goToTab } from '../lib/tabNav';
 
 // Set both when the policy is published (BETA_PLAN.md).
 const CONTACT = 'hello@therivalapp.com';
-const UPDATED: string | null = '8 November 2026';
+const UPDATED: string | null = '9 November 2026';
 
 type Section = { title: string; paras: (string | { b: string; t: string })[]; bullets?: string[] };
 
@@ -19,13 +19,13 @@ const SECTIONS: Section[] = [
   {
     title: 'What RIVAL collects',
     paras: [
-      { b: 'Account.', t: 'Email address, display name, optional username, profile photo, cover photo and personal quote.' },
+      { b: 'Account.', t: 'Email address, name, date of birth, time zone, optional username, profile photo, cover photo and personal quote. Your date of birth is used only to confirm your age and is never shown to other members.' },
       { b: 'Activities.', t: 'Each activity you add: type, date and time, duration, distance, elevation, exercises, sets and weights, notes, Effort, personal bests, goals, events and finish times. Activities come from manual entry, workout scanning, archive import and RIVAL’s own GPS recording, and, once available, Apple Health on iPhone and Garmin.' },
       { b: 'Routes.', t: 'When an activity has a GPS route, RIVAL stores a simplified outline of it. Teammates see route maps only if you turn on route sharing.' },
       { b: 'Photos and videos.', t: 'Files you attach to activities, set as a cover, or upload for workout scanning.' },
-      { b: 'Team activity.', t: 'Messages, comments, reactions (Respect and Inspired), notes, challenges and planned activities you post in your teams, and who invited you to a team.' },
+      { b: 'Team activity.', t: 'Posts, messages, comments, reactions (Respect and Inspired), notes, challenges and planned activities you post in your teams, encouragements you send, training partners you tag, events you are interested in, and who invited you to a team.' },
       { b: 'Device token.', t: 'A push-notification token, if you allow notifications.' },
-      { b: 'Usage.', t: 'RIVAL does not use analytics, advertising or tracking tools. The services that host RIVAL keep standard technical logs, such as IP address and request times, for security and to fix faults.' },
+      { b: 'Usage.', t: 'RIVAL does not use analytics, advertising or tracking tools. The services that host RIVAL keep standard technical logs, such as IP address and request times, for security and to fix faults. RIVAL records when you last used the app.' },
       'RIVAL does not collect contacts or advertising identifiers.',
     ],
   },
@@ -67,6 +67,8 @@ const SECTIONS: Section[] = [
     bullets: [
       'Your teammates see your name, photos, activities, Effort, rank, profile, reactions, comments and messages in the teams you join. RIVAL asks for your agreement before your activities are shared with any team.',
       'Public teams show their name, crest and member count in Discover. Joining one needs a member or an admin to confirm.',
+      'People you tag in an activity see it, and get their own copy if they confirm.',
+      'Events you add, and who is interested in them, can be seen by all members, so others can join them.',
       'Images you share go wherever you send them.',
       'Service providers run RIVAL on its behalf: Supabase (database, sign-in and file storage), Vercel (web hosting), Cloudflare (domain and email forwarding), Anthropic and fal.ai (the AI features above), Expo (push notifications) and Resend (account emails).',
       'RIVAL never sells personal information and does not share it with anyone else except where the law requires.',
@@ -77,32 +79,36 @@ const SECTIONS: Section[] = [
     paras: ['RIVAL’s data is stored in the United States, with Supabase in Oregon. Some of the service providers listed above process it in the United States or other countries, under their own privacy and security commitments.'],
   },
   {
+    title: 'Beta sign-ups',
+    paras: [`If you join the beta list on therivalapp.com, RIVAL keeps your name, email address and country (with province, in Canada), only to send your beta invite and to check the beta is open where you live. It is not added to a mailing list or used for anything else, and it is deleted when the beta opens to everyone, or sooner if you ask at ${CONTACT}.`],
+  },
+  {
     title: 'Keeping and deleting your data',
     paras: [],
     bullets: [
       'Your data is kept while your account is open.',
       'You can delete any activity, photo, goal or event in the app.',
-      'Profile, Download my data saves a copy of everything RIVAL holds about you.',
-      'Profile, Delete account first saves an archive of your activities, photos and videos, then permanently deletes your account and its data. Teams you created pass to another member, or are deleted if you were the only one.',
+      'Settings, Account, Download data saves a copy of your information.',
+      'Settings, Account, Delete account offers a copy of your activities, photos and videos, then emails you a final confirmation. Once you confirm, your account and its data are permanently deleted. Teams you created pass to another member, or are deleted if you were the only one.',
       'Deleted information can remain in backups for up to 30 days before it is removed.',
       `If anything goes wrong, contact ${CONTACT} and the deletion will be completed within 14 days.`,
     ],
   },
   {
     title: 'Security',
-    paras: ['Data is stored with Supabase. It is encrypted in transit and at rest, and access rules in the database limit each person to the data they are allowed to see. RIVAL looks at personal information only to run the service, help members who ask for support, and fix faults.'],
+    paras: ['Data is stored with Supabase. It is encrypted in transit and at rest, and access rules in the database limit each person to the data they are allowed to see. RIVAL looks at personal information only to run the service, help members who ask for support, and fix faults. If a data breach is likely to cause serious harm, RIVAL will tell the people affected and the privacy regulators where the law requires it.'],
   },
   {
     title: 'Children',
-    paras: ['RIVAL is not for children under 13, or the minimum age in your country, and does not knowingly collect their information.'],
+    paras: ['RIVAL is not for children under 13, or under the minimum age where you live, and does not knowingly collect their information. Sign-up asks for a date of birth and does not create accounts for anyone under 13. If a child’s account is found, it is deleted.'],
   },
   {
     title: 'Your rights',
-    paras: [`Depending on where you live, including under Canada’s PIPEDA, New Zealand’s Privacy Act 2020 and the GDPR, you can ask to access, correct, export or delete your personal information. Contact ${CONTACT}.`],
+    paras: [`Depending on where you live, including under Canada’s PIPEDA, Australia’s Privacy Act 1988, New Zealand’s Privacy Act 2020 and the GDPR, you can ask to access, correct, export or delete your personal information. Contact ${CONTACT}, and RIVAL will reply within 30 days.`],
   },
   {
     title: 'Changes',
-    paras: ['If this policy changes in a meaningful way, RIVAL will say so in the app and update the date above.'],
+    paras: ['If this policy changes in a meaningful way, RIVAL will say so in the app and update the date above. If a company takes over running RIVAL, your information passes to it under this policy, and you will be told.'],
   },
 ];
 
@@ -114,7 +120,7 @@ export default function PrivacyScreen() {
       <ScrollView contentContainerStyle={s.content}>
         <GreyPageHead kicker="RIVAL" title="Privacy policy" sub={UPDATED ? `Last updated ${UPDATED}` : undefined} onBack={back} />
         <Text style={s.intro}>
-          RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising. RIVAL is run by its founder, Ricky Jackson-Lewis, in Canada, who is responsible for this policy and the information RIVAL holds.
+          RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising. RIVAL is run by its founder, Ricky Jackson-Lewis, from British Columbia, Canada, who is responsible for this policy and the information RIVAL holds.
         </Text>
         {SECTIONS.map((sec) => (
           <View key={sec.title} style={s.section}>

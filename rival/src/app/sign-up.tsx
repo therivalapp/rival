@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { displayToIsoDate, maskDateInput } from '../lib/dateFormat';
 import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalRadius, RivalType } from '../constants/rivalTheme';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 
@@ -32,6 +32,20 @@ export default function SignUpScreen() {
     const dobIso = displayToIsoDate(dob.trim());
     if (!dobIso) {
       setError('Enter a date of birth as DD/MM/YYYY.');
+      return;
+    }
+    // The terms and privacy policy say RIVAL is for people aged 13 and over,
+    // and that sign-up checks it (2026-11-09).
+    const [by, bm, bd] = dobIso.split('-').map(Number);
+    const today = new Date();
+    const age = today.getFullYear() - by
+      - (today.getMonth() + 1 < bm || (today.getMonth() + 1 === bm && today.getDate() < bd) ? 1 : 0);
+    if (age < 0) {
+      setError('Enter a date of birth in the past.');
+      return;
+    }
+    if (age < 13) {
+      setError('RIVAL is for people aged 13 and over.');
       return;
     }
 
@@ -77,6 +91,7 @@ export default function SignUpScreen() {
 
   return (
     <View style={[styles.bg, mob && ms.bg]}>
+      {/* The smoke keeps its own warm tone on the grey page (Ricky, 2026-11-09). */}
       <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" />
       <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" />
       <SafeAreaView style={styles.container}>
@@ -115,7 +130,7 @@ export default function SignUpScreen() {
 
             <View style={styles.nameRow}>
               <View style={[styles.inputGroup, styles.nameField]}>
-                <Text style={[styles.label, mob && rm.label]}>First name</Text>
+                <Text style={[styles.label, mob && rm.label, mob && ms.label]}>First name</Text>
                 <TextInput
                   style={[styles.input, mob && ms.input]}
                   placeholder="First name"
@@ -126,7 +141,7 @@ export default function SignUpScreen() {
                 />
               </View>
               <View style={[styles.inputGroup, styles.nameField]}>
-                <Text style={[styles.label, mob && rm.label]}>Last name</Text>
+                <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Last name</Text>
                 <TextInput
                   style={[styles.input, mob && ms.input]}
                   placeholder="Last name"
@@ -139,7 +154,7 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, mob && rm.label]}>Date of birth</Text>
+              <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Date of birth</Text>
               <TextInput
                 style={[styles.input, mob && ms.input]}
                 placeholder="DD/MM/YYYY"
@@ -152,7 +167,7 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, mob && rm.label]}>Email</Text>
+              <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Email</Text>
               <TextInput
                 style={[styles.input, mob && ms.input]}
                 placeholder="name@example.com"
@@ -165,7 +180,7 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, mob && rm.label]}>Password</Text>
+              <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Password</Text>
               <View style={[styles.passwordRow, mob && ms.field]}>
                 <TextInput
                   style={[styles.passwordInput, mob && ms.passwordInput]}
@@ -189,6 +204,15 @@ export default function SignUpScreen() {
               style={[styles.submitBtn, mob && ms.primary]}
               labelStyle={mob ? rm.primaryText : undefined}
             />
+
+            {/* Agreeing to the terms (2026-11-09): shown before the account is
+                made, with both documents one tap away. */}
+            <Text style={[styles.link, styles.agree, mob && ms.soft]}>
+              By creating an account, you agree to the{' '}
+              <Text style={[styles.agreeLink, mob && ms.linkStrong]} onPress={() => router.push('/terms')} accessibilityRole="link">Terms{'\u00a0'}of{'\u00a0'}use</Text>
+              {' '}and{' '}
+              <Text style={[styles.agreeLink, mob && ms.linkStrong]} onPress={() => router.push('/privacy')} accessibilityRole="link">Privacy{'\u00a0'}policy</Text>.
+            </Text>
 
             <TouchableOpacity onPress={() => router.push('/sign-in')}>
               <Text style={[styles.link, mob && ms.soft]}>Already have an account? <Text style={mob && ms.linkStrong}>Sign in</Text></Text>
@@ -339,19 +363,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  agree: { fontSize: 12, lineHeight: 17, marginTop: 12, paddingHorizontal: 12 },
+  agreeLink: { color: RivalColors.accentText, fontWeight: '700' },
 });
 
 // Phone only — the RIVAL look (see RivalMobile.tsx). Matches sign-in.tsx.
 const ms = StyleSheet.create({
-  bg: { backgroundColor: RivalWarm.page },
-  card: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22 },
+  // The grey look (Ricky, 2026-11-09): the old brown page and card are
+  // retired. The form sits straight on the grey page, fields in ghost style.
+  bg: { backgroundColor: RivalGhost.ground },
+  card: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'transparent', borderRadius: 20, padding: 22 },
+  label: { color: RivalColors.textSecondary },
   head: { gap: 4, alignItems: 'center', marginBottom: 2 },
   title: { ...rm.serifTitle, textAlign: 'center' } as any,
   subtitle: { fontSize: 14, color: RivalWarm.soft, textAlign: 'center' },
   errorBox: { backgroundColor: 'rgba(255,143,143,0.08)', borderWidth: 1, borderColor: 'rgba(255,143,143,0.25)', borderRadius: 12 },
   errorText: { color: '#ff8f8f', fontSize: 13, lineHeight: 18 },
-  field: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder },
-  input: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, minWidth: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  field: { backgroundColor: RivalGhost.fill, borderRadius: 12, borderWidth: 1, borderColor: RivalGhost.border },
+  input: { backgroundColor: RivalGhost.fill, borderRadius: 12, borderWidth: 1, borderColor: RivalGhost.border, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, minWidth: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
   passwordInput: { paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
   soft: { color: RivalWarm.soft },
   noticeBox: { backgroundColor: 'rgba(255,209,190,0.08)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.25)', borderRadius: 12 },

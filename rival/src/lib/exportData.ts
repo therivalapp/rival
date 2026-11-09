@@ -30,6 +30,11 @@ const TABLES = [
   'inbox_items',
   'shared_images',
   'ai_generations',
+  // Added 2026-11-09 so the download holds what the privacy policy says.
+  'saved_workouts',
+  'activity_routes',
+  'weekly_wins',
+  'feed_comment_stars',
 ] as const;
 
 const PAGE = 1000;
@@ -46,14 +51,23 @@ async function allRows(table: string, userId: string): Promise<{ rows: any[]; er
 
 export async function buildDataExport(userId: string, email: string | null): Promise<{ json: string; problems: string[] }> {
   const problems: string[] = [];
-  const [profile, strava] = await Promise.all([
-    supabase.from('users').select('*').eq('id', userId).maybeSingle(),
+  const [profile, strava, encouragements] = await Promise.all([
+    // Named columns, not '*': email, date of birth and time zone are not
+    // readable from the app (lock_down_user_email.sql), and '*' made the
+    // whole profile fail. Email comes from the sign-in instead.
+    supabase
+      .from('users')
+      .select('id, display_name, username, avatar_url, bio, quote_tone, display_style, share_routes, profile_stats, created_at, last_active_at')
+      .eq('id', userId)
+      .maybeSingle(),
     supabase
       .from('fitness_connections')
       .select('provider, athlete_firstname, athlete_lastname, created_at')
       .eq('user_id', userId),
+    supabase.from('encouragements').select('*').eq('from_user_id', userId),
   ]);
   if (profile.error) problems.push(`profile: ${profile.error.message}`);
+  if (encouragements.error) problems.push(`encouragements: ${encouragements.error.message}`);
 
   const results = await Promise.all(TABLES.map((t) => allRows(t, userId)));
   const tables: Record<string, any[]> = {};
@@ -67,6 +81,7 @@ export async function buildDataExport(userId: string, email: string | null): Pro
     account: { id: userId, email },
     profile: profile.data ?? null,
     connected_apps: strava.data ?? [],
+    encouragements_sent: encouragements.data ?? [],
     ...tables,
     ...(problems.length ? { incomplete: problems } : {}),
   };
