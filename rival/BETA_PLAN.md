@@ -47,7 +47,7 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 - [ ] Trademark clearance for the name before public launch (Ricky to decide on a lawyer search, roughly a few hundred to $1,500): RIVAL is registered in Class 9 by Rival Boxing Gear (sports brand, since 2012) and Rival Forces (9 and 41, 2025); RIVALFIT (fitness tracking and challenges) and RIVAL FIT are pending; other App Store apps are called Rival (Compete With Friends, RivalByM with HYROX challenges, Rival Fitness). Found 2026-11-05
 - [ ] Full legal review of everything built: privacy policy, consent, terms of service (none yet), Apple Health, Strava deletion, AI providers, photos of others (Ricky asked 2026-11-02)
 - [ ] Ricky: generate AI background images, one for each activity on the Start screen (Swim has none yet)
-- [ ] Ricky: import his Strava archive and check it (as new activities; decided 2026-11-08 to purge first, reactions and RIVAL-only photos not kept)
+- [ ] Ricky: import his Strava archives. Old Garmin account (123683771): 40 of 226 in, stopped when the page was interrupted. Jackson-lewis account (176619337, likely has the photos): re-request the export on or after 2026-11-15 (weekly limit; first one went to the old Apple ID email). Import Jackson-lewis first, then rerun the old file. Before that: let linked activities pick up missing photos, keep the screen awake and resume an interrupted import, option C loader with counts.
 - [x] Disconnect Strava and delete everything that came through its API. Done 2026-11-08: 551 activities, 2 connections, 33 photos deleted. Strava-side revoke failed (tokens expired), Ricky to revoke on strava.com
 - [ ] Remove the unused AI share functions
 - [ ] Run a full compliance check for Apple

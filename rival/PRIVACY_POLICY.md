@@ -5,7 +5,9 @@
 RIVAL is a social fitness app. You log activities, earn Effort, and share them
 with the teams you join. This policy explains what RIVAL collects, who can see
 it, and how to remove it. RIVAL collects only what it needs to run, does not
-sell personal information, and does not show advertising.
+sell personal information, and does not show advertising. RIVAL is run by its
+founder in Canada, who is responsible for this policy and the information
+RIVAL holds.
 
 ## What RIVAL collects
 
@@ -82,6 +84,8 @@ Some features send content to Anthropic, an AI provider, to produce a result:
 
 - **Workout scanning** sends the photo you choose, such as a whiteboard or gym
   screen, to read the workout details from it.
+- **Placings scanning** sends the results photo you choose, to read finish
+  places from it.
 - **Find events** sends the event name you search for.
 - **Team crests** send the team's name. The crest image is made by fal.ai,
   and Anthropic reads its lettering back to check the name is spelled
@@ -106,6 +110,10 @@ a photo includes other people, make sure they are happy for it to be uploaded.
 RIVAL never sells personal information and does not share it with anyone else
 except where the law requires.
 
+## Where data is stored
+
+RIVAL's data is stored in the United States, with Supabase in Oregon. Some of the service providers listed above process it in the United States or other countries, under their own privacy and security commitments.
+
 ## Keeping and deleting your data
 
 - Your data is kept while your account is open.
@@ -114,13 +122,16 @@ except where the law requires.
 - **Profile, Delete account** first saves an archive of your activities, photos
   and videos, then permanently deletes your account and its data. Teams you
   created pass to another member, or are deleted if you were the only one.
+- Deleted information can remain in backups for up to 30 days before it is removed.
 - If anything goes wrong, contact **hello@therivalapp.com** and the deletion will be
   completed within 14 days.
 
 ## Security
 
-Data is stored with Supabase. It is encrypted in transit, and access rules in
-the database limit each person to the data they are allowed to see.
+Data is stored with Supabase. It is encrypted in transit and at rest, and
+access rules in the database limit each person to the data they are allowed to
+see. RIVAL looks at personal information only to run the service, help members
+who ask for support, and fix faults.
 
 ## Children
 

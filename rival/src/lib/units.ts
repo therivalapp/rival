@@ -62,7 +62,7 @@ const METRE_SPORTS = new Set(['Swim', 'Rowing']);
  *  nothing worth showing. */
 export function formatActivityDistance(meters: number | null | undefined, activityType?: string | null, minMeters = 1, s?: UnitSystem): string | null {
   if (!meters || meters < minMeters) return null;
-  if (activityType && METRE_SPORTS.has(activityType)) return `${Math.round(meters)} m`;
+  if (activityType && METRE_SPORTS.has(activityType)) return `${Math.round(meters).toLocaleString()} m`;
   return formatDistance(meters / 1000, 1, s);
 }
 

@@ -6,8 +6,10 @@
 <title>Privacy policy · RIVAL</title>
 <meta name="description" content="What RIVAL collects, who can see it, and how to remove it.">
 <meta name="theme-color" content="#1b1a19">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/manrope.css">
+<link rel="icon" href="/img/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -16,7 +18,7 @@
 <div class="kick">RIVAL</div>
 <h1 class="serif">Privacy policy</h1>
 <p class="date">Last updated: 8 November 2026</p>
-<p>RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising.</p>
+<p>RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising. RIVAL is run by its founder in Canada, who is responsible for this policy and the information RIVAL holds.</p>
 <h2 class="serif">What RIVAL collects</h2>
 <p><strong>Account.</strong> Email address, display name, optional username, profile photo, cover photo and personal quote.</p>
 <p><strong>Activities.</strong> Each activity you add: type, date and time, duration, distance, elevation, exercises, sets and weights, notes, Effort, personal bests, goals, events and finish times. Activities come from manual entry, workout scanning, archive import and RIVAL&#x27;s own GPS recording, and, once available, Apple Health on iPhone and Garmin.</p>
@@ -37,15 +39,17 @@
 <p>You can import your history from an archive file, from RIVAL or another fitness app. The import reads the activities, routes, photos and videos in the file you choose. Nothing else on your device is read.</p>
 <h2 class="serif">AI features</h2>
 <p>Some features send content to Anthropic, an AI provider, to produce a result:</p>
-<ul><li><strong>Workout scanning</strong> sends the photo you choose, such as a whiteboard or gym screen, to read the workout details from it.</li><li><strong>Find events</strong> sends the event name you search for.</li><li><strong>Team crests</strong> send the team&#x27;s name. The crest image is made by fal.ai, and Anthropic reads its lettering back to check the name is spelled correctly.</li></ul>
+<ul><li><strong>Workout scanning</strong> sends the photo you choose, such as a whiteboard or gym screen, to read the workout details from it.</li><li><strong>Placings scanning</strong> sends the results photo you choose, to read finish places from it.</li><li><strong>Find events</strong> sends the event name you search for.</li><li><strong>Team crests</strong> send the team&#x27;s name. The crest image is made by fal.ai, and Anthropic reads its lettering back to check the name is spelled correctly.</li></ul>
 <p>These providers process the content only to return the result. RIVAL does not send your activity history to them or use your content to train AI models. If a photo includes other people, make sure they are happy for it to be uploaded.</p>
 <h2 class="serif">Who can see your information</h2>
 <ul><li><strong>Your teammates</strong> see your name, photos, activities, Effort, rank, profile, reactions, comments and messages in the teams you join. RIVAL asks for your agreement before your activities are shared with any team.</li><li><strong>Public teams</strong> show their name, crest and member count in Discover. Joining one needs a member or an admin to confirm.</li><li><strong>Images you share</strong> go wherever you send them.</li><li><strong>Service providers</strong> run RIVAL on its behalf: Supabase (database, sign-in and file storage), Vercel (web hosting), Cloudflare (domain and email forwarding), Anthropic and fal.ai (the AI features above), Expo (push notifications) and Resend (account emails).</li></ul>
 <p>RIVAL never sells personal information and does not share it with anyone else except where the law requires.</p>
+<h2 class="serif">Where data is stored</h2>
+<p>RIVAL&#x27;s data is stored in the United States, with Supabase in Oregon. Some of the service providers listed above process it in the United States or other countries, under their own privacy and security commitments.</p>
 <h2 class="serif">Keeping and deleting your data</h2>
-<ul><li>Your data is kept while your account is open.</li><li>You can delete any activity, photo, goal or event in the app.</li><li><strong>Profile, Download my data</strong> saves a copy of everything RIVAL holds about you.</li><li><strong>Profile, Delete account</strong> first saves an archive of your activities, photos and videos, then permanently deletes your account and its data. Teams you created pass to another member, or are deleted if you were the only one.</li><li>If anything goes wrong, contact <strong><a href="mailto:hello@therivalapp.com">hello@therivalapp.com</a></strong> and the deletion will be completed within 14 days.</li></ul>
+<ul><li>Your data is kept while your account is open.</li><li>You can delete any activity, photo, goal or event in the app.</li><li><strong>Profile, Download my data</strong> saves a copy of everything RIVAL holds about you.</li><li><strong>Profile, Delete account</strong> first saves an archive of your activities, photos and videos, then permanently deletes your account and its data. Teams you created pass to another member, or are deleted if you were the only one.</li><li>Deleted information can remain in backups for up to 30 days before it is removed.</li><li>If anything goes wrong, contact <strong><a href="mailto:hello@therivalapp.com">hello@therivalapp.com</a></strong> and the deletion will be completed within 14 days.</li></ul>
 <h2 class="serif">Security</h2>
-<p>Data is stored with Supabase. It is encrypted in transit, and access rules in the database limit each person to the data they are allowed to see.</p>
+<p>Data is stored with Supabase. It is encrypted in transit and at rest, and access rules in the database limit each person to the data they are allowed to see. RIVAL looks at personal information only to run the service, help members who ask for support, and fix faults.</p>
 <h2 class="serif">Children</h2>
 <p>RIVAL is not for children under 13, or the minimum age in your country, and does not knowingly collect their information.</p>
 <h2 class="serif">Your rights</h2>

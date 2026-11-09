@@ -347,57 +347,99 @@ async function callImport(body: unknown): Promise<any> {
   return data;
 }
 
-/** Which items are new to RIVAL, without writing anything. */
-export async function previewImport(items: ImportItem[], onProgress?: (done: number) => void): Promise<Set<string>> {
+export type PreviewResult = {
+  /** Not in RIVAL yet. */
+  fresh: Set<string>;
+  /** Already in RIVAL, without a photo: one from this archive can be added. */
+  needsPhoto: Set<string>;
+};
+
+/** Which items are new to RIVAL, and which existing ones lack a photo, without writing anything. */
+export async function previewImport(items: ImportItem[], onProgress?: (done: number) => void): Promise<PreviewResult> {
   const fresh = new Set<string>();
+  const needsPhoto = new Set<string>();
   for (let i = 0; i < items.length; i += 50) {
     const batch = items.slice(i, i + 50).map(({ polyline, ...rest }) => rest);
-    const { results } = await callImport({ preview: true, items: batch });
-    (results ?? []).forEach((r: any) => { if (r.status === 'new') fresh.add(r.key); });
+    const { results } = await withRetry(() => callImport({ preview: true, items: batch }));
+    (results ?? []).forEach((r: any) => {
+      if (r.status === 'new') fresh.add(r.key);
+      else if (r.status === 'linked' && r.needsPhoto) needsPhoto.add(r.key);
+    });
     onProgress?.(Math.min(items.length, i + 50));
   }
-  return fresh;
+  return { fresh, needsPhoto };
 }
 
-export type ImportResult = { key: string; status: string; id?: string; effort?: number };
+// A request that fails (the phone locked, Safari paused the page, a dropped
+// connection) is tried again once the page is back in view, rather than
+// ending the import (Ricky, 2026-11-08: an import stopped at 40 of 226).
+async function withRetry<T>(run: () => Promise<T>, attempts = 6): Promise<T> {
+  for (let n = 1; ; n++) {
+    try {
+      return await run();
+    } catch (e: any) {
+      if (n >= attempts || e?.message === 'signed_out') throw e;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        await new Promise<void>((resolve) => {
+          const on = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', on); resolve(); } };
+          document.addEventListener('visibilitychange', on);
+        });
+      }
+      await new Promise((r) => setTimeout(r, 1000 * n));
+    }
+  }
+}
 
-/** Imports the given items, uploading each one's photo first. */
-export async function runImport(userId: string, read: ReadArchive, items: ImportItem[], onProgress?: (done: number) => void): Promise<ImportResult[]> {
+export type ImportResult = { key: string; status: string; id?: string; effort?: number; photoAdded?: boolean };
+
+export type ImportProgress = { done: number; photos: number; videos: number; routes: number };
+
+/** Imports the given items, uploading each one's photo first. Items already
+ *  in RIVAL (from previewImport's needsPhoto) only get their photos added. */
+export async function runImport(userId: string, read: ReadArchive, items: ImportItem[], onProgress?: (p: ImportProgress) => void): Promise<ImportResult[]> {
   const out: ImportResult[] = [];
+  const p: ImportProgress = { done: 0, photos: 0, videos: 0, routes: 0 };
   for (let i = 0; i < items.length; i += 10) {
     const batch = items.slice(i, i + 10);
     for (const it of batch) {
       const photo = read.photos.get(it.key);
-      if (!photo) continue;
+      if (!photo || it.photoPath) continue;
       // Capped like every other activity photo (lib/imageResize.ts).
       const type = photo.ext === 'png' ? 'image/png' : 'image/jpeg';
       const up = await fitPhoto({ blob: new Blob([photo.bytes as BlobPart], { type }), mimeType: type, ext: photo.ext });
       const path = `${userId}/import/${it.providerId}.${up.ext}`;
-      const { error } = await supabase.storage.from('activity-photos')
-        .upload(path, up.blob, { contentType: up.mimeType, upsert: true });
+      const { error } = await withRetry(() => supabase.storage.from('activity-photos')
+        .upload(path, up.blob, { contentType: up.mimeType, upsert: true }));
       if (!error) it.photoPath = path;
     }
-    const { results } = await callImport({ items: batch });
+    const { results } = await withRetry(() => callImport({ items: batch }));
     out.push(...(results ?? []));
-    // Each new activity gets back the rest of its photos and videos, and
-    // the cover's position. Linked or skipped ones already exist and are
-    // left as they are.
+    // Each new activity gets back the rest of its photos and videos, and the
+    // cover's position; so does an existing one that just got its photo.
+    // Other linked or skipped ones are left as they are.
     for (const r of (results ?? []) as ImportResult[]) {
-      if (r.status !== 'imported' || !r.id) continue;
       const it = batch.find((b) => b.key === r.key);
-      if (!it) continue;
+      if (!it || !r.id) continue;
+      const fresh = r.status === 'imported';
+      if (!fresh && !(r.status === 'linked' && r.photoAdded)) continue;
+      if (fresh && it.polyline) p.routes++;
+      if (it.photoPath) p.photos++;
       const focal = read.coverFocal.get(it.key);
       if (focal) await supabase.from('activities').update({ photo_focal_x: focal.x, photo_focal_y: focal.y }).eq('id', r.id);
-      await attachExtras(userId, r.id, it.providerId, read.extras.get(it.key) ?? []);
+      const added = await attachExtras(userId, r.id, it.providerId, read.extras.get(it.key) ?? []);
+      p.photos += added.photos;
+      p.videos += added.videos;
     }
-    onProgress?.(Math.min(items.length, i + 10));
+    p.done = Math.min(items.length, i + 10);
+    onProgress?.({ ...p });
   }
   return out;
 }
 
 // Uploads an imported activity's other photos and videos and records them
 // after the cover, in order. A file that fails is skipped, never the import.
-async function attachExtras(userId: string, activityId: string, providerId: string, extras: ArchiveMedia[]) {
+async function attachExtras(userId: string, activityId: string, providerId: string, extras: ArchiveMedia[]): Promise<{ photos: number; videos: number }> {
+  const added = { photos: 0, videos: 0 };
   let position = 1;
   for (let n = 0; n < extras.length; n++) {
     const m = extras[n];
@@ -413,8 +455,12 @@ async function attachExtras(userId: string, activityId: string, providerId: stri
     const { error: rowErr } = await supabase.from('activity_media').insert({
       activity_id: activityId, media_url: url, media_type: m.type, position, focal_x: m.focalX, focal_y: m.focalY,
     });
-    if (!rowErr) position++;
+    if (!rowErr) {
+      position++;
+      if (m.type === 'video') added.videos++; else added.photos++;
+    }
   }
+  return added;
 }
 
 /** This year's Effort, which sets the rank (same definition as Today). */

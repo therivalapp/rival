@@ -61,20 +61,31 @@ serve(async (req) => {
     if (!items.length) return json({ results: [] })
 
     // Read-only check for the preview receipt: already linked to this source,
-    // or an activity of this user starting within the matching window.
+    // or an activity of this user starting within the matching window. A
+    // linked one without a photo says so (needsPhoto), so a later archive can
+    // add the photo it has (Ricky, 2026-11-08: the same activities were on two
+    // Strava accounts, the photos only on the second).
     if (body?.preview) {
       const results = []
       for (const it of items) {
         const { data: src } = await supabase.from('activity_sources').select('activity_id')
           .eq('user_id', user.id).eq('provider', it.provider).eq('provider_activity_id', it.providerId).maybeSingle()
-        if (src) { results.push({ key: it.key, status: 'linked' }); continue }
-        const t = new Date(it.startedAt).getTime()
-        const { data: near } = await supabase.from('activities').select('id')
-          .eq('user_id', user.id)
-          .gte('started_at', new Date(t - START_WINDOW_MS).toISOString())
-          .lte('started_at', new Date(t + START_WINDOW_MS).toISOString())
-          .limit(1)
-        results.push({ key: it.key, status: near && near.length ? 'linked' : 'new' })
+        let existing: { id: string; photo_url: string | null } | null = null
+        if (src) {
+          const { data } = await supabase.from('activities').select('id, photo_url').eq('id', src.activity_id).eq('user_id', user.id).maybeSingle()
+          existing = data ?? { id: src.activity_id, photo_url: 'unknown' }
+        } else {
+          const t = new Date(it.startedAt).getTime()
+          const { data: near } = await supabase.from('activities').select('id, photo_url')
+            .eq('user_id', user.id)
+            .gte('started_at', new Date(t - START_WINDOW_MS).toISOString())
+            .lte('started_at', new Date(t + START_WINDOW_MS).toISOString())
+            .limit(1)
+          existing = near?.[0] ?? null
+        }
+        results.push(existing
+          ? { key: it.key, status: 'linked', needsPhoto: !existing.photo_url }
+          : { key: it.key, status: 'new' })
       }
       return json({ results })
     }
@@ -97,9 +108,17 @@ serve(async (req) => {
         })
         if (resolved.discard) { results.push({ key: it.key, status: 'skipped' }); continue }
         if (resolved.canonicalId) {
-          // Already in RIVAL: keep what is there, only add a missing route.
+          // Already in RIVAL: keep what is there, only add a missing route
+          // and a missing photo.
           await saveActivityRoute(supabase, resolved.canonicalId, user.id, it.polyline)
-          results.push({ key: it.key, status: 'linked' })
+          let photoAdded = false
+          if (it.photoPath && it.photoPath.startsWith(`${user.id}/`)) {
+            const url = supabase.storage.from('activity-photos').getPublicUrl(it.photoPath).data.publicUrl
+            const { data: filled } = await supabase.from('activities').update({ photo_url: url })
+              .eq('id', resolved.canonicalId).eq('user_id', user.id).is('photo_url', null).select('id')
+            photoAdded = !!filled?.length
+          }
+          results.push({ key: it.key, status: 'linked', id: resolved.canonicalId, photoAdded })
           continue
         }
         const effort = calculateEffortScore(type, it.durationSeconds, it.elevationMeters ?? 0, config, it.distanceMeters ?? 0)
