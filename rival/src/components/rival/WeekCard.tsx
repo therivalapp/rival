@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Platform, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Modal } from './RivalModal';
 import { RivalButtonColors, RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
@@ -207,18 +207,20 @@ export function MonthWeekColumns({ weeks }: { weeks: { label: string; effort: nu
 }
 
 /** An event's legs as small chips: each activity's icon and distance
- *  (Ricky, 2026-10-16, event weeks W2). */
-export function EventLegs({ legs }: { legs: { key: string; type: string; text: string }[] }) {
-  if (legs.length < 2) return null;
+ *  (Ricky, 2026-10-16, event weeks W2). Also a normal week's total for each
+ *  kind of activity. Always one row (Ricky, 2026-11-09): four fit across a
+ *  phone, and more swipe sideways, running out to the card's edges. */
+export function EventLegs({ legs, min = 2 }: { legs: { key: string; type: string; text: string }[]; min?: number }) {
+  if (legs.length < min) return null;
   return (
-    <View style={s.earned}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.legRow} contentContainerStyle={s.legRowInner}>
       {legs.map((l) => (
         <View key={l.key} style={[s.pill, s.pillLeg]}>
           <RivalIcon name={activityIconName(l.type)} size={13} color="rgba(255,255,255,0.75)" />
           <Text style={[s.pillText, { color: 'rgba(255,255,255,0.8)', fontWeight: '600' }]}>{l.text}</Text>
         </View>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -575,7 +577,10 @@ const s = StyleSheet.create({
     ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #fbf4e6, #cdbd9f)' } as any : {}),
   },
   colDayEvent: { color: RivalColors.event },
-  pillLeg: { backgroundColor: 'rgba(255,255,255,0.05)' },
+  // A little tighter than the other pills, so four fit on one row.
+  pillLeg: { backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 8, gap: 4 },
+  legRow: { flexGrow: 0, marginHorizontal: -16 },
+  legRowInner: { paddingHorizontal: 16, gap: 6 },
   kickerEvent: { color: RivalColors.event },
   glowEvent: Platform.OS === 'web'
     ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(244,234,216,0.15), rgba(244,234,216,0) 70%)' } as any

@@ -146,7 +146,6 @@ function goalValue(a: { effort_score: number | null; distance_meters: number | n
 type League = {
   id: string; name: string; created_at: string; logo_url: string | null; invite_code: string | null;
   goal_metric: GoalMetric | null; goal_target: number | null; goal_target_date: string | null;
-  description?: string | null;
   created_by?: string;
 };
 type Member = { user_id: string; role: string; users: { display_name: string | null; avatar_url: string | null } };
@@ -263,7 +262,11 @@ const chipActiveWeb = Platform.OS === 'web'
   ? ({ backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any)
   : null;
 
-function ChallengeRing({ pct, value, unit, size = 200, thickness = 14 }: { pct: number; value: number; unit: string; size?: number; thickness?: number }) {
+// Each member's share of the challenge, in the warm data tones (ivory to
+// salmon, never red), the most first (Ricky, 2026-11-09).
+const SHARE_TONES = [RivalColors.accentText, '#ffd2bf', '#f4ead8', 'rgba(244,234,216,0.45)'];
+
+function ChallengeRing({ pct, value, unit, size = 200, thickness = 14, shares }: { pct: number; value: number; unit: string; size?: number; thickness?: number; shares?: { fraction: number; tone: string }[] }) {
   const clamped = Math.max(0, Math.min(1, pct));
   const ringId = `ringGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`; // unique per ring on the page
   const radius = (size - thickness) / 2;
@@ -278,6 +281,24 @@ function ChallengeRing({ pct, value, unit, size = 200, thickness = 14 }: { pct: 
           </LinearGradient>
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
+        {shares ? (() => {
+          // One arc per member, end to end from the top, with a hairline gap.
+          let start = 0;
+          return shares.map((sh, i) => {
+            const len = Math.max(0, Math.min(1 - start, sh.fraction)) * circumference;
+            const arc = (
+              <Circle
+                key={i}
+                cx={size / 2} cy={size / 2} r={radius}
+                stroke={sh.tone} strokeWidth={thickness} fill="none"
+                strokeDasharray={`${Math.max(len - 3, 0.5)} ${circumference}`}
+                strokeDashoffset={-start * circumference}
+              />
+            );
+            start += sh.fraction;
+            return arc;
+          });
+        })() : (
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
           stroke={`url(#${ringId})`} strokeWidth={thickness} fill="none"
@@ -285,6 +306,7 @@ function ChallengeRing({ pct, value, unit, size = 200, thickness = 14 }: { pct: 
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - clamped)}
         />
+        )}
       </Svg>
       <RivalIcon name="flag" size={22} color={RivalColors.accentText} style={{ marginBottom: 4 }} />
       <Text style={styles.ringValue}>{value.toLocaleString()}</Text>
@@ -976,6 +998,40 @@ export default function TeamHub() {
       .sort((a, b) => b.value - a.value);
   })();
   const topValue = goalContributors[0]?.value || 1;
+  // Who the challenge total came from, for the sport picked under the
+  // avatars (all sports by default). These replace Top Contributors when a
+  // challenge is set (Ricky, 2026-11-09).
+  const challengeShares = hasGoal ? (() => {
+    const byUser: Record<string, number> = {};
+    goalActivitiesRaw.filter((a) => matchesStandingsFilter(a.activity_type, standingsFilter)).forEach((a) => { byUser[a.user_id] = (byUser[a.user_id] || 0) + goalValue(a, league.goal_metric as GoalMetric); });
+    return Object.entries(byUser)
+      .map(([userId, value]) => ({ userId, value: Math.round(value * 10) / 10 }))
+      .filter((c) => c.value > 0)
+      .sort((x, y) => y.value - x.value);
+  })() : [];
+  const shareTone = (i: number) => SHARE_TONES[Math.min(i, SHARE_TONES.length - 1)];
+  // With one sport picked, the ring still shows the whole team's total: that
+  // sport's shares in colour, everything else in grey after them.
+  const ringShares = hasGoal && target ? [
+    ...challengeShares.map((c, i) => ({ fraction: c.value / target, tone: shareTone(i) })),
+    ...(standingsFilter !== 'all' ? [{ fraction: Math.max(0, goalProgress - challengeShares.reduce((t, c) => t + c.value, 0)) / target, tone: 'rgba(255,255,255,0.22)' }] : []),
+  ] : undefined;
+  const sportChips = (center?: boolean) => (
+    <View style={[styles.chipRow, center && styles.chipRowCenter]}>
+      {STANDINGS_FILTERS.map(({ key, icon }) => {
+        const active = standingsFilter === key;
+        return (
+          <TouchableOpacity
+            key={key}
+            style={[styles.chip, active ? [styles.chipActive, chipActiveWeb] : warmCardWeb]}
+            onPress={() => setStandingsFilter(key)}
+          >
+            <RivalIcon name={icon} size={17} color={active ? '#fff' : 'rgba(255,255,255,0.45)'} />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 
   const noGoalTeamEffort = Math.round(noGoalSource.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10;
   const noGoalTeamDistanceKm = Math.round((noGoalSource.reduce((s, a) => s + (a.distance_meters || 0), 0) / 1000) * 10) / 10;
@@ -1047,12 +1103,41 @@ export default function TeamHub() {
                   onPress={() => router.push({ pathname: '/create-team-challenge', params: { id } })}
                   accessibilityLabel={isAdmin ? 'Edit Team Challenge' : undefined}
                 >
-                  <ChallengeRing pct={pct} value={Math.round(goalProgress)} unit={`/ ${target.toLocaleString()} ${unit}`} />
+                  <ChallengeRing
+                    pct={pct} value={Math.round(goalProgress)} unit={`/ ${target.toLocaleString()} ${unit}`}
+                    shares={ringShares}
+                  />
                 </TouchableOpacity>
                 <View style={styles.ringMetaRow}>
                   <Text style={styles.ringMeta}><Text style={styles.ringMetaBold}>{Math.round(pct * 100)}%</Text> complete</Text>
                   <Text style={styles.ringMeta}><Text style={styles.ringMetaBold}>{daysLeft > 0 ? daysLeft : 0}</Text> days left</Text>
                 </View>
+                {/* Everyone who has added to it, the most first, each edged in
+                    the colour of their part of the ring. Four sit centred;
+                    more swipe sideways (Ricky, 2026-11-09). */}
+                {challengeShares.length === 0 && standingsFilter !== 'all' ? (
+                  <Text style={styles.shareEmpty}>No activities in this sport yet.</Text>
+                ) : null}
+                {challengeShares.length > 0 && (() => {
+                  const items = challengeShares.map((c, i) => (
+                    <TouchableOpacity key={c.userId} style={styles.shareItem} onPress={() => router.push(`/stats?userId=${c.userId}` as any)}>
+                      <View style={[styles.shareAvatar, { borderColor: shareTone(i) }]}>
+                        <RivalAvatar uri={memberAvatar(c.userId)} name={memberName(c.userId)} size={40} />
+                      </View>
+                      <Text style={styles.shareValue}>{c.value.toLocaleString()}<Text style={styles.shareUnit}> {unit}</Text></Text>
+                      <Text style={styles.shareName} numberOfLines={1}>{memberName(c.userId).split(' ')[0]}</Text>
+                    </TouchableOpacity>
+                  ));
+                  return challengeShares.length > 4 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shareScroll} contentContainerStyle={styles.shareScrollInner}>
+                      {items}
+                    </ScrollView>
+                  ) : (
+                    <View style={styles.shareRow}>{items}</View>
+                  );
+                })()}
+                {/* Pick a sport to see who added what in it. */}
+                {sportChips(true)}
               </>
             ) : activeTab === 'Posts' ? (
               <View style={styles.boardWrap}>
@@ -1235,12 +1320,9 @@ export default function TeamHub() {
                   <RivalStartTiles ghost={phone} art={phone} titleStyle={phone ? hubPhone.nextTitle : undefined}
                     tiles={[
                       ...(isAdmin && !hasGoal ? [{ key: 'challenge', icon: 'target' as const, label: 'Team challenge', onPress: () => router.push({ pathname: '/create-team-challenge', params: { id } }) }] : []),
-                      ...(sessions.length === 0 ? [{ key: 'plan', icon: 'calendar' as const, label: 'Plan activity', onPress: () => setPlanning(true) }] : []),
-                      ...(teamEvents.length === 0 ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => router.push('/races?add=true') }] : []),
                     ]}
                   />
                 )}
-                {league.description ? <Text style={styles.teamAbout}>{league.description}</Text> : null}
                 {hasGoal && (
                   <>
                     <View style={[styles.paceCard, phone ? hubPhone.pace : paceCardWeb]}>
@@ -1327,22 +1409,9 @@ export default function TeamHub() {
                   </>
                 )}
 
-                <View style={styles.chipRow}>
-                  {STANDINGS_FILTERS.map(({ key, icon }) => {
-                    const active = standingsFilter === key;
-                    return (
-                      <TouchableOpacity
-                        key={key}
-                        style={[styles.chip, active ? [styles.chipActive, chipActiveWeb] : warmCardWeb]}
-                        onPress={() => setStandingsFilter(key)}
-                      >
-                        <RivalIcon name={icon} size={17} color={active ? '#fff' : 'rgba(255,255,255,0.45)'} />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                {!hasGoal && sportChips()}
 
-                {goalContributors.length > 0 && (
+                {!hasGoal && goalContributors.length > 0 && (
                   <>
                     <View style={styles.sectionHead}>
                       <Text style={styles.sectionTitle}>{hasGoal ? 'Top Contributors' : noGoalPeriod === 'week' ? "This Week's Standings" : 'All-Time Standings'}</Text>
@@ -1491,6 +1560,19 @@ export default function TeamHub() {
                       <RivalIcon name="chevronRight" size={16} color={RivalColors.accentText} />
                     </TouchableOpacity>
                   </>
+                )}
+
+                {/* What isn't set up yet, after everything that is (Ricky,
+                    2026-11-09: under the challenge it looked out of place). */}
+                {phone && (
+                  <View style={{ marginTop: 22 }}>
+                  <RivalStartTiles ghost art titleStyle={hubPhone.nextTitle}
+                    tiles={[
+                      ...(sessions.length === 0 ? [{ key: 'plan', icon: 'calendar' as const, label: 'Plan activity', onPress: () => setPlanning(true) }] : []),
+                      ...(teamEvents.length === 0 ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => router.push('/races?add=true') }] : []),
+                    ]}
+                  />
+                  </View>
                 )}
 
                 {/* Phones: the Posts tab already shows these. */}
@@ -2321,6 +2403,16 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   ringMetaRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 20 },
   ringMeta: { fontSize: 13, color: 'rgba(255,255,255,0.75)' },
   ringMetaBold: { fontWeight: '800', color: '#fff' },
+  shareRow: { flexDirection: 'row', justifyContent: 'center', gap: 14, marginTop: 22, paddingHorizontal: 16 },
+  shareScroll: { flexGrow: 0, marginTop: 22 },
+  shareScrollInner: { gap: 14, paddingHorizontal: 20 },
+  shareItem: { alignItems: 'center', width: 64 },
+  shareAvatar: { padding: 2, borderRadius: 999, borderWidth: 2, borderColor: 'rgba(255,255,255,0.14)' },
+  shareValue: { fontSize: 13.5, fontWeight: '800', color: '#fff', marginTop: 7 },
+  shareUnit: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
+  shareName: { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 1 },
+  shareEmpty: { fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginTop: 22 },
+  chipRowCenter: { justifyContent: 'center', marginTop: 18 },
 
   scroll: { flex: 1 },
   // Clears the floating tab pill so the last card never sits under it —
@@ -2403,7 +2495,6 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   activityShrink: { flexShrink: 1 },
   activityTime: { color: RivalColors.textSecondary, fontSize: 11.5, marginLeft: 'auto' },
   activityWhat: { color: 'rgba(255,255,255,0.72)', fontSize: 13 },
-  teamAbout: { fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.72)', textAlign: 'center', paddingHorizontal: 8 },
   emptyText: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 20 },
 
   // Post card — ported verbatim from team-feed.tsx so the Feed tab here

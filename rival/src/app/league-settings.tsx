@@ -14,13 +14,13 @@ import { goToTab } from '../lib/tabNav';
 import { useSnapState } from '../lib/snapState';
 import { avatarImage } from '../lib/imageUrl';
 
-// A crest (and the name baked into it) can change once every 6 months —
+// A crest (and the name baked into it) can change once every 3 months (Ricky, 2026-11-09; was 6) —
 // often enough to fix a bad first attempt or reflect a real team change,
 // rare enough that it still reads as an identity, not a disposable cosmetic.
 // Mirrors the same check in supabase/functions/generate-team-crest/index.ts.
 function nextCrestEligibleAt(generatedAt: string): Date {
   const d = new Date(generatedAt);
-  d.setMonth(d.getMonth() + 6);
+  d.setMonth(d.getMonth() + 3);
   return d;
 }
 function crestOnCooldown(generatedAt: string | null): boolean {
@@ -74,12 +74,6 @@ export default function LeagueSettingsScreen() {
   const [isPrivate, setIsPrivate] = useState(true);
   const [pendingRequests, setPendingRequests] = useState<Member[]>([]);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
-  const [description, setDescription] = useState('');
-  const [descDraft, setDescDraft] = useState('');
-  const [savingDesc, setSavingDesc] = useState(false);
-  const [descSaved, setDescSaved] = useState(false);
-  // False until team_settings.sql has added the column.
-  const [hasDescription, setHasDescription] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [codeNote, setCodeNote] = useState('');
   const [resettingCode, setResettingCode] = useState(false);
@@ -110,9 +104,6 @@ export default function LeagueSettingsScreen() {
     setLogoUrl(league.logo_url || null);
     setIsPrivate(league.is_private !== false);
     setCrestGeneratedAt(league.crest_generated_at || null);
-    setHasDescription('description' in league);
-    setDescription(league.description ?? '');
-    setDescDraft(league.description ?? '');
     setInviteCode(league.invite_code ?? '');
     setMembers(d.members as any);
     setPendingRequests(d.pending as any);
@@ -130,7 +121,6 @@ export default function LeagueSettingsScreen() {
     const [{ data: league }, { data: rows }] = await Promise.all([
       supabase
         .from('leagues')
-        // select('*'): works before and after team_settings.sql adds description.
         .select('*')
         .eq('id', id)
         .single(),
@@ -271,18 +261,6 @@ export default function LeagueSettingsScreen() {
     setMembers((prev) =>
       prev.map((m) => m.user_id === userId ? { ...m, role: newRole } : m)
     );
-  }
-
-  async function saveDescription() {
-    const next = descDraft.trim();
-    setSavingDesc(true);
-    const { data, error } = await supabase.from('leagues').update({ description: next || null }).eq('id', id).select('id');
-    setSavingDesc(false);
-    if (error || !data?.length) { notify("Couldn't save the description", error?.message ?? 'Only team admins can do this.'); return; }
-    setDescription(next);
-    setDescDraft(next);
-    setDescSaved(true);
-    setTimeout(() => setDescSaved(false), 1800);
   }
 
   function inviteLink() {
@@ -558,26 +536,6 @@ export default function LeagueSettingsScreen() {
             {crestError ? <Text style={ms.error}>{crestError}</Text> : null}
           </View>
 
-          {hasDescription ? <View style={ms.card}>
-            <Text style={ms.cardLabel}>About the team</Text>
-            <TextInput
-              style={ms.descInput}
-              value={descDraft}
-              onChangeText={setDescDraft}
-              placeholder="For example: Tuesday and Saturday runs, all paces welcome."
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              multiline
-              maxLength={160}
-            />
-            <View style={ms.descFoot}>
-              <Text style={ms.cardHint}>{descDraft.length}/160 · Shown on the team page and in team search.</Text>
-              {descDraft.trim() !== description ? (
-                <TouchableOpacity style={ms.fillBtn} onPress={saveDescription} disabled={savingDesc}>
-                  <BusyText busy={!!(savingDesc)} style={ms.fillBtnText}>{savingDesc ? 'Saving…' : 'Save'}</BusyText>
-                </TouchableOpacity>
-              ) : descSaved ? <Text style={ms.savedText}>Saved</Text> : null}
-            </View>
-          </View> : null}
 
           {inviteCode ? (
             <View style={ms.card}>
@@ -1141,13 +1099,7 @@ const styles = StyleSheet.create({
 
 // Mobile styles — the warm palette the rest of the mobile app now uses.
 const ms = StyleSheet.create({
-  descInput: {
-    minHeight: 64, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, borderRadius: 12, padding: 12,
-    color: '#fff', fontSize: 14.5, lineHeight: 20, textAlignVertical: 'top',
-    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
-  },
   descFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  savedText: { fontSize: 12.5, fontWeight: '700', color: RivalColors.accentText },
   codeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   code: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 32, fontWeight: '700', letterSpacing: 6, color: '#fff', textAlign: 'center',

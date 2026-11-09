@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 // Ricky's own account — exempt from the regen cooldown so he can iterate on
-// crest quality/prompt changes without waiting 6 months between tries. Every
+// crest quality/prompt changes without waiting 3 months between tries. Every
 // other account still gets the real limit.
 const UNLIMITED_REGEN_USER_ID = '09b2e197-8257-4d7c-a0e6-12dc0429eeff'
 
@@ -70,12 +70,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ removed }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // Regeneration is allowed, but only once every 6 months — frequent
+    // Regeneration is allowed, but only once every 3 months (Ricky, 2026-11-09; was 6) — frequent
     // changes would cheapen the crest as a team identity rather than a
     // disposable cosmetic, even though the per-image cost is trivial.
     if (league.crest_generated_at && user.id !== UNLIMITED_REGEN_USER_ID) {
       const nextEligible = new Date(league.crest_generated_at)
-      nextEligible.setMonth(nextEligible.getMonth() + 6)
+      nextEligible.setMonth(nextEligible.getMonth() + 3)
       if (Date.now() < nextEligible.getTime()) {
         return new Response(JSON.stringify({ error: `This team can regenerate its crest starting ${nextEligible.toISOString().slice(0, 10)}` }), { status: 409, headers: corsHeaders })
       }

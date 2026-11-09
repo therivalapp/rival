@@ -559,7 +559,7 @@ export default function ChatScreen() {
                     </View>
                   )}
 
-                  {msg.kind === 'session' ? renderSession(msg) : (
+                  {msg.kind === 'session' ? <View style={styles.sessionRow}>{renderSession(msg)}</View> : (
                     <View style={[
                       styles.row,
                       isMe && styles.rowMe,
@@ -880,6 +880,9 @@ const styles = StyleSheet.create({
   rowMe: { justifyContent: 'flex-end' },
   rowLoose: { marginTop: 12 },
   rowTight: { marginTop: 2 },
+  // A planned activity is its own object in the thread: clear space above
+  // and below so it never sits on the message before it (Ricky, 2026-11-09).
+  sessionRow: { marginTop: 18, marginBottom: 6 },
   // Just enough clearance for the overlapping pill, and only when there is one.
   rowWithReaction: { marginBottom: 8 },
 

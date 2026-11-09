@@ -1525,6 +1525,23 @@ export default function MyActivitiesScreen() {
     };
   };
   const thisWeekEvent = weekEvent(allActivities.filter((a) => getMondayStart(new Date(a.started_at)) === getMondayStart(new Date())));
+  // A normal week's totals for each kind of activity, as the event legs'
+  // pills: how far each one has ticked up this week (Ricky, 2026-11-09).
+  const thisWeekTypes = (() => {
+    const by = new Map<string, { meters: number; seconds: number; effort: number }>();
+    allActivities
+      .filter((a) => getMondayStart(new Date(a.started_at)) === getMondayStart(new Date()))
+      .forEach((a) => {
+        const t = by.get(a.activity_type) ?? { meters: 0, seconds: 0, effort: 0 };
+        t.meters += a.distance_meters || 0;
+        t.seconds += a.duration_seconds || 0;
+        t.effort += a.effort_score || 0;
+        by.set(a.activity_type, t);
+      });
+    return [...by.entries()]
+      .sort((x, y) => y[1].effort - x[1].effort)
+      .map(([type, t]) => ({ key: type, type, text: formatDistance(t.meters, type) || formatDuration(t.seconds) }));
+  })();
 
   // Weeks off aren't pages of their own; the swipe skips them and the next
   // older week says how many there were (Ricky, 2026-10-16, "Off B").
@@ -2108,7 +2125,7 @@ export default function MyActivitiesScreen() {
                             />
                           );
                         })() : <>
-                        {thisWeekEvent ? <EventLegs legs={thisWeekEvent.legs} /> : null}
+                        {thisWeekEvent ? <EventLegs legs={thisWeekEvent.legs} /> : <EventLegs legs={thisWeekTypes} min={1} />}
                         <DayColumns effort={weekDayEffort} bests={weekPbDays} today={todayIdx} events={thisWeekEvent?.days} short />
                         {heroExpanded && (
                           <>

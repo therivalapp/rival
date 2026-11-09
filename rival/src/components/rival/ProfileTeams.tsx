@@ -19,7 +19,6 @@ type ProfileTeam = {
   id: string;
   name: string;
   logo_url: string | null;
-  description: string | null;
   is_private: boolean;
   member_count: number;
   effort_this_week: number;
@@ -110,7 +109,6 @@ export function ProfileTeams({ userId, isOwn, name, label }: {
             <View style={s.fact}><RivalIcon name="groups" size={15} color={RivalColors.accentText} /><Text style={s.factText}>{members(asking.member_count)}</Text></View>
             <View style={s.fact}><RivalIcon name="bolt" size={15} color={RivalColors.accentText} /><Text style={s.factText}>{Math.round(asking.effort_this_week).toLocaleString()} Effort this week</Text></View>
           </View>
-          {asking.description ? <View style={s.about}><Text style={s.aboutText}>{asking.description}</Text></View> : null}
           <View style={{ alignSelf: 'stretch' }}><GreyNote>You'll be notified when your request is accepted or declined.</GreyNote></View>
           {error ? <Text style={s.error}>{error}</Text> : null}
         </View>
@@ -198,8 +196,6 @@ const s = StyleSheet.create({
   facts: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 12 },
   fact: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   factText: { fontSize: 12.5, color: 'rgba(255,255,255,0.6)' },
-  about: { alignSelf: 'stretch', marginTop: 14, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: 'rgba(255,209,190,0.05)', borderWidth: 1, borderColor: 'rgba(255,181,158,0.18)' },
-  aboutText: { fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
   error: { fontSize: 13, color: RivalColors.error, marginTop: 8, textAlign: 'center' },
   later: { alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 16 },
   laterText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
