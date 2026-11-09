@@ -114,7 +114,7 @@ export default function PrivacyScreen() {
       <ScrollView contentContainerStyle={s.content}>
         <GreyPageHead kicker="RIVAL" title="Privacy policy" sub={UPDATED ? `Last updated ${UPDATED}` : undefined} onBack={back} />
         <Text style={s.intro}>
-          RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising. RIVAL is run by its founder in Canada, who is responsible for this policy and the information RIVAL holds.
+          RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising. RIVAL is run by its founder, Ricky Jackson-Lewis, in Canada, who is responsible for this policy and the information RIVAL holds.
         </Text>
         {SECTIONS.map((sec) => (
           <View key={sec.title} style={s.section}>

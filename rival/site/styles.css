@@ -61,3 +61,50 @@ footer a{margin-left:18px}
   .panel figcaption{top:8cqw;font-size:8cqw}
   .panel .phone{left:6cqw;right:6cqw;top:36cqw;border-radius:9cqw;border-width:1.6cqw}
 }
+
+/* Phone hero (Ricky, 2026-11-09): the photo above the words, so the runner
+   is seen in full, and the line above the title on a dark chip so it reads
+   against anything. Desktop keeps the photo behind the words. */
+.hero-photo{display:none}
+@media(max-width:899px){
+  .hero{display:block;min-height:0;background:none}
+  .hero:after{display:none}
+  .hero-photo{display:block;position:relative;height:58vh;height:58svh;min-height:400px;max-height:560px;background:url(img/hero.jpg) 88% 60%/cover}
+  .hero-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(27,26,25,.55) 0%,rgba(27,26,25,0) 24%,rgba(27,26,25,0) 58%,var(--ground) 100%)}
+  .hero .wrap{margin-top:-58px;padding-bottom:44px}
+  .hero .kick{display:inline-block;padding:7px 12px;border-radius:999px;background:rgba(27,26,25,.72);border:1px solid rgba(255,181,158,.35);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .hero h1{font-size:46px;line-height:1.02;margin:16px 0 14px}
+  .hero .lead{font-size:17px;line-height:1.6;color:rgba(255,255,255,.8);margin:0 0 24px}
+  .hero .note{margin-top:14px}
+}
+
+/* How it works, Your data (Ricky, 2026-11-09): sold as features, in the
+   app's warm cards with an icon, no screenshots (the steps above have them). */
+.lead-sm{color:rgba(255,255,255,.75);font-size:16.5px;line-height:1.6;margin:-6px 0 22px;max-width:560px}
+.feats{display:grid;gap:14px}
+.feat{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:22px;padding:22px 20px;background:#1f1d1c}
+.feat:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 50% 0%,rgba(232,131,95,.16),rgba(232,131,95,0) 70%);pointer-events:none}
+.feat>*{position:relative}
+.feat-ic,.mini-ic{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--coral),var(--salmon))}
+.feat-ic{width:46px;height:46px;border-radius:14px;margin-bottom:16px}
+.feat-ic svg{width:24px;height:24px;fill:#2a1710}
+.feat h3{font-size:26px;line-height:1.15;margin:6px 0 8px}
+.feat p{margin:0;color:rgba(255,255,255,.75);font-size:15px;line-height:1.55}
+.minis{display:grid;gap:10px;margin-top:14px}
+.mini{display:flex;gap:14px;align-items:flex-start;border:1px solid rgba(255,209,190,.1);background:rgba(255,255,255,.03);border-radius:18px;padding:14px 16px}
+.mini-ic{flex:none;width:40px;height:40px;border-radius:12px}
+.mini-ic svg{width:20px;height:20px;fill:#2a1710}
+.mini h4{margin:1px 0 2px;font-size:15.5px}
+.mini p{margin:0;color:rgba(255,255,255,.68);font-size:14px;line-height:1.5}
+@media(min-width:900px){.feats,.minis{grid-template-columns:repeat(3,1fr)}}
+.trust-list{list-style:none;margin:0;padding:6px 18px;border:1px solid var(--line);border-radius:22px;background:#1f1d1c}
+.trust-list li{display:flex;align-items:center;gap:14px;padding:14px 0;font-size:16px;color:rgba(255,255,255,.88)}
+.trust-list li+li{border-top:1px solid rgba(255,255,255,.06)}
+.trust-ic{flex:none;width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,181,158,.12)}
+.trust-ic svg{width:19px;height:19px;fill:var(--salmon)}
+.trust-more{color:var(--soft);font-size:14px;margin-top:14px}
+/* Sections ease in as they come into view; nothing moves for anyone who
+   has asked for less motion, and without scripts everything simply shows. */
+.js .reveal{opacity:0;transform:translateY(18px);transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
+.js .reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none;transition:none}}
