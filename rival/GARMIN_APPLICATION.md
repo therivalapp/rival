@@ -14,8 +14,11 @@ load (see "Before applying").
 
 ## Answers
 
-**Company / organisation name**
-RIVAL (operated by [your full name] as an individual; not yet incorporated)
+Rewritten 2026-11-08 to match the form's fields (as reported by garminrumors.com,
+Oct 2026) and to give approval the best chance. Fill in the [brackets].
+
+**Company name**
+RIVAL
 
 **Website**
 https://therivalapp.com
@@ -23,56 +26,93 @@ https://therivalapp.com
 **Privacy policy URL**
 https://therivalapp.com/privacy
 
-**Address**
-[your mailing address]
+**Contact name**
+[your full name]
 
-**Contact email**
+**Job title**
+Founder
+
+**Email**
 hello@therivalapp.com
 
-**Describe the application**
-RIVAL is a social fitness app for small teams of friends, clubs and training
-partners. Members record their activities, earn a single Effort score that
-compares different sports fairly, and share them with the teams they choose.
-It covers running, cycling, swimming, strength training, classes and events
-such as marathons, triathlons and HYROX. RIVAL is in private beta on the web,
-with an iPhone app in development.
+**Company address**
+[your mailing address]
 
-**How will Garmin data be used**
-Garmin activities will be imported so that a member's workouts appear in RIVAL
-with full detail: type, time, duration, distance, elevation, heart rate,
-splits, route, and the exercises and sets of strength workouts. They are used
-only to record the member's activities, score Effort and show them to the
-teams the member has agreed to share with. Every activity from Garmin is shown
-with the name of the Garmin device that recorded it.
+**Primary business service**
+A social fitness app for teams of friends, clubs and training partners.
+
+**Industry served**
+Health and fitness (consumer).
+
+**App overview**
+RIVAL is a social fitness app where friends, clubs and training partners see
+and recognise each other's effort. Every activity a member does, from runs,
+rides and swims to strength training, classes and events such as marathons,
+triathlons and HYROX, sits in one place and earns Effort, a single score that
+compares different sports fairly. Members share with the teams they choose,
+take on team goals and challenges together, and encourage each other. RIVAL is
+in testing now, with an iPhone beta through TestFlight planned for December
+2026.
+
+**User experience**
+A member connects Garmin from Settings, Connected devices, through Garmin's own
+sign-in and consent screen. From then on, each activity they record on their
+Garmin device appears in RIVAL automatically, with its route, splits and, for
+strength workouts, the exercises and sets. Their teammates can react to it and
+encourage them, and it counts toward team goals. Garmin users can share their
+training with friends who use other devices, without anyone switching apps or
+entering workouts twice.
+
+**How the APIs will be used**
+RIVAL receives new activities through the Activity API's push notifications:
+type, start time, duration, distance, elevation, heart rate, splits, route, and
+the exercises and sets of strength workouts. They are used only to record the
+member's activities, score Effort and show them to the teams the member has
+agreed to share with. Every activity from Garmin is shown with Garmin
+attribution and the name of the device that recorded it, following Garmin's
+brand guidelines. When a member disconnects RIVAL, in RIVAL or in Garmin
+Connect, RIVAL stops receiving their data and removes its access to their
+account. Deleting a RIVAL account deletes all of its data, including data from
+Garmin; this is in the app today. Data is encrypted in transit, and access
+rules in the database limit each member's data to them and the teams they
+choose.
 
 **Business model**
-RIVAL is free to use. Planned income is from optional cosmetic items and from
-members who want more than three teams. Garmin data is never sold, never used
-for advertising, never shared with data brokers and never used to make money
-in any way.
+RIVAL is free to use, without advertising. Its core stays free: recording
+activities, Effort, ranks, teams and recognition are never behind a payment.
+Optional paid features may follow and are not yet decided. Payments in the
+iPhone app go through Apple. Garmin data is used only to provide RIVAL's
+features to the member it belongs to, including any paid features they choose.
+It is never sold, never used for advertising and never shared with data brokers.
+
+**Third-party services that will process, analyse or store Garmin data**
+- Supabase: database, sign-in and file storage, where activities are kept.
+- Vercel: hosting of the web app.
+- Expo: push notifications, which can include an activity's name.
+No analytics, machine learning or AI service processes, analyses or stores
+Garmin data, and it is never used to train AI models.
 
 **APIs requested**
-Activity API only (activities, routes, and strength exercise sets). RIVAL does
-not request the Health API: no sleep, stress, steps or other wellness data.
+Activity API only. RIVAL does not request the Health, Women's Health, Courses or
+Training APIs.
 
-**Third-party services that will process Garmin data**
-- Supabase: database, sign-in and file storage (where activities are kept)
-- Cloudflare: domain and email forwarding
-- Vercel: hosting of the web app
-- Expo: push notifications, which can include an activity's name
+**Expected users connected in the next 12 months**
+About 100 in the beta from December 2026, growing to around [500] as RIVAL opens
+to more members in 2027.
 
-Garmin data is not sent to any AI provider.
+**Prior contact with Garmin or a Garmin distributor**
+No.
 
-**Data deletion**
-Disconnecting Garmin stops new data arriving. Deleting a RIVAL account deletes
-all of its data, including data from Garmin; this is built and in the app
-today (Profile, Delete account). Members can also delete any single activity.
+## Keeping the answers true
 
-**Expected number of users**
-0 to 100 during the beta.
-
-**Platforms**
-Web today; iPhone app in development (beta through TestFlight).
+- "No AI service processes Garmin data" holds because the AI share caption and
+  image functions (generate-share-caption: Anthropic; generate-share-image:
+  OpenAI) are not used by the app today. If either comes back, keep Garmin
+  activities out of it or tell Garmin first.
+- Starter access is push only with no historical data: a member's earlier
+  Garmin history is not available, only what they record after connecting.
+- To build with the Garmin connection: deregistration and permission-change
+  handling, Garmin attribution and device name on each activity.
 
 ## Website DNS (Cloudflare)
 

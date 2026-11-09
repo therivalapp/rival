@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#161616;font-family:Manrope,sans-serif;padding:28px;display:flex;gap:24px}
+.col{display:flex;flex-direction:column;align-items:center;gap:14px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:2px}
+.note{color:rgba(255,255,255,.6);font-size:13px;width:300px;text-align:center;line-height:1.4}
+.phone{width:340px;height:560px;background:#282828;border-radius:28px;overflow:hidden;position:relative}
+.head{text-align:center;padding:30px 60px 12px;position:relative}
+.back{position:absolute;left:16px;top:26px;width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.1)}
+.back:after{content:'';position:absolute;left:16px;top:14px;width:9px;height:9px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg)}
+.kick{color:#ffb59e;font-size:10px;font-weight:800;letter-spacing:2.2px}
+.title{font-family:Georgia,serif;font-style:italic;font-weight:700;color:#fff;font-size:28px;margin-top:3px;white-space:nowrap}
+.card{margin:14px 16px;border-radius:22px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.16);height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.file{color:rgba(255,255,255,.5);font-size:12px}
+.num{font-family:Georgia,serif;font-style:italic;font-weight:700;color:#fff;font-size:34px;line-height:1}
+.of{color:rgba(255,255,255,.55);font-size:12px;margin-top:4px}
+.ringwrap{position:relative;width:150px;height:150px}
+.ringwrap svg{position:absolute;inset:0}
+.inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.R{font-family:Georgia,serif;font-style:italic;font-weight:700;color:#ffb59e;font-size:64px;line-height:1}
+.word{font:600 22px/1 -apple-system,'Helvetica Neue',Arial,sans-serif;letter-spacing:.32em;text-indent:.32em;color:#ffb59e;opacity:.9}
+.bar{width:180px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:4px;width:53%;background:#ffb59e;border-radius:2px}
+</style></head><body>
+<script>
+const ring=(inner)=>`<div class="ringwrap"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6"/><circle cx="75" cy="75" r="66" fill="none" stroke="#ffb59e" stroke-width="6" stroke-linecap="round" stroke-dasharray="${2*Math.PI*66}" stroke-dashoffset="${2*Math.PI*66*(1-120/226)}" transform="rotate(-90 75 75)"/></svg><div class="inner">${inner}</div></div>`;
+const phone=(body)=>`<div class="phone"><div class="head"><div class="back"></div><div class="kick">CONNECTED DEVICES</div><div class="title">Import an archive</div></div><div class="card">${body}</div></div>`;
+const cols=[
+ ['A · RING',ring('<div class="num">120</div><div class="of">of 226</div>')+'<div class="file">export_123683771.zip</div>','The ring fills as each activity is checked. The count is the only text.'],
+ ['B · RING WITH R',ring('<div class="R">R</div>')+'<div class="file">export_123683771.zip</div>','The R pulses like the opening screen while the ring fills. No numbers.'],
+ ['C · RIVAL',`<div class="word">RIVAL</div><div class="bar"><i></i></div><div class="file">export_123683771.zip</div>`,'The same pulsing RIVAL as when the app opens, with a thin bar that fills.'],
+];
+document.body.innerHTML=cols.map(([t,b,n])=>`<div class="col"><div class="tag">${t}</div>${phone(b)}<div class="note">${n}</div></div>`).join('');
+</script></body></html>

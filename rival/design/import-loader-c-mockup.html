@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#161616;font-family:Manrope,sans-serif;padding:28px;display:flex;gap:24px}
+.col{display:flex;flex-direction:column;align-items:center;gap:14px}
+.tag{color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:2px}
+.note{color:rgba(255,255,255,.6);font-size:13px;width:300px;text-align:center;line-height:1.4}
+.phone{width:340px;height:600px;background:#282828;border-radius:28px;overflow:hidden;position:relative}
+.head{text-align:center;padding:30px 60px 12px;position:relative}
+.back{position:absolute;left:16px;top:26px;width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.1)}
+.back:after{content:'';position:absolute;left:16px;top:14px;width:9px;height:9px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg)}
+.kick{color:#ffb59e;font-size:10px;font-weight:800;letter-spacing:2.2px}
+.title{font-family:Georgia,serif;font-style:italic;font-weight:700;color:#fff;font-size:28px;margin-top:3px;white-space:nowrap}
+.card{margin:14px 16px;border-radius:22px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.16);padding:40px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.file{color:rgba(255,255,255,.5);font-size:12px}
+.word{font:600 22px/1 -apple-system,'Helvetica Neue',Arial,sans-serif;letter-spacing:.32em;text-indent:.32em;color:#ffb59e;opacity:.9}
+.bar{width:180px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:4px;background:#ffb59e;border-radius:2px}
+.facts{align-self:stretch;border-radius:14px;background:rgba(255,209,190,.05);margin-top:14px}
+.fact{display:flex;justify-content:space-between;align-items:center;padding:10px 12px}
+.fact+.fact{border-top:1px solid rgba(255,255,255,.06)}
+.fl{font-size:12.5px;color:rgba(255,255,255,.62)}
+.fv{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px;color:#fff}
+.fv span{font-family:Manrope,sans-serif;font-style:normal;font-weight:400;font-size:12px;color:rgba(255,255,255,.45)}
+</style></head><body>
+<script>
+const phone=(pct,rows)=>`<div class="phone"><div class="head"><div class="back"></div><div class="kick">CONNECTED DEVICES</div><div class="title">Import an archive</div></div><div class="card"><div class="word">RIVAL</div><div class="bar"><i style="width:${pct}%"></i></div><div class="file">export_176619337.zip</div><div class="facts">${rows.map(([l,v,o])=>`<div class="fact"><div class="fl">${l}</div><div class="fv">${v}${o?` <span>of ${o}</span>`:''}</div></div>`).join('')}</div></div></div>`;
+const cols=[
+ ['READING',phone(40,[['Activities','148'],['Photos','21'],['Routes','96']]),'Counts climb as the file is read and checked. RIVAL pulses throughout.'],
+ ['IMPORTING',phone(53,[['Activities','120','226'],['Photos','14','37'],['Routes','82','148']]),'After Import is tapped, each count climbs to its total as items are added.'],
+];
+document.body.innerHTML=cols.map(([t,b,n])=>`<div class="col"><div class="tag">${t}</div>${b}<div class="note">${n}</div></div>`).join('');
+</script></body></html>

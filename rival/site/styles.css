@@ -53,3 +53,11 @@ footer a{margin-left:18px}
 .doc li{margin-bottom:8px}
 .doc strong{color:#fff}
 @media(max-width:640px){footer .wrap{flex-direction:column;align-items:flex-start;gap:10px}footer a{margin:0 18px 0 0}}
+/* Phones: bigger screenshots, so the app is easy to read (Ricky,
+   2026-11-08): wider panels, the screen filling more of each one. */
+@media(max-width:899px){
+  .shots{grid-auto-columns:min(86vw,380px)}
+  .panel{aspect-ratio:300/700}
+  .panel figcaption{top:8cqw;font-size:8cqw}
+  .panel .phone{left:6cqw;right:6cqw;top:36cqw;border-radius:9cqw;border-width:1.6cqw}
+}

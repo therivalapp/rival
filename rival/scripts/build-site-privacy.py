@@ -46,8 +46,10 @@ page = f'''<!doctype html>
 <title>Privacy policy · RIVAL</title>
 <meta name="description" content="What RIVAL collects, who can see it, and how to remove it.">
 <meta name="theme-color" content="#1b1a19">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts/manrope.css">
+<link rel="icon" href="/img/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>

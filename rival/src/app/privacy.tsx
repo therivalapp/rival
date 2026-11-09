@@ -55,6 +55,7 @@ const SECTIONS: Section[] = [
     paras: ['Some features send content to Anthropic, an AI provider, to produce a result:'],
     bullets: [
       'Workout scanning sends the photo you choose, such as a whiteboard or gym screen, to read the workout details from it.',
+      'Placings scanning sends the results photo you choose, to read finish places from it.',
       'Find events sends the event name you search for.',
       'Team crests send the team’s name. The crest image is made by fal.ai, and Anthropic reads its lettering back to check the name is spelled correctly.',
       'These providers process the content only to return the result. RIVAL does not send your activity history to them or use your content to train AI models. If a photo includes other people, make sure they are happy for it to be uploaded.',
@@ -72,6 +73,10 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Where data is stored',
+    paras: ['RIVAL’s data is stored in the United States, with Supabase in Oregon. Some of the service providers listed above process it in the United States or other countries, under their own privacy and security commitments.'],
+  },
+  {
     title: 'Keeping and deleting your data',
     paras: [],
     bullets: [
@@ -79,12 +84,13 @@ const SECTIONS: Section[] = [
       'You can delete any activity, photo, goal or event in the app.',
       'Profile, Download my data saves a copy of everything RIVAL holds about you.',
       'Profile, Delete account first saves an archive of your activities, photos and videos, then permanently deletes your account and its data. Teams you created pass to another member, or are deleted if you were the only one.',
+      'Deleted information can remain in backups for up to 30 days before it is removed.',
       `If anything goes wrong, contact ${CONTACT} and the deletion will be completed within 14 days.`,
     ],
   },
   {
     title: 'Security',
-    paras: ['Data is stored with Supabase. It is encrypted in transit, and access rules in the database limit each person to the data they are allowed to see.'],
+    paras: ['Data is stored with Supabase. It is encrypted in transit and at rest, and access rules in the database limit each person to the data they are allowed to see. RIVAL looks at personal information only to run the service, help members who ask for support, and fix faults.'],
   },
   {
     title: 'Children',
@@ -108,7 +114,7 @@ export default function PrivacyScreen() {
       <ScrollView contentContainerStyle={s.content}>
         <GreyPageHead kicker="RIVAL" title="Privacy policy" sub={UPDATED ? `Last updated ${UPDATED}` : undefined} onBack={back} />
         <Text style={s.intro}>
-          RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising.
+          RIVAL is a social fitness app. You log activities, earn Effort, and share them with the teams you join. This policy explains what RIVAL collects, who can see it, and how to remove it. RIVAL collects only what it needs to run, does not sell personal information, and does not show advertising. RIVAL is run by its founder in Canada, who is responsible for this policy and the information RIVAL holds.
         </Text>
         {SECTIONS.map((sec) => (
           <View key={sec.title} style={s.section}>

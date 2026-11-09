@@ -63,11 +63,13 @@ export default function Root({ children }: { children: React.ReactNode }) {
             launch picture stayed up longer and RIVAL sat there before it
             began to pulse (Ricky, 2026-10-24). The app waits for it before
             fading in (lib/appReveal.ts), so text never changes shape. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* Served from RIVAL itself (public/fonts), not Google Fonts, so no
+            visitor data goes to Google (privacy policy, 2026-11-08). The same
+            files and settings Google served, so nothing looks different. */}
+        <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap';window.__rivalFonts=new Promise(function(r){l.onload=r;l.onerror=r;});document.head.appendChild(l);})();`,
+            __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='/fonts/manrope.css';window.__rivalFonts=new Promise(function(r){l.onload=r;l.onerror=r;});document.head.appendChild(l);})();`,
           }}
         />
 
