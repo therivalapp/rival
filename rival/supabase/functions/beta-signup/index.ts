@@ -6,6 +6,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // Stores name, email and country (province for Canada) in beta_signups,
 // which only the service role can reach (supabase/beta_signups.sql).
 //
+// A new sign-up sends two emails through Resend (RESEND_API_KEY secret): a
+// confirmation to the person, and a notice to hello@therivalapp.com. Repeats
+// and bots send nothing. If the key is missing or Resend fails, the sign-up
+// still counts; the emails are a courtesy, the table is the list.
+//
 // The answer is the same whether the address is new, already on the list, or
 // caught by the bot checks, so the form never reveals who has signed up.
 
@@ -26,6 +31,51 @@ const PROVINCES = [
 // A name: control characters and angle brackets removed, at most 60 long.
 const cleanName = (v: unknown) =>
   typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 60) : ''
+
+const FROM = 'RIVAL <hello@therivalapp.com>'
+const NOTIFY = 'hello@therivalapp.com'
+const esc = (v: string) =>
+  v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const OPEN_FIRST = ['Australia', 'New Zealand']
+
+async function sendEmail(to: string, subject: string, text: string, html: string, replyTo?: string) {
+  const key = Deno.env.get('RESEND_API_KEY')
+  if (!key) return
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: FROM, to: [to], subject, text, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) console.error('beta-signup email', res.status, await res.text())
+  } catch (e) {
+    console.error('beta-signup email', String(e))
+  }
+}
+
+// When the beta reaches them: Canada outside Quebec, Australia and New
+// Zealand are first (BETA_PLAN.md); everyone else waits for a later round.
+function whenLine(country: string, region: string | null) {
+  const first = OPEN_FIRST.includes(country) || (country === 'Canada' && region !== 'Quebec')
+  return first
+    ? 'The beta opens first in Canada, Australia and New Zealand. When it opens, we will email you an invite to install RIVAL on your iPhone through TestFlight.'
+    : 'The beta opens first in Canada, Australia and New Zealand. We will email you an invite when it opens where you live.'
+}
+
+function confirmation(firstName: string, country: string, region: string | null) {
+  const lines = [
+    `Hi ${firstName},`,
+    'You are on the RIVAL beta list.',
+    whenLine(country, region),
+    'This is the only email you will receive until your invite. To be removed from the list, reply to this email.',
+  ]
+  const text = [...lines, 'RIVAL\ntherivalapp.com'].join('\n\n')
+  const html = `<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#222;max-width:520px">${
+    lines.map((l) => `<p style="margin:0 0 14px">${esc(l)}</p>`).join('')
+  }<p style="margin:22px 0 0;color:#777;font-size:13px">RIVAL &middot; <a href="https://therivalapp.com" style="color:#777">therivalapp.com</a></p></div>`
+  return { text, html }
+}
 
 function headers(origin: string | null) {
   return {
@@ -97,6 +147,25 @@ serve(async (req) => {
   if (error && error.code !== '23505') {
     console.error('beta-signup insert', error.message)
     return reply(500, { error: 'Could not join' })
+  }
+
+  // Emails only for a new sign-up, so a repeat cannot be used to send mail.
+  if (!error) {
+    const { count: total } = await admin.from('beta_signups').select('id', { count: 'exact', head: true })
+    const place = region ? `${region}, ${country}` : country
+    const c = confirmation(firstName, country, region)
+    const name = `${firstName} ${lastName}`
+    const notice = [`${name}`, email, place, `${total ?? '?'} on the list`]
+    await Promise.all([
+      sendEmail(email, 'You are on the RIVAL beta list', c.text, c.html, NOTIFY),
+      sendEmail(
+        NOTIFY,
+        `New beta sign-up: ${name}`,
+        notice.join('\n'),
+        `<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6">${notice.map(esc).join('<br>')}</div>`,
+        email,
+      ),
+    ])
   }
   return reply(200, { ok: true })
 })

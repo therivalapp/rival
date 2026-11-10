@@ -14,7 +14,7 @@ load (see "Before applying").
 
 ## Answers
 
-Rewritten 2026-11-08 to match the form's fields (as reported by garminrumors.com,
+Rewritten 2026-11-08, checked again 2026-11-09 against the live site, to match the form's fields (as reported by garminrumors.com,
 Oct 2026) and to give approval the best chance. Fill in the [brackets].
 
 **Company name**
@@ -27,7 +27,7 @@ https://therivalapp.com
 https://therivalapp.com/privacy
 
 **Contact name**
-[your full name]
+Ricky Jackson-Lewis
 
 **Job title**
 Founder
@@ -46,13 +46,18 @@ Health and fitness (consumer).
 
 **App overview**
 RIVAL is a social fitness app where friends, clubs and training partners see
-and recognise each other's effort. Every activity a member does, from runs,
-rides and swims to strength training, classes and events such as marathons,
-triathlons and HYROX, sits in one place and earns Effort, a single score that
-compares different sports fairly. Members share with the teams they choose,
-take on team goals and challenges together, and encourage each other. RIVAL is
-in testing now, with an iPhone beta through TestFlight planned for December
-2026.
+and recognise each other's effort. RIVAL counts every kind of movement, because
+all effort deserves recognition: runs, rides, swims, walks, strength training,
+yoga, classes, events such as marathons, triathlons and HYROX, and any other
+activity. Every activity sits in one place, whichever device or app recorded
+it. Each one earns Effort, a single score built on time, distance and
+elevation that compares different sports fairly. Members see the total time and Effort
+they have put in across every activity, with ranks marking milestones along the
+way. Members share
+with the teams they choose, take on team goals and challenges together, and
+encourage each other, so friends keep each other consistent. RIVAL is in
+testing now, with an iPhone beta through TestFlight planned for December 2026,
+for testers in Canada, Australia and New Zealand.
 
 **User experience**
 A member connects Garmin from Settings, Connected devices, through Garmin's own
@@ -73,14 +78,15 @@ attribution and the name of the device that recorded it, following Garmin's
 brand guidelines. When a member disconnects RIVAL, in RIVAL or in Garmin
 Connect, RIVAL stops receiving their data and removes its access to their
 account. Deleting a RIVAL account deletes all of its data, including data from
-Garmin; this is in the app today. Data is encrypted in transit, and access
-rules in the database limit each member's data to them and the teams they
-choose.
+Garmin; this is in the app today. Data is encrypted in transit and at rest,
+and access rules in the database limit each member's data to them and the
+teams they choose.
 
 **Business model**
 RIVAL is free to use, without advertising. Its core stays free: recording
-activities, Effort, ranks, teams and recognition are never behind a payment.
-Optional paid features may follow and are not yet decided. Payments in the
+activities, Effort, ranks and recognition are never behind a payment.
+An optional premium membership may follow, adding extra features such as more
+teams and personal planning tools. Payments in the
 iPhone app go through Apple. Garmin data is used only to provide RIVAL's
 features to the member it belongs to, including any paid features they choose.
 It is never sold, never used for advertising and never shared with data brokers.
@@ -97,7 +103,7 @@ Activity API only. RIVAL does not request the Health, Women's Health, Courses or
 Training APIs.
 
 **Expected users connected in the next 12 months**
-About 100 in the beta from December 2026, growing to around [500] as RIVAL opens
+About 100 in the beta from December 2026, growing to around 500 as RIVAL opens
 to more members in 2027.
 
 **Prior contact with Garmin or a Garmin distributor**

@@ -112,7 +112,7 @@ a photo includes other people, make sure they are happy for it to be uploaded.
 - **Images you share** go wherever you send them.
 - **Service providers** run RIVAL on its behalf: Supabase (database, sign-in and
   file storage), Vercel (web hosting), Cloudflare (domain and email forwarding), Anthropic and fal.ai (the AI features
-  above), Expo (push notifications) and Resend (account emails).
+  above), Expo (push notifications) and Resend (account and beta list emails).
 
 RIVAL never sells personal information and does not share it with anyone else
 except where the law requires.
@@ -124,8 +124,8 @@ RIVAL's data is stored in the United States, with Supabase in Oregon. Some of th
 ## Beta sign-ups
 
 If you join the beta list on therivalapp.com, RIVAL keeps your name, email
-address and country (with province, in Canada), only to send your beta invite
-and to check the beta is open where you live. It is not added to a mailing
+address and country (with province, in Canada), only to confirm your sign-up, send your beta invite
+and check the beta is open where you live. It is not added to a mailing
 list or used for anything else, and it is deleted when the
 beta opens to everyone, or sooner if you ask at **hello@therivalapp.com**.
 

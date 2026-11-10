@@ -33,7 +33,11 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 ## When Ricky is home
 - [ ] NEXT WEEK, first up (banked 2026-11-04): therivalapp.com BOUGHT 2026-11-05; Claude builds a one-page site and hosts the privacy policy (deploy with Ricky's OK); Ricky applies to Garmin Starter as an individual (not incorporating yet) and gets a Personal Garmin key so the importer can be built on his workouts. See Garmin application below
 - [x] Ricky: sign up for the Apple Developer Program ($99 a year). Approved 2026-11-09 (individual, valid to 2027-11-09)
-- [ ] Get RIVAL running as an iPhone app
+- [ ] Get RIVAL running as an iPhone app. Started 2026-11-09 (uncommitted): app.json has the app ID com.therivalapp.rival (can change until the first upload), name RIVAL, dark look, phone only, no export-compliance question, dark splash, permission wording says activities; eas.json added (builds on Expo's servers, since this Mac's Xcode 15.2 is too old); Expo packages updated to the latest SDK 56 patches (types and 299 tests pass); the iPhone bundle builds; fixed the start-up reveal, which touched the web page on iPhone and would have errored. Not run on a phone yet, so more will surface
+  - [ ] Ricky: an app icon. The icon, splash and website icon are still Expo's blue default. Mock options first
+  - [ ] Ricky (needs his sign-ins, in a terminal): `npx eas-cli login`, `npx eas-cli build -p ios --profile production` (signs in to Apple and makes the certificates), then `npx eas-cli submit -p ios` to send it to TestFlight
+  - [ ] Upgrade to Expo SDK 57 before the beta: expo-doctor flags a Hermes memory regression in SDK 56's React Native, fixed in 0.86.2
+  - [ ] Web-only parts to rebuild for iPhone: share images and stamps (canvas: shareCard, shareStamp, StampStage, WeekCard, ProfilePage), image resizing before upload, the live camera, copy to clipboard, chat's text box, the photo scan's image reading. Small things saved in the browser (daily quote seen, recent teams, pending invite, stamp style, photo prompts, paused import) are not saved on iPhone, so the daily quote would show on every open; move them to AsyncStorage
 - [ ] Make the look carry over to the iPhone app: gradients and other styling are web-only (about 210 gradient uses in 47 files) and fall back to flat colours
 - [ ] Get it on TestFlight
 - [ ] Build the Apple Health connection, including past workouts
@@ -44,6 +48,8 @@ Updated 2026-11-02. Beta aims to start by the end of 2026. Beta is friends with 
 - [ ] New Focus types: fastest time, pace, lift first, then longest distance, event time, weekly rhythm, variety, time earned, Effort, total reps, total weight (mock: design/focus-types-mockup.png; goal_types.sql run 2026-10-31. Fastest time, pace, lift and the 3 Volume + 3 Performance limit built, uncommitted; saving a real goal still to test)
 
 ## Before beta
+- [ ] NEXT (Ricky, 2026-11-10): the triathlon card on Activity (my-activities.tsx renderEventCard) shows swim, bike and run times but not T1 and T2. Add the transitions from races.transitions via transitionTimes() in lib/eventPage.ts, as the event page already does. Mock first (card is small: rows in order, or one Transitions line)
+- [ ] NEXT after the website (Ricky, 2026-11-10): a personal distance Focus counts walking, running, riding and swimming, so show it as a ring split by activity type, like the team challenge's Distance ring (each sport's share of the total). Mock first
 - [ ] Trademark clearance for the name before public launch (Ricky to decide on a lawyer search, roughly a few hundred to $1,500): RIVAL is registered in Class 9 by Rival Boxing Gear (sports brand, since 2012) and Rival Forces (9 and 41, 2025); RIVALFIT (fitness tracking and challenges) and RIVAL FIT are pending; other App Store apps are called Rival (Compete With Friends, RivalByM with HYROX challenges, Rival Fitness). Found 2026-11-05
 - [ ] Full legal review of everything built: privacy policy, consent, terms of use (TERMS.md, drafted 2026-11-09 for British Columbia law), Apple Health, Strava deletion, AI providers, photos of others (Ricky asked 2026-11-02)
 - [x] Terms of use drafted 2026-11-09 (TERMS.md, built to site/terms.html, linked in every site footer). Not live until the next website deploy. Needs a BC lawyer's review before public launch
