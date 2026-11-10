@@ -3,6 +3,7 @@ import { StyleSheet, TouchableOpacity, View, Text, TextInput, Image, Platform, S
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { finishSignUp } from '../lib/finishSignUp';
 import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalGhost, RivalRadius, RivalType, rivalWordmark } from '../constants/rivalTheme';
@@ -63,7 +64,8 @@ export default function SignInScreen() {
       return;
     }
 
-    router.replace('/home');
+    // A first sign-in after confirming the email opens activity setup.
+    router.replace((await finishSignUp()) ? '/choose-activities' : '/home');
   }
 
   async function handleForgotPassword() {
