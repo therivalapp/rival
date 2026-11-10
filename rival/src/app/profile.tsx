@@ -12,6 +12,7 @@ import { ROUTE_MAPS_ENABLED } from '../lib/features';
 import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
 import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
+import { openFeedback } from '../lib/feedback';
 import { buildArchive } from '../lib/archive';
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, invalidateNavIdentity } from '../components/rival';
@@ -752,6 +753,10 @@ export default function ProfileScreen() {
       {prefError ? <Text style={styles.mError}>{prefError}</Text> : null}
       <GreyLabel>More</GreyLabel>
       <GreyRows>
+        {/* Team Beta (2026-11-10, Mockup 25 A); the BETA pill in the top bar opens the same pop-up. */}
+        <GreyRow icon="feedback" label="Send feedback" onPress={openFeedback}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
         <GreyRow icon="flag" label="How RIVAL works" onPress={() => router.push('/getting-started')}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>

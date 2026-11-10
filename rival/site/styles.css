@@ -12,7 +12,7 @@ a{color:var(--salmon);text-decoration:none}a:hover{text-decoration:underline}
 header.top{position:absolute;top:0;left:0;right:0;z-index:2}
 header.top .wrap,footer .wrap{display:flex;align-items:center;justify-content:space-between}
 header.top .wrap{height:64px}
-.mark{font-size:15px;font-weight:800;letter-spacing:5px;color:var(--salmon)}
+.mark{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-size:18px;font-weight:700;letter-spacing:.2em;color:var(--salmon)}
 nav a{color:rgba(255,255,255,.8);font-size:14px;font-weight:600;margin-left:20px}
 .hero{position:relative;min-height:88vh;display:flex;align-items:flex-end;background:url(img/hero.jpg) center 45%/cover}
 .hero:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--ground) 0%,var(--ground) 5%,rgba(27,26,25,.75) 32%,rgba(27,26,25,.1) 70%,rgba(27,26,25,.45))}

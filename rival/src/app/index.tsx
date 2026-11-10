@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { RivalButton } from '../components/rival';
-import { RivalColors, RivalType, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalType, RivalSerifFamily, rivalWordmark } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { rm } from '../components/rival/RivalMobile';
 import { revealApp } from '../lib/appReveal';
@@ -135,9 +135,8 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   logo: {
-    ...RivalType.titleMd,
+    ...rivalWordmark(20),
     color: RivalColors.textPrimary,
-    letterSpacing: 8,
     textAlign: 'center',
   },
   taglineWrap: {

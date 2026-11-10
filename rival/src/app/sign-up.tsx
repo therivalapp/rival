@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { displayToIsoDate, maskDateInput } from '../lib/dateFormat';
 import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalGhost, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalRadius, RivalType, rivalWordmark } from '../constants/rivalTheme';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 
@@ -284,9 +284,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   logo: {
-    ...RivalType.titleMd,
+    ...rivalWordmark(20),
     color: RivalColors.textPrimary,
-    letterSpacing: 6,
     textAlign: 'center',
     marginBottom: 24,
   },

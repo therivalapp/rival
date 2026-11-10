@@ -123,8 +123,9 @@ export default function Root({ children }: { children: React.ReactNode }) {
           #rival-boot {
             position: fixed; left: 0; right: 0; top: 50vh;
             transform: translateY(-50%); text-align: center;
-            font: 600 22px/1 -apple-system, 'Helvetica Neue', Arial, sans-serif;
-            letter-spacing: 0.32em; text-indent: 0.32em; color: #ffb59e;
+            /* The wordmark (rivalWordmark in rivalTheme.ts, 2026-11-10). */
+            font: italic 700 22px/1 Georgia, 'Times New Roman', serif;
+            letter-spacing: 0.2em; text-indent: 0.2em; color: #ffb59e;
             pointer-events: none;
             animation: rivalBootIn 450ms ease-out both, rivalBootPulse 1.65s ease-in-out 450ms infinite;
             /* Its own layer, so the pulse runs on the GPU and keeps going

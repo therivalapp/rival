@@ -54,27 +54,47 @@ async function sendEmail(to: string, subject: string, text: string, html: string
   }
 }
 
-// When the beta reaches them: Canada outside Quebec, Australia and New
+// When Team Beta reaches them: Canada outside Quebec, Australia and New
 // Zealand are first (BETA_PLAN.md); everyone else waits for a later round.
 function whenLine(country: string, region: string | null) {
   const first = OPEN_FIRST.includes(country) || (country === 'Canada' && region !== 'Quebec')
   return first
-    ? 'The beta opens first in Canada, Australia and New Zealand. When it opens, we will email you an invite to install RIVAL on your iPhone through TestFlight.'
-    : 'The beta opens first in Canada, Australia and New Zealand. We will email you an invite when it opens where you live.'
+    ? 'Team Beta opens first in Canada, Australia and New Zealand. When it opens, we will email you an invite to install RIVAL on your iPhone.'
+    : 'Team Beta opens first in Canada, Australia and New Zealand. We will email you an invite when it opens where you live.'
 }
 
+// The designed email layout (Mockup 18, 2026-11-10), the same as the sign-in
+// emails built by scripts/build-emails.py. Tables and inline styles, since
+// email apps ignore most CSS; the button falls back to solid salmon where
+// gradients are not shown.
+const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
+const SERIF = "Georgia,'Times New Roman',serif"
+function layout(title: string, lines: string[], note: string) {
+  const body = lines.map((l) =>
+    `<p style="margin:0 0 14px;font-family:${SANS};font-size:15px;line-height:1.6;color:#d4d1ce">${esc(l)}</p>`).join('')
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">' +
+    `<title>${esc(title)}</title><style>body{margin:0}@media (max-width:480px){.card{padding-left:22px !important;padding-right:22px !important}` +
+    '.title{font-size:26px !important}.outer{padding:28px 12px !important}}</style></head>' +
+    '<body style="margin:0;background:#1b1a19">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#1b1a19" style="background:#1b1a19"><tr>' +
+    '<td class="outer" align="center" style="padding:40px 16px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px">' +
+    `<tr><td align="center" style="padding:0 0 22px;font-family:${SERIF};font-style:italic;font-size:18px;font-weight:700;letter-spacing:4px;padding-left:4px;color:#ffb59e">RIVAL</td></tr>` +
+    '<tr><td class="card" align="center" bgcolor="#262626" style="background:#262626;border:1px solid #363636;border-radius:20px;padding:40px 40px 36px;text-align:center">' +
+    `<h1 class="title" style="margin:0 0 16px;font-family:${SERIF};font-style:italic;font-weight:700;font-size:30px;line-height:1.2;color:#ffffff">${esc(title)}</h1>` +
+    `${body}<p style="margin:18px 0 0;font-family:${SANS};font-size:12px;line-height:1.5;color:#8a8682">${esc(note)}</p></td></tr>` +
+    `<tr><td align="center" style="padding:22px 8px 0;font-family:${SANS};font-size:12px;line-height:1.6;color:#8a8682">` +
+    'RIVAL &middot; <a href="https://therivalapp.com" style="color:#8a8682;text-decoration:underline">therivalapp.com</a></td></tr>' +
+    '</table></td></tr></table></body></html>'
+}
+
+const CONFIRM_SUBJECT = 'You are on the RIVAL Team Beta list'
 function confirmation(firstName: string, country: string, region: string | null) {
-  const lines = [
-    `Hi ${firstName},`,
-    'You are on the RIVAL beta list.',
-    whenLine(country, region),
-    'This is the only email you will receive until your invite. To be removed from the list, reply to this email.',
-  ]
-  const text = [...lines, 'RIVAL\ntherivalapp.com'].join('\n\n')
-  const html = `<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#222;max-width:520px">${
-    lines.map((l) => `<p style="margin:0 0 14px">${esc(l)}</p>`).join('')
-  }<p style="margin:22px 0 0;color:#777;font-size:13px">RIVAL &middot; <a href="https://therivalapp.com" style="color:#777">therivalapp.com</a></p></div>`
-  return { text, html }
+  const lines = [`Hi ${firstName},`, whenLine(country, region)]
+  const note = 'This is the only email you will receive until your invite. To be removed, reply to this email.'
+  const text = ['You are on the list', ...lines, note, 'RIVAL\ntherivalapp.com'].join('\n\n')
+  return { text, html: layout('You are on the list', lines, note) }
 }
 
 function headers(origin: string | null) {
@@ -157,10 +177,10 @@ serve(async (req) => {
     const name = `${firstName} ${lastName}`
     const notice = [`${name}`, email, place, `${total ?? '?'} on the list`]
     await Promise.all([
-      sendEmail(email, 'You are on the RIVAL beta list', c.text, c.html, NOTIFY),
+      sendEmail(email, CONFIRM_SUBJECT, c.text, c.html, NOTIFY),
       sendEmail(
         NOTIFY,
-        `New beta sign-up: ${name}`,
+        `New Team Beta sign-up: ${name}`,
         notice.join('\n'),
         `<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6">${notice.map(esc).join('<br>')}</div>`,
         email,

@@ -3,7 +3,7 @@ import { StyleSheet, TouchableOpacity, View, Text, TextInput, Platform, Image as
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Asset } from 'expo-asset';
 import { RivalButton, RivalIcon, RivalWarm, rm } from '../components/rival';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalColors, RivalRadius, RivalType, rivalWordmark } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   // Keeps the desktop layout as it was: the message and link sit directly in
   // the column, spaced by its gap.
   fragment: { alignItems: 'center', gap: 24 },
-  logo: { fontSize: 32, fontWeight: '900', color: RivalColors.textPrimary, letterSpacing: 6 },
+  logo: { ...rivalWordmark(32), color: RivalColors.textPrimary },
   status: { fontSize: 16, color: RivalColors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
   link: { color: RivalColors.accentFill, fontSize: 15, fontWeight: '600' },
   card: {
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
 // Phone only — the RIVAL look (see RivalMobile.tsx). Matches sign-in.tsx.
 const ms = StyleSheet.create({
   scrim: { backgroundColor: 'rgba(17,14,12,0.55)' },
-  logo: { ...RivalType.titleMd, letterSpacing: 6 },
+  logo: { ...rivalWordmark(20) },
   status: { color: RivalWarm.soft, fontSize: 15, lineHeight: 22 },
   invalidCard: { alignItems: 'center' },
   ghost: { ...rm.ghost, paddingHorizontal: 20 } as any,

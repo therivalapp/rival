@@ -150,6 +150,12 @@ const ICONS = {
   boltDrawn: ['mci', 'bolt-material'] as const,
   rest: 'bedtime',            // idle / no recent activity
   trendUp: 'trending-up',
+  // Send feedback (Team Beta, 2026-11-10).
+  feedback: 'rate-review',
+  bug: 'bug-report',
+  idea: 'lightbulb-outline',
+  dislike: 'thumb-down-off-alt',
+  image: 'image',
   trendDown: 'trending-down',
   location: 'place',
   elevation: 'terrain',

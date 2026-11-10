@@ -27,10 +27,12 @@ export function revealApp() {
     listeners.clear();
     requestAnimationFrame(() => requestAnimationFrame(() => {
       shown = true;
-      document.getElementById('rival-boot')?.remove();
-      document.documentElement.classList.add('rival-shown');
       shownListeners.forEach((fn) => fn());
       shownListeners.clear();
+      // The wordmark and fade are web only; the iPhone app has no document.
+      if (typeof document === 'undefined') return;
+      document.getElementById('rival-boot')?.remove();
+      document.documentElement.classList.add('rival-shown');
       // Once the fade is over (+html.tsx drops the fade's transition).
       setTimeout(() => document.documentElement.classList.add('rival-ready'), 800);
     }));

@@ -19,7 +19,7 @@ import { useAppFonts } from '../lib/useAppFonts';
 import { registerForPushNotifications } from '../lib/notifications';
 import { supabase } from '../lib/supabase';
 import { savePendingInvite } from '../lib/pendingInvite';
-import { RivalAlertHost } from '../components/rival';
+import { RivalAlertHost, FeedbackHost } from '../components/rival';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 import { PhotoPrompt } from '../components/rival/PhotoPrompt';
 import { SavedActivityNote } from '../components/rival/SavedActivityNote';
@@ -192,6 +192,7 @@ export default function RootLayout() {
       <DailyQuoteSplash />
       <PhotoPrompt />
       <SavedActivityNote />
+      <FeedbackHost />
       <RivalAlertHost />
     </SafeAreaProvider>
   );

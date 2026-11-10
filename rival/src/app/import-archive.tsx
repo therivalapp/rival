@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { RivalButtonColors, RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalButtonColors, RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily, rivalWordmark } from '../constants/rivalTheme';
 import { sidePageWide } from '../constants/breakpoints';
 import { GreyPageHead, GREY_PAGE_BG, RivalIcon } from '../components/rival';
 import { HistoryReveal } from '../components/rival/HistoryReveal';
@@ -380,7 +380,7 @@ const s = StyleSheet.create({
   factLabel: { fontFamily: RivalFontFamily, fontSize: 12.5, color: 'rgba(255,255,255,0.62)' },
   factOf: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontWeight: '400', fontSize: 12, color: 'rgba(255,255,255,0.45)' },
   loader: { alignItems: 'center', paddingTop: 36, gap: 16 },
-  word: { fontFamily: Platform.OS === 'web' ? "-apple-system, 'Helvetica Neue', Arial, sans-serif" : undefined, fontSize: 22, lineHeight: 22, fontWeight: '600', letterSpacing: 7, paddingLeft: 7, color: RivalColors.accentText, opacity: 0.9 },
+  word: { ...rivalWordmark(22), color: RivalColors.accentText, opacity: 0.9 },
   loaderTrack: { width: 180, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   loaderFill: { height: 4, borderRadius: 2, backgroundColor: RivalColors.accentText },
   loaderFile: { fontFamily: RivalFontFamily, fontSize: 12, color: 'rgba(255,255,255,0.5)', maxWidth: '90%' },
