@@ -30,19 +30,8 @@ h2{font-size:30px;line-height:1.15;margin:8px 0 18px}
 .card h3{font-size:19px;margin:0 0 6px}
 .card p{margin:0;color:var(--soft);font-size:14.5px}
 .plain p{color:rgba(255,255,255,.82);font-size:16px;margin:0 0 14px}
-footer{margin-top:64px;border-top:1px solid rgba(255,255,255,.08);padding:26px 0 40px;color:var(--soft);font-size:13px}
+footer{margin-top:52px;border-top:1px solid rgba(255,255,255,.08);padding:22px 0 16px;color:var(--soft);font-size:13px}
 footer a{margin-left:18px}
-/* App screenshots, App Store style (Ricky, 2026-11-08): each step a warm
-   panel with its headline above the screen in a phone frame. Swiped
-   sideways; sizes follow the panel's width (cqw). */
-.shots{display:grid;grid-auto-flow:column;grid-auto-columns:min(72vw,280px);gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:22px;margin:0 -22px;padding:0 22px 6px;scrollbar-width:none}
-.shots::-webkit-scrollbar{display:none}
-.panel{margin:0;scroll-snap-align:start;container-type:inline-size;aspect-ratio:300/650;border-radius:26px;overflow:hidden;position:relative;background:radial-gradient(120% 70% at 50% 0%,#4a2e22 0%,#2a211d 45%,#1e1c1a 100%);border:1px solid rgba(255,181,158,.18)}
-.panel figcaption{position:absolute;top:11cqw;left:7cqw;right:7cqw;text-align:center;font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:700;font-size:9cqw;line-height:1.12;color:#fff}
-.panel figcaption span{display:block;margin-bottom:2.6cqw;font-family:Manrope,-apple-system,sans-serif;font-style:normal;font-size:3.4cqw;font-weight:800;letter-spacing:.8cqw;text-transform:uppercase;color:var(--salmon)}
-.panel .phone{position:absolute;left:12.5cqw;right:12.5cqw;top:50cqw;border-radius:10cqw;border:2cqw solid #0f0e0d;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 8cqw 16cqw rgba(0,0,0,.55);overflow:hidden;background:#000}
-.panel img{display:block;width:100%;height:auto}
-@media(min-width:900px){.shots{grid-auto-flow:row;grid-template-columns:repeat(4,1fr);width:min(1180px,calc(100vw - 44px));margin:0 0 0 calc((min(760px,100vw) - 44px - min(1180px,calc(100vw - 44px)))/2);padding:0;overflow:visible;gap:18px}}
 /* Privacy policy */
 .doc{padding-top:96px}
 .doc h1{font-size:clamp(34px,7vw,48px)}
@@ -52,15 +41,8 @@ footer a{margin-left:18px}
 .doc ul{padding-left:20px}
 .doc li{margin-bottom:8px}
 .doc strong{color:#fff}
-@media(max-width:640px){footer .wrap{flex-direction:column;align-items:flex-start;gap:10px}footer a{margin:0 18px 0 0}}
-/* Phones: bigger screenshots, so the app is easy to read (Ricky,
-   2026-11-08): wider panels, the screen filling more of each one. */
-@media(max-width:899px){
-  .shots{grid-auto-columns:min(86vw,380px)}
-  .panel{aspect-ratio:300/700}
-  .panel figcaption{top:8cqw;font-size:8cqw}
-  .panel .phone{left:6cqw;right:6cqw;top:36cqw;border-radius:9cqw;border-width:1.6cqw}
-}
+footer a{white-space:nowrap}
+@media(max-width:640px){footer .wrap{flex-direction:column;align-items:flex-start;gap:10px}footer .wrap>span:last-child{display:flex;flex-wrap:wrap;gap:8px 18px}footer a{margin:0}}
 
 /* Phone hero (Ricky, 2026-11-09): the photo above the words, so the runner
    is seen in full, and the line above the title on a dark chip so it reads
@@ -69,35 +51,35 @@ footer a{margin-left:18px}
 @media(max-width:899px){
   .hero{display:block;min-height:0;background:none}
   .hero:after{display:none}
-  .hero-photo{display:block;position:relative;height:58vh;height:58svh;min-height:400px;max-height:560px;background:url(img/hero.jpg) 88% 60%/cover}
+  .hero-photo{display:block;position:relative;height:40vh;height:40svh;min-height:280px;max-height:480px;background:url(img/hero.jpg) 88% 60%/cover}
   .hero-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(27,26,25,.55) 0%,rgba(27,26,25,0) 24%,rgba(27,26,25,0) 58%,var(--ground) 100%)}
-  .hero .wrap{margin-top:-58px;padding-bottom:44px}
-  .hero .kick{display:inline-block;padding:7px 12px;border-radius:999px;background:rgba(27,26,25,.72);border:1px solid rgba(255,181,158,.35);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .hero .wrap{margin-top:-50px;padding-bottom:44px}
   .hero h1{font-size:46px;line-height:1.02;margin:16px 0 14px}
   .hero .lead{font-size:17px;line-height:1.6;color:rgba(255,255,255,.8);margin:0 0 24px}
   .hero .note{margin-top:14px}
 }
 
 /* How it works, Your data (Ricky, 2026-11-09): sold as features, in the
-   app's warm cards with an icon, no screenshots (the steps above have them). */
+   app's plain grey cards (#282828, edged #323232, no glow) with an icon. */
 .lead-sm{color:rgba(255,255,255,.75);font-size:16.5px;line-height:1.6;margin:-6px 0 22px;max-width:560px}
 .feats{display:grid;gap:14px}
-.feat{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:22px;padding:22px 20px;background:#1f1d1c}
-.feat:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 50% 0%,rgba(232,131,95,.16),rgba(232,131,95,0) 70%);pointer-events:none}
+.feat{position:relative;overflow:hidden;border:1px solid #323232;border-radius:22px;padding:24px 22px;background:#282828}
+/* The icon large and faint behind the words, part of the card, as on the
+   app's tiles (Ricky, 2026-11-09). */
 .feat>*{position:relative}
-.feat-ic,.mini-ic{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--coral),var(--salmon))}
-.feat-ic{width:46px;height:46px;border-radius:14px;margin-bottom:16px}
-.feat-ic svg{width:24px;height:24px;fill:#2a1710}
+.feat>.feat-ic{position:absolute;top:-14px;right:-18px;width:170px;height:170px;pointer-events:none}
+.feat-ic svg{width:100%;height:100%;fill:rgba(255,181,158,.13)}
 .feat h3{font-size:26px;line-height:1.15;margin:6px 0 8px}
 .feat p{margin:0;color:rgba(255,255,255,.75);font-size:15px;line-height:1.55}
 .minis{display:grid;gap:10px;margin-top:14px}
-.mini{display:flex;gap:14px;align-items:flex-start;border:1px solid rgba(255,209,190,.1);background:rgba(255,255,255,.03);border-radius:18px;padding:14px 16px}
-.mini-ic{flex:none;width:40px;height:40px;border-radius:12px}
-.mini-ic svg{width:20px;height:20px;fill:#2a1710}
+.mini{position:relative;overflow:hidden;border:1px solid #323232;background:#282828;border-radius:18px;padding:16px 18px}
+.mini>div{position:relative}
+.mini-ic{position:absolute;top:50%;right:-6px;width:84px;height:84px;margin-top:-42px;pointer-events:none}
+.mini-ic svg{width:100%;height:100%;fill:rgba(255,181,158,.13)}
 .mini h4{margin:1px 0 2px;font-size:15.5px}
 .mini p{margin:0;color:rgba(255,255,255,.68);font-size:14px;line-height:1.5}
 @media(min-width:900px){.feats,.minis{grid-template-columns:repeat(3,1fr)}}
-.trust-list{list-style:none;margin:0;padding:6px 18px;border:1px solid var(--line);border-radius:22px;background:#1f1d1c}
+.trust-list{list-style:none;margin:0;padding:6px 18px;border:1px solid #323232;border-radius:22px;background:#282828}
 .trust-list li{display:flex;align-items:center;gap:14px;padding:14px 0;font-size:16px;color:rgba(255,255,255,.88)}
 .trust-list li+li{border-top:1px solid rgba(255,255,255,.06)}
 .trust-ic{flex:none;width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,181,158,.12)}
@@ -108,3 +90,139 @@ footer a{margin-left:18px}
 .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
 .js .reveal.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none;transition:none}}
+
+/* The line above the title sits on its dark chip at every width, so it
+   reads against the photo on a computer too (2026-11-09). */
+.hero .kick{display:inline-block;padding:7px 12px;border-radius:999px;background:rgba(27,26,25,.72);border:1px solid rgba(255,181,158,.35);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+/* Computers: the seven steps as four, then three centred under them. */
+/* Page not found */
+.nf{min-height:72vh;display:flex;flex-direction:column;justify-content:center;padding-top:96px}
+.nf h1{font-size:clamp(38px,8vw,60px)}
+.nf p{color:rgba(255,255,255,.75);font-size:17px;margin:0 0 26px}
+/* Join Team Beta pop-up: the app's grey pop-up (#282828, #323232 edge),
+   centred head, ghost fields, one gradient pill. A sheet from the bottom on
+   phones, a centred card on wider screens. No glow (Ricky, website). */
+dialog.sheet{padding:0;border:1px solid #323232;background:#282828;color:var(--ink);width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);border-radius:24px;overflow:auto;overscroll-behavior:contain}
+dialog.sheet::backdrop{background:rgba(0,0,0,.62)}
+.sheet-in{padding:28px 24px 24px}
+.grab{display:none}
+.sheet-head{text-align:center;margin-bottom:20px}
+.sheet h2{font-size:28px;line-height:1.2;margin:8px 0 6px}
+.sheet-sub{color:var(--soft);font-size:14px;line-height:1.45;margin:0}
+.field{display:block;margin-bottom:12px}
+.field>span{display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--soft);margin:0 0 7px 2px}
+.field em{font-style:normal;font-weight:600;letter-spacing:0;text-transform:none}
+.field input{display:block;width:100%;font:inherit;font-size:16px;color:#fff;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px;outline:none;-webkit-appearance:none;appearance:none}
+.field input:focus{border-color:rgba(255,181,158,.6)}
+.field input[aria-invalid=true]{border-color:#ff8f8f}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.err{color:#ff8f8f;font-size:13px;line-height:1.4;margin:0 0 12px 2px}
+.sheet .pill{display:block;width:100%;border:0;font-family:inherit;cursor:pointer;margin-top:6px;text-align:center}
+.sheet .pill[disabled]{opacity:.7;cursor:default}
+.sheet .busy{animation:betaPulse 1.2s ease-in-out infinite}
+@keyframes betaPulse{50%{opacity:.55}}
+.fine{font-size:12.5px;color:var(--soft);text-align:center;margin:14px 0 0}
+.plainbtn{display:block;width:100%;padding:14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer;margin-top:22px}
+@media(max-width:640px){
+  dialog.sheet{width:100%;max-width:100%;margin:auto 0 0;max-height:92dvh;border-radius:24px 24px 0 0;border-bottom:0}
+  .sheet-in{padding:10px 20px calc(22px + env(safe-area-inset-bottom))}
+  .grab{display:block;width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.22);margin:0 auto 18px}
+}
+.field[hidden]{display:none}
+.sheet .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet .row>.field{min-width:0}
+.field select{display:block;width:100%;font:inherit;font-size:16px;color:#fff;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23a0a0a0' d='M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z'/%3E%3C/svg%3E") no-repeat right 12px center/20px;border:1px solid var(--line);border-radius:12px;padding:13px 38px 13px 14px;outline:none;-webkit-appearance:none;appearance:none}
+.field select:focus{border-color:rgba(255,181,158,.6)}
+.field select:invalid{color:var(--soft)}
+.field select option{color:#000}
+.field select[aria-invalid=true]{border-color:#ff8f8f}
+/* Smoke (Ricky, 2026-11-10, Mockup 17 B): the sign-up page's smoke, in its
+   original warm tint, rising from the bottom of the page and fading as it
+   goes up, plus a faint wisp behind How it works. Twice as tall on phones. */
+main{position:relative;z-index:1}
+footer{position:relative}
+footer>*{position:relative;z-index:1}
+footer:before{content:"";position:absolute;left:0;right:0;bottom:0;height:min(120vw,1700px);background:url(img/smoke.jpg) center bottom/cover no-repeat;opacity:.34;pointer-events:none;z-index:0;-webkit-mask-image:linear-gradient(to top,#000 0%,#000 30%,transparent 100%);mask-image:linear-gradient(to top,#000 0%,#000 30%,transparent 100%)}
+@media(max-width:899px){footer:before{height:min(240vw,3400px)}}
+main section.how.smk{position:relative}
+main section.how.smk:before{content:"";position:absolute;left:50%;width:100vw;margin-left:-50vw;top:-120px;bottom:-120px;background:url(img/smoke.jpg) center bottom/100vw auto;opacity:.14;transform:scaleX(-1);-webkit-mask-image:linear-gradient(to bottom,transparent,#000 35%,#000 65%,transparent);mask-image:linear-gradient(to bottom,transparent,#000 35%,#000 65%,transparent);pointer-events:none}
+main section.smk>*{position:relative}
+html,body{overflow-x:clip}
+
+/* Social fitness identity (Ricky, 2026-11-10): sample stats as tiles. */
+.idstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+.idstat{border:1px solid #323232;background:#282828;border-radius:18px;padding:16px 8px 14px;text-align:center}
+.idstat b{display:block;font-size:28px;line-height:1.1;color:var(--ivory)}
+.idstat b small{font-size:18px;opacity:.7}
+.idstat span{display:block;margin-top:6px;font-size:10px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--soft)}
+.ident .note{margin-top:12px}
+
+/* Getting started (Ricky, 2026-11-10): one step at a time, swiped, the
+   steps either side smaller and dimmed. Script in index.html. */
+.car{position:relative;margin-top:8px;outline:none}
+.car-caps{position:relative;height:80px;text-align:center}
+.cc{position:absolute;inset:0;opacity:0;transform:translateY(8px);transition:opacity .45s,transform .45s}
+.cc.on{opacity:1;transform:none}
+.cc h3{font-size:30px;line-height:1.15;margin:0}
+.car-view{overflow:hidden;margin:0 calc(50% - 50vw);padding:18px 0 14px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
+.car-track{display:grid;justify-content:center}
+.cs{grid-area:1/1;width:62vw;max-width:300px;transition:transform .6s cubic-bezier(.22,.8,.24,1),opacity .6s;will-change:transform}
+.cs-phone{width:100%;border-radius:40px;border:6px solid #0f0e0d;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 24px 60px rgba(0,0,0,.55);overflow:hidden;background:#000}
+.cs:not(.on){cursor:pointer}
+.cs-phone img{display:block;width:100%;height:auto;pointer-events:none}
+.car-nav{display:flex;align-items:center;justify-content:center;gap:18px}
+.ca{width:44px;height:44px;border-radius:50%;border:1px solid #3a3a3a;background:#282828;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.ca svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.car-dots{display:flex;gap:8px}
+.cd{width:8px;height:8px;border-radius:99px;border:0;padding:0;background:rgba(255,255,255,.25);cursor:pointer;transition:width .4s,background .4s}
+.cd.on{width:26px;background:var(--salmon)}
+.car-note{text-align:center;color:var(--soft);font-size:13px;margin:0 0 18px}
+.car.still .cs{transition:none}
+.tour{padding-top:72px}
+@media(prefers-reduced-motion:reduce){.cs,.cc,.cd{transition:none}}
+
+/* The name, under Getting started. */
+.name h2{margin-bottom:14px}
+.name p{color:rgba(255,255,255,.82);font-size:16px;margin:0}
+
+/* Connected devices: the list shows on computers only. */
+.dev-list{display:none;list-style:none;margin:0;padding:6px 22px;border:1px solid #323232;border-radius:22px;background:#282828}
+.dev-list li{display:flex;justify-content:space-between;gap:16px;padding:16px 0;font-size:16px;color:rgba(255,255,255,.88)}
+.dev-list li+li{border-top:1px solid rgba(255,255,255,.06)}
+.dev-list b{font-weight:600;color:var(--salmon);white-space:nowrap}
+.hero-phone{display:none}
+
+/* Computers (Ricky, 2026-11-10): from 900 px wide, a page that fills the
+   screen. Header and footer at the corners; content up to 1,360 px with
+   margins that grow with the screen; the headline beside the app;
+   paragraphs kept to a readable width; Connected devices and Your data in
+   two columns. Sizes scale with the window, so a smaller browser or
+   screen gets the same layout, smaller. Phones are unchanged. */
+@media(min-width:900px){
+  header.top .wrap,footer .wrap{max-width:none;padding:0 clamp(28px,4vw,64px)}
+  .wrap{max-width:1360px;padding:0 clamp(36px,5vw,80px)}
+  .hero{min-height:92vh;align-items:center}
+  .hero .wrap{display:grid;grid-template-columns:1fr auto;gap:clamp(40px,6vw,120px);align-items:center;padding-top:96px;padding-bottom:72px}
+  .hero h1{font-size:clamp(54px,6.2vw,94px)}
+  .hero .lead{font-size:clamp(17px,1.35vw,20px);max-width:600px}
+  .hero-phone{display:block;width:clamp(250px,24vw,380px);border-radius:44px;border:7px solid #0f0e0d;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 30px 70px rgba(0,0,0,.6);overflow:hidden;background:#000}
+  .hero-phone img{display:block;width:100%;height:auto}
+  section{padding:96px 0 8px}
+  h2{font-size:clamp(34px,3vw,42px)}
+  .lead-sm{font-size:18px;max-width:640px}
+  .car-caps{height:60px}.cc h3{font-size:clamp(32px,2.8vw,40px)}
+  .cs{width:min(26vw,360px);max-width:none}
+  .name{text-align:center;padding:120px 0 40px}
+  .name h2{font-size:clamp(42px,4vw,56px);margin:14px auto 22px}
+  .name p{max-width:620px;margin:0 auto;font-size:19px}
+  .feats{gap:22px}.feat{padding:32px 30px}.feat h3{font-size:30px}.feat p{font-size:16px}
+  .plain p{max-width:680px;font-size:17px}
+  .devices,section.trust{display:grid;grid-template-columns:1fr 1fr;column-gap:clamp(40px,5vw,72px);align-items:start;grid-template-rows:auto auto auto 1fr}
+  .devices>*,section.trust>*{grid-column:1}
+  .devices>.dev-list,section.trust>.trust-list{display:block;grid-column:2;grid-row:1/span 4}
+  .devices p{font-size:16.5px}
+}
+@media(min-width:1100px){
+  .idstats{grid-template-columns:repeat(6,1fr);gap:14px}
+  .idstat{padding:clamp(22px,1.9vw,28px) 10px clamp(18px,1.5vw,22px)}.idstat b{font-size:clamp(34px,2.7vw,40px)}
+}

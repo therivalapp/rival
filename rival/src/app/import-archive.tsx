@@ -198,7 +198,7 @@ export default function ImportArchiveScreen() {
             ) : (
               <View style={s.card}>
                 <Text style={s.label}>Getting a RIVAL archive</Text>
-                <Text style={s.body}>Profile, Delete account, Download archive saves one to this device. It does not delete anything.</Text>
+                <Text style={s.body}>Settings, Account, Delete account, Download archive saves one to this device. It does not delete anything.</Text>
               </View>
             )}
           </>

@@ -32,7 +32,8 @@ import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, Activit
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
 import { RUN_TYPES, fastestBests, fastestTitle, pbStoodText, type FastestBest } from '../../lib/bestEfforts';
 import { activityDisplayName } from '../../lib/yearReview';
-import { showFinish } from '../../lib/time';
+import { parseTime, showFinish } from '../../lib/time';
+import { transitionKey, transitionTimes } from '../../lib/eventPage';
 import { MonthBests, type MonthBest } from '../../components/rival/MonthBests';
 import { activityTypeLabel } from '../../components/rival/EffortBreakdownSheet';
 import { selectAll } from '../../lib/selectAll';
@@ -380,7 +381,7 @@ export default function MyActivitiesScreen() {
   const [hasTeam, setHasTeam] = useSnapState('journal.hasTeam', false);
   const [hasFocus, setHasFocus] = useSnapState('journal.hasFocus', false);
   // Every event (race) by id, so an event week can be headlined by it.
-  const [races, setRaces] = useSnapState<Record<string, { name: string; race_type: string; actual_finish_time?: string | null }>>('journal.races', {});
+  const [races, setRaces] = useSnapState<Record<string, { name: string; race_type: string; actual_finish_time?: string | null; transitions?: (number | null)[] | null }>>('journal.races', {});
   const [nextEvent, setNextEvent] = useSnapState<{ name: string; race_date: string; location: string | null } | null>('journal.nextEvent', null);
   const [uploading, setUploading] = useState<string | null>(null);
   // Files done / total while new photos and videos upload, for the overlay
@@ -576,11 +577,11 @@ export default function MyActivitiesScreen() {
     supabase.from('races').select('name, race_date, location').eq('user_id', user.id)
       .gte('race_date', todayIso).order('race_date', { ascending: true }).limit(1).maybeSingle()
       .then(({ data }) => setNextEvent(data ?? null));
-    supabase.from('races').select('id, name, race_type, actual_finish_time').eq('user_id', user.id)
+    supabase.from('races').select('id, name, race_type, actual_finish_time, transitions').eq('user_id', user.id)
       .then(({ data }) => {
         if (!data) return;
-        const map: Record<string, { name: string; race_type: string; actual_finish_time?: string | null }> = {};
-        data.forEach((r) => { map[r.id] = { name: r.name, race_type: r.race_type, actual_finish_time: r.actual_finish_time }; });
+        const map: Record<string, { name: string; race_type: string; actual_finish_time?: string | null; transitions?: (number | null)[] | null }> = {};
+        data.forEach((r) => { map[r.id] = { name: r.name, race_type: r.race_type, actual_finish_time: r.actual_finish_time, transitions: r.transitions }; });
         setRaces(map);
       });
 
@@ -1797,6 +1798,12 @@ export default function MyActivitiesScreen() {
       : multiDay ? `${legs.length} ${legs.length === 1 ? 'activity' : 'activities'}`
       : formatDurationClock(seconds);
     const shownLegs = legs.slice(0, 3);
+    // A triathlon's T1 and T2 on one line under the legs (Ricky, 2026-11-10,
+    // design/mockup-16 option B), from the times saved on its event page.
+    const trans = race.race_type === 'Triathlon' && !multiDay
+      ? transitionTimes(race.transitions, legs.length - 1, parseTime(race.actual_finish_time, 'hours'), seconds)
+      : null;
+    const transLine = trans?.list.map((t, k) => (t.seconds ? `${transitionKey(k)} ${formatDurationClock(t.seconds)}` : null)).filter(Boolean).join('  ·  ');
     const shownDays = days.slice(0, 4);
     return (
       <TouchableOpacity
@@ -1856,6 +1863,7 @@ export default function MyActivitiesScreen() {
                   <Text style={styles.eventLegTime}>{a.duration_seconds > 0 ? formatDurationClock(a.duration_seconds) : ''}</Text>
                 </View>
               ))}
+              {transLine ? <Text style={styles.eventTrans}>{transLine}</Text> : null}
               {legs.length > shownLegs.length ? <Text style={styles.eventMore}>{`${legs.length - shownLegs.length} more`}</Text> : null}
             </View>
           )}
@@ -3634,6 +3642,7 @@ const styles = StyleSheet.create({
   eventLeg: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   eventLegDist: { flex: 1, minWidth: 0, fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
   eventLegTime: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  eventTrans: { fontSize: 11, fontWeight: '600', color: RivalColors.textSecondary },
   eventMore: { fontSize: 11, fontWeight: '600', color: RivalColors.textSecondary },
   eventChips: { flexDirection: 'row', gap: 5 },
   eventChip: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 12, backgroundColor: RivalColors.surfaceBright },

@@ -26,7 +26,8 @@ import { SavedActivityNote } from '../components/rival/SavedActivityNote';
 import { requestPromptCheck } from '../lib/photoPrompt';
 
 // Screens that make sense without an account.
-const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/confirm-delete']);
+// The terms and privacy policy are linked from sign-up, so they open signed out.
+const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/confirm-delete', '/terms', '/privacy']);
 
 // Scrolls the nearest scrolling box so the focused field sits just above
 // the keyboard, where the thumbs are (Ricky, 2026-10-24). Web only.

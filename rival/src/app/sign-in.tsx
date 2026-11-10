@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalRadius, RivalType } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
@@ -81,6 +81,7 @@ export default function SignInScreen() {
 
   return (
     <View style={[styles.bg, mob && ms.bg]}>
+      {/* The smoke keeps its own warm tone on the grey page (Ricky, 2026-11-09). */}
       <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" />
       <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" />
       <SafeAreaView style={styles.container}>
@@ -122,7 +123,7 @@ export default function SignInScreen() {
             ) : null}
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, mob && rm.label]}>Email</Text>
+              <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Email</Text>
               <TextInput
                 style={[styles.input, mob && ms.input]}
                 placeholder="name@example.com"
@@ -134,7 +135,7 @@ export default function SignInScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, mob && rm.label]}>Password</Text>
+              <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Password</Text>
               <View style={[styles.passwordRow, mob && ms.field]}>
                 <TextInput
                   style={[styles.passwordInput, mob && ms.passwordInput]}
@@ -378,16 +379,19 @@ const styles = StyleSheet.create({
 
 // Phone only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
-  bg: { backgroundColor: RivalWarm.page },
-  card: { backgroundColor: RivalWarm.card, borderWidth: 1, borderColor: RivalWarm.cardBorder, borderRadius: 20, padding: 22 },
+  // The grey look (Ricky, 2026-11-09): the old brown page and card are
+  // retired. The form sits straight on the grey page, fields in ghost style.
+  bg: { backgroundColor: RivalGhost.ground },
+  card: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'transparent', borderRadius: 20, padding: 22 },
+  label: { color: RivalColors.textSecondary },
   title: { ...rm.serifTitle, textTransform: 'none', letterSpacing: 0, textAlign: 'center' } as any,
   subtitle: { color: RivalWarm.soft, marginTop: -10 },
   errorBox: { backgroundColor: 'rgba(255,143,143,0.08)', borderWidth: 1, borderColor: 'rgba(255,143,143,0.25)', borderRadius: 12 },
   errorText: { color: '#ff8f8f', fontSize: 13, lineHeight: 18 },
   successBox: { backgroundColor: 'rgba(255,209,190,0.08)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.2)', borderRadius: 12, alignItems: 'center' },
   successText: { color: RivalWarm.soft },
-  field: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder },
-  input: { backgroundColor: RivalWarm.field, borderRadius: 12, borderWidth: 1, borderColor: RivalWarm.cardBorder, paddingVertical: 13, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
+  field: { backgroundColor: RivalGhost.fill, borderRadius: 12, borderWidth: 1, borderColor: RivalGhost.border },
+  input: { backgroundColor: RivalGhost.fill, borderRadius: 12, borderWidth: 1, borderColor: RivalGhost.border, paddingVertical: 13, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
   passwordInput: { paddingVertical: 13, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
   checkbox: { borderWidth: 1.5, borderColor: 'rgba(255,209,190,0.4)', borderRadius: 6 },
   checkboxChecked: { borderColor: 'transparent', backgroundColor: RivalColors.accentFill },
