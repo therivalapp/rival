@@ -7,6 +7,7 @@ import { sidePageWide } from '../constants/breakpoints';
 import { GreyLabel, GreyPageHead, GreyPrimary, GREY_PAGE_BG, RivalIcon, activityIconName, type RivalIconName } from '../components/rival';
 import { TYPE_GROUPS, tileLabel } from '../lib/activityTypes';
 import { getPrefs, updatePrefs } from '../lib/prefs';
+import { supabase } from '../lib/supabase';
 
 // Choose activities (Ricky, 2026-11-02; design/new-member-setup-mockup.png).
 // Straight after creating an account, before Getting started. The picks lead
@@ -29,7 +30,14 @@ export default function ChooseActivitiesScreen() {
   const [saving, setSaving] = useState(false);
 
   const toggle = (t: string) => setPicked((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
-  const next = () => router.replace('/getting-started?welcome=1');
+  // Setup counts as done once it is saved or skipped here, not when it first
+  // opens: someone who closes the app part way sees it again next time.
+  const next = () => {
+    supabase.auth.updateUser({ data: { needs_setup: null } }).then(({ error }) => {
+      if (error) console.warn('Setup not marked done:', error.message);
+    });
+    router.replace('/getting-started?welcome=1');
+  };
 
   async function save() {
     setSaving(true);
