@@ -19,11 +19,16 @@ import { useAppFonts } from '../lib/useAppFonts';
 import { registerForPushNotifications } from '../lib/notifications';
 import { supabase } from '../lib/supabase';
 import { savePendingInvite } from '../lib/pendingInvite';
-import { RivalAlertHost } from '../components/rival';
+import { RivalAlertHost, FeedbackHost, SafetyHost } from '../components/rival';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 import { PhotoPrompt } from '../components/rival/PhotoPrompt';
 import { SavedActivityNote } from '../components/rival/SavedActivityNote';
 import { requestPromptCheck } from '../lib/photoPrompt';
+// Defines the background location task at load, so iOS can hand it route
+// points after waking the app (Start's GPS, 2026-11-10).
+import '../lib/gpsRecorder';
+// New Apple Health workouts come in whenever the app opens, once connected.
+import '../lib/appleHealth';
 
 // Screens that make sense without an account.
 // The terms and privacy policy are linked from sign-up, so they open signed out.
@@ -192,6 +197,8 @@ export default function RootLayout() {
       <DailyQuoteSplash />
       <PhotoPrompt />
       <SavedActivityNote />
+      <FeedbackHost />
+      <SafetyHost />
       <RivalAlertHost />
     </SafeAreaProvider>
   );

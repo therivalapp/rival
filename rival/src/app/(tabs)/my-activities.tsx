@@ -1,3 +1,4 @@
+import { syncHealth } from '../../lib/appleHealth';
 import { JournalYearView } from '../../components/rival/JournalYearView';
 import { SkyBackdrop } from '../../components/rival/SkyBackdrop';
 import { GoldStar } from '../../components/rival/RespectStar';
@@ -648,7 +649,7 @@ export default function MyActivitiesScreen() {
     setLoading(false);
   }
 
-  const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => loadActivities());
+  const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => { syncHealth(); return loadActivities(); });
 
   // Size and count limits live in MediaPicker, shared with manual entry, so
   // an activity has one limit however its photos arrive.

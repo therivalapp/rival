@@ -34,6 +34,7 @@ import { RESPECT_COLOUR, INSPIRED_COLOUR, respectGivenText, inspiredGivenText, e
 import { BusyText } from '../../components/rival/BusyText';
 import { RespectStar } from '../../components/rival/RespectStar';
 import { CommentThread } from '../../components/rival/team/CommentThread';
+import { useBlockedIds, openReport, openBlock, firstName } from '../../lib/safety';
 import { titleFit } from '../../lib/titleFit';
 import { InspiredBolt } from '../../components/rival/InspiredBolt';
 import { DetailsSheet } from '../../components/rival/ActivityDetails';
@@ -682,7 +683,9 @@ export default function TeamFeedScreen() {
     }
   }
 
-  const posts = items;
+  // Hidden as soon as a block is saved (Report and block, Mockup 27 v8).
+  const blockedIds = useBlockedIds();
+  const posts = items.filter((p) => !blockedIds.has(p.userId));
 
   return (
     <View style={{ flex: 1 }}>
@@ -801,7 +804,7 @@ export default function TeamFeedScreen() {
                   avatarUrl={avatarMap[post.userId] ?? null}
                   routePolyline={routesMap[post.id] ?? null}
                   reactions={reactionsMap[feedTargetKey(reactionTargetType(post.kind), post.id)] || []}
-                  comments={commentsMap[feedTargetKey(reactionTargetType(post.kind), post.id)] || []}
+                  comments={(commentsMap[feedTargetKey(reactionTargetType(post.kind), post.id)] || []).filter((c) => !blockedIds.has(c.user_id))}
                   nameMap={nameMap}
                   onReact={(emoji) => toggleReaction(reactionTargetType(post.kind), post.id, post.teamIds[0], emoji)}
                   isCommentsOpen={expandedComments.has(feedTargetKey(reactionTargetType(post.kind), post.id))}
@@ -1057,6 +1060,42 @@ function PostCard({
             ) : null}
           </Text>
         </View>
+        {post.userId !== currentUserId && !!currentUserId && (
+          // Someone else's post: Report and Block (Mockup 27 v8). Report
+          // amber and Block red, as on the pop-ups they open.
+          <View style={styles.postMoreWrap}>
+            <TouchableOpacity style={[styles.postMoreBtn, menuOpen && styles.postMoreBtnOn]} onPress={() => setMenuOpen((v) => !v)} accessibilityLabel="More">
+              <RivalIcon name="more" size={20} color={RivalColors.textSecondary} />
+            </TouchableOpacity>
+            {menuOpen && (
+              <>
+                <TouchableOpacity style={styles.postMoreBackdrop} onPress={() => setMenuOpen(false)} />
+                <View style={[styles.postMoreMenu, Platform.OS === 'web' ? ({ animationName: 'rivalMenuIn', animationDuration: '160ms', animationTimingFunction: 'ease-out' } as any) : null]}>
+                  <View style={styles.postMoreArrow} />
+                  <TouchableOpacity
+                    style={styles.postMoreMenuItem}
+                    onPress={() => {
+                      setMenuOpen(false);
+                      openReport(post.kind === 'activity'
+                        ? { kind: 'activity', targetId: post.id, userId: post.userId, name: displayedName }
+                        : { kind: 'member', userId: post.userId, name: displayedName });
+                    }}
+                  >
+                    <RivalIcon name="flag" size={16} color={RivalColors.accentGold} />
+                    <Text style={[styles.postMoreMenuText, { color: RivalColors.accentGold }]}>Report</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.postMoreMenuItem}
+                    onPress={() => { setMenuOpen(false); openBlock({ userId: post.userId, name: displayedName }); }}
+                  >
+                    <RivalIcon name="block" size={16} color={RivalColors.danger} />
+                    <Text style={[styles.postMoreMenuText, { color: RivalColors.danger }]}>Block {firstName(displayedName)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        )}
         {post.kind === 'activity' && post.userId === currentUserId && (
           <View style={styles.postMoreWrap}>
             <TouchableOpacity style={[styles.postMoreBtn, menuOpen && styles.postMoreBtnOn]} onPress={() => setMenuOpen((v) => !v)} disabled={deleting}>

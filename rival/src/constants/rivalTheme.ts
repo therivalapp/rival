@@ -134,6 +134,22 @@ export const RivalFontFamily = 'Manrope';
 // copies of the same string that were previously scattered across 7 screens.
 export const RivalSerifFamily = 'Georgia, "Times New Roman", serif';
 
+// The RIVAL wordmark (Ricky, 2026-11-10, Mockup 24 C, the app icon): serif
+// italic with wide letter spacing, 0.2 of the font size. Used for every
+// RIVAL logo in the app; the website, emails and the loading wordmark in
+// +html.tsx copy these numbers. Colour stays with each place. The left
+// padding matches the space after the last letter, so centred logos sit
+// centred.
+export const rivalWordmark = (size: number) => ({
+  fontFamily: RivalSerifFamily,
+  fontStyle: 'italic' as const,
+  fontWeight: '700' as const,
+  fontSize: size,
+  lineHeight: Math.round(size * 1.25),
+  letterSpacing: Math.round(size * 0.2 * 10) / 10,
+  paddingLeft: Math.round(size * 0.2 * 10) / 10,
+});
+
 export const RivalType = {
   displayHero: { fontFamily: RivalFontFamily, fontSize: 48, fontWeight: '800' as const, lineHeight: 56, letterSpacing: -0.96 },
   headlineLg: { fontFamily: RivalFontFamily, fontSize: 32, fontWeight: '700' as const, lineHeight: 40, letterSpacing: -0.32 },

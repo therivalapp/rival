@@ -13,6 +13,11 @@ import { saveActivityRoute } from '../_shared/activityRoute.ts'
 // from another app's export is recorded as 'strava_archive', RIVAL's own.
 //
 // `preview: true` only reports which items are new, without writing.
+//
+// Apple Health (2026-11-10): the iPhone app reads workouts from Health and
+// sends them here as provider 'apple_health', keyed by the workout's Health
+// id, with heart rate and calories when Health has them. A workout already
+// in RIVAL (recorded with Start, or from an archive) is linked, not copied.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +26,7 @@ const corsHeaders = {
 
 type Item = {
   key: string
-  provider: 'strava_archive' | 'rival_import'
+  provider: 'strava_archive' | 'rival_import' | 'apple_health'
   providerId: string
   name: string | null
   type: string
@@ -33,9 +38,13 @@ type Item = {
   notes?: string | null
   polyline?: string | null
   photoPath?: string | null
+  avgHeartrate?: number | null
+  maxHeartrate?: number | null
+  calories?: number | null
 }
 
 const START_WINDOW_MS = 10 * 60 * 1000
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v * 10) / 10 : null)
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -95,7 +104,8 @@ serve(async (req) => {
     for (const it of items) {
       try {
         const type = normaliseActivityType(it.type)
-        const payload = { imported_from: 'archive', route: !!it.polyline }
+        if (!['strava_archive', 'rival_import', 'apple_health'].includes(it.provider)) { results.push({ key: it.key, status: 'failed' }); continue }
+        const payload = { imported_from: it.provider === 'apple_health' ? 'apple_health' : 'archive', route: !!it.polyline }
         const resolved = await resolveCanonicalActivityId(supabase, {
           userId: user.id,
           provider: it.provider,
@@ -140,6 +150,9 @@ serve(async (req) => {
           effort_score: effort,
           raw_effort_score: effort,
           photo_url: photoUrl,
+          avg_heartrate: num(it.avgHeartrate),
+          max_heartrate: num(it.maxHeartrate),
+          calories: num(it.calories),
         }).select('id').single()
         if (error || !row) {
           console.log('Import insert error', it.providerId, JSON.stringify(error))

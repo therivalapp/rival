@@ -1,0 +1,239 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding-bottom:30px;background:#151413;font-family:Manrope,sans-serif;color:#fff;width:1330px}
+h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin:28px 26px 4px}
+.sub{color:#a8a097;font-size:14px;margin:0 26px 6px}
+.row{display:flex;gap:26px;padding:16px 26px 20px;align-items:flex-start}
+.col{width:393px;flex-shrink:0}
+.tag{display:flex;align-items:center;gap:10px;color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 6px 4px}
+.tag b{width:26px;height:26px;border-radius:13px;background:#ffb59e;color:#2a1710;display:grid;place-items:center;font-size:13px;letter-spacing:0}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;min-height:56px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#282828}
+.status{height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 30px;font-weight:700;font-size:16px;color:rgba(255,255,255,.5)}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.topnav{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg,#372f2c,#2a2522);border-bottom:1px solid rgba(255,255,255,.06)}
+.logo{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:17px;letter-spacing:3.4px;background:linear-gradient(100deg,#D97757 0%,#ffb59e 45%,#F5B759 100%);-webkit-background-clip:text;color:transparent}
+.av{width:34px;height:34px;border-radius:17px;background:#D97757;display:grid;place-items:center;font-weight:800;font-size:14px;color:#2a1710}
+.content{padding:0 16px}
+/* feed post */
+.post{position:relative;margin-top:14px;border-radius:20px;padding:12px;background:#282828;border:1px solid;border-color:rgba(255,209,190,.26) rgba(255,209,190,.09) rgba(255,209,190,.03);background-image:radial-gradient(ellipse 70% 220px at 50% 0%,rgba(217,119,87,.17),rgba(217,119,87,.035) 60%,rgba(217,119,87,0) 85%);background-repeat:no-repeat}
+.phead{display:flex;align-items:center;gap:9px;position:relative;z-index:5}
+.pav{width:36px;height:36px;border-radius:18px;border:1px solid rgba(255,181,158,.4);background:#3a2f2a;display:grid;place-items:center;font-size:12.5px;font-weight:800;color:#ffb59e}
+.pname{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:15px}
+.pmeta{font-size:11px;color:rgba(255,255,255,.55);margin-top:1px}.pmeta b{color:#ffb59e;font-weight:600}
+.pmore{margin-left:auto;position:relative}
+.pmorebtn{padding:4px;border-radius:999px;color:#A0A0A0;font-size:20px;background:#282828;outline:1px solid rgba(255,255,255,.08)}
+.menu{position:absolute;top:36px;right:0;min-width:168px;border-radius:14px;padding:6px 0;background:#282828;border:1px solid rgba(255,255,255,.08);box-shadow:0 10px 24px rgba(0,0,0,.45);z-index:10}
+.menu:before{content:'';position:absolute;top:-6px;right:9px;width:11px;height:11px;background:#282828;border-top:1px solid rgba(255,255,255,.08);border-left:1px solid rgba(255,255,255,.08);transform:rotate(45deg)}
+.mitem{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13.5px;font-weight:600;color:#e5e2e1;white-space:nowrap}
+.mitem .mi{font-size:16px}
+.ptitle{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px;line-height:20px;color:rgba(255,255,255,.92);margin:5px 2px 11px}
+.pphoto{border-radius:14px;overflow:hidden;aspect-ratio:4/5;background:#211c19 url(photo.jpg) center/cover}
+.pfoot{display:flex;gap:18px;margin-top:11px;font-size:12px;font-weight:700;color:#A0A0A0;align-items:center}
+.pfoot .mi{font-size:17px;vertical-align:-4px;margin-right:4px}
+.dimfeed{position:absolute;inset:0;background:rgba(0,0,0,.0)}
+/* chat */
+.chead{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #353534}
+.clogo{width:38px;height:38px;border-radius:12px;border:1px solid #353534;background:linear-gradient(135deg,#3b2821,#231e1b);display:grid;place-items:center;font-family:Georgia,serif;font-style:italic;font-weight:700;color:#ffb59e}
+.ctitle{font-family:Georgia,serif;font-style:italic;font-size:20px;font-weight:700;line-height:24px}
+.csub{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#ffb59e;margin-top:2px}
+.msgs{padding:14px 16px 0}
+.sep{text-align:center;font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;margin:4px 0 14px}
+.mrow{display:flex;gap:8px;align-items:flex-end;margin-bottom:3px}
+.mrow.me{justify-content:flex-end}
+.mav{width:28px;height:28px;border-radius:14px;background:#3a2f2a;border:1px solid rgba(255,181,158,.4);display:grid;place-items:center;font-size:11px;font-weight:800;color:#ffb59e;flex-shrink:0}
+.mav.gap{visibility:hidden}
+.who{font-size:11px;font-weight:700;color:#A0A0A0;margin:10px 0 4px 36px}
+.bub{max-width:76%;border-radius:18px;padding:8px 13px;font-size:14.5px;line-height:20px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22)}
+.me .bub{background:linear-gradient(135deg,#e6927a 0%,#D97757 100%);border:0;padding:9px 14px;color:#fff}
+.bub.ttl{border-top-left-radius:5px}.bub.tbl{border-bottom-left-radius:5px}
+.me .bub.tbr{border-bottom-right-radius:5px}.me .bub.ttr{border-top-right-radius:5px}
+.arow{display:flex;align-items:center;gap:14px;margin:6px 0 10px 48px;font-size:11px;font-weight:600;color:#A0A0A0}
+.arow span{display:flex;align-items:center;gap:4px}.arow .mi{font-size:13px}
+.arow .t{font-size:10px;font-weight:500}
+.mmore{position:relative;align-self:center;margin-left:4px;width:30px;height:30px;border-radius:15px;background:#282828;outline:1px solid rgba(255,255,255,.08);display:grid;place-items:center;color:#A0A0A0;font-size:18px}.mmore>.mi{font-size:18px}.mmenu{top:40px;right:-6px}.mmenu:before{right:15px}
+.gold{color:#F5B759!important}.red{color:#ff5c5c!important}
+.at.gon{border-color:transparent;background:#F5B759;color:#2a1a05}.at.gon .bg{color:rgba(42,26,5,.22)}
+.goldbtn{height:52px;border-radius:999px;background:#F5B759;color:#2a1a05;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+.redbtn{height:52px;border-radius:999px;background:#ff5c5c;color:#2a0b0b;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+.ghostbtn{height:46px;border-radius:999px;border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:rgba(255,255,255,.88);margin-top:10px}
+.ring{width:58px;height:58px;border-radius:29px;margin:0 auto;display:grid;place-items:center}
+.blurwrap{position:absolute;inset:50px 0 0 0;filter:blur(7px);opacity:.75}
+.odim{position:absolute;inset:0;background:rgba(10,10,10,.45)}
+.ofocus{position:absolute;left:16px;right:16px;top:330px}
+.rbar{display:flex;justify-content:space-between;align-items:center;background:#323232;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:9px 16px;font-size:27px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+.obub{display:inline-block;margin-top:10px;max-width:76%}
+.omenu{margin-top:10px;width:250px;border-radius:14px;overflow:hidden;background:#323232;border:1px solid rgba(255,255,255,.08);box-shadow:0 10px 24px rgba(0,0,0,.45)}
+.orow{display:flex;justify-content:space-between;align-items:center;padding:0 16px;height:48px;font-size:15.5px;font-weight:600;color:#e5e2e1}
+.orow .mi{font-size:20px}
+.orow+.orow{border-top:1px solid rgba(255,255,255,.08)}
+.ogap{height:7px;background:#1f1f1f}
+.rbar2{display:inline-flex;gap:6px;background:#323232;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:6px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+.rb{display:flex;align-items:center;gap:6px;height:40px;padding:0 16px 0 12px;border-radius:999px;background:rgba(255,209,190,.06);font-size:14px;font-weight:700;color:#e5e2e1}
+.rb .mi{font-size:20px;color:#ffb59e}
+.composer{position:absolute;left:0;right:0;bottom:0;padding:10px 16px 34px;border-top:1px solid #353534;background:#282828;display:flex;gap:8px}
+.cfield{flex:1;height:44px;border-radius:22px;background:rgba(255,209,190,.05);color:rgba(255,255,255,.35);font-size:15px;display:flex;align-items:center;padding:0 16px}
+.csend{width:44px;height:44px;border-radius:22px;background:linear-gradient(135deg,#D97757,#ffb59e);display:grid;place-items:center;color:#2a1710;font-size:20px}
+.new{position:absolute;inset:-4px;border:1.5px dashed rgba(255,181,158,.55);border-radius:10px;pointer-events:none}
+.newtag{position:absolute;right:-12px;top:-17px;background:#ffb59e;color:#2a1710;font-size:9px;font-weight:800;letter-spacing:.8px;padding:3px 7px;border-radius:999px}
+/* sheets */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-top:1px solid #323232;border-radius:22px 22px 0 0;padding:10px 18px 0;overflow:hidden}
+.sglow{position:absolute;top:0;left:0;right:0;height:150px;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(217,119,87,.20) 0%,rgba(217,119,87,.07) 45%,rgba(217,119,87,0) 100%)}
+.grab{width:38px;height:4px;border-radius:2px;background:#323232;margin:0 auto 14px;position:relative}
+.skick{font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e;text-align:center;position:relative}
+.stitle{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:24px;text-align:center;margin-top:3px;position:relative}
+.ssub{font-size:13px;color:#A0A0A0;text-align:center;margin-top:4px;position:relative;line-height:18px}
+.glabel{font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;margin:15px 0 8px;text-transform:uppercase;position:relative}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:7px;position:relative}
+.at{height:66px;border-radius:16px;padding:0 12px 9px;display:flex;align-items:flex-end;position:relative;overflow:hidden;border:1px solid rgba(255,181,158,.3);background:rgba(255,209,190,.05);font-size:12.5px;font-weight:800}
+.at .bg{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:50px;color:rgba(255,181,158,.2)}
+.at span{position:relative}
+.at.on{border-color:transparent;background:linear-gradient(135deg,#D97757,#ffb59e)}
+.at.on .bg{color:rgba(255,255,255,.32)}
+.field{position:relative;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22);border-radius:14px;padding:13px 14px;font-size:16px;font-weight:500;line-height:22px;min-height:84px;color:rgba(255,255,255,.28)}
+.gcard{position:relative;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22);border-radius:16px;padding:0 13px}
+.grow{display:flex;align-items:center;min-height:50px;gap:10px;padding:4px 0}
+.grow+.grow{border-top:1px solid rgba(255,209,190,.08)}
+.grow .ic{width:18px;text-align:center;font-size:16px;color:#ffb59e}
+.grow .l{font-size:13.5px;font-weight:600;color:#A0A0A0}
+.grow .v{flex:1;text-align:right;font-size:15px;font-weight:500}
+.sw{width:40px;height:24px;border-radius:12px;background:rgba(255,255,255,.14);position:relative;margin-left:auto}.sw:after{content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:9px;background:#fff}
+.foot{padding:16px 0 34px;position:relative}
+.primary{height:52px;border-radius:999px;background:linear-gradient(90deg,#D97757,#ffb59e);color:#2a1710;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+.textbtn{height:44px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#ffb59e;margin-top:6px}
+.big{position:relative;text-align:center;padding:26px 0 6px}
+.big .mi{font-size:46px;color:#ffb59e}
+.gnote{font-size:12.5px;line-height:17px;color:#A0A0A0;margin-top:10px;position:relative;text-align:center}
+/* settings page */
+.back{width:36px;height:36px;border-radius:18px;background:rgba(255,255,255,.10);display:grid;place-items:center;color:#D97757;margin:14px 0 0}
+.mhead{position:relative;text-align:center;margin:-36px 0 8px}
+.mglow{position:absolute;top:-110px;left:-24px;right:-24px;height:240px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(217,119,87,.22) 0%,rgba(217,119,87,.07) 45%,rgba(217,119,87,0) 100%)}
+.kick{position:relative;font-size:10px;font-weight:800;letter-spacing:1.8px;color:#ffb59e}
+.mtitle{position:relative;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin-top:3px}
+.msub{position:relative;font-size:13px;color:#A0A0A0;margin-top:4px}
+.brow .pav{width:34px;height:34px;border-radius:17px}
+.bname{font-size:15px;font-weight:600;color:#fff;flex:1}
+.unb{color:#ffb59e;font-size:14px;font-weight:700}
+.empty{position:relative;margin-top:22px;border-radius:16px;border:1px dashed rgba(255,181,158,.22);padding:22px 16px;text-align:center}
+.empty .mi{font-size:34px;color:rgba(255,181,158,.35)}
+.empty .et{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:17px;margin-top:6px}
+.empty .es{font-size:12.5px;color:#A0A0A0;margin-top:3px}
+.minitag{font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;text-transform:uppercase;margin:26px 0 8px}
+</style></head><body>
+<h1>Mockup 27 · Report and block (v8)</h1>
+<p class="sub">Apple guideline 1.2: a way to report a post, message or member, and to block a member. Reports are saved and emailed to hello@therivalapp.com.</p>
+
+<div class="row">
+<!-- A: post menu -->
+<div class="col"><div class="tag"><b>A</b>Someone else's post</div><p class="desc">The three-dot menu now shows on other people's posts too, with Report and Block. A member's profile gets the same menu, top right.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="topnav"><span class="logo">RIVAL</span><span class="av">T</span></div>
+<div class="content" id="feed">
+<div class="post">
+<div class="phead"><div class="pav">SC</div><div><div class="pname">Sam Carter</div><div class="pmeta">2h · <b>Harbour Runners</b></div></div>
+<div class="pmore"><span class="mi pmorebtn">more_vert</span>
+<div class="menu"><div class="mitem" style="color:#F5B759"><span class="mi">flag</span>Report</div><div class="mitem" style="color:#ff5c5c"><span class="mi">block</span>Block Sam</div></div></div></div>
+<div class="ptitle">Morning Run</div>
+<div class="pphoto"></div>
+<div class="pfoot"><span><span class="mi">star</span>Respect</span><span><span class="mi">bolt</span>Inspired</span></div>
+</div></div></div></div>
+
+<!-- B: chat -->
+<div class="col"><div class="tag"><b>B</b>A message</div><p class="desc">Pressing a message blurs the chat, shows the usual reactions above it and a menu below it. Report and Block sit in their own group under Reply and Copy. Your own messages don't get Report or Block.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="blurwrap"><div class="chead"><span class="mi" style="color:#D97757;font-size:22px">arrow_back</span><div class="clogo">H</div><div><div class="ctitle">Harbour Runners</div><div class="csub">6 MEMBERS</div></div></div>
+<div class="msgs">
+<div class="sep">TODAY</div>
+<div class="who">Jordan</div>
+<div class="mrow"><div class="mav">J</div><div class="bub">Anyone up for the hill loop Saturday?</div></div>
+<div class="mrow me" style="margin-top:10px"><div class="bub tbr">I'm in. 7 am at the car park?</div></div>
+<div class="mrow me"><div class="bub ttr">Bringing the new shoes</div></div>
+<div class="who">Sam Carter</div>
+<div class="mrow"><div class="mav gap">S</div><div class="bub tbl">Count me in</div></div>
+<div class="mrow" style="position:relative"><div class="mav">S</div><div class="bub ttl">Last one there buys coffee</div></div>
+
+</div>
+<div class="composer"><div class="cfield">Message</div><div class="csend"><span class="mi">arrow_upward</span></div></div>
+</div><div class="odim"></div>
+<div class="ofocus">
+<div class="rbar"><span>❤️</span><span>🔥</span><span>⚡</span><span>💪</span><span>👏</span><span>🙌</span></div>
+<div class="bub obub">Last one there buys coffee</div>
+<div class="omenu">
+<div class="orow">Reply<span class="mi">reply</span></div>
+<div class="orow">Copy<span class="mi">content_copy</span></div>
+<div class="ogap"></div>
+<div class="orow" style="color:#F5B759">Report<span class="mi">flag</span></div>
+<div class="orow" style="color:#ff5c5c">Block Sam<span class="mi">block</span></div>
+</div></div>
+</div></div>
+
+<!-- C: report sheet -->
+<div class="col"><div class="tag"><b>C</b>Report</div><p class="desc">One pop-up for posts, messages and members. Report is amber throughout: the menu item, the chosen reason and Send.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="topnav"><span class="logo">RIVAL</span><span class="av">T</span></div>
+<div class="behind"></div><div class="dim"></div>
+<div class="sheet"><div class="sglow"></div><div class="grab"></div>
+<div class="skick gold">SAM CARTER · ACTIVITY</div><div class="stitle">Report</div>
+<div class="ssub">Sam will not be notified.</div>
+<div class="glabel">Reason</div>
+<div class="tiles">
+<div class="at gon"><div class="mi bg">report</div><span>Spam</span></div>
+<div class="at"><div class="mi bg">front_hand</div><span>Harassment</span></div>
+<div class="at"><div class="mi bg">visibility_off</div><span>Inappropriate</span></div>
+<div class="at"><div class="mi bg">more_horiz</div><span>Other</span></div>
+</div>
+<div class="glabel">Details</div>
+<div class="field">Optional</div>
+<div class="gcard" style="margin-top:10px"><div class="grow"><span class="mi ic red">block</span><span class="l">Block Sam</span><span class="sw"></span></div></div>
+<div class="foot"><div class="goldbtn">Send</div></div>
+</div></div></div>
+</div>
+
+<div class="row">
+<!-- D: sent -->
+<div class="col"><div class="tag"><b>D</b>Report sent</div><p class="desc">Confirms and closes with Done. If Block was on, the second line says so.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="topnav"><span class="logo">RIVAL</span><span class="av">T</span></div>
+<div class="behind"></div><div class="dim"></div>
+<div class="sheet"><div class="sglow"></div><div class="grab"></div>
+<div class="big"><div class="ring" style="background:rgba(245,183,89,.14)"><span class="mi" style="font-size:32px;color:#F5B759">flag</span></div></div>
+<div class="stitle">Report sent</div>
+<div class="ssub">The RIVAL team will review it.</div>
+<div class="foot" style="padding-top:26px"><div class="ghostbtn" style="margin-top:0;height:52px">Done</div></div>
+</div></div></div>
+
+<!-- E: block -->
+<div class="col"><div class="tag"><b>E</b>Block</div><p class="desc">Block is red throughout, using the red button from Delete account. Their posts, messages and comments disappear for you straight away. They stay on the team and still count in its totals.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="topnav"><span class="logo">RIVAL</span><span class="av">T</span></div>
+<div class="behind"></div><div class="dim"></div>
+<div class="sheet"><div class="sglow"></div><div class="grab"></div>
+<div class="ring" style="background:rgba(255,92,92,.14);margin-bottom:10px;position:relative"><span class="mi" style="font-size:30px;color:#ff5c5c">block</span></div><div class="stitle">Block Sam Carter?</div>
+<div class="ssub">Sam's posts and messages will be hidden. Sam will not be notified.</div>
+<div class="foot" style="padding-top:24px"><div class="redbtn">Block</div><div class="ghostbtn">Cancel</div></div>
+</div></div></div>
+
+<!-- F: blocked members -->
+<div class="col"><div class="tag"><b>F</b>Blocked members</div><p class="desc">New row in Settings, More. Unblock brings their posts and messages back. Empty state below the list.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="topnav"><span class="logo">RIVAL</span><span class="av">T</span></div>
+<div class="content">
+<div class="back"><span class="mi" style="font-size:20px">arrow_back</span></div>
+<div class="mhead"><div class="mglow"></div><div class="kick">SETTINGS</div><div class="mtitle">Blocked members</div><div class="msub">Hidden from your feed and chats.</div></div>
+<div class="glabel">Blocked</div>
+<div class="gcard">
+<div class="grow brow"><div class="pav">SC</div><span class="bname">Sam Carter</span><span class="unb">Unblock</span></div>
+</div>
+<div class="minitag">Empty state</div>
+<div class="empty"><span class="mi">block</span><div class="et">No blocked members</div><div class="es">Block a member from their post, message or profile.</div></div>
+</div></div></div>
+</div>
+<script>
+const f=document.getElementById('feed');
+document.querySelectorAll('.behind').forEach(b=>{const c=f.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('.menu').forEach(e=>e.remove());c.querySelectorAll('.pmorebtn').forEach(e=>{e.style.background='none';e.style.outline='none'});b.replaceWith(c)});
+const p2=f.querySelector('.post').cloneNode(true);p2.querySelector('.menu').remove();p2.querySelector('.pmorebtn').style.cssText='background:none;outline:none';p2.querySelector('.pname').textContent='Jordan Lee';p2.querySelector('.pav').textContent='JL';p2.querySelector('.ptitle').textContent='Hill Repeats';f.appendChild(p2);
+</script></body></html>

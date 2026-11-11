@@ -10,12 +10,13 @@ import { fetchInboxBadgeCount, onInboxChanged } from '../../lib/inbox';
 import { NotificationsMenu, prefetchNotifications } from './NotificationsMenu';
 import { stravaSharingNeedsAnswer } from '../../lib/stravaSharing';
 import { getUnreadChats } from '../../lib/unreadChats';
-import { RivalColors, RivalSerifFamily, RivalType } from '../../constants/rivalTheme';
+import { RivalColors, RivalSerifFamily, RivalType, rivalWordmark } from '../../constants/rivalTheme';
 import { BREAKPOINT_MOBILE_NAV } from '../../constants/breakpoints';
 import { RivalIcon, RivalIconName } from './RivalIcon';
 import Svg, { Path } from 'react-native-svg';
 import { goToTab, getCurrentPath, type TabRoute } from '../../lib/tabNav';
 import { avatarImage } from '../../lib/imageUrl';
+import { openFeedback } from '../../lib/feedback';
 import { useLive, useTick } from '../../lib/liveActivityStore';
 import { liveClock, liveSeconds } from '../../lib/liveActivity';
 
@@ -348,12 +349,19 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
     // insets.top is 0 in a browser tab, where this is a no-op.
     <View ref={barRef as any} style={[styles.bar, narrow && styles.barNarrow, insets.top > 0 && ({ marginTop: -insets.top, paddingTop: insets.top } as any)]}>
       <View style={[styles.row, narrow && styles.rowNarrow]}>
-        <TouchableOpacity
-          onPress={() => goToTab('/home')}
-          style={narrow && centerSlot ? styles.logoWrapBalanced : undefined}
-        >
-          <Text style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</Text>
-        </TouchableOpacity>
+        <View style={[styles.logoRow, narrow && centerSlot ? styles.logoWrapBalanced : undefined]}>
+          <TouchableOpacity onPress={() => goToTab('/home')}>
+            <Text style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</Text>
+          </TouchableOpacity>
+          {/* Team Beta (Ricky, 2026-11-10, Mockup 26 B): one tap from any
+              page opens Send feedback. Phones only; remove at launch. */}
+          {narrow ? (
+            <TouchableOpacity onPress={openFeedback} style={styles.beta} hitSlop={8} accessibilityRole="button" accessibilityLabel="Send feedback">
+              <RivalIcon name="feedback" size={11} color={RivalColors.accentText} />
+              <Text style={styles.betaText}>BETA</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {!narrow && (
           <View style={[styles.links, Platform.OS === 'web' && (styles.linksCentered as any)]}>
@@ -580,12 +588,12 @@ const styles = StyleSheet.create({
   // Mockup's mobile header padding (14px 8px) is narrower than the desktop
   // bar built for a 1200px-wide row — desktop keeps its own spacing.
   rowNarrow: { paddingHorizontal: 8, paddingVertical: 9 },
-  logo: { ...RivalType.titleMd, color: RivalColors.accentText, letterSpacing: 4, fontWeight: '800' },
+  logo: { ...rivalWordmark(20), paddingLeft: 0, color: RivalColors.accentText },
   // Mockup's mobile wordmark uses the same tri-color gradient-text recipe as
   // the hero numbers/"Total time earned" value elsewhere — desktop's plain
   // flat accentText color is untouched, this only applies when narrow.
   logoNarrow: {
-    fontSize: 17, letterSpacing: 3,
+    ...rivalWordmark(17), paddingLeft: 0,
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'linear-gradient(100deg, #D97757 0%, #ffb59e 45%, #F5B759 100%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
@@ -611,6 +619,12 @@ const styles = StyleSheet.create({
   // instead of the midpoint of the leftover gap (which skewed toward the
   // narrower logo side, since the right cluster is visibly wider).
   logoWrapBalanced: { flex: 1 },
+  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  beta: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, paddingHorizontal: 8, marginLeft: 8,
+    borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.5)',
+  },
+  betaText: { fontSize: 9, fontWeight: '800', letterSpacing: 1.2, color: RivalColors.accentText },
   rightBalanced: { flex: 1, justifyContent: 'flex-end' },
   // Floating bottom tab bar, mobile only (`narrow` breakpoint above) — replaces
   // the old in-flow links row so the primary nav sits within thumb reach

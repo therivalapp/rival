@@ -7,7 +7,7 @@ import { getDailyQuote, type Quote, type QuoteTone } from '../../lib/quotes';
 import { getPrefs } from '../../lib/prefs';
 import { setQuoteUp } from '../../lib/photoPrompt';
 import { getDailyBackground } from '../../lib/dailyBackground';
-import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
+import { RivalColors, RivalFontFamily, RivalSerifFamily, rivalWordmark } from '../../constants/rivalTheme';
 
 // The daily quote, shown once a day the first time a signed-in person opens
 // the app. It sits over the whole app rather than being its own screen, so the
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32, paddingTop: 72, paddingBottom: 56,
     ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : {}),
   },
-  logo: { fontFamily: RivalFontFamily, fontSize: 16, fontWeight: '700', letterSpacing: 8, color: '#fff' },
+  logo: { ...rivalWordmark(16), color: '#fff' },
   quoteBlock: { alignItems: 'center', maxWidth: 460 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   category: {

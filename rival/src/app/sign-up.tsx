@@ -3,10 +3,11 @@ import { StyleSheet, TouchableOpacity, View, Text, TextInput, Image, Platform, S
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { finishSignUp } from '../lib/finishSignUp';
 import { displayToIsoDate, maskDateInput } from '../lib/dateFormat';
 import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalGhost, RivalRadius, RivalType } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalRadius, RivalType, rivalWordmark } from '../constants/rivalTheme';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 
@@ -58,7 +59,10 @@ export default function SignUpScreen() {
       email,
       password,
       options: {
-        data: { display_name: displayName }
+        // Date of birth and needs_setup ride along with the account, so they
+        // survive email confirmation; lib/finishSignUp.ts saves the date of
+        // birth and opens setup on the first signed-in moment.
+        data: { display_name: displayName, date_of_birth: dobIso, needs_setup: true }
       }
     });
 
@@ -66,15 +70,6 @@ export default function SignUpScreen() {
       setError(error.message);
       setLoading(false);
       return;
-    }
-
-    // The handle_new_user trigger only inserts id/email/display_name from
-    // auth metadata — date of birth isn't part of that, so it's a separate
-    // write against the row the trigger just created.
-    if (data.user) {
-      // Not fatal (the account exists), but a silent failure would lose it.
-      const { error: dobError } = await supabase.from('users').update({ date_of_birth: dobIso }).eq('id', data.user.id);
-      if (dobError) console.warn('Date of birth not saved:', dobError.message);
     }
 
     // With email confirmation switched on there is no session yet, and every
@@ -85,7 +80,9 @@ export default function SignUpScreen() {
       return;
     }
 
+    // Signed in straight away (confirmation off): save the date of birth now.
     // A new account picks its activities, then the introduction, not an empty Home.
+    await finishSignUp();
     router.replace('/choose-activities');
   }
 
@@ -284,9 +281,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   logo: {
-    ...RivalType.titleMd,
+    ...rivalWordmark(20),
     color: RivalColors.textPrimary,
-    letterSpacing: 6,
     textAlign: 'center',
     marginBottom: 24,
   },

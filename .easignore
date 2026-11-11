@@ -1,0 +1,70 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# iCloud Drive conflict copies. Syncing this folder from two machines leaves
+# byte-identical (or stale) clones named "file 2.ext" / "file 3.ext" beside the
+# real file. 179 of them had accumulated before this rule existed; they are pure
+# clutter and, worse, an agent or a search can read the stale copy by mistake.
+# If a legitimate filename ever ends in " 2.ext", un-ignore it with:
+#   !path/to/that file 2.ext
+* [2-9].*
+* [2-9]
+# ...except this one, which is a real tracked asset that happens to fit the shape.
+!rival/assets/expo.icon/Assets/expo-symbol 2.svg
+
+# Editor/OS noise
+*.swp
+Thumbs.db
+
+# Vercel CLI local link (contains project/org ids, machine-specific)
+.vercel/
+
+# Stray build outputs. dist-before/ is a 17MB snapshot of a previous web build
+# kept for comparison — never a source artifact.
+rival/dist-before/
+dist-before/
+
+# npm lockfile at the repo ROOT: there is no root package.json, so this is a
+# stray from running npm outside rival/. The real lockfile is rival/package-lock.json.
+/package-lock.json
+
+# Session scratchpad — DB snapshots taken before migrations, local only.
+scratchpad/
+
+# Supabase CLI scratch: link state and version caches, rewritten by every
+# CLI command and specific to one machine.
+supabase/.temp/
+rival/supabase/.temp/
+
+# ---- EAS builds (2026-11-10) ----
+# The git repository is this folder, not rival/, so EAS packs the whole repo
+# and reads its ignore list here; rival/.easignore alone was not used (the
+# build archive stayed 1.1 GB). An .easignore replaces .gitignore for builds,
+# so the lines above are repeated, and rival/.gitignore's are added below.
+rival/node_modules/
+rival/.expo/
+rival/dist/
+rival/web-build/
+rival/expo-env.d.ts
+**/.env*.local
+**/*.p8
+**/*.p12
+**/*.key
+**/*.mobileprovision
+**/*.jks
+**/*.pem
+**/*.tsbuildinfo
+# Not needed to build the app: mockups, the website, server code, scripts,
+# screenshots and tooling.
+rival/design/
+rival/site/
+rival/supabase/
+rival/scripts/
+/supabase/
+/scratchpad/
+/RIVAL screenshots 2026-10-03/
+/*.png
+/.claude/
+/.github/
+/.vscode/

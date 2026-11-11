@@ -44,3 +44,4 @@ example
 
 .vercel
 .env*
+scripts/seed-demo-world.sql

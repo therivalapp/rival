@@ -3,8 +3,9 @@ import { StyleSheet, TouchableOpacity, View, Text, Image, Platform, useWindowDim
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { finishSignUp } from '../lib/finishSignUp';
 import { RivalButton } from '../components/rival';
-import { RivalColors, RivalType, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalType, RivalSerifFamily, rivalWordmark } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { rm } from '../components/rival/RivalMobile';
 import { revealApp } from '../lib/appReveal';
@@ -18,8 +19,9 @@ export default function WelcomeScreen() {
   const [checked, setChecked] = useState(false);
   useEffect(() => {
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (session) router.replace('/home');
+      .then(async ({ data: { session } }) => {
+        // The confirm-email link signs the new member in here: open setup.
+        if (session) router.replace((await finishSignUp()) ? '/choose-activities' : '/home');
         else setChecked(true);
       })
       .catch(() => setChecked(true));
@@ -135,9 +137,8 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   logo: {
-    ...RivalType.titleMd,
+    ...rivalWordmark(20),
     color: RivalColors.textPrimary,
-    letterSpacing: 8,
     textAlign: 'center',
   },
   taglineWrap: {

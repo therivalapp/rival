@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ROUTE_TYPES, useGpsState } from '../lib/gpsRecorder';
 import { Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Modal } from '../components/rival/RivalModal';
 import { router } from 'expo-router';
@@ -76,6 +77,13 @@ const STOCK: Record<string, number> = {
   NordicSki: require('../../assets/images/backgrounds/optimized/a-vast-sun-drenched-alpine.jpg'),
   Snowshoe: require('../../assets/images/backgrounds/optimized/a-vast-sun-drenched-alpine.jpg'),
   Yoga: require('../../assets/images/backgrounds/optimized/handstand-airy-warehouse-gym.jpg'),
+  // Stand-ins until the Start backgrounds are made (BETA_PLAN, AI backgrounds).
+  Kayaking: require('../../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg'),
+  StandUpPaddling: require('../../assets/images/backgrounds/optimized/sunset-beach-group-walking.jpg'),
+  Sail: require('../../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg'),
+  InlineSkate: require('../../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg'),
+  Wheelchair: require('../../assets/images/backgrounds/optimized/handstand-city-plaza-dawn.jpg'),
+  Golf: require('../../assets/images/backgrounds/optimized/team-feed-hero-dusk-ridge-2.jpg'),
 };
 const STOCK_OTHER: number = require('../../assets/images/backgrounds/optimized/a-rugged-winding-mountain-path.jpg');
 
@@ -455,6 +463,10 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
   // Splits and Map a swipe away (design/live-run-mockup.png).
   const track = live.track ?? [];
   const hasRoute = !gym && track.length >= 2;
+  const gpsState = useGpsState();
+  const gpsNote = gpsState === 'searching' ? 'Finding location…'
+    : gpsState === 'denied' ? 'Location is off. Allow it in Settings to record the route.'
+      : gpsState === 'unavailable' ? 'Location is not available. The time is still recorded.' : null;
   const unitKm = distanceUnit() === 'mi' ? 1.609344 : 1;
   const metres = hasRoute ? trackDistance(track) : 0;
   const dist = toDisplayDistance(metres / 1000).toFixed(2);
@@ -495,7 +507,8 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
   // With the Roxzone timed, a race is 31 parts rather than 16.
   const rox = !!wod?.roxzone;
   const raceParts = hyroxParts(rox);
-  const wv = family === 'board' && hasRoute ? waves(track) : null;
+  // Waves are for surfing and the like, not a sail.
+  const wv = family === 'board' && type !== 'Sail' && hasRoute ? waves(track) : null;
   // Six at most, per activity (lib/finishTiles.ts), Effort lit and tappable.
   const finishTileList: Tile[] = finishTiles({
     family, activityType: type, hero: heroKind, metres, seconds: finishSeconds, climb,
@@ -611,6 +624,11 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
         <Text style={[s.kicker, paused && s.kickerPaused]}>{paused ? 'PAUSED' : (live.name ?? label(type)).toUpperCase()}</Text>
       </View>
       <Text style={[s.timer, paused && s.timerPaused]}>{liveClock(recorded)}</Text>
+      {/* Until the route has points: the GPS is still finding a signal, or
+          location is off (lib/gpsRecorder.ts). */}
+      {ROUTE_TYPES.has(type) && !paused && gpsNote ? (
+        <Text style={[s.gpsNote, gpsState === 'searching' && Platform.OS === 'web' ? ({ animationName: 'rivalBusyPulse', animationDuration: '1.4s', animationIterationCount: 'infinite' } as any) : null]}>{gpsNote}</Text>
+      ) : null}
     </View>
   );
 
@@ -646,11 +664,17 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
     skiLive.lift ? [liveClock(skiLive.liftSeconds), null, 'ON LIFTS'] : [kmh(topSpeed(track)), speedU, 'TOP SPEED'],
     [elev(skiLive.highest), ` ${elevationUnit()}`, 'HIGHEST'],
   ] as [string, string | null, string][] : null;
+  // Speed, not pace, where speed is what people read: rides, paddling,
+  // sailing, skating and wheelchair (Ricky: "speed, never pace" on a ride).
+  // Golf shows neither.
+  const bySpeed = showsSpeed(family) || family === 'row';
+  const speedLive = bySpeed && hasRoute ? speedNow(track) : null;
+  const avgKmh = bySpeed && metres > 50 && recorded > 0 ? (metres / recorded) * 3.6 : null;
   const statRows = skiRows ?? [
     [liveClock(recorded), null, 'TIME'],
-    [pace ? paceClock(pace, unitKm) : '-', perUnit, 'PACE'],
+    ...(family === 'golf' ? [] : bySpeed ? [[kmh(speedLive), speedLive == null ? null : speedU, 'SPEED']] : [[pace ? paceClock(pace, unitKm) : '-', perUnit, 'PACE']]),
     ...(live.bpm ? [[String(live.bpm), null, 'BPM']] : []),
-    [avgPace ? paceClock(avgPace, unitKm) : '-', perUnit, 'AVG PACE'],
+    ...(family === 'golf' ? [] : bySpeed ? [[kmh(avgKmh), avgKmh == null ? null : speedU, 'AVG SPEED']] : [[avgPace ? paceClock(avgPace, unitKm) : '-', perUnit, 'AVG PACE']]),
     [gain.toLocaleString(), ` ${elevationUnit()}`, 'ELEVATION'],
     ...(live.calories ? [[Math.round(live.calories).toLocaleString(), null, 'CALORIES']] : []),
   ] as [string, string | null, string][];
@@ -667,7 +691,9 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
     <View style={s.liveStatRow}>
       {stat(dist, ` ${distanceUnit()}`, 'DISTANCE', 0)}
       {stat(liveClock(recorded), null, 'TIME', 1)}
-      {stat(pace ? paceClock(pace, unitKm) : '-', perUnit, 'PACE', 2)}
+      {family === 'golf' ? stat(gain.toLocaleString(), ` ${elevationUnit()}`, 'ELEVATION', 2)
+        : bySpeed ? stat(kmh(speedLive), speedLive == null ? null : speedU, 'SPEED', 2)
+          : stat(pace ? paceClock(pace, unitKm) : '-', perUnit, 'PACE', 2)}
     </View>
   );
   const longestRun = skiLive?.runs.length ? Math.max(...skiLive.runs.map((r) => r.descent)) : 0;
@@ -1038,7 +1064,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
                   hi={skiDay.runs.reduce((b, r, i) => (r.descent > skiDay.runs[b].descent ? i : b), 0)} show={4} moreNoun="more runs"
                 />
               </>
-            ) : hasRoute ? <FinishSplits track={track} unitKm={unitKm} speed={showsSpeed(family)} /> : null}
+            ) : hasRoute && family !== 'golf' ? <FinishSplits track={track} unitKm={unitKm} speed={showsSpeed(family) || family === 'row'} /> : null}
             {raceLaps?.length ? (
               <TableCard
                 title="STATIONS" cols={[{ label: 'STATION' }, { label: 'RUN', width: 52 }, { label: 'TIME', width: 56 }]}
@@ -1173,6 +1199,7 @@ const s = StyleSheet.create({
   kicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, color: RivalColors.accentText },
   kickerPaused: { color: 'rgba(255,255,255,0.65)' },
   timer: { ...serif, fontWeight: '700', fontSize: 84, lineHeight: 96, color: '#fff', textAlign: 'center', marginTop: 4, ...(Platform.OS === 'web' ? { fontVariantNumeric: 'tabular-nums' } as any : {}) },
+  gpsNote: { fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 10, paddingHorizontal: 32 },
   timerPaused: { opacity: 0.7 },
   lastRow: { flexDirection: 'row', alignSelf: 'stretch', marginTop: 12 },
   liveList: { flex: 1, marginTop: 12 },
