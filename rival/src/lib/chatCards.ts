@@ -17,8 +17,10 @@ import type { RivalIconName } from '../components/rival/RivalIcon';
 // Worked out on the phone from data members can already read (team
 // activities, public events, planned activities). Kept for the day per team.
 //
-// Birthdays are not here yet: almost nobody has a birthday saved, and showing
-// it to a team needs its own setting first.
+// Birthdays come from team_birthdays (day and month, only for members who
+// turned "Teammates can see my birthday" on). Members who turned off
+// "Milestones about me" get no race day, result, rank, hours or welcome back
+// cards (Privacy, Mockup 34).
 
 export type ChatCardChip =
   | { kind: 'send'; label: string; text: string }
@@ -36,7 +38,7 @@ export type ChatCard = {
 };
 
 export type CardSession = { id: string; user_id: string; activity_type: string | null; scheduled_at: string | null };
-type Member = { user_id: string; name: string; joined_at: string | null };
+type Member = { user_id: string; name: string; joined_at: string | null; milestones: boolean };
 type Act = {
   id: string; user_id: string; started_at: string; activity_type: string;
   duration_seconds: number | null; distance_meters: number | null;
@@ -95,15 +97,20 @@ export async function buildChatCards(args: {
   const today = ymd(now);
   const yearStart = `${now.getFullYear()}-01-01T00:00:00`;
 
-  const [{ data: league }, { data: memberRows }] = await Promise.all([
+  const [{ data: league }, { data: memberRows }, { data: birthdayRows }] = await Promise.all([
     supabase.from('leagues').select('name, created_at, race_id, goal_metric, goal_target, goal_target_date').eq('id', leagueId).maybeSingle(),
-    supabase.from('league_members').select('user_id, joined_at, users(display_name)').eq('league_id', leagueId).eq('status', 'active'),
+    supabase.from('league_members').select('user_id, joined_at, users(display_name, chat_milestones)').eq('league_id', leagueId).eq('status', 'active'),
+    supabase.rpc('team_birthdays', { lid: leagueId }),
   ]);
   if (!league || !memberRows) return [];
   const members: Member[] = (memberRows as any[]).map((m) => ({
     user_id: m.user_id, joined_at: m.joined_at, name: firstName(m.users?.display_name || 'A teammate'),
+    milestones: m.users?.chat_milestones !== false,
   }));
+
   const byId = new Map(members.map((m) => [m.user_id, m]));
+  // Cards about a person's own milestones respect their Privacy switch.
+  const celebrate = (userId: string) => { const m = byId.get(userId); return !!m && m.milestones; };
   const others = members.filter((m) => m.user_id !== me);
   const ids = members.map((m) => m.user_id);
   const hubRoute = `/team-hub?id=${leagueId}`;
@@ -128,7 +135,7 @@ export async function buildChatCards(args: {
   const recentCut = now.getTime() - RECENT_MS;
 
   // 1. Race day, one card per teammate racing today.
-  for (const r of races.filter((r) => r.race_date === today && r.user_id !== me && byId.has(r.user_id))) {
+  for (const r of races.filter((r) => r.race_date === today && r.user_id !== me && celebrate(r.user_id))) {
     const n = byId.get(r.user_id)!.name;
     cards.push({
       key: `raceday:${r.id}`, icon: 'run', tone: 'event', text: `${n} races the ${r.name} today.`,
@@ -137,7 +144,7 @@ export async function buildChatCards(args: {
   }
 
   // 2. Results from the last two days.
-  for (const r of races.filter((r) => r.actual_finish_time && r.race_date <= today && r.user_id !== me && byId.has(r.user_id))) {
+  for (const r of races.filter((r) => r.actual_finish_time && r.race_date <= today && r.user_id !== me && celebrate(r.user_id))) {
     const n = byId.get(r.user_id)!.name;
     const act = acts.find((a) => a.race_id === r.id && a.user_id === r.user_id);
     cards.push({
@@ -147,6 +154,27 @@ export async function buildChatCards(args: {
         { kind: 'send', label: `Great race, ${n}`, text: `Great race, @${n}` },
       ],
     });
+  }
+
+  // Birthdays: on the day, and two days before (like Messenger).
+  const md = (d: Date) => `${d.getMonth() + 1}-${d.getDate()}`;
+  const todayMd = md(now);
+  const soonMd = md(new Date(now.getTime() + 2 * DAY));
+  for (const b of (birthdayRows ?? []) as { user_id: string; month: number; day: number }[]) {
+    if (b.user_id === me || !byId.has(b.user_id)) continue;
+    const n = byId.get(b.user_id)!.name;
+    const key = `${b.month}-${b.day}`;
+    if (key === todayMd) {
+      cards.push({
+        key: `birthday:${b.user_id}:${now.getFullYear()}`, icon: 'cake', tone: 'accent', text: `It is ${n}'s birthday today.`,
+        chips: [{ kind: 'send', label: `Happy birthday, ${n} 🎂`, text: `Happy birthday, @${n} 🎂` }, { kind: 'send', label: 'Have a great day', text: `Have a great day, @${n}` }],
+      });
+    } else if (key === soonMd) {
+      cards.push({
+        key: `birthday-soon:${b.user_id}:${now.getFullYear()}`, icon: 'cake', tone: 'accent', text: `${n}'s birthday is in 2 days.`,
+        chips: [{ kind: 'send', label: `Happy early birthday, ${n} 🎉`, text: `Happy early birthday, @${n} 🎉` }, { kind: 'send', label: 'Have a great one', text: `Have a great one, @${n}` }],
+      });
+    }
   }
 
   // 3. A planned activity tomorrow, for anyone not yet going.
@@ -221,6 +249,7 @@ export async function buildChatCards(args: {
   const hourCards: ChatCard[] = [];
   const backCards: ChatCard[] = [];
   for (const m of others) {
+    if (!m.milestones) continue;
     const list = byUser.get(m.user_id) ?? [];
     if (!list.length) continue;
     const recent = list.filter((a) => new Date(a.started_at).getTime() >= recentCut);

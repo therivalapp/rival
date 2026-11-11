@@ -289,9 +289,16 @@ export default function ChatScreen() {
       .select('user_id, last_read_at')
       .eq('league_id', id);
 
+    // Read receipts (Privacy, Mockup 34): someone who turned them off isn't
+    // shown as having read, and doesn't see who has read theirs.
+    const readerIds = [...new Set([...(reads ?? []).map((r: any) => r.user_id as string), user.id])];
+    const { data: receipts } = await supabase.from('users').select('id, read_receipts').in('id', readerIds);
+    const receiptsOff = new Set((receipts ?? []).filter((u: any) => u.read_receipts === false).map((u: any) => u.id as string));
+
     const map: Record<string, string[]> = {};
     (reads ?? []).forEach((r: any) => {
       if (r.user_id === user.id || !r.last_read_at) return;
+      if (receiptsOff.has(user.id) || receiptsOff.has(r.user_id)) return;
       const seenTs = new Date(r.last_read_at).getTime();
       let lastSeen: Msg | null = null;
       for (const m of rows) {
