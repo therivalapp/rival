@@ -1,10 +1,10 @@
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { Modal } from '../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
@@ -24,6 +24,7 @@ import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTil
 import { RivalSerifFamily } from '../constants/rivalTheme';
 import { goBack, goToTab } from '../lib/tabNav';
 import { avatarImage } from '../lib/imageUrl';
+import { garminStatus, garminStatusLine } from '../lib/garmin';
 
 const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
   { value: 'metric', label: 'Metric', sub: 'Kilometres, metres and kilograms.' },
@@ -599,18 +600,19 @@ export default function ProfileScreen() {
     </RivalCard>
   );
 
+  const garminLine = useGarminLine();
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
       <Text style={styles.panelSub}>Bring in activities from Garmin or Apple Health, or past activities from an archive file.</Text>
 
-      {/* Garmin (Mockup 31): history import now, live connection once keys are in. */}
+      {/* Garmin (Mockup 31): connect, status line from garmin_connections. */}
       <TouchableOpacity style={[styles.appRow, { marginTop: 12 }]} onPress={() => router.push('/garmin' as any)} activeOpacity={0.8}>
         <View style={[styles.appRowLeft, { flex: 1, minWidth: 0 }]}>
           <RivalIcon name="watch" size={18} color={RivalColors.accentText} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.appName}>Garmin</Text>
-            <Text style={styles.appStatus}>Import past activities</Text>
+            <Text style={styles.appStatus}>{garminLine}</Text>
           </View>
         </View>
         <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.35)" />
@@ -1033,3 +1035,10 @@ const styles = StyleSheet.create({
   deleteAccountButton: { alignItems: 'center', paddingVertical: 12 },
   deleteAccountText: { color: RivalColors.danger, fontSize: 13, fontWeight: '600' },
 });
+
+// Garmin's line in Connected devices: "Connected · Last activity 2 h ago".
+function useGarminLine() {
+  const [line, setLine] = useState('Activities from Garmin devices');
+  useFocusEffect(useCallback(() => { garminStatus().then((st) => setLine(garminStatusLine(st))).catch(() => {}); }, []));
+  return line;
+}
