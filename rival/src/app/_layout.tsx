@@ -1,3 +1,4 @@
+import { softKeyboardUp } from '../lib/keyboard';
 import { startTextFit } from '../lib/textFit';
 import { startMouseDragScroll } from '../lib/mouseDragScroll';
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
@@ -127,7 +128,8 @@ export default function RootLayout() {
     const update = () => {
       // Only clamp when the visual viewport is genuinely smaller than the
       // layout viewport — i.e. the keyboard is up. Otherwise let 100vh win.
-      const keyboard = vv.height < window.innerHeight;
+      // softKeyboardUp also catches newer iOS, where innerHeight shrinks too.
+      const keyboard = vv.height < window.innerHeight || softKeyboardUp();
       setViewportHeight(keyboard ? vv.height : undefined);
       // With the keyboard up, iOS also scrolls the whole page to bring the
       // field into view. The app is pinned to the top, so that slid it up
@@ -148,13 +150,18 @@ export default function RootLayout() {
     // Moving to another field while the keyboard is up: bring that one
     // down to the keyboard too.
     const onFocus = () => {
-      if (vv.height < window.innerHeight) setTimeout(() => { window.scrollTo(0, 0); revealFocusedField(vv.height); }, 50);
+      // The keyboard can open before or after focus lands, so re-measure.
+      setTimeout(() => { update(); if (softKeyboardUp() || vv.height < window.innerHeight) { window.scrollTo(0, 0); revealFocusedField(vv.height); } }, 50);
     };
     update();
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
     document.addEventListener('focusin', onFocus);
+    // Closing the keyboard by leaving the field: give the app its full height back.
+    const onBlur = () => setTimeout(update, 50);
+    document.addEventListener('focusout', onBlur);
     return () => {
+      document.removeEventListener('focusout', onBlur);
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
       document.removeEventListener('focusin', onFocus);

@@ -253,13 +253,13 @@ export function ScoreEditor({ value, onChange, counted }: { value: Score; onChan
       <Text style={s.label}>LEVEL</Text>
       <Chips value={value.rx === false ? 'scaled' : 'rx'} options={[['rx', 'RX'], ['scaled', 'Scaled']]} onChange={(v) => set({ rx: v === 'rx' })} />
       <View style={s.field}>
-        <Text style={s.stepName}>WORKOUT</Text>
+        <Text style={s.stepName}>FORMAT</Text>
         <TextInput style={s.fieldInput} value={value.workout ?? ''} onChangeText={(workout) => set({ workout })} placeholder="AMRAP 20 min" placeholderTextColor="#777" />
       </View>
       {counted ? (
         <View style={s.counted}>
           <RivalIcon name="checkCircle" size={15} color={RivalColors.accentText} />
-          <Text style={s.countedText}>{`${counted} ${counted === 1 ? 'round' : 'rounds'} counted during the workout`}</Text>
+          <Text style={s.countedText}>{`${counted} ${counted === 1 ? 'round' : 'rounds'} counted during the activity`}</Text>
         </View>
       ) : null}
     </View>

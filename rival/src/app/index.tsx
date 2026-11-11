@@ -21,7 +21,7 @@ export default function WelcomeScreen() {
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
         // The confirm-email link signs the new member in here: open setup.
-        if (session) router.replace((await finishSignUp()) ? '/choose-activities' : '/home');
+        if (session) router.replace((await finishSignUp()) ? '/welcome-rival' : '/home');
         else setChecked(true);
       })
       .catch(() => setChecked(true));
@@ -49,7 +49,7 @@ export default function WelcomeScreen() {
             <Text style={[styles.tagline, mobile && ms.tagline]}>Fitness is better shared</Text>
             {/* The one place the name is explained. Everywhere else the
                 product carries it: rivals as the people who lift you. */}
-            <Text style={styles.taglineSub}>A rival is someone who brings out your best.</Text>
+            <Text style={styles.taglineSub}>A Rival is someone who brings out your best.</Text>
           </View>
 
           {mobile ? (

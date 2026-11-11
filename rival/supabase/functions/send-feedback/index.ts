@@ -16,7 +16,7 @@ const corsHeaders = {
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-const KINDS: Record<string, string> = { problem: 'Problem', idea: 'Idea', dislike: 'Dislike' }
+const KINDS: Record<string, string> = { problem: 'Problem', idea: 'Idea', dislike: 'Dislike', quote: 'Quote' }
 const MAX_PER_HOUR = 20
 const MAX_SHOTS = 5
 // About 9 MB of images once decoded, all together; phone screenshots at the

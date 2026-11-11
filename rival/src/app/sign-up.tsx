@@ -83,7 +83,7 @@ export default function SignUpScreen() {
     // Signed in straight away (confirmation off): save the date of birth now.
     // A new account picks its activities, then the introduction, not an empty Home.
     await finishSignUp();
-    router.replace('/choose-activities');
+    router.replace('/welcome-rival');
   }
 
   return (
@@ -110,7 +110,7 @@ export default function SignUpScreen() {
             {mob && (
               <View style={ms.head}>
                 <Text style={ms.title}>Create account</Text>
-                <Text style={ms.subtitle}>Find your rivals. Get better together.</Text>
+                <Text style={ms.subtitle}>Find your Rivals. Get better together.</Text>
               </View>
             )}
 

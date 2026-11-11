@@ -28,7 +28,7 @@ const FADE_OUT_MS = 2000;
 // password, or finishing the Strava connection.
 // Setup (choose-activities, then getting-started) is skipped too: a late
 // SIGNED_IN event (token refresh, tab focus) once popped the quote over it.
-const SKIP_PATHS = ['/reset-password', '/sign-in', '/sign-up', '/choose-activities', '/getting-started'];
+const SKIP_PATHS = ['/reset-password', '/sign-in', '/sign-up', '/welcome-rival', '/choose-activities', '/getting-started'];
 
 const CATEGORY_LABELS: Record<string, string> = {
   levelup: 'Level up',
@@ -42,6 +42,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   community: 'Community',
   competition: 'Competition',
   wisdom: 'Perspective',
+  numbers: 'By the numbers',
 };
 
 // The device's own calendar day, so the quote changes at local midnight.

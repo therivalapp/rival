@@ -82,7 +82,7 @@ export default function SavedWorkoutsScreen() {
       await deleteSavedWorkout(w);
       setList((prev) => (prev ?? []).filter((x) => x.id !== w.id));
     } catch (e) {
-      setError(`The workout could not be deleted: ${savedWorkoutError(e)}`);
+      setError(`The saved activity could not be deleted: ${savedWorkoutError(e)}`);
     }
   };
 

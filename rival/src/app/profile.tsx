@@ -78,7 +78,7 @@ function HealthRow() {
   };
   const status = health.state === 'syncing' ? 'Syncing…'
     : health.state === 'connected' ? ['Connected', ago(health.lastSync)].filter(Boolean).join(' · ')
-      : health.state === 'error' ? health.message : 'Workouts from Apple Watch and other apps';
+      : health.state === 'error' ? health.message : 'Activities from Apple Watch and other apps';
   const action = health.state === 'off' ? 'Connect' : health.state === 'error' ? 'Try again' : health.state === 'connected' ? 'Sync' : null;
   return (
     <TouchableOpacity
@@ -602,7 +602,7 @@ export default function ProfileScreen() {
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
-      <Text style={styles.panelSub}>Bring in workouts from Garmin or Apple Health, or past activities from an archive file.</Text>
+      <Text style={styles.panelSub}>Bring in activities from Garmin or Apple Health, or past activities from an archive file.</Text>
 
       {/* Garmin (Mockup 31): history import now, live connection once keys are in. */}
       <TouchableOpacity style={[styles.appRow, { marginTop: 12 }]} onPress={() => router.push('/garmin' as any)} activeOpacity={0.8}>

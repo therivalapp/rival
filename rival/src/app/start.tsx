@@ -274,7 +274,7 @@ function ReadyScreen() {
         <View style={s.backdrop}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setWod(null)} />
           {wod ? (
-            <GreySheet kicker={label(type).toUpperCase()} title="Workout" onClose={() => setWod(null)} footer={<View style={{ paddingBottom: Math.max(14, insets.bottom) }}><GreyPrimary label="Start workout" onPress={() => start(wod)} /></View>}>
+            <GreySheet kicker={label(type).toUpperCase()} title="Format" onClose={() => setWod(null)} footer={<View style={{ paddingBottom: Math.max(14, insets.bottom) }}><GreyPrimary label="Start" onPress={() => start(wod)} /></View>}>
               <WodPicker value={wod} onChange={setWod} hyrox={type === 'Hyrox'} />
             </GreySheet>
           ) : <View />}

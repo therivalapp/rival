@@ -1,0 +1,166 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding-bottom:30px;background:#151413;font-family:Manrope,sans-serif;color:#fff;width:1736px}
+h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin:28px 26px 4px}
+.sub{color:#a8a097;font-size:14px;margin:0 26px 6px}
+.wrap{display:flex;gap:26px;padding:16px 26px 20px;align-items:flex-start}
+.tag{display:flex;align-items:center;gap:10px;color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 6px 4px}
+.tag b{width:26px;height:26px;border-radius:13px;background:#ffb59e;color:#2a1710;display:grid;place-items:center;font-size:13px;letter-spacing:0}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+
+/* phone */
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#282828;display:flex;flex-direction:column}
+.status{height:50px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:0 30px;font-weight:700;font-size:16px;color:rgba(255,255,255,.5)}
+.hdr{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #323232}
+.back{font-size:24px;color:#fff}
+.logo{width:34px;height:34px;border-radius:12px;border:1px solid #323232;background:#2a2a2a;display:grid;place-items:center;font-size:14px;font-weight:800;color:#ffb59e}
+.ht{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:20px;line-height:24px}
+.hs{font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#ffb59e;margin-top:2px}
+.list{flex:1;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.sep{text-align:center;margin:14px 0;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#A0A0A0}
+.row{display:flex;gap:8px;align-items:flex-start;margin-top:12px}
+.row.tight{margin-top:2px}
+.row.me{justify-content:flex-end}
+.av{width:28px;height:28px;border-radius:14px;background:#2a2a2a;display:grid;place-items:center;font-size:10px;font-weight:700;color:#A0A0A0;margin-top:23px;flex-shrink:0;background-size:cover;background-position:center}
+.av.n{margin-top:5px}
+.sp{width:28px;flex-shrink:0}
+.bw{max-width:76%}
+.au{font-size:11px;line-height:14px;font-weight:600;color:#A0A0A0;margin:0 0 4px 12px}
+.bub{border-radius:18px;padding:8px 13px;font-size:15px;line-height:20px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22)}
+.bub.me{background:linear-gradient(135deg,#e6927a 0%,#D97757 100%);border:0;padding:9px 14px}
+.tbl{border-bottom-left-radius:5px}.ttl{border-top-left-radius:5px}
+
+/* the card */
+.cc{border-top:1px solid #323232;padding:12px 14px 4px}
+.cr{display:flex;align-items:center;gap:12px}
+.ci{width:40px;height:40px;border-radius:20px;flex-shrink:0;display:grid;place-items:center;background:rgba(255,181,158,.14);color:#ffb59e;font-size:21px}
+.ci.ev{background:rgba(244,234,216,.12);color:#f4ead8}
+.ci .mdi{font-size:23px;line-height:1}
+.ci.gold{background:rgba(255,215,0,.13);color:#FFD700}
+.ct{flex:1;font-size:14px;line-height:19px;color:#fff;font-weight:700}
+.ct b{font-weight:700}
+.cx{width:30px;height:30px;border-radius:15px;background:#323232;display:grid;place-items:center;color:#A0A0A0;font-size:17px;flex-shrink:0}
+.chips{display:flex;gap:8px;margin:12px -14px 0 0;padding-bottom:10px;overflow:hidden;white-space:nowrap}
+.chip{flex-shrink:0;border-radius:999px;padding:10px 16px;font-size:14px;font-weight:600;color:#fff;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22);display:flex;align-items:center;gap:6px}
+.chip .mi{font-size:17px;color:#ffb59e}
+.chip.go{background:linear-gradient(135deg,#e6927a 0%,#D97757 100%);border-color:transparent;color:#2a1710;font-weight:700}
+
+.comp{display:flex;align-items:flex-end;gap:10px;padding:10px 14px 30px;border-top:1px solid #323232}
+.plan{width:44px;height:44px;display:grid;place-items:center;color:#ffb59e;font-size:27px}
+.field{flex:1;height:44px;border-radius:22px;background:rgba(255,209,190,.05);display:flex;align-items:center;padding-left:18px;font-size:16px;color:#A0A0A0}
+.send{width:44px;height:44px;border-radius:22px;background:#2a2a2a;display:grid;place-items:center;color:#6a6a6a;font-size:19px}
+
+/* the grid of other cards */
+.grid{display:grid;grid-template-columns:repeat(3,393px);gap:22px 26px}
+.strip{width:393px;border-radius:22px;overflow:hidden;background:#282828}
+.strip .cc{border-top:0;padding-top:14px}
+.who{font-size:11.5px;color:#8f8880;margin:6px 4px 0}
+</style></head><body>
+<h1>Mockup 33 · Chat cards</h1>
+<div class="sub">A card above the message box when something is worth saying. One tap sends a reply. At most one card a day in each chat; X closes it.</div>
+
+<div class="wrap">
+  <div>
+    <div class="tag"><b>A</b>Team chat · Birthday</div>
+    <div class="desc">Shown to everyone except Tess.</div>
+    <div class="phone">
+      <div class="status"><span>8:47</span><span class="mi" style="font-size:18px">signal_cellular_alt</span></div>
+      <div class="hdr">
+        <span class="mi back">arrow_back_ios_new</span>
+        <div class="logo">H</div>
+        <div><div class="ht">Harbour Run Club</div><div class="hs">7 members</div></div>
+      </div>
+      <div class="list">
+        <div class="sep">Today 6:54 am</div>
+        <div class="row"><div class="av">PS</div><div class="bw"><div class="au">Priya</div><div class="bub">Who is in for the long run on Saturday?</div></div></div>
+        <div class="row"><div class="av">KT</div><div class="bw"><div class="au">Kai</div><div class="bub tbl">Me. I need the kilometres</div></div></div>
+        <div class="row tight"><div class="av n" style="visibility:hidden"></div><div class="bw"><div class="bub ttl">Can we start at 7?</div></div></div>
+        <div class="row me"><div class="bw"><div class="bub me">7 works. Meeting at the seawall steps</div></div></div>
+        <div class="row"><div class="av">LO</div><div class="bw"><div class="au">Liam</div><div class="bub">Count me in</div></div></div>
+      </div>
+      <div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">cake</span></div><div class="ct"><b>Tess</b>'s birthday is in 2 days.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Happy early birthday, Tess 🎉</div><div class="chip">Have a great one</div></div>
+      </div>
+      <div class="comp"><div class="plan"><span class="mi">edit_calendar</span></div><div class="field">Message the team</div><div class="send"><span class="mi">send</span></div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="tag" style="margin-bottom:14px">Other cards that fit Rival</div>
+    <div class="grid">
+
+      <div><div class="tag"><b>B</b>Birthday today</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">cake</span></div><div class="ct">It is <b>Tess</b>'s birthday today.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Happy birthday, Tess 🎂</div><div class="chip">Have a great day</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>C</b>Event this week</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci ev"><span class="mi">flag</span></div><div class="ct"><b>Harbour Half</b> is on Sunday. 4 from the team are racing.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Good luck on Sunday</div><div class="chip">Who is coming to watch?</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>D</b>Race day</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci ev"><span class="mi">directions_run</span></div><div class="ct"><b>Priya</b> races the Seawall 10K today.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Good luck today, Priya</div><div class="chip">Go get it 💪</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>E</b>Result · PB</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci gold"><span class="mi">emoji_events</span></div><div class="ct"><b>Liam</b> finished the Harbour Half in 1:42:10, a new PB.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip"><span class="mi">star</span>Respect</div><div class="chip">Huge run, Liam</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>F</b>Planned activity</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">event</span></div><div class="ct"><b>Saturday long run</b>, tomorrow 7:00 am. 5 going.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip go">I'm in</div><div class="chip">Can't make it</div></div>
+      </div></div><div class="who">Answers the RSVP; no message is sent.</div></div>
+
+      <div><div class="tag"><b>G</b>New member</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">person_add</span></div><div class="ct"><b>Kai</b> joined the team.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Welcome, Kai 👋</div><div class="chip">Good to have you</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>H</b>Rank up</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mdi mdi-fire"></span></div><div class="ct"><b>Priya</b> reached Hustler.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip"><span class="mi">star</span>Respect</div><div class="chip">Well earned</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>I</b>Team challenge</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">groups</span></div><div class="ct"><b>4,000 km challenge</b> is 75% done. 12 days left.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Nearly there</div><div class="chip">View challenge</div></div>
+      </div></div><div class="who">Also at 50%, the last 3 days and complete.</div></div>
+
+      <div><div class="tag"><b>J</b>Hours milestone</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">hourglass_top</span></div><div class="ct"><b>Tess</b> passed 100 hours of activity this year.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip"><span class="mi">star</span>Respect</div><div class="chip">That is dedication</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>K</b>Monday · Last week</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">bar_chart</span></div><div class="ct">Last week the team logged <b>38 hours</b> and <b>214 km</b>.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Strong week, team</div><div class="chip">View the week</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>L</b>Welcome back</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">waving_hand</span></div><div class="ct"><b>Liam</b> is back with a 5 km run.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Welcome back, Liam</div><div class="chip"><span class="mi">star</span>Respect</div></div>
+      </div></div><div class="who">Lowest priority: only on a day with no other card. After 3 weeks or more with no activity.</div></div>
+
+      <div><div class="tag"><b>M</b>Team anniversary</div><div class="strip"><div class="cc">
+        <div class="cr"><div class="ci"><span class="mi">celebration</span></div><div class="ct"><b>Harbour Run Club</b> started one year ago today.</div><div class="cx"><span class="mi">close</span></div></div>
+        <div class="chips"><div class="chip">Happy one year, team 🎉</div><div class="chip">Here is to year two</div></div>
+      </div></div></div>
+
+      <div><div class="tag"><b>N</b>After a tap</div><div class="strip" style="padding:14px 14px 16px">
+        <div class="row me" style="margin-top:0"><div class="bw"><div class="bub me">Good luck today, <b>@Priya</b></div></div></div>
+        <div class="row" style="margin-top:10px"><div class="av n">PS</div><div class="bw"><div class="bub">Thank you. Nervous but ready</div></div></div>
+      </div><div class="who">Sends in the team chat as you. Priya gets a mention.</div></div>
+
+    </div>
+  </div>
+</div>
+</body></html>

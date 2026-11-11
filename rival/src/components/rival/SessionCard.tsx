@@ -89,7 +89,7 @@ export function SessionCard({
     const t = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(t);
   }, [ticking]);
-  // Phone: every upcoming card gets the warm, glowing look.
+  // Phone: every upcoming card gets the ghost card look.
   const inviting = m && !past;
   const tag = m && !past && (phase === 'soon' || phase === 'live') ? phase : null;
   // No line limits anywhere on this card: text wraps rather than ending in
@@ -182,16 +182,12 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 14,
   },
-  // Warm wash from the top, a brighter salmon edge and a soft glow.
+  // Upcoming: the plain ghost card, no glow (Ricky, 2026-11-11: "a glow
+  // around the border. I don't like that"). The brown wash went with it.
   inviting: {
-    borderColor: 'rgba(255,181,158,0.6)',
-    ...(Platform.OS === 'web'
-      ? {
-          backgroundImage: 'var(--rival-plain-image, linear-gradient(180deg, #2a1d18 0%, #1c1a19 60%))',
-          boxShadow: '0 0 0 1px rgba(255,181,158,0.12), 0 10px 34px rgba(217,119,87,0.22)',
-        }
-      : { backgroundColor: '#241b17' }),
-  } as any,
+    backgroundColor: RivalGhost.fill,
+    borderColor: RivalGhost.border,
+  },
   tag: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
     paddingLeft: 8, paddingRight: 10, paddingVertical: 4, borderRadius: 999, marginVertical: 2,
@@ -203,8 +199,7 @@ const styles = StyleSheet.create({
   } as any,
   tagDot: {
     width: 7, height: 7, borderRadius: 4, backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { boxShadow: '0 0 0 3px rgba(255,181,158,0.25)' } : {}),
-  } as any,
+  },
   tagDotLive: { backgroundColor: '#2a1206' },
   tagText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, color: RivalColors.accentText },
   tagTextCompact: { fontSize: 9 },
