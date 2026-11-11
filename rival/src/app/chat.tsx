@@ -2,7 +2,7 @@ import { useSnapState } from '../lib/snapState';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
-  Image, ActivityIndicator, Platform, KeyboardAvoidingView, useWindowDimensions,
+  Image, ActivityIndicator, Platform, KeyboardAvoidingView, useWindowDimensions, Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,11 +15,13 @@ import { RivalIcon, RivalBackButton, PlanSessionSheet, RivalWarm } from '../comp
 import { SessionCard } from '../components/rival/SessionCard';
 import type { EditableSession } from '../components/rival/PlanSessionSheet';
 import { CalendarAddIcon } from '../components/rival/CalendarAddIcon';
-import { RivalColors, RivalGhost, RivalRadius, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalRadius, RivalButtonColors, RivalSerifFamily, RivalFontFamily } from '../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { goToTab } from '../lib/tabNav';
 import { avatarImage } from '../lib/imageUrl';
 import { useBlockedIds, openReport, openBlock, firstName } from '../lib/safety';
+import { ChatCardStrip } from '../components/rival/ChatCardStrip';
+import { buildChatCards, closeChatCard, todaysChatCard, type ChatCard, type ChatCardChip } from '../lib/chatCards';
 
 // Dedicated team chat, laid out the way Messenger does it.
 //
@@ -154,6 +156,8 @@ export default function ChatScreen() {
   // userId -> the last message they have read, for the seen-by avatars.
   const [seenBy, setSeenBy] = useSnapState<Record<string, string[]>>(`chat.${id}.seenBy`, {});
   const [sessionsOnly, setSessionsOnly] = useState(false);
+  // Today's chat card (Mockup 33 v4), phones only for now.
+  const [chatCard, setChatCard] = useState<ChatCard | null>(null);
   const [planning, setPlanning] = useState(false);
   const [editingSession, setEditingSession] = useState<EditableSession | null>(null);
   // Which session's location was just copied, so its card can confirm it.
@@ -175,6 +179,23 @@ export default function ChatScreen() {
   }, []);
 
   const scrollRef = useRef<ScrollView>(null);
+  // Opening on the NEW line, like Messenger (Ricky, 2026-11-11): with many
+  // unread messages, opening at the bottom hid the line above the screen.
+  // Held there while photos load; let go once the member scrolls or sends.
+  const newLineY = useRef<number | null>(null);
+  const viewH = useRef(0);
+  const holdAtNew = useRef(true);
+  const contentH = useRef(0);
+  function settleScroll(h: number) {
+    contentH.current = h;
+    if (sessionsOnly) return;
+    const y = newLineY.current;
+    if (holdAtNew.current && firstUnreadId && y != null && h - y > viewH.current) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 48), animated: false });
+    } else {
+      scrollRef.current?.scrollToEnd({ animated: false });
+    }
+  }
   const editorRef = useRef<any>(null);
   const lastTap = useRef<{ id: string; at: number } | null>(null);
   const tapTimer = useRef<any>(null);
@@ -206,6 +227,8 @@ export default function ChatScreen() {
     const lastReadAt = readRes.data?.last_read_at;
     const firstNew = loaded.find((m) => m.user_id !== user.id && (!lastReadAt || new Date(m.created_at) > new Date(lastReadAt)));
     setFirstUnreadId(firstNew?.id ?? null);
+    // A first visit has everything unread; that opens at the newest, not the oldest.
+    holdAtNew.current = !!lastReadAt;
 
     await markRead(user.id);
     setLoading(false);
@@ -214,7 +237,7 @@ export default function ChatScreen() {
   async function loadMessages(): Promise<Msg[]> {
     const { data, error: loadError } = await supabase
       .from('league_messages')
-      .select('id, user_id, kind, body, activity_type, scheduled_at, location, created_at')
+      .select('id, user_id, kind, body, activity_type, scheduled_at, location, created_at, reply_to_id')
       .eq('league_id', id)
       // The NEWEST messages, shown oldest-first. Ascending with a limit
       // returned the first 200 ever sent, so once a team passed 200 messages
@@ -338,8 +361,8 @@ export default function ChatScreen() {
     invalidateUnreadChats();
   }
 
-  async function send() {
-    const body = input.trim();
+  async function send(given?: string) {
+    const body = (given ?? input).trim();
     if (!body || !currentUserId || !id) return;
     setSending(true);
     setError('');
@@ -347,14 +370,50 @@ export default function ChatScreen() {
       .from('league_messages')
       .insert({ league_id: id, user_id: currentUserId, kind: 'text', body, reply_to_id: replyTo?.id ?? null });
     setSending(false);
-    if (sendError) { setError(sendError.message); return; }
-    setInput('');
-    setReplyTo(null);
-    if (editorRef.current) editorRef.current.textContent = '';
+    if (sendError) {
+      // RLS refusals arrive as database wording; say what it means instead.
+      setError(/row-level security/i.test(sendError.message)
+        ? "Couldn't send. Only members of this team can post here."
+        : "Couldn't send. Check the connection and try again.");
+      return;
+    }
+    if (given === undefined) {
+      setInput('');
+      setReplyTo(null);
+      if (editorRef.current) editorRef.current.textContent = '';
+    }
     setFirstUnreadId(null);
+    holdAtNew.current = false;
     setSessionsOnly(false);
     await loadMessages();
     await markRead(currentUserId);
+  }
+
+  // Worked out once the chat has loaded, so it never holds the messages back.
+  const cardChecked = useRef(false);
+  useEffect(() => {
+    if (!mob || loading || !currentUserId || !id || cardChecked.current) return;
+    cardChecked.current = true;
+    const sessions = messages.filter((m) => m.kind === 'session')
+      .map((m) => ({ id: m.id, user_id: m.user_id, activity_type: m.activity_type, scheduled_at: m.scheduled_at }));
+    todaysChatCard(id, () => buildChatCards({ leagueId: id, me: currentUserId, sessions, rsvpMap }))
+      .then(setChatCard)
+      .catch(() => {});
+  }, [mob, loading, currentUserId, id, messages, rsvpMap]);
+
+  async function onCardChip(chip: ChatCardChip) {
+    if (!id) return;
+    setChatCard(null);
+    closeChatCard(id);
+    if (chip.kind === 'send') await send(chip.text);
+    else if (chip.kind === 'rsvp') { if (!(rsvpMap[chip.messageId] ?? []).includes(currentUserId)) await toggleRsvp(chip.messageId); }
+    else if (chip.kind === 'respect') {
+      const { error: rErr } = await supabase.from('feed_reactions').upsert(
+        { league_id: id, target_type: 'activity', target_id: chip.activityId, user_id: currentUserId, emoji: 'respect' },
+        { onConflict: 'target_type,target_id,user_id' },
+      );
+      if (rErr) notify("Couldn't give Respect", rErr.message);
+    } else if (chip.kind === 'open') router.push(chip.route as any);
   }
 
   async function toggleRsvp(messageId: string) {
@@ -404,6 +463,16 @@ export default function ChatScreen() {
   // drops them, because that view is for planning, not for history.
   // A blocked member's messages are hidden from the person who blocked them.
   const blockedIds = useBlockedIds();
+  // Messenger's smiley-plus (Ricky, 2026-11-11): the newest message from
+  // someone else, while it has no reactions, shows a small button that opens
+  // the reactions, so it's obvious messages can be reacted to.
+  const lastOtherId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.user_id !== currentUserId && m.kind !== 'session') return m.id;
+    }
+    return null;
+  }, [messages, currentUserId]);
   const visible = useMemo(
     () => (sessionsOnly ? upcomingSessions : messages).filter((m) => !blockedIds.has(m.user_id)),
     [messages, sessionsOnly, upcomingSessions, blockedIds],
@@ -520,7 +589,9 @@ export default function ChatScreen() {
             ref={scrollRef}
             style={styles.flex}
             contentContainerStyle={styles.list}
-            onContentSizeChange={() => { if (!sessionsOnly) scrollRef.current?.scrollToEnd({ animated: false }); }}
+            onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
+            onScrollBeginDrag={() => { holdAtNew.current = false; }}
+            onContentSizeChange={(_w, h) => settleScroll(h)}
           >
             {visible.map((msg, i) => {
               const prev = visible[i - 1];
@@ -548,7 +619,7 @@ export default function ChatScreen() {
               const isLastOfGroup = !groupWithNext;
 
               return (
-                <View key={msg.id}>
+                <View key={msg.id} onLayout={firstUnreadId === msg.id ? (e) => { newLineY.current = e.nativeEvent.layout.y; settleScroll(contentH.current); } : undefined}>
                   {showSeparator && (
                     <View style={styles.sepRow}>
                       <Text style={[styles.sepText, mob && ms.sepText]}>{separatorLabel(msg.created_at)}</Text>
@@ -567,7 +638,7 @@ export default function ChatScreen() {
                       styles.row,
                       isMe && styles.rowMe,
                       groupWithPrev ? styles.rowTight : styles.rowLoose,
-                      Object.keys(reactions[msg.id] ?? {}).length > 0 && styles.rowWithReaction,
+                      (Object.keys(reactions[msg.id] ?? {}).length > 0 || msg.id === lastOtherId) && styles.rowWithReaction,
                     ]}>
                       {!isMe && (
                         // Avatar on the LAST bubble of a run, vertically
@@ -587,15 +658,26 @@ export default function ChatScreen() {
                         {/* Quoted context sits ABOVE the bubble, dimmed, so a
                             reply reads as an answer rather than a new thought. */}
                         {!!msg.reply_to_id && (() => {
+                          // Messenger-style (Ricky, 2026-11-11: a reply "just sent
+                          // as a normal message"): who replied to whom, then the
+                          // original, faded, just above the reply.
                           const src = messages.find((m) => m.id === msg.reply_to_id);
+                          const who = isMe ? 'You' : firstName(nameFor(msg.user_id));
+                          const whom = !src ? 'an earlier message'
+                            : src.user_id === currentUserId ? (isMe ? 'yourself' : 'you')
+                            : src.user_id === msg.user_id ? 'themselves'
+                            : firstName(nameFor(src.user_id));
                           return (
-                            <View style={[styles.quote, isMe && styles.quoteMe]}>
-                              <Text style={styles.quoteName} numberOfLines={1}>
-                                {src ? nameFor(src.user_id) : 'Message'}
-                              </Text>
-                              <Text style={styles.quoteBody} numberOfLines={1}>
-                                {src ? (src.kind === 'session' ? 'Planned activity' : src.body) : 'Deleted message'}
-                              </Text>
+                            <View style={[styles.quoteWrap, isMe && styles.quoteWrapMe]}>
+                              <View style={[styles.quoteLabelRow, isMe && styles.quoteLabelRowMe]}>
+                                <RivalIcon name="reply" size={12} color={RivalColors.textSecondary} />
+                                <Text style={styles.quoteLabel}>{`${who} replied to ${whom}`}</Text>
+                              </View>
+                              {src ? (
+                                <View style={[styles.quoteBubble, isMe && styles.quoteBubbleMe]}>
+                                  <Text style={styles.quoteText}>{src.kind === 'session' ? 'Planned activity' : src.body}</Text>
+                                </View>
+                              ) : null}
                             </View>
                           );
                         })()}
@@ -619,6 +701,13 @@ export default function ChatScreen() {
                           </View>
                         </TouchableOpacity>
 
+                        {!isMe && msg.id === lastOtherId && Object.keys(reactions[msg.id] ?? {}).length === 0 && (
+                          <View style={styles.reactionRow}>
+                            <TouchableOpacity style={styles.addReaction} onPress={() => setMenuFor(msg)} accessibilityRole="button" accessibilityLabel="React">
+                              <RivalIcon name="addReaction" size={14} color={RivalColors.textSecondary} />
+                            </TouchableOpacity>
+                          </View>
+                        )}
                         {Object.keys(reactions[msg.id] ?? {}).length > 0 && (
                           <View style={[styles.reactionRow, isMe && styles.reactionRowMe]}>
                             {Object.entries(reactions[msg.id]).map(([emoji, users]) => (
@@ -677,6 +766,14 @@ export default function ChatScreen() {
           </View>
         )}
 
+        {chatCard && !replyTo ? (
+          <ChatCardStrip
+            card={chatCard}
+            onChip={onCardChip}
+            onClose={() => { setChatCard(null); if (id) closeChatCard(id); }}
+          />
+        ) : null}
+
         <View style={[styles.composer, mob && ms.composer, { paddingBottom: keyboardInset > 0 ? 10 : Math.max(insets.bottom, 10) }]}>
           {/* Planning a meet-up starts in the conversation — "anyone free
               Saturday?" is where the idea appears, so the button to act on it
@@ -729,7 +826,7 @@ export default function ChatScreen() {
               onChangeText={setInput}
               placeholder="Message the team"
               placeholderTextColor={RivalColors.textSecondary}
-              onSubmitEditing={send}
+              onSubmitEditing={() => send()}
               returnKeyType="send"
               multiline
               numberOfLines={1}
@@ -737,7 +834,7 @@ export default function ChatScreen() {
           )}
           <TouchableOpacity
             style={[styles.sendBtn, !canSend && styles.sendBtnOff]}
-            onPress={send}
+            onPress={() => send()}
             disabled={!canSend}
             accessibilityLabel="Send"
           >
@@ -796,7 +893,9 @@ const webEditorStyle: any = {
   color: '#FFFFFF',
   fontSize: 16,          // under 16px iOS zooms the page on focus
   lineHeight: '20px',
-  fontFamily: 'inherit',
+  // 'inherit' picked up the browser's serif default, so typed text showed in
+  // Times while the placeholder was Manrope (Ricky saw it, 2026-11-11).
+  fontFamily: `${RivalFontFamily}, system-ui, sans-serif`,
   outline: 'none',
   // A long unbroken string would otherwise force the composer wider than the
   // screen and push the send button off the edge.
@@ -817,8 +916,10 @@ function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, o
   return (
     <View style={pm.fill}>
       <TouchableOpacity style={[StyleSheet.absoluteFill, pm.dim]} activeOpacity={1} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[pm.focus, isMe && pm.focusMe, { pointerEvents: 'box-none' }]}>
-        <View style={pm.bar}>
+      {/* Any tap outside the reactions and the menu closes it, sides included
+          (Ricky, 2026-11-11: only above and below did). */}
+      <Pressable style={[pm.focus, isMe && pm.focusMe]} onPress={onClose} accessibilityLabel="Close">
+        <View style={pm.bar} onStartShouldSetResponder={() => true}>
           {REACTIONS.map((emoji) => (
             <TouchableOpacity key={emoji} onPress={() => onReact(emoji)} style={[pm.react, mine === emoji && pm.reactOn]} accessibilityLabel={`React ${emoji}`}>
               <Text style={pm.emoji}>{emoji}</Text>
@@ -828,7 +929,7 @@ function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, o
         <View style={[styles.bubble, isMe ? [styles.bubbleMe, ms.bubbleMe] : [styles.bubbleThem, ms.bubbleThem], pm.bubble, isMe && pm.bubbleMe]}>
           <Text style={styles.msgText}>{msg.body}</Text>
         </View>
-        <View style={[pm.menu, isMe && pm.menuMe]}>
+        <View style={[pm.menu, isMe && pm.menuMe]} onStartShouldSetResponder={() => true}>
           <MenuRow label="Reply" icon="reply" onPress={onReply} />
           <MenuRow label="Copy" icon="copy" onPress={onCopy} last={isMe} />
           {!isMe ? (
@@ -839,7 +940,7 @@ function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, o
             </>
           ) : null}
         </View>
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -985,6 +1086,17 @@ const styles = StyleSheet.create({
   mentionMe: { fontWeight: '800' },
   time: { fontSize: 10, color: RivalColors.textSecondary, marginTop: 4, marginLeft: 12 },
 
+  quoteWrap: { alignItems: 'flex-start', marginBottom: -6 },
+  quoteWrapMe: { alignItems: 'flex-end' },
+  quoteLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 12, marginBottom: 4 },
+  quoteLabelRowMe: { marginLeft: 0, marginRight: 4 },
+  quoteLabel: { fontSize: 11, fontWeight: '600', color: RivalColors.textSecondary },
+  quoteBubble: {
+    borderRadius: 16, paddingHorizontal: 12, paddingTop: 7, paddingBottom: 13,
+    backgroundColor: 'rgba(255,255,255,0.06)', opacity: 0.75,
+  },
+  quoteBubbleMe: {},
+  quoteText: { fontSize: 13, lineHeight: 17, color: RivalColors.textSecondary },
   quote: {
     borderLeftWidth: 2, borderLeftColor: RivalColors.surfaceContainerHigh,
     paddingLeft: 8, marginLeft: 12, marginBottom: 4, opacity: 0.75, maxWidth: '100%',
@@ -1028,6 +1140,10 @@ const styles = StyleSheet.create({
   // No ring, so "mine" is carried by the fill instead of an outline.
   reactionPillMine: { backgroundColor: `${RivalColors.accentFill}55` },
   reactionEmoji: { fontSize: 11 },
+  addReaction: {
+    width: 24, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: RivalColors.surfaceContainerHigh,
+  },
   reactionCount: { fontSize: 9, fontWeight: '700', color: RivalColors.textSecondary, marginRight: 3 },
 
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6, marginLeft: 12 },

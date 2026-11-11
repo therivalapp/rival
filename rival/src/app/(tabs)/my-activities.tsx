@@ -832,7 +832,7 @@ export default function MyActivitiesScreen() {
         </View>
         <View style={styles.fvTiles}>
           {[
-            { key: 'scan', icon: 'camera' as const, label: 'Scan workout', to: windowWidth >= BREAKPOINT_WIDE_LAYOUT ? '/scan-workout' : '/add-workout' },
+            { key: 'scan', icon: 'camera' as const, label: 'Scan activity', to: windowWidth >= BREAKPOINT_WIDE_LAYOUT ? '/scan-workout' : '/add-workout' },
             { key: 'manual', icon: 'manual' as const, label: 'Manual entry', to: '/manual-entry' },
           ].map((t) => (
             // The Add an activity tile: icon large and faint behind the words.

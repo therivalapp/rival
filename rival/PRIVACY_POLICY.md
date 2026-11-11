@@ -17,7 +17,7 @@ confirm your age and is never shown to other members.
 
 **Activities.** Each activity you add: type, date and time, duration, distance,
 elevation, exercises, sets and weights, notes, Effort, personal bests, goals,
-events and finish times. Activities come from manual entry, workout scanning,
+events and finish times. Activities come from manual entry, activity scanning,
 archive import, RIVAL's own GPS recording and Apple Health on iPhone, and, once
 available, Garmin.
 
@@ -25,7 +25,7 @@ available, Garmin.
 of it. Teammates see route maps only if you turn on route sharing.
 
 **Photos and videos.** Files you attach to activities, set as a cover, or upload
-for workout scanning.
+for activity scanning.
 
 **Team activity.** Posts, messages, comments, reactions (Respect and Inspired),
 notes, challenges and planned activities you post in your teams, encouragements
@@ -53,8 +53,8 @@ RIVAL does not collect contacts or advertising identifiers.
 
 ## Apple Health
 
-On iPhone, you can let RIVAL read your workouts from Apple Health, including
-workouts saved there by your watch and other apps. RIVAL reads workout type,
+On iPhone, you can let RIVAL read your activities from Apple Health, including
+activities saved there by your watch and other apps. RIVAL reads activity type,
 time, duration, distance, elevation, heart rate, energy and route, and only
 after you allow it in the Health permission screen. RIVAL does not read any
 other health data. Health data is used only to
@@ -98,8 +98,8 @@ else on your device is read.
 
 Some features send content to Anthropic, an AI provider, to produce a result:
 
-- **Workout scanning** sends the photo you choose, such as a whiteboard or gym
-  screen, to read the workout details from it.
+- **Activity scanning** sends the photo you choose, such as a whiteboard or gym
+  screen, to read the activity details from it.
 - **Placings scanning** sends the results photo you choose, to read finish
   places from it.
 - **Find events** sends the event name you search for.

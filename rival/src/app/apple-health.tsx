@@ -55,7 +55,7 @@ export default function AppleHealthScreen() {
       setFresh(r.items.filter((i) => newKeys.has(i.key)));
       setStep('preview');
     } catch {
-      setError('Workouts could not be read from Apple Health. Try again.');
+      setError('Activities could not be read from Apple Health. Try again.');
       setStep('error');
     }
   }
@@ -123,12 +123,12 @@ export default function AppleHealthScreen() {
           <>
             <View style={[s.card, s.hero]}>
               <View style={s.heart}><RivalIcon name="health" size={38} color="#ff375f" /></View>
-              <Text style={s.heroTitle}>Every workout, in one place</Text>
-              <Text style={[s.body, { textAlign: 'center' }]}>Past and new workouts from Apple Health come into RIVAL, with routes, heart rate and calories.</Text>
+              <Text style={s.heroTitle}>Every activity, in one place</Text>
+              <Text style={[s.body, { textAlign: 'center' }]}>Past and new activities from Apple Health come into Rival, with routes, heart rate and calories.</Text>
             </View>
             <View style={s.card}>
               <Text style={s.label}>Included</Text>
-              <Text style={s.body}>Workouts from Apple Watch and other apps that save to Apple Health.</Text>
+              <Text style={s.body}>Activities from Apple Watch and other apps that save to Apple Health.</Text>
             </View>
             {error ? <Text style={s.error}>{error}</Text> : null}
             <TouchableOpacity style={s.primary} onPress={connect} activeOpacity={0.85}>
@@ -140,7 +140,7 @@ export default function AppleHealthScreen() {
           <LoaderCard
             fileName="Apple Health"
             pct={read.total ? 4 + Math.round((read.done / read.total) * 96) : 4}
-            rows={[{ label: 'Workouts', value: read.done, of: read.total || undefined }]}
+            rows={[{ label: 'Activities', value: read.done, of: read.total || undefined }]}
           />
         ) : step === 'preview' ? (
           <>
@@ -154,7 +154,7 @@ export default function AppleHealthScreen() {
                 <View style={s.coin}><RivalIcon name="health" size={20} color={RivalButtonColors.label(RivalColors.onAccentFill)} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.bigNum}>{fresh.length.toLocaleString()}</Text>
-                  <Text style={s.body}>{fresh.length ? `new activities, ${span}` : 'Every workout in Apple Health is already in RIVAL.'}</Text>
+                  <Text style={s.body}>{fresh.length ? `new activities, ${span}` : 'Every activity in Apple Health is already in Rival.'}</Text>
                 </View>
               </View>
               <View style={s.facts}>

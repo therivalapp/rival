@@ -65,7 +65,7 @@ export default function SignInScreen() {
     }
 
     // A first sign-in after confirming the email opens activity setup.
-    router.replace((await finishSignUp()) ? '/choose-activities' : '/home');
+    router.replace((await finishSignUp()) ? '/welcome-rival' : '/home');
   }
 
   async function handleForgotPassword() {

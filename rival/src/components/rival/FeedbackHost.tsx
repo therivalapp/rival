@@ -21,12 +21,21 @@ import { supabase } from '../../lib/supabase';
 
 // Dislike, not Other (Ricky, 2026-11-10): what testers don't like is the
 // feedback that leads to fixes, so the pop-up asks for it directly.
-type Kind = 'problem' | 'idea' | 'dislike';
-const KINDS: { value: Kind; label: string; icon: 'bug' | 'idea' | 'dislike' }[] = [
+// Quote (Ricky, 2026-11-11): testers can send a daily quote they like. Its
+// own choice tells them quotes are welcome; Ricky picks which go into quotes.ts.
+type Kind = 'problem' | 'idea' | 'dislike' | 'quote';
+const KINDS: { value: Kind; label: string; icon: 'bug' | 'idea' | 'dislike' | 'formatQuote' }[] = [
   { value: 'problem', label: 'Problem', icon: 'bug' },
   { value: 'idea', label: 'Idea', icon: 'idea' },
   { value: 'dislike', label: 'Dislike', icon: 'dislike' },
+  { value: 'quote', label: 'Quote', icon: 'formatQuote' },
 ];
+const PLACEHOLDERS: Record<Kind, string> = {
+  problem: 'What happened, and on which page?',
+  idea: 'What would you like to see in RIVAL?',
+  dislike: "What don't you like, and what would you change? Criticism is welcome.",
+  quote: 'A quote for the daily quote, and who said it.',
+};
 
 const MAX_SHOTS = 5;
 
@@ -126,12 +135,12 @@ export function FeedbackHost() {
             footer={<GreyPrimary label="Send" busy={sending} disabled={sending || !message.trim()} onPress={send} />}
           >
             <GreyLabel>Type</GreyLabel>
-            <GreyArtTiles options={KINDS} value={kind} onChange={setKind} />
+            <GreyArtTiles options={KINDS} value={kind} onChange={setKind} columns={2} />
             <GreyLabel>Details</GreyLabel>
             <GreyField
               value={message}
               onChangeText={setMessage}
-              placeholder={kind === 'problem' ? 'What happened, and on which page?' : kind === 'idea' ? 'What would you like to see in RIVAL?' : "What don't you like, and what would you change? Criticism is welcome."}
+              placeholder={PLACEHOLDERS[kind]}
               multiline
               maxLength={4000}
               style={s.details}

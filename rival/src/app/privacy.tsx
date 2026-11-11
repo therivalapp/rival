@@ -20,9 +20,9 @@ const SECTIONS: Section[] = [
     title: 'What RIVAL collects',
     paras: [
       { b: 'Account.', t: 'Email address, name, date of birth, time zone, optional username, profile photo, cover photo and personal quote. Your date of birth is used only to confirm your age and is never shown to other members.' },
-      { b: 'Activities.', t: 'Each activity you add: type, date and time, duration, distance, elevation, exercises, sets and weights, notes, Effort, personal bests, goals, events and finish times. Activities come from manual entry, workout scanning, archive import and RIVAL’s own GPS recording, and, once available, Apple Health on iPhone and Garmin.' },
+      { b: 'Activities.', t: 'Each activity you add: type, date and time, duration, distance, elevation, exercises, sets and weights, notes, Effort, personal bests, goals, events and finish times. Activities come from manual entry, activity scanning, archive import and RIVAL’s own GPS recording, and, once available, Apple Health on iPhone and Garmin.' },
       { b: 'Routes.', t: 'When an activity has a GPS route, RIVAL stores a simplified outline of it. Teammates see route maps only if you turn on route sharing.' },
-      { b: 'Photos and videos.', t: 'Files you attach to activities, set as a cover, or upload for workout scanning.' },
+      { b: 'Photos and videos.', t: 'Files you attach to activities, set as a cover, or upload for activity scanning.' },
       { b: 'Team activity.', t: 'Posts, messages, comments, reactions (Respect and Inspired), notes, challenges and planned activities you post in your teams, encouragements you send, training partners you tag, events you are interested in, and who invited you to a team.' },
       { b: 'Device token.', t: 'A push-notification token, if you allow notifications.' },
       { b: 'Usage.', t: 'RIVAL does not use analytics, advertising or tracking tools. The services that host RIVAL keep standard technical logs, such as IP address and request times, for security and to fix faults. RIVAL records when you last used the app.' },
@@ -31,7 +31,7 @@ const SECTIONS: Section[] = [
   },
   {
     title: 'Apple Health',
-    paras: ['This applies once RIVAL’s iPhone app is available. On iPhone, you can let RIVAL read your workouts from Apple Health. RIVAL reads workout type, time, duration, distance, elevation, energy and route, and only after you allow it in the Health permission screen. Health data is used only to record your activities, score Effort and show them to your teams. It is never used for advertising or marketing, never sold, never given to data brokers, and never stored in iCloud. RIVAL does not write anything to Apple Health. You can turn access off at any time in the iPhone’s Settings.'],
+    paras: ['This applies once RIVAL’s iPhone app is available. On iPhone, you can let RIVAL read your activities from Apple Health. RIVAL reads activity type, time, duration, distance, elevation, energy and route, and only after you allow it in the Health permission screen. Health data is used only to record your activities, score Effort and show them to your teams. It is never used for advertising or marketing, never sold, never given to data brokers, and never stored in iCloud. RIVAL does not write anything to Apple Health. You can turn access off at any time in the iPhone’s Settings.'],
   },
   {
     title: 'GPS recording',
@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
     title: 'AI features',
     paras: ['Some features send content to Anthropic, an AI provider, to produce a result:'],
     bullets: [
-      'Workout scanning sends the photo you choose, such as a whiteboard or gym screen, to read the workout details from it.',
+      'Activity scanning sends the photo you choose, such as a whiteboard or gym screen, to read the activity details from it.',
       'Placings scanning sends the results photo you choose, to read finish places from it.',
       'Find events sends the event name you search for.',
       'Team crests send the team’s name. The crest image is made by fal.ai, and Anthropic reads its lettering back to check the name is spelled correctly.',

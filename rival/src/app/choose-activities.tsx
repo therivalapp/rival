@@ -74,7 +74,7 @@ export default function ChooseActivitiesScreen() {
     <SafeAreaView style={[s.page, !phone && s.pageWide]} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={s.content}>
         <GreyPageHead kicker="SET UP" title="Choose activities" sub="RIVAL is tailored around your choices." />
-        <View style={s.steps}><View style={[s.step, s.stepOn]} /><View style={s.step} /></View>
+        <View style={s.steps}><View style={s.step} /><View style={[s.step, s.stepOn]} /><View style={s.step} /></View>
 
         <View style={s.labRow}>
           <GreyLabel>Activities</GreyLabel>

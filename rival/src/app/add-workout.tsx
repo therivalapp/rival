@@ -12,7 +12,7 @@ import { SaveChoiceTile, SavedWorkoutTiles } from '../components/rival/SavedWork
 import { loadSavedWorkouts, photoUrls, todaysWorkout, type SavedWorkoutRow } from '../lib/savedWorkouts';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
-  { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a fitness app screen, gym whiteboard or workout card.' },
+  { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a fitness app screen, gym whiteboard or written plan.' },
   { icon: 'brain', title: '2. Automatic extraction', body: 'Exercises, sets, weights and distance are extracted from the image.' },
   { icon: 'verified', title: '3. Review and save', body: 'Confirm the details. Effort updates as soon as the activity is saved.' },
 ];
@@ -291,7 +291,7 @@ export default function AddWorkoutScreen() {
 
           {/* Three actions */}
           <View style={[styles.cardsRow, wide && styles.cardsRowWide]}>
-            {card('scan', true, 'Scan Workout', 'Capture or upload a workout card. The details are extracted automatically.', (
+            {card('scan', true, 'Scan Activity', 'Photograph an app screen or gym whiteboard. The details are extracted automatically.', (
               <>
                 <RivalButton label="Capture" onPress={() => router.push('/scan-workout?source=camera')} style={styles.fullBtn} />
                 <RivalButton label="Upload" onPress={() => router.push('/scan-workout?source=gallery')} variant="secondary" style={styles.fullBtn} />

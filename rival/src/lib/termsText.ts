@@ -34,7 +34,7 @@ export const TERMS_SECTIONS: { title: string; rows: string[] }[] = [
   {
     "title": "AI features",
     "rows": [
-      "Workout scanning, placings scanning, event search and team crests use AI. AI results can be wrong, so check scanned details before saving. AI images, such as team crests, can look like other images and are not checked against trademarks. Do not ask for a crest that copies another team's or brand's logo."
+      "Activity scanning, placings scanning, event search and team crests use AI. AI results can be wrong, so check scanned details before saving. AI images, such as team crests, can look like other images and are not checked against trademarks. Do not ask for a crest that copies another team's or brand's logo."
     ]
   },
   {

@@ -1,0 +1,144 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding-bottom:30px;background:#151413;font-family:Manrope,sans-serif;color:#fff;width:1310px}
+h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin:28px 26px 4px}
+.sub{color:#a8a097;font-size:14px;margin:0 26px 6px}
+.wrap{display:flex;gap:26px;padding:16px 26px 20px;align-items:flex-start}
+.tag{display:flex;align-items:center;gap:10px;color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 6px 4px}
+.tag b{width:26px;height:26px;border-radius:13px;background:#ffb59e;color:#2a1710;display:grid;place-items:center;font-size:13px;letter-spacing:0}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;min-height:36px;max-width:393px}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#282828}
+.status{height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 30px;font-weight:700;font-size:16px;color:rgba(255,255,255,.5)}
+.content{padding:0 16px}
+.back{width:36px;height:36px;border-radius:18px;background:rgba(255,255,255,.08);display:grid;place-items:center;color:#fff;font-size:20px;position:relative;z-index:2}
+.head{position:relative;text-align:center;margin-top:-30px;margin-bottom:8px}
+.glow{position:absolute;top:-110px;left:-24px;right:-24px;height:240px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(217,119,87,.22) 0%,rgba(217,119,87,.07) 45%,rgba(217,119,87,0) 100%)}
+.kick{position:relative;font-size:10px;font-weight:800;letter-spacing:1.8px;color:#ffb59e}
+.title{position:relative;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin-top:3px}
+.hsub{position:relative;font-size:13px;color:#A0A0A0;margin-top:4px}
+.label{font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;margin:15px 0 8px;text-transform:uppercase}
+.card{background:rgba(255,209,190,.05);border-radius:16px;border:1px solid rgba(255,181,158,.22);padding:0 13px}
+.row{display:flex;align-items:center;min-height:46px;gap:10px;padding:4px 0}
+.row+.row,.row+.note+.row{border-top:1px solid rgba(255,209,190,.08)}
+.ri{width:18px;text-align:center;color:#ffb59e;font-size:16px}
+.rl{font-size:13.5px;font-weight:600;color:#A0A0A0;flex:1}
+.rv{font-size:15px;font-weight:500;color:#fff}
+.chev{color:rgba(255,255,255,.4);font-size:18px}
+.sw{width:40px;height:22px;border-radius:11px;background:#2a2a2a;position:relative;flex-shrink:0}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:9px;background:#fff}
+.sw.on{background:#D97757}.sw.on::after{left:20px}
+.note{font-size:12px;line-height:16px;color:#8f8a85;padding:0 0 11px 28px;margin-top:-4px}
+.new{font-size:9px;font-weight:800;letter-spacing:1px;color:#2a1710;background:#ffb59e;border-radius:6px;padding:2px 5px;margin-left:6px;vertical-align:2px}
+/* sheet */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#282828;border-radius:28px 28px 0 0;padding:10px 18px 34px;overflow:hidden}
+.grab{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);margin:0 auto 14px}
+.sglow{position:absolute;top:-80px;left:0;right:0;height:200px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(217,119,87,.2) 0%,rgba(217,119,87,0) 100%)}
+.field{display:flex;gap:8px}
+.box{flex:1;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22);border-radius:14px;padding:12px 14px}
+.box small{display:block;font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;text-transform:uppercase}
+.box div{font-size:17px;font-weight:600;margin-top:3px}
+.btn{margin-top:18px;height:50px;border-radius:25px;background:linear-gradient(135deg,#e6927a 0%,#D97757 100%);display:grid;place-items:center;font-weight:800;font-size:15px;color:#2a1710}
+.ghostbtn{margin-top:10px;height:46px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#ffb59e}
+</style></head><body>
+<h1>Mockup 34 · Privacy</h1>
+<div class="sub">One place for what teammates can see. Birthdays are new; the rest gathers settings that are spread out today.</div>
+
+<div class="wrap">
+  <div>
+    <div class="tag"><b>A</b>Settings</div>
+    <div class="desc">A Privacy row joins Profile. Blocked members moves into Privacy.</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="mi" style="font-size:18px">signal_cellular_alt</span></div>
+      <div class="content">
+        <div class="back"><span class="mi">arrow_back_ios_new</span></div>
+        <div class="head"><div class="glow"></div><div class="kick">ACCOUNT</div><div class="title">Settings</div><div class="hsub">Profile, preferences and connected apps.</div></div>
+        <div class="label">Profile</div>
+        <div class="card">
+          <div class="row"><span class="mi ri">person</span><span class="rl">Personal info</span><span class="rv">Ricky Jackson-Lewis</span></div>
+          <div class="row"><span class="mi ri">tune</span><span class="rl">Preferences</span><span class="rv">Metric</span></div>
+          <div class="row"><span class="mi ri">lock</span><span class="rl">Privacy</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">insights</span><span class="rl">Statistics</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">track_changes</span><span class="rl">Goals</span><span class="mi chev">chevron_right</span></div>
+        </div>
+        <div class="label">Connections</div>
+        <div class="card">
+          <div class="row"><span class="mi ri">link</span><span class="rl">Connected devices</span><span class="rv">None</span></div>
+          <div class="row"><span class="mi ri">notifications</span><span class="rl">Notifications</span><span class="sw on"></span></div>
+        </div>
+        <div class="label">More</div>
+        <div class="card">
+          <div class="row"><span class="mi ri">feedback</span><span class="rl">Send feedback</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">flag</span><span class="rl">How Rival works</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">bolt</span><span class="rl">How Effort works</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">settings</span><span class="rl">Account</span><span class="mi chev">chevron_right</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="tag"><b>B</b>Privacy</div>
+    <div class="desc">Birthday and the two team chat switches are new. Route maps, team sharing and blocked members already exist.</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="mi" style="font-size:18px">signal_cellular_alt</span></div>
+      <div class="content">
+        <div class="back"><span class="mi">arrow_back_ios_new</span></div>
+        <div class="head"><div class="glow"></div><div class="kick">SETTINGS</div><div class="title">Privacy</div><div class="hsub">What teammates can see.</div></div>
+        <div class="label">Birthday</div>
+        <div class="card">
+          <div class="row"><span class="mi ri">cake</span><span class="rl">Birthday</span><span class="rv">14 March 1990</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">groups</span><span class="rl">Show to teams</span><span class="sw on"></span></div>
+          <div class="note">Day and month only. Never the year.</div>
+        </div>
+        <div class="label">Team chats</div>
+        <div class="card">
+          <div class="row"><span class="mi ri">celebration</span><span class="rl">Milestones about me</span><span class="sw on"></span></div>
+          <div class="note">Rank ups, hours, race days and results as cards in team chats.</div>
+          <div class="row"><span class="mi ri">done_all</span><span class="rl">Read receipts</span><span class="sw on"></span></div>
+          <div class="note">Off: teammates don't see when you've read, and you don't see theirs.</div>
+        </div>
+        <div class="label">Activities</div>
+        <div class="card">
+          <div class="row"><span class="mi ri">map</span><span class="rl">Route maps</span><span class="rv">Teammates</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">share</span><span class="rl">Sharing with teams</span><span class="mi chev">chevron_right</span></div>
+        </div>
+        <div class="label">People and data</div>
+        <div class="card">
+          <div class="row"><span class="mi ri">block</span><span class="rl">Blocked members</span><span class="rv">0</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">download</span><span class="rl">Download data</span><span class="mi chev">chevron_right</span></div>
+          <div class="row"><span class="mi ri">description</span><span class="rl">Privacy policy</span><span class="mi chev">chevron_right</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="tag"><b>C</b>Asked once</div>
+    <div class="desc">Shown once to every member, new and existing. Off until they say yes.</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="mi" style="font-size:18px">signal_cellular_alt</span></div>
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="sglow"></div>
+        <div class="grab" style="position:relative"></div>
+        <div style="position:relative;text-align:center">
+          <div class="kick">BIRTHDAY</div>
+          <div class="title" style="font-size:24px">Share your birthday?</div>
+          <div class="hsub" style="margin:6px 8px 18px;line-height:18px">Teammates see a card in the team chat on the day. Day and month only.</div>
+        </div>
+        <div class="field" style="position:relative">
+          <div class="box"><small>Day</small><div>14</div></div>
+          <div class="box" style="flex:1.6"><small>Month</small><div>March</div></div>
+        </div>
+        <div class="btn" style="position:relative">Share with teams</div>
+        <div class="ghostbtn">Not now</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
