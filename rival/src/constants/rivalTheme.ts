@@ -132,7 +132,10 @@ export const RivalFontFamily = 'Manrope';
 // photographic hero. Swapping in a webfont (Instrument Serif, Fraunces) means
 // changing this one constant — that is the reason it exists, rather than the 24
 // copies of the same string that were previously scattered across 7 screens.
-export const RivalSerifFamily = 'Georgia, "Times New Roman", serif';
+// The iPhone app needs one installed family name, not a CSS list: given the
+// list it fell back to the system sans (Ricky's first TestFlight open,
+// 2026-11-11). Georgia ships on every iPhone, with its italic and bold.
+export const RivalSerifFamily = Platform.OS === 'web' ? 'Georgia, "Times New Roman", serif' : 'Georgia';
 
 // The RIVAL wordmark (Ricky, 2026-11-10, Mockup 24 C, the app icon): serif
 // italic with wide letter spacing, 0.2 of the font size. Used for every
