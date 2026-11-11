@@ -12,6 +12,7 @@ import { AppState, AppStateStatus, Platform, View, useWindowDimensions } from 'r
 import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGES_USE_PHONE_DESIGN } from '../constants/breakpoints';
 import { Stack, router, usePathname } from 'expo-router';
 import { setCurrentPath } from '../lib/tabNav';
+import { isApproved } from '../lib/approval';
 import { revealApp } from '../lib/appReveal';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -32,7 +33,9 @@ import '../lib/appleHealth';
 
 // Screens that make sense without an account.
 // The terms and privacy policy are linked from sign-up, so they open signed out.
-const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/confirm-delete', '/terms', '/privacy']);
+const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/confirm-delete', '/terms', '/privacy', '/approve']);
+// Pages a signed-in account that is still waiting for approval may see.
+const WAITING_OK = new Set([...PUBLIC_PATHS, '/waiting-approval', '/delete-account']);
 
 // Scrolls the nearest scrolling box so the focused field sits just above
 // the keyboard, where the thumbs are (Ricky, 2026-10-24). Web only.
@@ -76,7 +79,14 @@ export default function RootLayout() {
     if (PUBLIC_PATHS.has(pathname)) return;
     let cancelled = false;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled || session) return;
+      if (cancelled) return;
+      if (session) {
+        // Team Beta: a new account waits until it is approved (Mockup 30).
+        if (!WAITING_OK.has(pathname)) {
+          isApproved(session.user.id).then((ok) => { if (!cancelled && !ok) router.replace('/waiting-approval'); });
+        }
+        return;
+      }
       // Keep an invite link's code for after they sign up or sign in.
       if (pathname === '/join-league' && typeof window !== 'undefined') {
         const code = new URLSearchParams(window.location.search).get('code');
