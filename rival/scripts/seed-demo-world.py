@@ -147,6 +147,61 @@ for r_, users in [(RACE_HALF, [MAYA, LIAM, TESS, ALEX, KAI]), (RACE_GF, [SAM, LI
     for u in users:
         W(f"insert into race_interests (id,race_id,user_id,created_at) values ({q(uid('ri', r_, u))},{q(r_)},{q(u)},now()-interval '{random.randint(3, 30)} days') on conflict (id) do nothing;")
 
+def older_week(w):
+    W = w + 36                      # 0 = week of 5 Jan
+    f = 0.55 + 0.4 * W / 36         # base building through the year
+    r = random.Random(f'week{w}')
+    def maybe(p=0.85): return r.random() < p
+    if r.random() < 0.08: return    # a week off happens
+    winter = W < 12
+    # Maya
+    d = days(w, 1, 3, 5)
+    if maybe(): act(MAYA, d[0], 6, 'Run', 'Easy run', 35, round(6 * f, 1), 20, anchor='seawall', hr=142, best=run_best(round(6 * f, 1), 350))
+    if maybe(): act(MAYA, d[1], 6, 'Run', 'Intervals', 30, round(5.5 * f, 1), 15, anchor='falsecreek', hr=160, best=run_best(round(5.5 * f, 1), 320 - W))
+    if maybe(0.9):
+        lk = round(8 + 5 * W / 36, 1)
+        act(MAYA, d[2], 7, 'Run', 'Long run', lk * 6, lk, 60, anchor='spirit', hr=148, best=run_best(lk, 360))
+    # Jordan
+    for i, dd in enumerate(days(w, 0, 2, 4)):
+        if not maybe(): continue
+        sq, bp, dl = 90 + W * 0.8, 70 + W * 0.4, 115 + W * 0.95
+        ex = [[{'name': 'Squat', 'weight': round(sq / 2.5) * 2.5, 'sets': 5, 'reps': 5}],
+              [{'name': 'Bench Press', 'weight': round(bp / 2.5) * 2.5, 'sets': 5, 'reps': 5}, {'name': 'Pull-up', 'weight': 0, 'sets': 4, 'reps': 8}],
+              [{'name': 'Deadlift', 'weight': round(dl / 2.5) * 2.5, 'sets': 3, 'reps': 5}]][i]
+        act(JORDAN, dd, 17, 'WeightTraining', ['Leg day', 'Push and pull', 'Deadlift day'][i], 55, exercises=ex, hr=115)
+    # Sam
+    d = days(w, 2, 5)
+    if maybe(): act(SAM, d[0], 6, 'VirtualRide' if winter else 'Ride', 'Indoor ride' if winter else 'Morning spin', 50, round(22 * f), 120 if not winter else 0, anchor=None if winter else 'jericho', hr=135)
+    if maybe(0.9): act(SAM, d[1], 8, 'Ride', 'Weekend ride', 90, round(40 * f), round(450 * f), anchor='cypress', hr=142)
+    # Tess
+    d = days(w, 1, 3, 6)
+    if maybe(): act(TESS, d[0], 6, 'Run', 'Easy run', 40, round(6.5 * f, 1), 40, anchor='falsecreek', hr=140, best=run_best(round(6.5 * f, 1), 340))
+    if maybe(): act(TESS, d[1], 6, 'TrailRun', 'Lynn loop', 55, round(8 * f, 1), 280, anchor='lynn', hr=150)
+    if maybe(0.8): act(TESS, d[2], 8, 'Snowshoe' if winter else 'Hike', 'Snowshoe on Seymour' if winter else 'Weekend hike', 120, round(7 * f, 1), round(500 * f), anchor='grouse', hr=130)
+    # Priya
+    d = days(w, 0, 2, 4)
+    if maybe(): act(PRIYA, d[0], 6, 'Workout', 'CrossFit WOD', 55, hr=148, exercises=[{'name': 'Clean and Jerk', 'weight': round((40 + W * 0.25) / 2.5) * 2.5, 'sets': 5, 'reps': 2}])
+    if maybe(): act(PRIYA, d[1], 6, 'Swim', 'Pool swim', 40, round(1.5 * f + 0.2, 1), hr=132, location='Vancouver Aquatic Centre')
+    if maybe(0.7): act(PRIYA, d[2], 18, 'WeightTraining', 'Strength', 45, hr=118, exercises=[{'name': 'Front Squat', 'weight': round((50 + W * 0.25) / 2.5) * 2.5, 'sets': 5, 'reps': 3}])
+    # Liam
+    d = days(w, 1, 3, 5)
+    if maybe(): act(LIAM, d[0], 6, 'Swim', 'Pool swim', 35, round(1.4 * f + 0.2, 1), hr=138)
+    if maybe(): act(LIAM, d[1], 17, 'VirtualRide' if winter else 'Ride', 'Indoor ride' if winter else 'Evening ride', 50, round(20 * f), 0 if winter else 150, anchor=None if winter else 'jericho', hr=145)
+    if maybe(): act(LIAM, d[2], 7, 'Run', 'Run', 35, round(6 * f, 1), 30, anchor='kits', hr=150, best=run_best(round(6 * f, 1), 330))
+    # Kai
+    d = days(w, 0, 3, 6)
+    if maybe(): act(KAI, d[0], 7, 'Rowing', 'Erg session', 30, round(5.5 * f + 0.5, 1), hr=140)
+    if maybe(0.9): act(KAI, d[1], 7, 'Walk', 'Morning walk with Miso', 50, 4.8, 30, anchor='kits', hr=100)
+    if maybe(0.6): act(KAI, d[2], 9, 'Hike', 'Weekend hike', 90, round(3.5 * f, 1), round(200 * f), anchor='deepcove', hr=120)
+    # Reviewer: a steady, ordinary year
+    d = days(w, 1, 4, 6)
+    if maybe(0.75): act(REV, d[0], 7, 'Run', 'Morning run', 30, round(4.2 * f, 1), 20, anchor='falsecreek', hr=150, best=run_best(round(4.2 * f, 1), 365))
+    if maybe(0.6): act(REV, d[1], 18, 'WeightTraining', 'Gym', 45, hr=112, exercises=[{'name': 'Squat', 'weight': round((50 + W * 0.5) / 2.5) * 2.5, 'sets': 4, 'reps': 6}])
+    if maybe(0.5): act(REV, d[2], 9, 'Walk', 'Weekend walk', 55, 5.0, 20, anchor='seawall', hr=98)
+
+for w in range(-36, 0):
+    older_week(w)
+
 for w in range(8):
     prog = w / 7.0
     # Maya: runner, long run builds 14 -> 21 km, 5k pace improves
@@ -181,16 +236,16 @@ for w in range(8):
 
     # Sam: cyclist
     d = days(w, 2, 5, 6)
-    act(SAM, d[0], 6, 'Ride', 'Spanish Banks spin', 75, 38 + w, 220, anchor='jericho', hr=138)
-    act(SAM, d[1], 8, 'Ride', 'Cypress climb' if w % 2 else 'Sea to Sky out and back', 150 + w * 8, 70 + w * 4, 1150 + w * 40,
+    act(SAM, d[0], 6, 'Ride', 'Spanish Banks spin', 60, 30 + w, 150, anchor='jericho', hr=138)
+    act(SAM, d[1], 8, 'Ride', 'Cypress climb' if w % 2 else 'Sea to Sky out and back', 110 + w * 5, 48 + w * 2.5, 650 + w * 30,
         photo='coastal-highway-triathlete-dusk-3' if w % 2 == 0 else None, anchor='cypress', hr=146)
-    if w % 2: act(SAM, d[2], 10, 'MountainBikeRide', 'North Shore trails', 110, 22, 650, photo='mountain-bikers-forest-trail', anchor='lynn', hr=150)
+    if w % 2: act(SAM, d[2], 10, 'MountainBikeRide', 'North Shore trails', 75, 14, 420, photo='mountain-bikers-forest-trail', anchor='lynn', hr=150)
 
     # Tess: trail runs and hikes with big elevation
     d = days(w, 1, 3, 6)
-    act(TESS, d[0], 6, 'TrailRun', 'Lynn loop', 70, 11 + w * 0.5, 420, anchor='lynn', hr=152)
+    act(TESS, d[0], 6, 'TrailRun', 'Lynn loop', 60, 9 + w * 0.3, 350, anchor='lynn', hr=152)
     act(TESS, d[1], 6, 'Run', 'Easy run', 45, 8, 60, anchor='falsecreek', hr=140, best=run_best(8, 330))
-    act(TESS, d[2], 7, 'Hike' if w % 2 else 'TrailRun', 'Hollyburn Peak' if w % 2 else 'Baden-Powell section', 75 + w * 10, 3 + w if w % 2 else 18 + w, 850 + w * 60,
+    act(TESS, d[2], 7, 'Hike' if w % 2 else 'TrailRun', 'Hollyburn Peak' if w % 2 else 'Baden-Powell section', (100 + w * 5) if w % 2 else (90 + w * 5), (6 + w * 0.3) if w % 2 else (12 + w * 0.5), (600 + w * 20) if w % 2 else (650 + w * 25),
         photo='trail-runner-summit-marker' if w in (3, 7) else ('a-clear-ascending-mountain-trail' if w == 5 else None), anchor='grouse', hr=156,
         notes='Summit before sunrise. Worth every step.' if w == 7 else None)
 
@@ -205,13 +260,13 @@ for w in range(8):
     # Liam: triathlete
     d = days(w, 1, 2, 4, 6)
     act(LIAM, d[0], 6, 'Swim', 'Open water swim' if w < 4 else 'Pool intervals', 40, 1.8 + w * 0.1, hr=140, location='English Bay' if w < 4 else None)
-    act(LIAM, d[1], 17, 'Ride', 'Bike intervals', 70, 35, 260, anchor='jericho', hr=150)
+    act(LIAM, d[1], 17, 'Ride', 'Bike intervals', 55, 22, 180, anchor='jericho', hr=150)
     if w == 5:
         act(LIAM, date(2026, 10, 18), 8, 'Run', 'Seawall 10K', 47.8, 10.0, 30, anchor='seawall', hr=168, race_id=RACE_10K, best=run_best(10, 287),
             location='Stanley Park, Vancouver', notes='First race in RIVAL colours.', photo='a-small-group-of-diverse-athletes-2', mm=2)
     else:
         act(LIAM, d[2], 6, 'Run', 'Brick run', 35, 6.5, 30, anchor='kits', hr=158, best=run_best(6.5, 320))
-    act(LIAM, d[3], 8, 'Ride', 'Long ride', 160 + w * 10, 80 + w * 5, 900, anchor='cypress', hr=140, photo='coastal-highway-triathlete-dusk-3' if w == 7 else None)
+    act(LIAM, d[3], 8, 'Ride', 'Long ride', 100 + w * 5, 40 + w * 2, 550, anchor='cypress', hr=140, photo='coastal-highway-triathlete-dusk-3' if w == 7 else None)
 
     # Kai: walks and rowing
     d = days(w, 0, 3, 6)
@@ -220,10 +275,10 @@ for w in range(8):
     act(KAI, d[2], 9, 'Hike', 'Deep Cove to Quarry Rock', 100, 4.0 + w * 0.3, 280 + w * 15, anchor='deepcove', hr=125, photo='coastal-cliff-hikers-group' if w in (2, 6) else None)
 
     # Reviewer: last 4 weeks of light activity so their own pages are not empty
-    if w >= 4:
+    if True:
         d = days(w, 1, 4, 6)
-        act(REV, d[0], 7, 'Run', 'Morning run', 32 + w, 5 + (w - 4) * 0.5, 30, anchor='falsecreek', hr=150, best=run_best(5 + (w - 4) * 0.5, 345))
-        act(REV, d[1], 18, 'WeightTraining', 'Gym', 50, exercises=[{'name': 'Squat', 'weight': 70 + (w - 4) * 5, 'sets': 4, 'reps': 6}, {'name': 'Bench Press', 'weight': 50 + (w - 4) * 2.5, 'sets': 4, 'reps': 6}], hr=115)
+        act(REV, d[0], 7, 'Run', 'Morning run', 32 + w, 4.5 + w * 0.25, 30, anchor='falsecreek', hr=150, best=run_best(4.5 + w * 0.25, 345))
+        act(REV, d[1], 18, 'WeightTraining', 'Gym', 50, exercises=[{'name': 'Squat', 'weight': 70 + w * 2.5, 'sets': 4, 'reps': 6}, {'name': 'Bench Press', 'weight': 50 + w * 1.25, 'sets': 4, 'reps': 6}], hr=115)
         act(REV, d[2], 9, 'Walk', 'Seawall walk', 60, 5.5, 20, anchor='seawall', hr=100)
 
 # Group run on Saturday 7 Nov, everyone tagged: shared activity for the reviewer to confirm.
@@ -266,6 +321,12 @@ from (
 ) s where a.id = s.id;""")
 
 # ---- reactions and comments -------------------------------------------------
+older = [a for a in ACTS if a['started_at'] <= NOW - timedelta(days=21)]
+for a in older:
+    r = random.Random('old' + a['id'])
+    for u in r.sample([m for m in TEAM if m != a['user']], r.randint(0, 3)):
+        ts = a['started_at'] + timedelta(hours=r.uniform(1, 30))
+        W(f"insert into feed_reactions (id,league_id,target_type,target_id,user_id,emoji,created_at) values ({q(uid('rx', a['id'], u))},{q(HARBOUR)},'activity',{q(a['id'])},{q(u)},'respect',{q(ts.isoformat())}) on conflict do nothing;")
 recent = [a for a in ACTS if a['started_at'] > NOW - timedelta(days=21)]
 others = lambda u: [m for m in TEAM + [REV] if m != u]
 for a in recent:
@@ -357,16 +418,25 @@ for key, us in [('c1', [(ALEX, '🔥'), (TESS, '❤️'), (LIAM, '👏'), (KAI, 
     for u, k in us: react(ids[key], u, k)
 
 # ---- achievements and encouragement --------------------------------------
-for u, achs in [(MAYA, ['first_run', 'activities_10', 'activities_25', 'distance_100', 'distance_500', 'streak_4', 'streak_8']),
-                (TESS, ['first_run', 'first_hike', 'activities_10', 'elevation_1000', 'elevation_8849', 'distance_100']),
-                (LIAM, ['first_run', 'first_ride', 'first_swim', 'activities_10', 'activities_25', 'distance_500']),
-                (JORDAN, ['first_activity', 'activities_10', 'activities_25', 'streak_4']),
-                (PRIYA, ['first_activity', 'first_swim', 'activities_10', 'streak_4']),
-                (SAM, ['first_ride', 'activities_10', 'distance_500', 'elevation_1000', 'elevation_8849']),
-                (KAI, ['first_activity', 'first_hike', 'activities_10']),
-                (REV, ['first_run', 'first_activity', 'activities_10'])]:
-    for i, aid in enumerate(achs):
-        W(f"insert into user_achievements (id,user_id,achievement_id,earned_at) values ({q(uid('ach', u, aid))},{q(u)},{q(aid)},now() - interval '{(len(achs) - i) * 6} days') on conflict (user_id,achievement_id) do nothing;")
+# Earned on the day the history actually crossed each line.
+FIRST = {'Run': 'first_run', 'Ride': 'first_ride', 'Swim': 'first_swim', 'Hike': 'first_hike'}
+for u in [MAYA, TESS, LIAM, JORDAN, PRIYA, SAM, KAI, REV]:
+    mine = sorted([a for a in ACTS if a['user'] == u], key=lambda a: a['started_at'])
+    earned = {}
+    km = elev = 0
+    for i, a in enumerate(mine, 1):
+        earned.setdefault('first_activity', a['started_at'])
+        if a['type'] in FIRST: earned.setdefault(FIRST[a['type']], a['started_at'])
+        km += (a['dist'] or 0) / 1000; elev += a['elev'] or 0
+        for n in (10, 25, 50, 100, 250, 500):
+            if i >= n: earned.setdefault(f'activities_{n}', a['started_at'])
+        for n in (100, 500, 1000, 5000):
+            if km >= n: earned.setdefault(f'distance_{n}', a['started_at'])
+        for n in (1000, 8849, 50000):
+            if elev >= n: earned.setdefault(f'elevation_{n}', a['started_at'])
+    W(f"delete from user_achievements where user_id={q(u)};")
+    for aid, ts in earned.items():
+        W(f"insert into user_achievements (id,user_id,achievement_id,earned_at) values ({q(uid('ach', u, aid))},{q(u)},{q(aid)},{q((ts + timedelta(hours=1)).isoformat())}) on conflict (user_id,achievement_id) do nothing;")
 W(f"insert into encouragements (id,from_user_id,to_user_id,message,created_at) values ({q(uid('enc', 'rev'))},{q(MAYA)},{q(REV)},'Welcome to Harbour Run Club. See you on Saturday.',now() - interval '26 hours') on conflict (id) do nothing;")
 
 # One-on-one challenge in the team.
@@ -377,6 +447,7 @@ W("""update inbox_items i set created_at = r.created_at from feed_reactions r
 W("""update inbox_items i set created_at = c.created_at from feed_comments c
   where i.kind='comment' and i.actor_id=c.user_id and i.subject_id::text=c.target_id and c.target_id in (select id::text from activities where provider='demo');""")
 W("insert into league_members (league_id,user_id,status,invited_by,invite_state,invite_sent_at,joined_at) values ('ebde36b5-6479-4a2c-8de6-4558490aed1e','09b2e197-8257-4d7c-a0e6-12dc0429eeff','active',null,null,null,now()) on conflict (league_id,user_id) do nothing;")
+W("update inbox_items set read_at = created_at + interval '2 hours' where read_at is null and created_at < now() - interval '7 days' and user_id in (select id from users where email like 'demo-%' or id='04b3805d-fad1-4b78-8359-e779d34d9cc6');")
 W('alter table league_messages enable trigger league_messages_guard_update;')
 W('commit;')
 open(__file__.replace('.py', '.sql'), 'w').write('\n'.join(out))

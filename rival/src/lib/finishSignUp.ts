@@ -30,7 +30,9 @@ export async function finishSignUp(): Promise<boolean> {
       return true;
     }
   }
-  const { error: clearError } = await supabase.auth.updateUser({ data: { needs_setup: null, date_of_birth: null } });
+  // needs_setup stays until Choose activities is saved or skipped, so setup
+  // opens again if the app is closed part way (Ricky, 2026-11-11).
+  const { error: clearError } = await supabase.auth.updateUser({ data: { date_of_birth: null } });
   if (clearError) console.warn('Sign-up details not cleared:', clearError.message);
   return true;
 }

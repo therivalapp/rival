@@ -112,6 +112,13 @@ function MenuSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean
   );
 }
 
+// Names are saved as one display name ("First Last"); the first word is the
+// first name and the rest the last name, matching sign-up.
+function splitName(name: string): { first: string; last: string } {
+  const parts = (name || '').trim().split(/\s+/);
+  return { first: parts[0] || '', last: parts.slice(1).join(' ') };
+}
+
 export default function ProfileScreen() {
   const { userId: viewedUserId, tab: tabParam } = useLocalSearchParams<{ userId?: string; tab?: TabId }>();
   const { width: windowWidth } = useWindowDimensions();
@@ -137,7 +144,8 @@ export default function ProfileScreen() {
 
   const [displayName, setDisplayName] = useState('');
   const [editingName, setEditingName] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [newFirst, setNewFirst] = useState('');
+  const [newLast, setNewLast] = useState('');
   const [bio, setBio] = useState('');
   const [newBio, setNewBio] = useState('');
   const [savingBio, setSavingBio] = useState(false);
@@ -199,7 +207,8 @@ export default function ProfileScreen() {
 
     const name = userRes.data?.display_name || user.user_metadata?.display_name || '';
     setDisplayName(name);
-    setNewName(name);
+    setNewFirst(splitName(name).first);
+    setNewLast(splitName(name).last);
     setIsAdmin(!!userRes.data?.is_admin);
     setAvatarUrl(userRes.data?.avatar_url || null);
     setBio(userRes.data?.bio || '');
@@ -210,11 +219,12 @@ export default function ProfileScreen() {
   }
 
   async function saveName() {
-    if (!newName.trim()) return;
+    const newName = `${newFirst.trim()} ${newLast.trim()}`.trim();
+    if (!newFirst.trim() || !newLast.trim()) { notify('Name needed', 'Enter a first and last name.'); return; }
     setSaving(true);
     const { data: { user } } = await getAuthUser();
     if (!user) { setSaving(false); return; }
-    const { error } = await supabase.from('users').update({ display_name: newName.trim() }).eq('id', user.id);
+    const { error } = await supabase.from('users').update({ display_name: newName }).eq('id', user.id);
     if (error) {
       // Don't advance the UI past a write that didn't land — showing the new
       // name while the row still holds the old one is worse than an error.
@@ -222,9 +232,9 @@ export default function ProfileScreen() {
       setSaving(false);
       return;
     }
-    await supabase.auth.updateUser({ data: { display_name: newName.trim() } });
+    await supabase.auth.updateUser({ data: { display_name: newName } });
     invalidateNavIdentity();
-    setDisplayName(newName.trim());
+    setDisplayName(newName);
     setEditingName(false);
     setSaving(false);
   }
@@ -444,26 +454,38 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.fieldsCol}>
-          {/* Full Name */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>FULL NAME</Text>
-            {editingName ? (
-              <View style={styles.editRow}>
-                <TextInput style={styles.input} value={newName} onChangeText={setNewName} autoFocus autoCapitalize="words" />
-                <TouchableOpacity style={styles.saveChip} onPress={saveName} disabled={saving}>
-                  <BusyText busy={!!(saving)} style={styles.saveChipText}>{saving ? 'Saving…' : 'Save'}</BusyText>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setEditingName(false); setNewName(displayName); }}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
+          {/* Name: first and last, as on sign-up */}
+          {(['first', 'last'] as const).map((part) => {
+            const value = part === 'first' ? newFirst : newLast;
+            const setValue = part === 'first' ? setNewFirst : setNewLast;
+            const shown = splitName(displayName)[part];
+            return (
+              <View style={styles.field} key={part}>
+                <Text style={styles.fieldLabel}>{part === 'first' ? 'FIRST NAME' : 'LAST NAME'}</Text>
+                {editingName ? (
+                  <View style={styles.editRow}>
+                    <TextInput style={styles.input} value={value} onChangeText={setValue} autoFocus={part === 'first'} autoCapitalize="words"
+                      placeholder={part === 'first' ? 'First name' : 'Last name'} placeholderTextColor={RivalColors.textSecondary} />
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.readField} onPress={() => setEditingName(true)}>
+                    <Text style={styles.readFieldValue}>{shown || (part === 'first' ? 'Add first name' : 'Add last name')}</Text>
+                    <RivalIcon name="edit" size={14} color={RivalColors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+                {editingName && part === 'last' ? (
+                  <View style={[styles.editRow, { marginTop: 10, justifyContent: 'flex-end' }]}>
+                    <TouchableOpacity onPress={() => { setEditingName(false); setNewFirst(splitName(displayName).first); setNewLast(splitName(displayName).last); }}>
+                      <Text style={styles.cancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.saveChip} onPress={saveName} disabled={saving}>
+                      <BusyText busy={!!(saving)} style={styles.saveChipText}>{saving ? 'Saving…' : 'Save'}</BusyText>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
               </View>
-            ) : (
-              <TouchableOpacity style={styles.readField} onPress={() => setEditingName(true)}>
-                <Text style={styles.readFieldValue}>{displayName || 'Set your name'}</Text>
-                <RivalIcon name="edit" size={14} color={RivalColors.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
+            );
+          })}
 
           {/* Email (read-only) */}
           <View style={styles.field}>
