@@ -2772,7 +2772,7 @@ export default function MyActivitiesScreen() {
                         ) : (
                           <TouchableOpacity style={styles.typeRow} onPress={() => startEditing(activity)}>
                             <Text style={styles.activityType} numberOfLines={1}>{activity.name || activity.activity_type}</Text>
-                            <RivalIcon name="edit" size={11} color={RivalColors.textSecondary} />
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: RivalColors.accentText }}>Edit</Text>
                           </TouchableOpacity>
                         )}
                         <Text style={styles.activityTypeSub}>{activity.activity_type}</Text>

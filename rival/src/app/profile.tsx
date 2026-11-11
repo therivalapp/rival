@@ -446,11 +446,8 @@ export default function ProfileScreen() {
               <Text style={styles.avatarText}>{displayName ? displayName[0].toUpperCase() : '?'}</Text>
             )}
           </View>
-          <View style={styles.avatarEditBadge}>
-            {uploadingAvatar
-              ? <Text style={styles.avatarEditText}>⏳</Text>
-              : <RivalIcon name="edit" size={12} color={RivalColors.textPrimary} />}
-          </View>
+          {/* The word, not a pencil (AGENTS.md: Edit is the word Edit). */}
+          <BusyText busy={uploadingAvatar} style={styles.editWord}>{uploadingAvatar ? 'Uploading…' : 'Edit photo'}</BusyText>
         </TouchableOpacity>
 
         <View style={styles.fieldsCol}>
@@ -470,7 +467,7 @@ export default function ProfileScreen() {
                 ) : (
                   <TouchableOpacity style={styles.readField} onPress={() => setEditingName(true)}>
                     <Text style={styles.readFieldValue}>{shown || (part === 'first' ? 'Add first name' : 'Add last name')}</Text>
-                    <RivalIcon name="edit" size={14} color={RivalColors.textSecondary} />
+                    <Text style={styles.editWord}>Edit</Text>
                   </TouchableOpacity>
                 )}
                 {editingName && part === 'last' ? (
@@ -937,12 +934,11 @@ const styles = StyleSheet.create({
   // Personal info
   personalTop: { gap: 20 },
   personalTopWide: { flexDirection: 'row', alignItems: 'flex-start' },
-  avatarWrap: { position: 'relative', alignSelf: 'center' },
+  avatarWrap: { position: 'relative', alignSelf: 'center', alignItems: 'center', gap: 8 },
   avatar: { width: 112, height: 112, borderRadius: 56, backgroundColor: RivalColors.accentFill, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: RivalColors.outlineVariant },
   avatarImage: { width: 112, height: 112, borderRadius: 56 },
   avatarText: { fontSize: 44, fontWeight: '700', color: RivalColors.onAccentFill },
-  avatarEditBadge: { position: 'absolute', bottom: 2, right: 2, backgroundColor: RivalColors.accentFill, borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: RivalColors.surfaceHigh },
-  avatarEditText: { fontSize: 12 },
+  editWord: { fontSize: 13, fontWeight: '700', color: RivalColors.accentText, textAlign: 'center' },
 
   fieldsCol: { flex: 1, gap: 16, width: '100%' },
   field: { gap: 6 },
