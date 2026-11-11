@@ -40,8 +40,8 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.page}>
       <View style={styles.hero}>
-        <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" onLoad={revealApp} onError={revealApp} />
-        <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" />
+        <Image source={SMOKE_SOURCE} style={Platform.OS === 'web' ? styles.smoke : styles.smokeNative} resizeMode="cover" onLoad={revealApp} onError={revealApp} />
+        {Platform.OS === 'web' ? <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" /> : null}
         <SafeAreaView style={styles.content}>
           <Text style={styles.logo}>RIVAL</Text>
 
@@ -83,8 +83,12 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   // Plain block container — no flex:1 (that requires a height-bounded ancestor,
   // which this screen deliberately no longer has).
+  // iPhone app: '100dvh' means nothing there, so the page fills the screen
+  // with flex instead (Ricky's first TestFlight open, 2026-11-11: the smoke
+  // stopped half way and the white app ground showed below).
   page: {
     backgroundColor: RivalColors.pageGround,
+    ...(Platform.OS === 'web' ? {} : { flex: 1 }),
   },
   pending: { flex: 1, minHeight: '100%', backgroundColor: RivalColors.pageGround },
   // minHeight, not height: fills at least one screen but is free to grow, same as
@@ -96,9 +100,11 @@ const styles = StyleSheet.create({
   // reach it. 100dvh tracks what is genuinely visible.
   hero: {
     position: 'relative',
-    minHeight: '100dvh' as any,
     width: '100%',
+    ...(Platform.OS === 'web' ? { minHeight: '100dvh' as any } : { flex: 1 }),
   },
+  // iPhone: no CSS masks, so one full-screen copy at the same strength.
+  smokeNative: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.3 },
   // Same warm-smoke texture as the Today screen's Weekly Leader/Legacy
   // sections — low opacity, faded on both edges so it reads as ambient
   // atmosphere behind the logo rather than a cropped photo.
@@ -130,7 +136,7 @@ const styles = StyleSheet.create({
       : {}),
   },
   content: {
-    minHeight: '100dvh' as any,
+    ...(Platform.OS === 'web' ? { minHeight: '100dvh' as any } : { flex: 1 }),
     paddingHorizontal: 24,
     justifyContent: 'space-between',
     paddingBottom: 40,
