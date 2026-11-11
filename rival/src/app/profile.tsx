@@ -602,7 +602,19 @@ export default function ProfileScreen() {
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
-      <Text style={styles.panelSub}>Bring in workouts from Apple Health, or past activities from an archive file.</Text>
+      <Text style={styles.panelSub}>Bring in workouts from Garmin or Apple Health, or past activities from an archive file.</Text>
+
+      {/* Garmin (Mockup 31): history import now, live connection once keys are in. */}
+      <TouchableOpacity style={[styles.appRow, { marginTop: 12 }]} onPress={() => router.push('/garmin' as any)} activeOpacity={0.8}>
+        <View style={[styles.appRowLeft, { flex: 1, minWidth: 0 }]}>
+          <RivalIcon name="watch" size={18} color={RivalColors.accentText} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.appName}>Garmin</Text>
+            <Text style={styles.appStatus}>Import past activities</Text>
+          </View>
+        </View>
+        <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.35)" />
+      </TouchableOpacity>
 
       <HealthRow />
 

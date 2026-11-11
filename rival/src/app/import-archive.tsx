@@ -67,7 +67,7 @@ export default function ImportArchiveScreen() {
       try {
         const r = await readArchive(file);
         setRead(r);
-        setSource(r.source);
+        setSource(r.source === 'rival' ? 'rival' : 'strava');
         setTotal(r.items.length);
         const { fresh: newKeys, needsPhoto } = await previewImport(r.items, setChecked);
         setFresh(r.items.filter((i) => newKeys.has(i.key)));

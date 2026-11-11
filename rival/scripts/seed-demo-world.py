@@ -196,8 +196,16 @@ def older_week(w):
     # Reviewer: a steady, ordinary year
     d = days(w, 1, 4, 6)
     if maybe(0.75): act(REV, d[0], 7, 'Run', 'Morning run', 30, round(4.2 * f, 1), 20, anchor='falsecreek', hr=150, best=run_best(round(4.2 * f, 1), 365))
-    if maybe(0.6): act(REV, d[1], 18, 'WeightTraining', 'Gym', 45, hr=112, exercises=[{'name': 'Squat', 'weight': round((50 + W * 0.5) / 2.5) * 2.5, 'sets': 4, 'reps': 6}])
-    if maybe(0.5): act(REV, d[2], 9, 'Walk', 'Weekend walk', 55, 5.0, 20, anchor='seawall', hr=98)
+    if maybe(0.65): act(REV, d[1], 18, 'WeightTraining', 'Gym', 55, hr=112, exercises=[{'name': 'Squat', 'weight': round((50 + W * 0.5) / 2.5) * 2.5, 'sets': 4, 'reps': 6}])
+    if maybe(0.8): act(REV, d[2], 9, 'Walk', 'Weekend walk', 60, 5.0, 20, anchor='seawall', hr=98)
+    if maybe(0.5): act(REV, days(w, 5)[0], 9, 'Snowshoe' if winter else 'Hike', 'Snowshoe at Cypress' if winter else 'Weekend hike', 110, round(6 * f, 1), round(350 * f), anchor='grouse', hr=122)
+    # One extra regular activity each, so a typical member is past 100 hours by November.
+    if maybe(0.7): act(MAYA, days(w, 4)[0], 18, 'Yoga', 'Yoga', 45, hr=92)
+    if maybe(0.5): act(JORDAN, days(w, 5)[0], 10, 'Walk', 'Saturday walk', 45, 4.0, 20, anchor='kits', hr=98)
+    if maybe(0.6): act(SAM, days(w, 0)[0], 18, 'VirtualRide', 'Recovery spin', 60, round(25 * f), 0, hr=120)
+    if maybe(0.7): act(LIAM, days(w, 0)[0], 18, 'WeightTraining', 'Strength', 40, hr=115, exercises=[{'name': 'Squat', 'weight': round((60 + W * 0.4) / 2.5) * 2.5, 'sets': 3, 'reps': 8}])
+    if maybe(0.7): act(PRIYA, days(w, 6)[0], 9, 'Yoga', 'Sunday yoga', 50, hr=90)
+    if maybe(0.6): act(KAI, days(w, 5)[0], 8, 'Walk', 'Long walk with Miso', 75, 6.5, 40, anchor='seawall', hr=100)
 
 for w in range(-36, 0):
     older_week(w)

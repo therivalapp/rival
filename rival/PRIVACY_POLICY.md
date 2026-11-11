@@ -1,6 +1,6 @@
 # RIVAL Privacy Policy
 
-**Last updated: 9 November 2026**
+**Last updated: 11 November 2026**
 
 RIVAL is a social fitness app. You log activities, earn Effort, and share them
 with the teams you join. This policy explains what RIVAL collects, who can see
@@ -18,8 +18,8 @@ confirm your age and is never shown to other members.
 **Activities.** Each activity you add: type, date and time, duration, distance,
 elevation, exercises, sets and weights, notes, Effort, personal bests, goals,
 events and finish times. Activities come from manual entry, workout scanning,
-archive import and RIVAL's own GPS recording, and, once available, Apple Health
-on iPhone and Garmin.
+archive import, RIVAL's own GPS recording and Apple Health on iPhone, and, once
+available, Garmin.
 
 **Routes.** When an activity has a GPS route, RIVAL stores a simplified outline
 of it. Teammates see route maps only if you turn on route sharing.
@@ -34,6 +34,16 @@ invited you to a team.
 
 **Device token.** A push-notification token, if you allow notifications.
 
+**Feedback.** What you write when you tap BETA or Send feedback, any screenshots
+you add, the page you were on, the app version and your phone model. On iPhone,
+a screenshot of that page is attached automatically, and you can remove it
+before sending.
+
+**Reports and blocks.** When you report a post, message or member, RIVAL keeps
+the report and the reported content so it can be reviewed. The person you
+report is not told who reported them. Members you block are kept on your
+Blocked members list until you unblock them.
+
 **Usage.** RIVAL does not use analytics, advertising or tracking tools. The
 services that host RIVAL keep standard technical logs, such as IP address and
 request times, for security and to fix faults. RIVAL records when you last
@@ -43,10 +53,11 @@ RIVAL does not collect contacts or advertising identifiers.
 
 ## Apple Health
 
-This applies once RIVAL's iPhone app is available. On iPhone, you can let RIVAL
-read your workouts from Apple Health. RIVAL reads
-workout type, time, duration, distance, elevation, energy and route, and only
-after you allow it in the Health permission screen. Health data is used only to
+On iPhone, you can let RIVAL read your workouts from Apple Health, including
+workouts saved there by your watch and other apps. RIVAL reads workout type,
+time, duration, distance, elevation, heart rate, energy and route, and only
+after you allow it in the Health permission screen. RIVAL does not read any
+other health data. Health data is used only to
 record your activities, score Effort and show them to your teams. It is never
 used for advertising or marketing, never sold, never given to data brokers, and
 never stored in iCloud. RIVAL does not write anything to Apple Health. You can
@@ -55,8 +66,10 @@ turn access off at any time in the iPhone's Settings.
 ## GPS recording
 
 When you record an activity in RIVAL, the app uses your location only while
-that activity is recording, to measure distance and draw the route. Your live
-location is never shared.
+that activity is recording, to measure distance and draw the route. Recording
+continues while the phone is locked, so the route is complete, and the iPhone
+shows its location indicator while it does. RIVAL does not use your location
+at any other time, and your live location is never shared.
 
 ## Garmin Connect
 
@@ -112,7 +125,8 @@ a photo includes other people, make sure they are happy for it to be uploaded.
 - **Images you share** go wherever you send them.
 - **Service providers** run RIVAL on its behalf: Supabase (database, sign-in and
   file storage), Vercel (web hosting), Cloudflare (domain and email forwarding), Anthropic and fal.ai (the AI features
-  above), Expo (push notifications) and Resend (account and beta list emails).
+  above), Expo (push notifications and app updates) and Resend (account, beta,
+  approval, feedback and report emails).
 
 RIVAL never sells personal information and does not share it with anyone else
 except where the law requires.
@@ -128,6 +142,10 @@ address and country (with province, in Canada), only to confirm your sign-up, se
 and check the beta is open where you live. It is not added to a mailing
 list or used for anything else, and it is deleted when the
 beta opens to everyone, or sooner if you ask at **hello@therivalapp.com**.
+
+During the beta, each new account is approved before it opens. Your name, email
+address and sign-up time are emailed to the RIVAL team so the account can be
+approved. If an account is declined, it is deleted.
 
 ## Keeping and deleting your data
 

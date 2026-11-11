@@ -26,7 +26,7 @@ const corsHeaders = {
 
 type Item = {
   key: string
-  provider: 'strava_archive' | 'rival_import' | 'apple_health'
+  provider: 'strava_archive' | 'rival_import' | 'apple_health' | 'garmin_archive'
   providerId: string
   name: string | null
   type: string
@@ -104,7 +104,7 @@ serve(async (req) => {
     for (const it of items) {
       try {
         const type = normaliseActivityType(it.type)
-        if (!['strava_archive', 'rival_import', 'apple_health'].includes(it.provider)) { results.push({ key: it.key, status: 'failed' }); continue }
+        if (!['strava_archive', 'rival_import', 'apple_health', 'garmin_archive'].includes(it.provider)) { results.push({ key: it.key, status: 'failed' }); continue }
         const payload = { imported_from: it.provider === 'apple_health' ? 'apple_health' : 'archive', route: !!it.polyline }
         const resolved = await resolveCanonicalActivityId(supabase, {
           userId: user.id,
