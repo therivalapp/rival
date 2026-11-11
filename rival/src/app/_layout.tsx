@@ -10,9 +10,10 @@ import '../global.css';
 import { useEffect, useState } from 'react';
 import { AppState, AppStateStatus, Platform, View, useWindowDimensions } from 'react-native';
 import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGES_USE_PHONE_DESIGN } from '../constants/breakpoints';
-import { Stack, router, usePathname } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider, router, usePathname } from 'expo-router';
 import { setCurrentPath } from '../lib/tabNav';
 import { isApproved } from '../lib/approval';
+import { startWebUpdates } from '../lib/webUpdate';
 import { revealApp } from '../lib/appReveal';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -33,6 +34,14 @@ import '../lib/appleHealth';
 
 // Screens that make sense without an account.
 // The terms and privacy policy are linked from sign-up, so they open signed out.
+// The navigation library paints each page's card in its light theme's grey
+// (rgb 242, 242, 242) until the page draws, which flashed white between pages
+// now and then (Ricky, 2026-11-11). Dark theme, in RIVAL's own colours.
+const NAV_THEME = {
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: '#131313', card: '#1c1c1c', border: '#1c1c1c' },
+};
+
 const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/reset-password', '/confirm-delete', '/terms', '/privacy', '/approve']);
 // Pages a signed-in account that is still waiting for approval may see.
 const WAITING_OK = new Set([...PUBLIC_PATHS, '/waiting-approval', '/delete-account']);
@@ -154,6 +163,7 @@ export default function RootLayout() {
 
   // No "…" anywhere: overflowing text shrinks a little or wraps (lib/textFit).
   useEffect(() => (Platform.OS === 'web' ? startTextFit() : undefined), []);
+  useEffect(() => startWebUpdates(), []);
   useEffect(() => (Platform.OS === 'web' ? startMouseDragScroll() : undefined), []);
   // The app fades in over the loading wordmark once the first page has
   // drawn (lib/appReveal.ts). The fade is CSS (data-rival-fade, +html.tsx).
@@ -194,6 +204,7 @@ export default function RootLayout() {
           ? { position: 'fixed', top: 0, left: 0, right: 0, height: viewportHeight ?? '100vh', overflow: 'hidden' } as any
           : { flex: 1 }}
       >
+        <ThemeProvider value={NAV_THEME}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="inbox" options={popUp} />
           <Stack.Screen name="join-league" options={popUp} />
@@ -202,6 +213,7 @@ export default function RootLayout() {
           <Stack.Screen name="start" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="races" options={({ route }) => (phone && (route.params as { add?: string } | undefined)?.add === 'true' ? { presentation: 'transparentModal', animation: 'none' } : {})} />
         </Stack>
+        </ThemeProvider>
       </View>
       {/* Once a day, over whichever page opens first — it loads underneath. */}
       <DailyQuoteSplash />

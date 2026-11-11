@@ -111,7 +111,7 @@ export type ImportItem = {
   key: string;
   /** strava_archive: a Strava activity read from an archive file, kept apart
    *  from 'strava' (the API) so it stays when Strava's data is deleted. */
-  provider: 'strava_archive' | 'rival_import';
+  provider: 'strava_archive' | 'rival_import' | 'garmin_archive';
   providerId: string;
   name: string | null;
   type: string;
@@ -126,7 +126,7 @@ export type ImportItem = {
 };
 
 export type ReadArchive = {
-  source: 'strava' | 'rival';
+  source: 'strava' | 'rival' | 'garmin';
   items: ImportItem[];
   /** item key → photo bytes, uploaded only for items that turn out new. */
   photos: Map<string, { bytes: Uint8Array; ext: string }>;
@@ -220,11 +220,77 @@ const num =(v: string | undefined) => {
   return isFinite(n) ? n : 0;
 };
 
+// ---- Garmin data download -------------------------------------------------
+
+/** Every activity summary in the file, whatever it is wrapped in. */
+function garminActivities(json: any): any[] {
+  const out: any[] = [];
+  const walk = (v: any, depth: number) => {
+    if (!v || depth > 4) return;
+    if (Array.isArray(v)) { for (const x of v) walk(x, depth + 1); return; }
+    if (typeof v !== 'object') return;
+    if (v.activityId != null && (v.startTimeGmt != null || v.beginTimestamp != null)) { out.push(v); return; }
+    for (const k of Object.keys(v)) walk(v[k], depth + 1);
+  };
+  walk(json, 0);
+  return out;
+}
+
+// Garmin activity type keys → RIVAL types. Anything else becomes Workout.
+const GARMIN_TYPES: Record<string, string> = {
+  running: 'Run', street_running: 'Run', track_running: 'Run', treadmill_running: 'VirtualRun', indoor_running: 'VirtualRun',
+  trail_running: 'TrailRun', ultra_run: 'TrailRun', virtual_run: 'VirtualRun',
+  cycling: 'Ride', road_biking: 'Ride', gravel_cycling: 'GravelRide', mountain_biking: 'MountainBikeRide',
+  indoor_cycling: 'VirtualRide', virtual_ride: 'VirtualRide', e_bike_fitness: 'EBikeRide', e_bike_mountain: 'EMountainBikeRide',
+  lap_swimming: 'Swim', open_water_swimming: 'Swim', swimming: 'Swim',
+  walking: 'Walk', casual_walking: 'Walk', speed_walking: 'Walk', hiking: 'Hike',
+  strength_training: 'WeightTraining', cardio: 'Workout', hiit: 'HIIT', yoga: 'Yoga', pilates: 'Pilates',
+  indoor_rowing: 'Rowing', rowing: 'Rowing', elliptical: 'Elliptical', stair_climbing: 'StairStepper',
+  resort_skiing_snowboarding_ws: 'AlpineSki', resort_skiing: 'AlpineSki', resort_snowboarding: 'Snowboard',
+  backcountry_skiing_snowboarding_ws: 'BackcountrySki', cross_country_skiing_ws: 'NordicSki', snow_shoe_ws: 'Snowshoe',
+  stand_up_paddleboarding: 'StandUpPaddling', kayaking: 'Kayaking', surfing: 'Surfing', golf: 'Golf',
+  rock_climbing: 'RockClimbing', bouldering: 'RockClimbing', indoor_climbing: 'RockClimbing',
+  tennis: 'Tennis', pickleball: 'Pickleball', soccer: 'Soccer', multi_sport: 'Workout', triathlon: 'Workout',
+};
+
+function garminItem(a: any): ImportItem | null {
+  const startMs = Number(a.startTimeGmt ?? a.beginTimestamp);
+  if (!isFinite(startMs) || startMs <= 0) return null;
+  const localMs = Number(a.startTimeLocal);
+  // Durations come in milliseconds; distance and elevation in centimetres.
+  // Both are checked against a sensible speed in case a file uses metres.
+  const rawDur = Number(a.movingDuration ?? a.duration ?? a.elapsedDuration ?? 0);
+  // Milliseconds unless the number only makes sense as seconds (under 100 s in ms).
+  const durationSeconds = Math.round(rawDur > 100000 ? rawDur / 1000 : rawDur);
+  const rawDist = Number(a.distance ?? 0);
+  let scale = 0.01;
+  if (rawDist > 0 && durationSeconds > 0 && (rawDist * 0.01) / durationSeconds < 0.05) scale = 1;
+  const distanceMeters = rawDist > 0 ? Math.round(rawDist * scale) : null;
+  const rawElev = Number(a.elevationGain ?? 0);
+  const elevationMeters = rawElev > 0 ? Math.round(rawElev * scale) : null;
+  const typeKey = String((typeof a.activityType === 'object' ? a.activityType?.typeKey : a.activityType) ?? a.sportType ?? '').toLowerCase();
+  return {
+    key: `g${a.activityId}`,
+    provider: 'garmin_archive',
+    providerId: String(a.activityId),
+    name: a.name ?? a.activityName ?? null,
+    type: GARMIN_TYPES[typeKey] ?? 'Workout',
+    startedAt: new Date(startMs).toISOString(),
+    utcOffsetSeconds: isFinite(localMs) && localMs > 0 ? Math.round((localMs - startMs) / 1000) : null,
+    durationSeconds,
+    distanceMeters,
+    elevationMeters,
+    notes: a.description ?? null,
+    polyline: null,
+  };
+}
+
 export async function readArchive(file: Blob): Promise<ReadArchive> {
   const buf = new Uint8Array(await file.arrayBuffer());
   const entries = unzipSync(buf, {
     // Only what is needed: the activity list, routes and photos.
     filter: (f) => /(^|\/)(activities\.csv|data\.json|routes\.json|media\.json)$/.test(f.name)
+      || /summarizedActivities[^/]*\.json$/i.test(f.name)
       || /\.(gpx|fit)(\.gz)?$/i.test(f.name)
       || /\.(jpe?g|png|heic|mp4|mov|m4v|webm)$/i.test(f.name),
   });
@@ -326,6 +392,24 @@ export async function readArchive(file: Blob): Promise<ReadArchive> {
       });
     }
     return { source: 'rival', items, photos, extras, coverFocal };
+  }
+  // Garmin's own data download ("Export your data" on garmin.com). The activity
+  // list is DI_CONNECT/DI-Connect-Fitness/*_summarizedActivities.json. Routes
+  // stay in nested FIT zips and are not read yet: summaries only for now
+  // (2026-11-11, written without a real export to test; check one).
+  const garminFiles = Object.keys(entries).filter((k) => /summarizedActivities[^/]*\.json$/i.test(k));
+  if (garminFiles.length) {
+    const items: ImportItem[] = [];
+    const seen = new Set<string>();
+    for (const f of garminFiles) {
+      let json: any;
+      try { json = JSON.parse(strFromU8(entries[f])); } catch { continue; }
+      for (const a of garminActivities(json)) {
+        const item = garminItem(a);
+        if (item && !seen.has(item.key)) { seen.add(item.key); items.push(item); }
+      }
+    }
+    if (items.length) return { source: 'garmin', items, photos, extras, coverFocal };
   }
   throw new Error('not_an_archive');
 }

@@ -1,0 +1,121 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding-bottom:30px;background:#151413;font-family:Manrope,sans-serif;color:#fff;width:1736px}
+h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin:28px 26px 4px}
+.sub{color:#a8a097;font-size:14px;margin:0 26px 6px}
+.row{display:flex;gap:26px;padding:16px 26px 20px;align-items:flex-start}
+.col{width:393px;flex-shrink:0}
+.tag{display:flex;align-items:center;gap:10px;color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 6px 4px}
+.tag b{width:26px;height:26px;border-radius:13px;background:#ffb59e;color:#2a1710;display:grid;place-items:center;font-size:13px;letter-spacing:0}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;min-height:56px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#282828}
+.status{height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 30px;font-weight:700;font-size:16px;color:rgba(255,255,255,.5)}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.content{padding:0 16px;display:flex;flex-direction:column;gap:12px}
+.head{position:relative;text-align:center;padding:40px 44px 12px;margin:0 -16px}
+.glow{position:absolute;top:-60px;left:0;right:0;height:260px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(217,119,87,.22) 0%,rgba(217,119,87,.07) 45%,rgba(217,119,87,0) 100%)}
+.word{position:relative;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:20px;letter-spacing:4px;color:#ffb59e;margin-bottom:26px}
+.kick{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e}
+.title{position:relative;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;line-height:34px;margin-top:3px}
+.hsub{position:relative;font-size:13px;line-height:18px;color:#A0A0A0;margin-top:6px}
+.card{position:relative;overflow:hidden;border-radius:22px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22);padding:18px 16px;display:flex;flex-direction:column;gap:10px}
+.art{position:absolute;right:-30px;bottom:-40px;font-size:150px;color:rgba(255,181,158,.05)}
+.label{font-size:10px;font-weight:800;letter-spacing:1.7px;text-transform:uppercase;color:#ffb59e}
+.body{position:relative;font-size:13.5px;line-height:20px;color:rgba(255,255,255,.78)}
+.steps{position:relative;display:flex;flex-direction:column;gap:9px;margin-top:2px}
+.step{display:flex;gap:10px;align-items:center;font-size:13px;color:rgba(255,255,255,.72)}
+.dot{width:22px;height:22px;border-radius:11px;display:grid;place-items:center;font-size:11px;font-weight:800;background:rgba(255,181,158,.14);color:#ffb59e;flex-shrink:0}
+.dot.on{background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902}
+.primary{height:50px;border-radius:999px;background:linear-gradient(90deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+.ghost{height:46px;border-radius:999px;border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:rgba(255,255,255,.88)}
+.note{font-size:12px;line-height:17px;color:#A0A0A0;text-align:center}
+/* email */
+.mail{width:393px;height:852px;border-radius:40px;overflow:hidden;background:#1b1a19;font-family:-apple-system,Helvetica,Arial,sans-serif}
+.mhead{background:#232221;padding:58px 20px 14px;border-bottom:1px solid #2e2d2c}
+.from{display:flex;gap:10px;align-items:center}
+.av{width:38px;height:38px;border-radius:19px;background:#ffb59e;color:#5c1902;display:grid;place-items:center;font-family:Georgia,serif;font-style:italic;font-weight:700}
+.fn{font-size:15px;font-weight:700}.fm{font-size:12px;color:#8a8682}
+.subj{font-size:17px;font-weight:700;margin-top:12px}
+.mbody{padding:24px 16px}
+.brand{text-align:center;font-family:Georgia,serif;font-style:italic;font-size:17px;font-weight:700;letter-spacing:4px;color:#ffb59e;margin-bottom:18px}
+.ecard{background:#262626;border:1px solid #363636;border-radius:20px;padding:30px 24px 26px;text-align:center}
+.ek{font-size:10.5px;font-weight:800;letter-spacing:2.5px;color:#ffb59e;margin-bottom:10px}
+.et{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;line-height:1.2;margin:0 0 14px}
+.ep{font-size:14.5px;line-height:1.6;color:#d4d1ce;margin:0 0 12px}
+.ebtn{display:inline-block;margin:10px auto 4px;padding:14px 34px;border-radius:999px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px}
+.enote{font-size:12px;line-height:1.5;color:#8a8682;margin:16px 0 0}
+.elink{color:#ffb59e;text-decoration:underline}
+.efacts{text-align:left;background:#2c2b2a;border-radius:14px;margin:4px 0 14px}
+.ef{display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;color:#a8a49f}
+.ef b{color:#fff;font-weight:600}
+.ef+.ef{border-top:1px solid #363534}
+.foot{text-align:center;font-size:11.5px;color:#8a8682;margin-top:18px}
+/* browser page */
+.web{width:393px;height:852px;border-radius:40px;overflow:hidden;background:#282828}
+.url{margin:54px 14px 0;height:36px;border-radius:12px;background:#1c1c1c;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:#a8a49f}
+.badge{width:64px;height:64px;border-radius:32px;margin:6px auto 4px;display:grid;place-items:center;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902}
+.row2{display:flex;gap:10px;align-items:center}
+.gcoin{width:64px;height:64px;border-radius:18px;background:#000;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;letter-spacing:.5px;border:1px solid rgba(255,255,255,.15)}
+.factrow{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:12.5px;color:rgba(255,255,255,.62)}
+.factrow+.factrow{border-top:1px solid rgba(255,255,255,.06)}
+.factrow b{font-family:Georgia,serif;font-style:italic;font-size:15px;color:#fff}
+.facts{border-radius:14px;background:rgba(255,209,190,.05)}
+.rowi{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.rowi+.rowi{border-top:1px solid rgba(255,255,255,.06)}
+.rt{flex:1}.rt1{font-size:14px;font-weight:700}.rt2{font-size:12px;color:#A0A0A0;margin-top:2px}
+.sync{font-size:13px;font-weight:700;color:#ffb59e}
+.ext{border-radius:22px;background:#f4f4f4;color:#111;padding:22px 18px;font-family:-apple-system,Helvetica,sans-serif}
+.ext h3{margin:0 0 6px;font-size:19px}.ext p{margin:0 0 12px;font-size:13px;color:#444;line-height:18px}
+.ext .chk{display:flex;gap:8px;font-size:13px;margin:6px 0}.ext .btn{margin-top:14px;height:44px;border-radius:8px;background:#111;color:#fff;display:grid;place-items:center;font-weight:700}
+</style></head><body>
+<h1>Mockup 31 · Garmin</h1>
+<p class="sub">Connect once and every new Garmin activity arrives on its own. Garmin's Starter access sends only activities recorded after connecting, so past activities come from Garmin's data download, read by the archive import.</p>
+<div class="row">
+
+<div class="col"><div class="tag"><b>A</b>Connect</div><p class="desc">Settings, Connected devices, Garmin. Same layout as Apple Health. Connect opens Garmin's own sign-in.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="content">
+<div class="head" style="padding-top:16px"><div class="glow"></div><div class="kick">CONNECTED DEVICES</div><div class="title">Garmin</div></div>
+<div class="card" style="align-items:center;text-align:center;padding-top:26px"><div class="gcoin">GARMIN</div><div class="title" style="font-size:21px;line-height:26px;margin-top:6px">Every activity, as it happens</div><div class="body">New activities from your Garmin device arrive in RIVAL on their own, with routes, heart rate, pace and splits, and the sets of strength activities.</div></div>
+<div class="card"><div class="label">Past activities</div><div class="body">Garmin sends activities recorded after you connect. To bring in your history, import Garmin's data download after connecting.</div></div>
+<div style="height:40px"></div>
+<div class="primary">Connect</div>
+<div class="note">RIVAL only reads activities. Nothing is written to Garmin.</div>
+</div></div></div>
+
+<div class="col"><div class="tag"><b>B</b>Garmin sign-in</div><p class="desc">Garmin's page, not RIVAL's. The member signs in and allows activity sharing, then comes straight back.</p>
+<div class="phone" style="background:#e9e9e9"><div class="status" style="color:#555"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="content" style="padding-top:60px"><div class="ext"><h3>Allow RIVAL to access your Garmin data</h3><p>RIVAL is requesting access to:</p>
+<div class="chk"><span class="mi" style="font-size:18px">check_box</span>Activities</div>
+<div class="btn">Agree</div></div><div class="note" style="color:#666">Shown by Garmin; wording is Garmin's.</div></div></div></div>
+
+<div class="col"><div class="tag"><b>C</b>Connected</div><p class="desc">Back in RIVAL. Says what happens from now on, and offers the history import as the next step.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="content">
+<div class="head" style="padding-top:16px"><div class="glow"></div><div class="kick">CONNECTED DEVICES</div><div class="title">Garmin</div><div class="hsub">Connected</div></div>
+<div class="card"><div class="label">From now on</div><div class="body">Each activity your Garmin records arrives within minutes of syncing to Garmin Connect.</div></div>
+<div class="card"><div class="label">Bring in your history</div>
+<div class="steps">
+<div class="step"><span class="dot">1</span>On garmin.com, Account, Data Management, Export your data</div>
+<div class="step"><span class="dot">2</span>Garmin emails a .zip, usually within a day or two</div>
+<div class="step"><span class="dot">3</span>Import it here. Duplicates are skipped</div></div></div>
+<div style="height:70px"></div>
+<div class="primary">Import Garmin history</div>
+<div class="ghost">Done</div>
+</div></div></div>
+
+<div class="col"><div class="tag"><b>D</b>Settings afterwards</div><p class="desc">The Connected devices list, Garmin beside Apple Health, each with Sync, as agreed for every device.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="content">
+<div class="head" style="padding-top:16px"><div class="glow"></div><div class="kick">SETTINGS</div><div class="title">Connected devices</div></div>
+<div class="card" style="padding:0;gap:0">
+<div class="rowi"><span class="mi" style="font-size:22px;color:#ffb59e">watch</span><div class="rt"><div class="rt1">Garmin</div><div class="rt2">Connected · Last activity 2 h ago</div></div><span class="sync">Sync</span></div>
+<div class="rowi"><span class="mi" style="font-size:22px;color:#ffb59e">favorite</span><div class="rt"><div class="rt1">Apple Health</div><div class="rt2">Connected · Synced 5 min ago</div></div><span class="sync">Sync</span></div>
+<div class="rowi"><span class="mi" style="font-size:22px;color:#ffb59e">upload</span><div class="rt"><div class="rt1">Import past activities</div><div class="rt2">An archive from RIVAL, Garmin or another app</div></div><span class="mi" style="font-size:20px;color:#777">chevron_right</span></div>
+</div>
+</div></div></div>
+
+</div></body></html>
