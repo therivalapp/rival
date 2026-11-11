@@ -68,6 +68,14 @@ export function backToOrigin() {
   router.back();
 }
 
+/** Back one page in the app, or to a tab when this page was the first one
+ *  opened (a fresh tab or reload on the web): router.back() then only steps
+ *  the browser's own history, which looks like nothing happened. */
+export function goBack(fallback: TabRoute = '/home') {
+  if (!previousPath || !router.canGoBack()) { goToTab(fallback); return; }
+  router.back();
+}
+
 export function goToTab(href: TabRoute) {
   if (currentPath === href) { reselectListeners.get(href)?.forEach((fn) => fn()); return; }
   if (currentPath === '/team-hub') returnTeamId = href === '/team-feed' ? null : openTeamId;

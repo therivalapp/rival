@@ -22,7 +22,7 @@ import { sidePageWide, BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { GreyRows, GreyRow, GreyLabel, GreySheet, GreyPrimary, GreyNote, GreyTiles } from '../components/rival/RivalGreySheet';
 import { RivalSerifFamily } from '../constants/rivalTheme';
-import { goToTab } from '../lib/tabNav';
+import { goBack, goToTab } from '../lib/tabNav';
 import { avatarImage } from '../lib/imageUrl';
 
 const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
@@ -850,7 +850,7 @@ export default function ProfileScreen() {
           <RivalBackButton
             onPress={() => {
               if (!wide && panelOpen) { setPanelOpen(false); return; }
-              router.canGoBack() ? router.back() : goToTab('/home');
+              goBack();
             }}
             color={RivalColors.accentFill}
           />
@@ -894,7 +894,9 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { color: RivalColors.textSecondary, fontSize: 16 },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  // Above the Settings title, which is pulled up beside it (mHead marginTop -44)
+  // and otherwise covered the back button (2026-11-11).
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, position: 'relative', zIndex: 2 },
   back: { color: RivalColors.accentText, fontSize: 16, width: 48 },
   headerTitle: { ...RivalType.titleMd, color: RivalColors.textPrimary },
 
