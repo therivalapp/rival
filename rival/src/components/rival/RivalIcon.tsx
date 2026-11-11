@@ -103,6 +103,14 @@ const ICONS = {
   groups: 'groups',
   home: 'home',
   flag: 'flag',
+  // Report and block (Mockup 27 v8, 2026-11-10).
+  block: 'block',
+  spam: 'report',
+  harassment: 'front-hand',
+  inappropriate: 'visibility-off',
+  copy: 'content-copy',
+  // Apple Health's own heart mark, on the Apple Health page and row (Mockup 29).
+  health: 'favorite',
   play: 'play-arrow',
   pause: 'pause',
   key: 'vpn-key',

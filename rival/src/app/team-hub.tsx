@@ -19,7 +19,7 @@ import { formatActivityDistance } from '../lib/units';
 // same goal-window activities query (no schema change needed). The Team
 // Challenge total/ring/pace still reflect the whole team regardless of filter
 // — the chips slice the leaderboard view, not the goal itself.
-import { useEffect, useState, useId } from 'react';
+import { useEffect, useState, useId, useMemo } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
 import { setOpenTeam } from '../lib/tabNav';
@@ -53,6 +53,7 @@ import { BusyText } from '../components/rival/BusyText';
 import { RespectStar } from '../components/rival/RespectStar';
 import { InspiredBolt } from '../components/rival/InspiredBolt';
 import { CommentThread } from '../components/rival/team/CommentThread';
+import { useBlockedIds, openReport, openBlock, firstName } from '../lib/safety';
 import { titleFit } from '../lib/titleFit';
 import { goToTab } from '../lib/tabNav';
 import { requestShare } from '../lib/shareRequest';
@@ -377,7 +378,7 @@ export default function TeamHub() {
   const [boardCommentsMap, setBoardCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>>>(`hub.${id}.boardCommentsMap`, {});
   const [boardCommentDrafts, setBoardCommentDrafts] = useState<Record<string, string>>({});
   const [expandedBoardComments, setExpandedBoardComments] = useState<Set<string>>(new Set());
-  const [recentActivity, setRecentActivity] = useSnapState<ActivityRow[]>(`hub.${id}.recentActivity`, []);
+  const [recentActivityAll, setRecentActivity] = useSnapState<ActivityRow[]>(`hub.${id}.recentActivity`, []);
   const [sessions, setSessions] = useSnapState<SessionRow[]>(`hub.${id}.sessions`, []);
   // Teammates' next events (races), soonest first.
   const [teamEvents, setTeamEvents] = useSnapState<{ id: string; user_id: string; name: string; race_date: string; location: string | null }[]>(`hub.${id}.events`, []);
@@ -406,7 +407,12 @@ export default function TeamHub() {
     setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1600);
   }
   const [editingSession, setEditingSession] = useState<EditableSession | null>(null);
-  const [feedActivity, setFeedActivity] = useSnapState<ActivityRow[]>(`hub.${id}.feedActivity`, []);
+  const [feedActivityAll, setFeedActivity] = useSnapState<ActivityRow[]>(`hub.${id}.feedActivity`, []);
+  // A blocked member's activities and comments are hidden from the person who
+  // blocked them (Report and block, Mockup 27 v8); they still count in totals.
+  const blockedIds = useBlockedIds();
+  const recentActivity = useMemo(() => recentActivityAll.filter((a) => !blockedIds.has(a.user_id)), [recentActivityAll, blockedIds]);
+  const feedActivity = useMemo(() => feedActivityAll.filter((a) => !blockedIds.has(a.user_id)), [feedActivityAll, blockedIds]);
   const [reactionsMap, setReactionsMap] = useSnapState<Record<string, Array<{ user_id: string; emoji: string }>>>(`hub.${id}.reactionsMap`, {});
   const [commentsMap, setCommentsMap] = useSnapState<Record<string, Array<{ id: string; user_id: string; body: string; created_at: string; reply_to_id?: string | null }>>>(`hub.${id}.commentsMap`, {});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -1627,7 +1633,7 @@ export default function TeamHub() {
                         avatarUrl={memberAvatar(a.user_id)}
                         currentUserId={currentUserId}
                         reactions={reactionsMap[key] || []}
-                        comments={commentsMap[key] || []}
+                        comments={(commentsMap[key] || []).filter((c) => !blockedIds.has(c.user_id))}
                         isCommentsOpen={expandedComments.has(key)}
                         onToggleComments={() => toggleComments(key)}
                         commentDraft={commentDrafts[key] || ''}
@@ -2064,6 +2070,36 @@ function ActivityPostCard({
           <Text style={styles.postName}>{displayedName}</Text>
           <Text style={styles.postMeta}>{reactPhone ? '' : `${a.name || a.activity_type} · `}{timeAgo(a.started_at)}</Text>
         </TouchableOpacity>
+        {a.user_id !== currentUserId && !!currentUserId && (
+          // Someone else's post: Report and Block (Mockup 27 v8).
+          <View style={styles.postMoreWrap}>
+            <TouchableOpacity style={[styles.postMoreBtn, menuOpen && styles.postMoreBtnOn]} onPress={() => setMenuOpen(v => !v)} accessibilityLabel="More">
+              <RivalIcon name="more" size={20} color={RivalColors.textSecondary} />
+            </TouchableOpacity>
+            {menuOpen && (
+              <>
+                <TouchableOpacity style={styles.postMoreBackdrop} onPress={() => setMenuOpen(false)} />
+                <View style={[styles.postMoreMenu, Platform.OS === 'web' ? ({ animationName: 'rivalMenuIn', animationDuration: '160ms', animationTimingFunction: 'ease-out' } as any) : null]}>
+                  <View style={styles.postMoreArrow} />
+                  <TouchableOpacity
+                    style={styles.postMoreMenuItem}
+                    onPress={() => { setMenuOpen(false); openReport({ kind: 'activity', targetId: a.id, userId: a.user_id, name: displayedName }); }}
+                  >
+                    <RivalIcon name="flag" size={16} color={RivalColors.accentGold} />
+                    <Text style={[styles.postMoreMenuText, { color: RivalColors.accentGold }]}>Report</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.postMoreMenuItem}
+                    onPress={() => { setMenuOpen(false); openBlock({ userId: a.user_id, name: displayedName }); }}
+                  >
+                    <RivalIcon name="block" size={16} color={RivalColors.danger} />
+                    <Text style={[styles.postMoreMenuText, { color: RivalColors.danger }]}>Block {firstName(displayedName)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        )}
         {a.user_id === currentUserId && (
           <View style={styles.postMoreWrap}>
             <TouchableOpacity style={[styles.postMoreBtn, menuOpen && styles.postMoreBtnOn]} onPress={() => setMenuOpen(v => !v)} disabled={deleting}>

@@ -1,12 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import type { LiveActivity } from './liveActivity';
 import type { MediaItem } from '../components/rival/MediaPicker';
 
 // Keeps the activity being recorded on this phone until it is saved. The
-// details sit in localStorage and the photos in IndexedDB, because a locked
-// phone can close the app in the middle of a workout.
+// details sit in localStorage (AsyncStorage on the iPhone app) and the photos
+// in IndexedDB, because a locked phone can close the app in the middle of a
+// workout.
 
 const KEY = 'rival.liveActivity';
 const DB = 'rival-live';
@@ -24,6 +26,18 @@ function read(): LiveActivity | null {
   } catch { return null; }
 }
 
+// The iPhone app has no localStorage. Its copy is written at most every few
+// seconds, since GPS changes the activity every few metres.
+let nativeTimer: ReturnType<typeof setTimeout> | null = null;
+function writeNative() {
+  if (nativeTimer) return;
+  nativeTimer = setTimeout(() => {
+    nativeTimer = null;
+    const value = current;
+    (value ? AsyncStorage.setItem(KEY, JSON.stringify(value)) : AsyncStorage.removeItem(KEY)).catch(() => {});
+  }, 3000);
+}
+
 function write(next: LiveActivity | null) {
   current = next;
   try {
@@ -32,7 +46,22 @@ function write(next: LiveActivity | null) {
       else localStorage.removeItem(KEY);
     }
   } catch { /* still runs for as long as the app stays open */ }
+  if (Platform.OS !== 'web') {
+    if (next) writeNative();
+    else {
+      if (nativeTimer) { clearTimeout(nativeTimer); nativeTimer = null; }
+      AsyncStorage.removeItem(KEY).catch(() => {});
+    }
+  }
   changed();
+}
+
+// The iPhone app reads its copy back once, on opening.
+if (Platform.OS !== 'web' && !current) {
+  AsyncStorage.getItem(KEY).then((raw) => {
+    if (!raw || current) return;
+    try { current = JSON.parse(raw) as LiveActivity; changed(); } catch { /* unreadable; start fresh */ }
+  }).catch(() => {});
 }
 
 function openDb(): Promise<IDBDatabase | null> {
@@ -108,6 +137,9 @@ const subscribe = (fn: () => void) => {
   listeners.add(fn);
   return () => { listeners.delete(fn); };
 };
+
+/** Called on every change to the activity being recorded (lib/gpsRecorder.ts). */
+export const subscribeLive = subscribe;
 
 /** The activity being recorded, redrawn as it changes. */
 export function useLive(): { live: LiveActivity | null; photos: MediaItem[] } {

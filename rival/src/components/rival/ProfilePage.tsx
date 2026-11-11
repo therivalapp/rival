@@ -24,6 +24,7 @@ import { PROFILE_STAT_KEYS, readProfileStats, type ProfileStatKey } from '../../
 import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
 import { SkyBackdrop } from './SkyBackdrop';
 import { EventSheet } from './EventSheet';
+import { useBlockedIds, openReport, openBlock, unblockMember, firstName } from '../../lib/safety';
 
 // A person's profile on phones: what a teammate sees when they tap someone
 // (Ricky, 2026-10-30, the cover). Cover, the year's numbers, Highlights,
@@ -742,6 +743,9 @@ export function ProfilePage({
         <TouchableOpacity onPress={() => router.push('/profile')} style={[s.settings, { top: insets.top + 12 }]} accessibilityRole="button" accessibilityLabel="Settings">
           <RivalIcon name="settings" size={18} color="#fff" />
         </TouchableOpacity>
+      ) : userId ? (
+        // Someone else's profile: Report and Block, top right (Mockup 27 v8).
+        <MemberMenu userId={userId} name={name} top={insets.top + 12} />
       ) : null}
 
       {pickingStat !== null ? (
@@ -831,6 +835,45 @@ export function ProfilePage({
   );
 }
 
+function MemberMenu({ userId, name, top }: { userId: string; name: string; top: number }) {
+  const [open, setOpen] = useState(false);
+  const blocked = useBlockedIds().has(userId);
+  const first = firstName(name);
+  return (
+    <View style={[s.settings, { top, backgroundColor: 'transparent' }]}>
+      <TouchableOpacity onPress={() => setOpen((v) => !v)} style={s.menuBtn} accessibilityRole="button" accessibilityLabel="More">
+        <RivalIcon name="moreHoriz" size={20} color="#fff" />
+      </TouchableOpacity>
+      {open ? (
+        <>
+          <TouchableOpacity style={s.menuBackdrop} activeOpacity={1} onPress={() => setOpen(false)} />
+          <View style={[s.menu, Platform.OS === 'web' ? ({ animationName: 'rivalMenuIn', animationDuration: '160ms', animationTimingFunction: 'ease-out' } as any) : null]}>
+            <View style={[s.menuCaret, { pointerEvents: 'none' }]} />
+            <TouchableOpacity style={s.menuItem} onPress={() => { setOpen(false); openReport({ kind: 'member', userId, name }); }}>
+              <RivalIcon name="flag" size={16} color={RivalColors.accentGold} />
+              <Text style={[s.menuText, { color: RivalColors.accentGold }]}>Report</Text>
+            </TouchableOpacity>
+            {blocked ? (
+              <TouchableOpacity
+                style={s.menuItem}
+                onPress={async () => { setOpen(false); const msg = await unblockMember(userId); if (msg) notify(msg); }}
+              >
+                <RivalIcon name="block" size={16} color={RivalColors.onSurface} />
+                <Text style={s.menuText}>Unblock {first}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={s.menuItem} onPress={() => { setOpen(false); openBlock({ userId, name }); }}>
+                <RivalIcon name="block" size={16} color={RivalColors.danger} />
+                <Text style={[s.menuText, { color: RivalColors.danger }]}>Block {first}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   page: { paddingBottom: 56 },
   pad: { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
@@ -869,6 +912,22 @@ const s = StyleSheet.create({
   todayPlus: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginTop: 8, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient } as any,
   back: { position: 'absolute', left: 16, zIndex: 5, backgroundColor: 'rgba(14,13,12,0.55)' },
   settings: { position: 'absolute', right: 16, zIndex: 5, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(14,13,12,0.55)' },
+  // The activity page's three-dot menu (ActivityDiaryViewer), for Report and Block.
+  menuBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(14,13,12,0.55)' },
+  menuBackdrop: { position: Platform.OS === 'web' ? ('fixed' as any) : 'absolute', top: -2000, left: -2000, right: -2000, bottom: -2000 },
+  menu: {
+    position: 'absolute', top: 44, right: 0, minWidth: 190,
+    borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {}),
+  },
+  menuCaret: {
+    position: 'absolute', top: -6, right: 12, width: 12, height: 12,
+    backgroundColor: RivalColors.surfaceHigh, borderTopWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    transform: [{ rotate: '45deg' }],
+  },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14 },
+  menuText: { fontSize: 14, fontWeight: '600', color: RivalColors.onSurface },
 
   coverShade: {
     position: 'absolute', left: 0, right: 0, bottom: 0, top: '35%',

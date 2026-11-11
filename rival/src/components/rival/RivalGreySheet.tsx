@@ -16,9 +16,13 @@ import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGE_MAX_WIDTH, SIDE_SHEET_MAX_WIDTH } fro
 // these pieces so they stay the same.
 
 export function GreySheet({
-  kicker, title, sub, onClose, onBack, children, footer, overlay, heroCaption,
+  kicker, kickerColor, badge, title, sub, onClose, onBack, children, footer, overlay, heroCaption,
 }: {
   kicker?: string;
+  /** The kicker in another colour: amber on Report, red on Block. */
+  kickerColor?: string;
+  /** An icon in a ring above the title (Block, Report sent). */
+  badge?: { icon: RivalIconName; color: string; ring: string };
   title: string;
   /** Shows the title as one big number with this caption under it, such as
    *  "KILOMETRES" on the Finish pop-up (Ricky, 2026-11-02). */
@@ -68,7 +72,12 @@ export function GreySheet({
         {dialog ? null : <View style={g.grabber} />}
         <View style={g.head}>
           {onBack ? <RivalBackButton onPress={onBack} style={g.back} /> : null}
-          {kicker ? <Text style={g.kicker}>{kicker}</Text> : null}
+          {badge ? (
+            <View style={[g.badgeRing, { backgroundColor: badge.ring }]}>
+              <RivalIcon name={badge.icon} size={30} color={badge.color} />
+            </View>
+          ) : null}
+          {kicker ? <Text style={[g.kicker, kickerColor ? { color: kickerColor } : null]}>{kicker}</Text> : null}
           <Text style={[g.title, !kicker && { marginTop: 0 }, heroCaption != null && g.hero]}>{title}</Text>
           {heroCaption ? <Text style={g.heroCaption}>{heroCaption}</Text> : null}
           {sub ? <Text style={g.sub}>{sub}</Text> : null}
@@ -104,10 +113,12 @@ export function GreyRows({ children, glow }: { children: ReactNode; /** The page
 
 /** Icon, label, then the value on the right. Pass `onPress` for a picker row. */
 export function GreyRow({
-  icon, label, value, placeholder, onPress, children,
+  icon, iconColor, label, value, placeholder, onPress, children,
 }: {
   /** Left out on a lone row such as Finish time (AGENTS.md mockup checklist). */
   icon?: RivalIconName;
+  /** Red for Block (Mockup 27 v8); salmon otherwise. */
+  iconColor?: string;
   label: string;
   value?: string;
   placeholder?: string;
@@ -116,7 +127,7 @@ export function GreyRow({
 }) {
   const body = (
     <>
-      {icon ? <RivalIcon name={icon} size={16} color={RivalColors.accentText} style={g.rowIcon} /> : null}
+      {icon ? <RivalIcon name={icon} size={16} color={iconColor ?? RivalColors.accentText} style={g.rowIcon} /> : null}
       <Text style={g.rowLabel} numberOfLines={1}>{label}</Text>
       <View style={g.rowControl}>
         {children ?? (
@@ -186,28 +197,33 @@ export function GreyNote({ children }: { children: ReactNode }) {
   return <Text style={g.note}>{children}</Text>;
 }
 
-export function GreyPrimary({ label, busy, disabled, onPress }: { label: string; busy?: boolean; disabled?: boolean; onPress: () => void }) {
+/** `tone`: a solid button for a serious action instead of the gradient:
+ *  'warn' amber (Report), 'danger' red (Block, as Delete account). `ghost`
+ *  is the outlined second button (Cancel, Done). */
+export function GreyPrimary({ label, busy, disabled, onPress, tone }: { label: string; busy?: boolean; disabled?: boolean; onPress: () => void; tone?: 'warn' | 'danger' | 'ghost' }) {
   return (
-    <TouchableOpacity style={[g.primary, disabled && g.primaryOff]} onPress={onPress} disabled={disabled} activeOpacity={0.85}>
-      <BusyText busy={!!busy} style={g.primaryText}>{label}</BusyText>
+    <TouchableOpacity style={[g.primary, tone ? g[tone] : null, disabled && g.primaryOff]} onPress={onPress} disabled={disabled} activeOpacity={0.85}>
+      <BusyText busy={!!busy} style={[g.primaryText, tone ? TONE_TEXT[tone] : null]}>{label}</BusyText>
     </TouchableOpacity>
   );
 }
 
 /** One tile in the Log an activity look. `all` is the dashed See all tile. */
 export function GreyArtTile({
-  label, icon, on, all, style, onPress,
+  label, icon, on, all, style, onPress, tone,
 }: {
   label: string;
   icon: RivalIconName;
   on?: boolean;
+  /** 'warn' lights the chosen tile amber instead of the gradient (Report). */
+  tone?: 'warn';
   all?: boolean;
   style?: any;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity
-      style={[g.artTile, on ? g.artTileOn : all ? g.artTileAll : g.artTileGhost, style]}
+      style={[g.artTile, on ? (tone === 'warn' ? g.artTileWarn : g.artTileOn) : all ? g.artTileAll : g.artTileGhost, style]}
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
@@ -215,10 +231,10 @@ export function GreyArtTile({
       accessibilityState={{ selected: !!on }}
     >
       <View style={[g.artIcon, { pointerEvents: 'none' }]}>
-        <RivalIcon name={icon} size={56} color={on ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.2)'} />
+        <RivalIcon name={icon} size={56} color={on ? (tone === 'warn' ? 'rgba(42,26,5,0.22)' : 'rgba(255,255,255,0.32)') : 'rgba(255,181,158,0.2)'} />
       </View>
       {/* One line, never a cut-off ellipsis. */}
-      <Text style={[g.artLabel, on && g.artLabelOn, all && !on && g.artLabelAll]} {...(Platform.OS === 'web' ? {} : { numberOfLines: 1 })}>{label}</Text>
+      <Text style={[g.artLabel, on && g.artLabelOn, on && tone === 'warn' && g.warnText, all && !on && g.artLabelAll]} {...(Platform.OS === 'web' ? {} : { numberOfLines: 1 })}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -226,19 +242,20 @@ export function GreyArtTile({
 /** Choice tiles in the Add an activity look: the icon large and faint behind
  *  the words, part of the tile's background, and the chosen tile lit. */
 export function GreyArtTiles<T extends string>({
-  options, value, onChange, columns = 3,
+  options, value, onChange, columns = 3, tone,
 }: {
   options: { value: T; label: string; icon: RivalIconName }[];
   value: T;
   onChange: (v: T) => void;
   columns?: number;
+  tone?: 'warn';
 }) {
   const width = `${(100 - (columns - 1) * 2.4) / columns}%` as any;
   return (
     <View style={g.tiles}>
       {options.map((o) => {
         const on = o.value === value;
-        return <GreyArtTile key={o.value} label={o.label} icon={o.icon} on={on} style={{ width }} onPress={() => onChange(o.value)} />;
+        return <GreyArtTile key={o.value} label={o.label} icon={o.icon} on={on} tone={tone} style={{ width }} onPress={() => onChange(o.value)} />;
       })}
     </View>
   );
@@ -467,6 +484,16 @@ const g = StyleSheet.create({
     ...(Platform.OS === 'web' ? { boxShadow: '0 6px 22px rgba(217,119,87,0.32)' } : {}),
   },
   primaryOff: { opacity: 0.5 },
+  // Report amber and Block red (Mockup 27 v8): RivalColors.accentGold and
+  // RivalColors.danger, the red already on Delete account.
+  warn: { backgroundColor: RivalColors.accentGold, ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } as any : {}) },
+  warnText: { color: '#2a1a05' },
+  danger: { backgroundColor: RivalColors.danger, ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } as any : {}) },
+  dangerText: { color: '#2a0b0b' },
+  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 14, ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } as any : {}) },
+  ghostText: { color: 'rgba(255,255,255,0.88)' },
+  artTileWarn: { backgroundColor: RivalColors.accentGold, ...RivalButtonColors.noGradient },
+  badgeRing: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   primaryText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.surfaceLowest), letterSpacing: 0.2 },
 
   overlay: {
@@ -665,3 +692,5 @@ const st = StyleSheet.create({
   } as any,
   label: { fontSize: 10.5, lineHeight: 13, fontWeight: '700', color: '#fff', textAlign: 'center' },
 });
+
+const TONE_TEXT = { warn: g.warnText, danger: g.dangerText, ghost: g.ghostText };

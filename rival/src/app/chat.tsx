@@ -19,6 +19,7 @@ import { RivalColors, RivalGhost, RivalRadius, RivalButtonColors, RivalSerifFami
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { goToTab } from '../lib/tabNav';
 import { avatarImage } from '../lib/imageUrl';
+import { useBlockedIds, openReport, openBlock, firstName } from '../lib/safety';
 
 // Dedicated team chat, laid out the way Messenger does it.
 //
@@ -144,10 +145,11 @@ export default function ChatScreen() {
   const [loading, setLoading] = useSnapState(`chat.${id}.loading`, true);
   const [error, setError] = useState('');
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
-  const [showTimeFor, setShowTimeFor] = useState<string | null>(null);
   // messageId -> emoji -> userIds
   const [reactions, setReactions] = useSnapState<Record<string, Record<string, string[]>>>(`chat.${id}.reactions`, {});
-  const [pickerFor, setPickerFor] = useState<string | null>(null);
+  // The pressed message (Mockup 27 v8): the chat dims and blurs, reactions
+  // sit above the message and Reply, Copy, Report and Block below it.
+  const [menuFor, setMenuFor] = useState<Msg | null>(null);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   // userId -> the last message they have read, for the seen-by avatars.
   const [seenBy, setSeenBy] = useSnapState<Record<string, string[]>>(`chat.${id}.seenBy`, {});
@@ -282,7 +284,7 @@ export default function ChatScreen() {
 
   async function toggleReaction(messageId: string, emoji: string) {
     if (!currentUserId) return;
-    setPickerFor(null);
+    setMenuFor(null);
     const mine = reactions[messageId]?.[emoji] ?? [];
     const had = mine.includes(currentUserId);
 
@@ -318,14 +320,13 @@ export default function ChatScreen() {
     if (lastTap.current?.id === msg.id && now - lastTap.current.at < DOUBLE_TAP_MS) {
       clearTimeout(tapTimer.current);
       lastTap.current = null;
-      setShowTimeFor(null);
       toggleReaction(msg.id, DEFAULT_REACTION);
       return;
     }
     lastTap.current = { id: msg.id, at: now };
     clearTimeout(tapTimer.current);
     tapTimer.current = setTimeout(() => {
-      setShowTimeFor((c) => (c === msg.id ? null : msg.id));
+      setMenuFor(msg);
     }, DOUBLE_TAP_MS);
   }
 
@@ -401,9 +402,11 @@ export default function ChatScreen() {
   // The transcript keeps past sessions — they're part of the conversation, and
   // deleting them would leave replies talking about nothing. The sessions lens
   // drops them, because that view is for planning, not for history.
+  // A blocked member's messages are hidden from the person who blocked them.
+  const blockedIds = useBlockedIds();
   const visible = useMemo(
-    () => (sessionsOnly ? upcomingSessions : messages),
-    [messages, sessionsOnly, upcomingSessions],
+    () => (sessionsOnly ? upcomingSessions : messages).filter((m) => !blockedIds.has(m.user_id)),
+    [messages, sessionsOnly, upcomingSessions, blockedIds],
   );
 
   // @mentions render in the accent colour rather than as raw "@name" text.
@@ -597,28 +600,11 @@ export default function ChatScreen() {
                           );
                         })()}
 
-                        {/* Long-press opens the picker; double-tap hearts it. */}
-                        {pickerFor === msg.id && (
-                          <View style={[styles.picker, isMe && styles.pickerMe]}>
-                            {REACTIONS.map((emoji) => {
-                              const active = (reactions[msg.id]?.[emoji] ?? []).includes(currentUserId);
-                              return (
-                                <TouchableOpacity
-                                  key={emoji}
-                                  onPress={() => toggleReaction(msg.id, emoji)}
-                                  style={[styles.pickerBtn, active && styles.pickerBtnActive]}
-                                >
-                                  <Text style={styles.pickerEmoji}>{emoji}</Text>
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </View>
-                        )}
-
+                        {/* A tap or a long press opens the press menu; double-tap hearts it. */}
                         <TouchableOpacity
                           activeOpacity={0.85}
                           onPress={() => onBubblePress(msg)}
-                          onLongPress={() => { clearTimeout(tapTimer.current); setShowTimeFor(null); setPickerFor(msg.id); }}
+                          onLongPress={() => { clearTimeout(tapTimer.current); lastTap.current = null; setMenuFor(msg); }}
                           delayLongPress={280}
                         >
                           <View style={[
@@ -645,29 +631,6 @@ export default function ChatScreen() {
                                 {users.length > 1 && <Text style={styles.reactionCount}>{users.length}</Text>}
                               </TouchableOpacity>
                             ))}
-                          </View>
-                        )}
-
-                        {/* One tap opens time + actions together, rather than
-                            hiding Reply behind a long-press that has no
-                            discoverable equivalent on the web build. */}
-                        {showTimeFor === msg.id && (
-                          <View style={[styles.actionRow, isMe && styles.actionRowMe]}>
-                            <TouchableOpacity
-                              onPress={() => { setShowTimeFor(null); setPickerFor(msg.id); }}
-                              style={styles.actionBtn}
-                            >
-                              <RivalIcon name="respect" size={13} color={RivalColors.textSecondary} />
-                              <Text style={styles.actionText}>React</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => { setReplyTo(msg); setShowTimeFor(null); }}
-                              style={styles.actionBtn}
-                            >
-                              <RivalIcon name="reply" size={13} color={RivalColors.textSecondary} />
-                              <Text style={styles.actionText}>Reply</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.time}>{timeLabel(msg.created_at)}</Text>
                           </View>
                         )}
 
@@ -790,6 +753,21 @@ export default function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
 
+      {menuFor ? (
+        <PressMenu
+          msg={menuFor}
+          isMe={menuFor.user_id === currentUserId}
+          name={nameFor(menuFor.user_id)}
+          mine={Object.entries(reactions[menuFor.id] ?? {}).find(([, users]) => users.includes(currentUserId))?.[0] ?? null}
+          onClose={() => setMenuFor(null)}
+          onReact={(emoji) => toggleReaction(menuFor.id, emoji)}
+          onReply={() => { setReplyTo(menuFor); setMenuFor(null); }}
+          onCopy={async () => { await copyText(menuFor.body ?? ''); setMenuFor(null); }}
+          onReport={() => { const m = menuFor; setMenuFor(null); openReport({ kind: 'message', targetId: m.id, userId: m.user_id, name: nameFor(m.user_id) }); }}
+          onBlock={() => { const m = menuFor; setMenuFor(null); openBlock({ userId: m.user_id, name: nameFor(m.user_id) }); }}
+        />
+      ) : null}
+
       <PlanSessionSheet
         visible={planning}
         leagueId={id as string}
@@ -826,6 +804,85 @@ const webEditorStyle: any = {
   wordBreak: 'break-word',
   whiteSpace: 'pre-wrap',
 };
+
+// The press menu (Mockup 27 v8, after Messenger): the chat dims and blurs,
+// the reactions sit above the pressed message, and a menu below it holds
+// Reply and Copy, then Report (amber) and Block (red) in their own group,
+// away from Reply. Your own messages have no Report or Block.
+function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, onReport, onBlock }: {
+  msg: Msg; isMe: boolean; name: string; mine: string | null;
+  onClose: () => void; onReact: (emoji: string) => void; onReply: () => void; onCopy: () => void;
+  onReport: () => void; onBlock: () => void;
+}) {
+  return (
+    <View style={pm.fill}>
+      <TouchableOpacity style={[StyleSheet.absoluteFill, pm.dim]} activeOpacity={1} onPress={onClose} accessibilityLabel="Close" />
+      <View style={[pm.focus, isMe && pm.focusMe, { pointerEvents: 'box-none' }]}>
+        <View style={pm.bar}>
+          {REACTIONS.map((emoji) => (
+            <TouchableOpacity key={emoji} onPress={() => onReact(emoji)} style={[pm.react, mine === emoji && pm.reactOn]} accessibilityLabel={`React ${emoji}`}>
+              <Text style={pm.emoji}>{emoji}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={[styles.bubble, isMe ? [styles.bubbleMe, ms.bubbleMe] : [styles.bubbleThem, ms.bubbleThem], pm.bubble, isMe && pm.bubbleMe]}>
+          <Text style={styles.msgText}>{msg.body}</Text>
+        </View>
+        <View style={[pm.menu, isMe && pm.menuMe]}>
+          <MenuRow label="Reply" icon="reply" onPress={onReply} />
+          <MenuRow label="Copy" icon="copy" onPress={onCopy} last={isMe} />
+          {!isMe ? (
+            <>
+              <View style={pm.gap} />
+              <MenuRow label="Report" icon="flag" color={RivalColors.accentGold} onPress={onReport} />
+              <MenuRow label={`Block ${firstName(name)}`} icon="block" color={RivalColors.danger} onPress={onBlock} last />
+            </>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function MenuRow({ label, icon, color, onPress, last }: { label: string; icon: 'reply' | 'copy' | 'flag' | 'block'; color?: string; onPress: () => void; last?: boolean }) {
+  return (
+    <TouchableOpacity style={[pm.row, !last && pm.rowLine]} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
+      <Text style={[pm.rowText, color ? { color } : null]}>{label}</Text>
+      <RivalIcon name={icon} size={20} color={color ?? RivalColors.onSurface} />
+    </TouchableOpacity>
+  );
+}
+
+const pm = StyleSheet.create({
+  fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, justifyContent: 'center' },
+  dim: {
+    backgroundColor: 'rgba(10,10,10,0.55)',
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' } as any : {}),
+  },
+  focus: { paddingHorizontal: 16, alignItems: 'flex-start', gap: 10, width: '100%', maxWidth: 520, alignSelf: 'center' },
+  focusMe: { alignItems: 'flex-end' },
+  bar: {
+    flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: RivalColors.surfaceBright, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)' } as any : {}),
+  },
+  react: { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 999 },
+  reactOn: { backgroundColor: `${RivalColors.accentFill}55` },
+  emoji: { fontSize: 27 },
+  bubble: { maxWidth: '80%' },
+  bubbleMe: {},
+  menu: {
+    width: 250, borderRadius: 14, overflow: 'hidden', backgroundColor: RivalColors.surfaceBright,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)' } as any : {}),
+  },
+  menuMe: {},
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48, paddingHorizontal: 16 },
+  rowLine: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  rowText: { fontSize: 15.5, fontWeight: '600', color: RivalColors.onSurface },
+  gap: { height: 7, backgroundColor: '#1f1f1f' },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: RivalColors.pageGround },

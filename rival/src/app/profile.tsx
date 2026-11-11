@@ -1,6 +1,6 @@
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, Switch, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { Modal } from '../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { squareImage } from '../lib/imageResize';
 import { getQuote, QuoteTone } from '../lib/quotes';
 import { usePrefs, updatePrefs, type NotifyKey, type UnitSystem } from '../lib/prefs';
 import { openFeedback } from '../lib/feedback';
+import { healthAvailable, useHealthStatus, syncHealth } from '../lib/appleHealth';
 import { buildArchive } from '../lib/archive';
 import { buildDataExport, saveJsonFile } from '../lib/exportData';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, invalidateNavIdentity } from '../components/rival';
@@ -52,6 +53,51 @@ const TABS: Array<{ id: TabId; label: string; icon: RivalIconName }> = [
   { id: 'notifications', label: 'Notifications', icon: 'notifications' },
   { id: 'account', label: 'Account', icon: 'settings' },
 ];
+
+// Apple Health (2026-11-10): connect once, every past workout comes in, then
+// new ones whenever the app opens (lib/appleHealth.ts). iPhone app only.
+function HealthRow() {
+  const health = useHealthStatus();
+  if (!healthAvailable) {
+    return (
+      <View style={styles.comingSoonRow}>
+        <View style={styles.appRowLeft}>
+          <RivalIcon name="health" size={18} color={RivalColors.accentText} />
+          <View>
+            <Text style={styles.appName}>Apple Health</Text>
+            <Text style={styles.appStatus}>Available in the iPhone app</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+  const ago = (t: number | null) => {
+    if (!t) return '';
+    const m = Math.round((Date.now() - t) / 60000);
+    return m < 1 ? 'Synced just now' : m < 60 ? `Synced ${m} min ago` : m < 1440 ? `Synced ${Math.round(m / 60)} h ago` : `Synced ${new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+  };
+  const status = health.state === 'syncing' ? 'Syncing…'
+    : health.state === 'connected' ? ['Connected', ago(health.lastSync)].filter(Boolean).join(' · ')
+      : health.state === 'error' ? health.message : 'Workouts from Apple Watch and other apps';
+  const action = health.state === 'off' ? 'Connect' : health.state === 'error' ? 'Try again' : health.state === 'connected' ? 'Sync' : null;
+  return (
+    <TouchableOpacity
+      style={[styles.appRow, { marginTop: 12 }]}
+      disabled={health.state === 'syncing'}
+      onPress={() => (health.state === 'off' ? router.push('/apple-health' as any) : syncHealth())}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.appRowLeft, { flex: 1, minWidth: 0 }]}>
+        <RivalIcon name="health" size={18} color={RivalColors.accentText} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.appName}>Apple Health</Text>
+          <Text style={styles.appStatus}>{status}</Text>
+        </View>
+      </View>
+      {action ? <Text style={styles.healthAction}>{action}</Text> : <ActivityIndicator color={RivalColors.accentText} />}
+    </TouchableOpacity>
+  );
+}
 
 // A switch in the Settings menu's row style.
 function MenuSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
@@ -537,7 +583,9 @@ export default function ProfileScreen() {
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
-      <Text style={styles.panelSub}>Bring past activities in from an archive file.</Text>
+      <Text style={styles.panelSub}>Bring in workouts from Apple Health, or past activities from an archive file.</Text>
+
+      <HealthRow />
 
       {/* An archive file (Ricky, 2026-10-17). */}
       <TouchableOpacity style={styles.appRow} onPress={() => router.push('/import-archive')} activeOpacity={0.8}>
@@ -551,15 +599,6 @@ export default function ProfileScreen() {
         <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.35)" />
       </TouchableOpacity>
 
-      <View style={styles.comingSoonRow}>
-        <View style={styles.appRowLeft}>
-          <RivalIcon name="watch" size={18} color={RivalColors.accentText} />
-          <View>
-            <Text style={styles.appName}>Apple Health</Text>
-            <Text style={styles.appStatus}>Connection coming soon</Text>
-          </View>
-        </View>
-      </View>
     </RivalCard>
   );
 
@@ -763,6 +802,10 @@ export default function ProfileScreen() {
         <GreyRow icon="bolt" label="How Effort works" onPress={() => router.push('/effort')}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>
+        {/* Report and block (Mockup 27 v8, panel F). */}
+        <GreyRow icon="block" label="Blocked members" onPress={() => router.push('/blocked-members' as any)}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
         <GreyRow icon="settings" label="Account" onPress={() => open('account')}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>
@@ -926,6 +969,7 @@ const styles = StyleSheet.create({
   appIcon: { fontSize: 24 },
   appName: { fontSize: 15, fontWeight: '700', color: RivalColors.textPrimary },
   appStatus: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
+  healthAction: { fontSize: 14, fontWeight: '700', color: RivalColors.accentText, marginLeft: 10 },
   connectedCheck: {
     width: 28, height: 28, borderRadius: RivalRadius.full,
     backgroundColor: `${RivalColors.tertiary}22`, borderWidth: 1, borderColor: `${RivalColors.tertiary}55`,

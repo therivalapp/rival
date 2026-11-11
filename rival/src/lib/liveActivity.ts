@@ -26,6 +26,8 @@ export type LiveActivity = {
   pausedMs?: number;
   /** The route so far, once GPS records one (lib/liveTrack.ts). */
   track?: TrackPoint[];
+  /** The route's current segment, counted up on every resume (lib/gpsRecorder.ts). */
+  trackSeg?: number;
   /** From a watch through Apple Health, when one is connected. */
   bpm?: number | null;
   avgBpm?: number | null;
@@ -60,7 +62,7 @@ export function liveSeconds(live: Pick<LiveActivity, 'startedAt' | 'pausedAt' | 
 /** The change that pauses or resumes. */
 export function togglePause(live: LiveActivity, now = Date.now()): Partial<LiveActivity> {
   if (live.pausedAt == null) return { pausedAt: now };
-  return { pausedAt: null, pausedMs: (live.pausedMs ?? 0) + now - live.pausedAt };
+  return { pausedAt: null, pausedMs: (live.pausedMs ?? 0) + now - live.pausedAt, trackSeg: (live.trackSeg ?? 0) + 1 };
 }
 
 /** "32:14", or "1:02:09" past the hour. */

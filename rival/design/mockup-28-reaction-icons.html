@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding-bottom:30px;background:#151413;font-family:Manrope,sans-serif;color:#fff;width:1330px}
+h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin:28px 26px 4px}
+.sub{color:#a8a097;font-size:14px;margin:0 26px 6px}
+.row{display:flex;gap:26px;padding:16px 26px 20px;align-items:flex-start}
+.col{width:393px;flex-shrink:0}
+.tag{display:flex;align-items:center;gap:10px;color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 6px 4px}
+.tag b{width:26px;height:26px;border-radius:13px;background:#ffb59e;color:#2a1710;display:grid;place-items:center;font-size:13px;letter-spacing:0}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;min-height:38px}
+.phone{position:relative;width:393px;height:470px;border-radius:32px;overflow:hidden;background:#282828;padding:22px 16px}
+.cap{font-size:10px;font-weight:800;letter-spacing:1px;color:#A0A0A0;text-transform:uppercase;margin:0 0 10px}
+.rbar{display:flex;justify-content:space-between;align-items:center;background:#323232;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:9px 16px;font-size:27px;height:58px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+.rbar .mdi{font-size:28px;line-height:1}
+.bub{display:inline-block;max-width:76%;border-radius:18px;padding:8px 13px;font-size:14.5px;line-height:20px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22)}
+.who{font-size:11px;font-weight:700;color:#A0A0A0;margin:0 0 4px 36px}
+.mrow{display:flex;gap:8px;align-items:flex-end}
+.mav{width:28px;height:28px;border-radius:14px;background:#3a2f2a;border:1px solid rgba(255,181,158,.4);display:grid;place-items:center;font-size:11px;font-weight:800;color:#ffb59e;flex-shrink:0}
+.pills{display:flex;gap:6px;margin:4px 0 0 48px;position:relative}
+.pill{display:flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:999px;background:#323232;border:1px solid rgba(255,255,255,.1);font-size:14px}
+.pill.mine{border-color:rgba(255,181,158,.55);background:rgba(217,119,87,.18)}
+.pill .mdi{font-size:15px;line-height:1}
+.pill i{font-style:normal;font-size:11px;font-weight:700;color:#A0A0A0}
+.sp{height:28px}
+.on{background:rgba(217,119,87,.22);border-radius:999px;padding:6px}
+</style></head><body>
+<h1>Mockup 28 · Reactions in RIVAL colours (v3)</h1>
+<p class="sub">Emoji colours can't be changed, so the six chat reactions become RIVAL icons, drawn in the app's own colours. Each reaction gets its own colour, all taken from colours the app already uses.</p>
+<div class="row" id="row"></div>
+<script>
+const opts=[
+ {k:'',t:'Now (v7)',d:'Phone emoji. Their colours are set by Apple and do not match the app.',emoji:true},
+ {k:'D',t:'Each its own',d:'Respect star, streak flame, Inspired bolt, PB gold trophy. Muscle and clap in the Elite sapphire and Champion emerald.',c:['#f4a98a','#D97757','#F5B759','#9fb6e6','#9fd9bd','#FFD700']},
+ {k:'E',t:'Each its own, softer',d:'As D, but muscle in the Mythic amethyst and clap in the Immortal opal.',c:['#f4a98a','#D97757','#F5B759','#c9b0e8','#d4ecf0','#FFD700']},
+];
+const ic=['star','fire','lightning-bolt','arm-flex','hand-clap','trophy'];
+const em=['⭐','🔥','⚡','💪','👏','🙌'];
+const g=(o,i,cls='')=>o.emoji?`<span>${em[i]}</span>`:`<span class="mdi mdi-${ic[i]} ${cls}" style="color:${o.c[i]}"></span>`;
+document.getElementById('row').innerHTML=opts.map(o=>`<div class="col"><div class="tag"><b style="${o.k?'':'background:#4a4a4a;color:#ddd'}">${o.k||'–'}</b>${o.t}</div><p class="desc">${o.d}</p>
+<div class="phone"><div class="cap">Pressing a message</div>
+<div class="rbar">${[0,1,2,3,4,5].map(i=>g(o,i)).join('')}</div>
+<div style="margin-top:10px"><div class="bub">Last one there buys coffee</div></div>
+<div class="sp"></div><div class="cap">After reacting</div>
+<div class="who">Jordan</div>
+<div class="mrow"><div class="mav">J</div><div class="bub">Anyone up for the hill loop Saturday?</div></div>
+<div class="pills"><div class="pill mine">${g(o,0)}<i>3</i></div><div class="pill">${g(o,1)}</div></div>
+<div style="height:14px"></div>
+<div class="who">Sam Carter</div>
+<div class="mrow"><div class="mav">S</div><div class="bub">New 10k best this morning, 41:12</div></div>
+<div class="pills"><div class="pill">${g(o,5)}<i>2</i></div><div class="pill mine">${g(o,3)}</div><div class="pill">${g(o,4)}</div></div>
+</div></div>`).join('');
+</script></body></html>

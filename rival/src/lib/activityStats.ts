@@ -45,6 +45,9 @@ export const START_TYPES = new Set([
   'Run', 'TrailRun', 'Walk', 'Hike', 'Snowshoe',
   'Ride', 'MountainBikeRide', 'GravelRide', 'EBikeRide', 'EMountainBikeRide',
   'AlpineSki', 'Snowboard', 'BackcountrySki', 'NordicSki',
+  // Phone in a dry bag, a pocket or on the chair; golf and sailing for the
+  // route (Ricky, 2026-11-10).
+  'Kayaking', 'StandUpPaddling', 'Sail', 'InlineSkate', 'Wheelchair', 'Golf',
   'WeightTraining', 'Calisthenics', 'Workout', 'HIIT', 'Bootcamp', 'CrossFit', 'Hyrox',
 ]);
 

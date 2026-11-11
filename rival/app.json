@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.therivalapp.rival",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthClinicalHealthRecordsShareUsageDescription": "RIVAL does not read health records. It only reads workouts from Apple Health."
       }
     },
     "android": {
@@ -69,7 +70,27 @@
         }
       ],
       "expo-font",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "RIVAL uses location to record the route of a run, walk or ride started in the app.",
+          "locationAlwaysAndWhenInUsePermission": "RIVAL uses location to record the route of a run, walk or ride started in the app, including while the phone is locked.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": true,
+          "motionUsagePermission": "RIVAL does not use motion data. Activities are recorded with location only.",
+          "locationAlwaysPermission": "RIVAL uses location to record the route of a run, walk or ride started in the app, including while the phone is locked."
+        }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "RIVAL reads workouts from Apple Health, with their routes, heart rate and calories, so every activity appears in one place.",
+          "NSHealthUpdateUsageDescription": "RIVAL does not write to Apple Health. It only reads workouts so every activity appears in one place.",
+          "background": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
