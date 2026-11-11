@@ -38,6 +38,23 @@ TEAM = [ALEX, MAYA, JORDAN, SAM, TESS, PRIYA, LIAM, KAI]
 out = []
 W = out.append
 W('begin;')
+W("update leagues set goal_target=4000 where id='ebde36b5-6479-4a2c-8de6-4558490aed1e';")
+W('alter table league_messages disable trigger league_messages_guard_update;')
+MSG_KEYS = ['board1', 'sess-sat', 'sess-thu', 'sess-swim'] + ['c%d' % i for i in range(1, 15)]
+MSG_IDS = ','.join(q(uid('msg', k)) for k in MSG_KEYS)
+OLD = "select id from activities where provider='manual' and (user_id in ('880d0205-1d23-4882-bf06-5e0770561c53','5cd92d83-d263-4358-9222-b6bbe93748bc','661067b0-4eb3-42ff-ab2f-38c4880cb412') or (user_id='cf337489-5fd5-498a-89ce-ce0f2801d087' and name='Saturday long run' and started_at::date='2026-10-31'))"
+DEMO = "select id from activities where provider='demo'"
+for sub in (DEMO, OLD):
+    W(f"delete from inbox_items where subject_id::text in (select id::text from ({sub}) x);")
+    W(f"delete from feed_comments where target_id in (select id::text from ({sub}) x);")
+    W(f"delete from feed_reactions where target_id in (select id::text from ({sub}) x);")
+    W(f"delete from activities where id in ({sub});")
+W(f"delete from inbox_items where subject_id::text in ({MSG_IDS.replace(',', ',')});")
+W(f"delete from feed_reactions where target_id in ({MSG_IDS});")
+W(f"delete from league_message_reactions where message_id in ({MSG_IDS});")
+W(f"delete from league_session_rsvps where message_id in ({MSG_IDS});")
+W(f"update league_messages set reply_to_id=null where reply_to_id in ({MSG_IDS});")
+W(f"delete from league_messages where id in ({MSG_IDS});")
 
 # ---- users -------------------------------------------------------------
 for i, (id_, name, email, av, bio) in enumerate(NEW):
@@ -51,7 +68,7 @@ for id_, bio in [(MAYA, 'Chasing a sub-1:45 half this winter.'), (JORDAN, 'Squat
 for m in [TESS, PRIYA, LIAM, KAI]:
     W(f"insert into league_members (league_id,user_id,joined_at) values ({q(HARBOUR)},{q(m)},now() - interval '60 days') on conflict (league_id,user_id) do nothing;")
 # An invite for the reviewer to a second team (shows in the inbox, to accept or decline).
-W(f"insert into league_members (league_id,user_id,status,invited_by,invite_state,invite_sent_at,joined_at) values ({q(NORTHSIDE)},{q(REV)},'pending',{q(JORDAN)},'teammate',now() - interval '5 hours',now() - interval '5 hours') on conflict (league_id,user_id) do nothing;")
+# (Team invites are link-based; nothing to seed for the reviewer.)
 
 # ---- routes ------------------------------------------------------------
 def encode(points):
@@ -144,7 +161,10 @@ for w in range(8):
         act(MAYA, d[1], 6, 'Run', 'Tempo intervals' if w % 2 else '5K time trial', 32, 6.2, 20, anchor='falsecreek', hr=165, best=run_best(5.0, pace5) + [])
     act(MAYA, d[2], 18, 'Yoga', 'Recovery yoga', 45, hr=95)
     lk = 14 + w
-    act(MAYA, d[3], 7, 'Run', f'Long run, {lk} km', lk * 5.75, lk, 120 + w * 10, photo=RUN_PH[w % 4] if w % 2 == 0 else None, anchor='spirit', hr=150,
+    if w == 4:
+        act(MAYA, d[3], 7, 'Run', 'Pre-race shakeout', 26, 4.5, 10, anchor='seawall', hr=135, best=run_best(4.5, 340))
+    else:
+      act(MAYA, d[3], 7, 'Run', f'Long run, {lk} km', lk * 5.75, lk, 120 + w * 10, photo=RUN_PH[w % 4] if w % 2 == 0 else None, anchor='spirit', hr=150,
         best=run_best(lk, 345), notes='Negative split the last 5 km.' if w == 7 else None)
 
     # Jordan: strength; squat/bench/deadlift climb -> lift PBs
@@ -167,10 +187,10 @@ for w in range(8):
     if w % 2: act(SAM, d[2], 10, 'MountainBikeRide', 'North Shore trails', 110, 22, 650, photo='mountain-bikers-forest-trail', anchor='lynn', hr=150)
 
     # Tess: trail runs and hikes with big elevation
-    d = days(w, 1, 3, 5)
+    d = days(w, 1, 3, 6)
     act(TESS, d[0], 6, 'TrailRun', 'Lynn loop', 70, 11 + w * 0.5, 420, anchor='lynn', hr=152)
     act(TESS, d[1], 6, 'Run', 'Easy run', 45, 8, 60, anchor='falsecreek', hr=140, best=run_best(8, 330))
-    act(TESS, d[2], 7, 'Hike' if w % 2 else 'TrailRun', 'Grouse Grind' if w % 2 else 'Baden-Powell section', 75 + w * 10, 3 + w if w % 2 else 18 + w, 850 + w * 60,
+    act(TESS, d[2], 7, 'Hike' if w % 2 else 'TrailRun', 'Hollyburn Peak' if w % 2 else 'Baden-Powell section', 75 + w * 10, 3 + w if w % 2 else 18 + w, 850 + w * 60,
         photo='trail-runner-summit-marker' if w in (3, 7) else ('a-clear-ascending-mountain-trail' if w == 5 else None), anchor='grouse', hr=156,
         notes='Summit before sunrise. Worth every step.' if w == 7 else None)
 
@@ -207,9 +227,21 @@ for w in range(8):
         act(REV, d[2], 9, 'Walk', 'Seawall walk', 60, 5.5, 20, anchor='seawall', hr=100)
 
 # Group run on Saturday 7 Nov, everyone tagged: shared activity for the reviewer to confirm.
-grp = act(ALEX, date(2026, 11, 7), 7, 'Run', 'Saturday group run', 62, 11.2, 80, photo='2-3-trail-runners-moving-along-a', anchor='seawall', hr=148,
+grp = act(ALEX, date(2026, 10, 31), 7, 'Run', 'Saturday group run', 62, 11.2, 80, photo='2-3-trail-runners-moving-along-a', anchor='seawall', hr=148,
           notes='Great turnout this week. Coffee after at Lost Lagoon.', mm=30, best=run_best(11.2, 332))
-grp['companions'] = 'Maya, Tess, Liam'
+grp['companions'] = 'Tess, Liam, Kai'
+
+# More photos on the newest posts, so the top of the feed looks lived in.
+def latest(user, name):
+    c = sorted([a for a in ACTS if a['user'] == user and name in a['name']], key=lambda a: a['started_at'])
+    return c[-1] if c else None
+for user, name, ph in [(MAYA, 'Long run', 'ridge-runners-hazy-backlit'), (KAI, 'Deep Cove', 'coastal-cliff-hikers-group'),
+                       (JORDAN, 'Push and pull', 'rope-climb-atelier-gym'), (SAM, 'Cypress climb', 'coastal-highway-triathlete-dusk-3'),
+                       (MAYA, 'Tempo', '2-3-trail-runners-moving-along-a'), (PRIYA, 'Strength', 'overhead-squat-warehouse-gym'),
+                       (TESS, 'Easy run', 'sunset-beach-group-walking'), (SAM, 'North Shore', 'mountain-bikers-forest-trail'),
+                       (JORDAN, 'Deadlift day', 'deadlift-rival-plates-box'), (PRIYA, 'CrossFit', 'handstand-crossfit-box')]:
+    a = latest(user, name)
+    if a and not a['photo']: a['photo'] = PHOTO % ph
 
 for a in ACTS:
     W(f"""insert into activities (id,user_id,provider,provider_activity_id,activity_type,name,name_locked,started_at,utc_offset_seconds,duration_seconds,distance_meters,elevation_meters,avg_heart_rate,avg_heartrate,photo_url,route_polyline,notes,exercises,race_id,is_race,location,companions,best_efforts,share_details,effort_confirmed,created_at)
@@ -269,7 +301,7 @@ c3 = comment(dl, PRIYA, 'That bar was bending.', 90)
 comment(dl, JORDAN, '200 is the target by Christmas.', 130, reply=c3)
 gr = find(TESS, 'Baden-Powell') if any('Baden' in a['name'] and a['started_at'] > NOW - timedelta(days=10) for a in ACTS) else find(TESS, 'Grouse')
 comment(gr, KAI, 'Those views. Taking the dog up there next weekend.', 150)
-comment(grp, MAYA, 'Best group run so far. Same time next week?', 120)
+comment(grp, TESS, 'Best group run so far. Same time next week?', 120)
 comment(grp, LIAM, 'Count me in.', 140)
 rv = [a for a in ACTS if a['user'] == REV]
 if rv:
@@ -291,15 +323,18 @@ def react(mid, user, kind):
 
 board = msg('board1', ALEX, 'Saturday group runs start at 7:30 am through December. Meet at the Second Beach pool. All paces welcome.', 70, kind='board', title='Saturday group runs', pinned=True, expires='2026-12-31T23:59:00+00')
 for u in (MAYA, TESS, LIAM, KAI): W(f"insert into feed_reactions (id,league_id,target_type,target_id,user_id,emoji) values ({q(uid('rxb', u))},{q(HARBOUR)},'board',{q(board)},{q(u)},'respect') on conflict do nothing;")
-s1 = msg('sess-sat', ALEX, 'Saturday long run', 30, kind='session', sched='2026-11-14T15:30:00+00', loc='Second Beach, Stanley Park', atype='Run')
+W(f"update league_messages set scheduled_at='2026-11-14T15:30:00+00', location='Second Beach, Stanley Park', activity_type='Run' where league_id={q(HARBOUR)} and kind='session' and body like '20 km at an easy pace%';")
+s1 = None
 s2 = msg('sess-thu', MAYA, 'Track intervals', 20, kind='session', sched='2026-11-12T02:00:00+00', loc='Point Grey track', atype='Run')
 s3 = msg('sess-swim', LIAM, 'Sunday swim', 8, kind='session', sched='2026-11-15T17:00:00+00', loc='Vancouver Aquatic Centre', atype='Swim')
-for sid, us in [(s1, [ALEX, MAYA, TESS, LIAM, KAI]), (s2, [MAYA, TESS, JORDAN]), (s3, [LIAM, PRIYA])]:
+for u in [ALEX, MAYA, TESS, LIAM, KAI, SAM, JORDAN]:
+    W(f"insert into league_session_rsvps (id,message_id,user_id) select {q(uid('rsvp', 'sat', u))},id,{q(u)} from league_messages where league_id={q(HARBOUR)} and kind='session' and body like '20 km at an easy pace%' on conflict do nothing;")
+for sid, us in [(s2, [MAYA, TESS, JORDAN]), (s3, [LIAM, PRIYA])]:
     for u in us: W(f"insert into league_session_rsvps (id,message_id,user_id) values ({q(uid('rsvp', sid, u))},{q(sid)},{q(u)}) on conflict do nothing;")
 
 chat = [
     ('c1', MAYA, 'Seawall 10K done. 44:12. Thank you all for the support this block.', 560),
-    ('c2', ALEX, 'Massive. That was a 2 minute PB.', 559, 'c1'),
+    ('c2', ALEX, 'That is a huge PB. Well run.', 559, 'c1'),
     ('c3', LIAM, 'Signed up for the Harbour Half. Who else is in?', 300),
     ('c4', TESS, 'In. Going for under 1:50.', 298, 'c3'),
     ('c5', KAI, 'I will walk part of it and cheer for the rest.', 296, 'c3'),
@@ -308,9 +343,9 @@ chat = [
     ('c8', SAM, 'Anyone want to ride Cypress on Sunday? Rolling at 8 from Dundarave.', 48),
     ('c9', LIAM, 'Yes. I need the hill work before the fondo.', 47, 'c8'),
     ('c10', MAYA, 'Track session moved to Wednesday this week. Same time.', 26),
-    ('c11', TESS, 'Grouse was fogged in this morning but the sunrise above it was unreal.', 14),
+    ('c11', TESS, 'Grouse was fogged in at the bottom on Sunday, but the sunrise above it was unreal.', 14),
     ('c12', ALEX, 'Big week for the team challenge. Thank you, everyone.', 6),
-    ('c13', KAI, 'Saturday run is my first 10 km with the group. Go easy on me.', 3),
+    ('c13', KAI, 'Saturday is my longest run with the group so far. Bringing Miso for the first 5 km.', 3),
     ('c14', MAYA, 'We will stay together the whole way.', 2.5, 'c13'),
 ]
 ids = {}
@@ -337,6 +372,12 @@ W(f"insert into encouragements (id,from_user_id,to_user_id,message,created_at) v
 # One-on-one challenge in the team.
 W(f"insert into league_challenges (id,league_id,challenger_id,opponent_id,metric,start_date,end_date,status) values ({q(uid('ch', 'maya-liam'))},{q(HARBOUR)},{q(MAYA)},{q(LIAM)},'distance','2026-11-09','2026-11-15','active') on conflict (id) do nothing;")
 
+W("""update inbox_items i set created_at = r.created_at from feed_reactions r
+  where i.kind='reaction' and i.actor_id=r.user_id and i.subject_id::text=r.target_id and r.target_id in (select id::text from activities where provider='demo');""")
+W("""update inbox_items i set created_at = c.created_at from feed_comments c
+  where i.kind='comment' and i.actor_id=c.user_id and i.subject_id::text=c.target_id and c.target_id in (select id::text from activities where provider='demo');""")
+W("insert into league_members (league_id,user_id,status,invited_by,invite_state,invite_sent_at,joined_at) values ('ebde36b5-6479-4a2c-8de6-4558490aed1e','09b2e197-8257-4d7c-a0e6-12dc0429eeff','active',null,null,null,now()) on conflict (league_id,user_id) do nothing;")
+W('alter table league_messages enable trigger league_messages_guard_update;')
 W('commit;')
 open(__file__.replace('.py', '.sql'), 'w').write('\n'.join(out))
 print(len(ACTS), 'activities;', sum(1 for a in ACTS if a['photo']), 'photos;', sum(1 for a in ACTS if a['poly']), 'routes;', len(out), 'statements')
