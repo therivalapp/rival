@@ -9,7 +9,8 @@ export type QuoteCategory =
   | 'nutrition'
   | 'community'
   | 'competition'
-  | 'wisdom';
+  | 'wisdom'
+  | 'numbers';
 
 export type QuoteTone = 'blunt' | 'balanced' | 'encouraging';
 
@@ -165,6 +166,20 @@ export const QUOTES: Quote[] = [
   { text: "The rival who knows you best is your past self.", category: 'competition', tone: 'balanced' },
   { text: "Last year's time is a rival worth chasing.", category: 'competition', tone: 'encouraging' },
   { text: "Same start line. Better version.", category: 'competition', tone: 'blunt' },
+
+  // ── BY THE NUMBERS (Ricky, 2026-11-11) ─────────────────────────
+  // The maths of moving, against waking hours (about 16 a day, 112 a week):
+  // sleep is part of training, so it is never counted as time to fill.
+  // Educational, never a guilt trip.
+  { text: "One hour is about 6% of a waking day. It shapes the other 94%.", category: 'numbers', tone: 'balanced' },
+  { text: "A week has about 112 waking hours. One hour in the gym is under 1% of them. Three is closer to 3%, and that is where change starts.", category: 'numbers', tone: 'balanced' },
+  { text: "A 30-minute run is about 3% of a waking day. Few trades are better.", category: 'numbers', tone: 'encouraging' },
+  { text: "Three one-hour workouts a week is 156 hours a year. Six and a half full days spent getting better.", category: 'numbers', tone: 'encouraging' },
+  { text: "A waking day has about 960 minutes. Twenty of them can start something.", category: 'numbers', tone: 'encouraging' },
+  { text: "Ten minutes a day is 61 hours a year. Small adds up.", category: 'numbers', tone: 'encouraging' },
+  { text: "Many people sit for around 10 of their 16 waking hours. One hour of movement changes the balance.", category: 'numbers', tone: 'blunt' },
+  { text: "A year has about 5,840 waking hours. An hour a day of movement is 365 of them.", category: 'numbers', tone: 'blunt' },
+  { text: "Eight hours of sleep is not time off. It is when the training turns into progress.", category: 'numbers', tone: 'balanced' },
 
   // ── WISDOM ────────────────────────────────────────────────────
   { text: "Growth doesn't follow a schedule. It follows effort.", category: 'wisdom', tone: 'balanced' },
