@@ -1,0 +1,111 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding-bottom:30px;background:#151413;font-family:Manrope,sans-serif;color:#fff;width:1736px}
+h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:30px;margin:28px 26px 4px}
+.sub{color:#a8a097;font-size:14px;margin:0 26px 6px}
+.row{display:flex;gap:26px;padding:16px 26px 20px;align-items:flex-start}
+.col{width:393px;flex-shrink:0}
+.tag{display:flex;align-items:center;gap:10px;color:#ffb59e;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 6px 4px}
+.tag b{width:26px;height:26px;border-radius:13px;background:#ffb59e;color:#2a1710;display:grid;place-items:center;font-size:13px;letter-spacing:0}
+.desc{color:#a8a097;font-size:12.5px;line-height:1.45;margin:0 4px 12px;min-height:56px}
+.phone{position:relative;width:393px;height:852px;border-radius:40px;overflow:hidden;background:#282828}
+.status{height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 30px;font-weight:700;font-size:16px;color:rgba(255,255,255,.5)}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block}
+.content{padding:0 16px;display:flex;flex-direction:column;gap:12px}
+.head{position:relative;text-align:center;padding:40px 44px 12px;margin:0 -16px}
+.glow{position:absolute;top:-60px;left:0;right:0;height:260px;background:radial-gradient(ellipse 75% 100% at 50% 0%,rgba(217,119,87,.22) 0%,rgba(217,119,87,.07) 45%,rgba(217,119,87,0) 100%)}
+.word{position:relative;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:20px;letter-spacing:4px;color:#ffb59e;margin-bottom:26px}
+.kick{position:relative;font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e}
+.title{position:relative;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;line-height:34px;margin-top:3px}
+.hsub{position:relative;font-size:13px;line-height:18px;color:#A0A0A0;margin-top:6px}
+.card{position:relative;overflow:hidden;border-radius:22px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.22);padding:18px 16px;display:flex;flex-direction:column;gap:10px}
+.art{position:absolute;right:-30px;bottom:-40px;font-size:150px;color:rgba(255,181,158,.05)}
+.label{font-size:10px;font-weight:800;letter-spacing:1.7px;text-transform:uppercase;color:#ffb59e}
+.body{position:relative;font-size:13.5px;line-height:20px;color:rgba(255,255,255,.78)}
+.steps{position:relative;display:flex;flex-direction:column;gap:9px;margin-top:2px}
+.step{display:flex;gap:10px;align-items:center;font-size:13px;color:rgba(255,255,255,.72)}
+.dot{width:22px;height:22px;border-radius:11px;display:grid;place-items:center;font-size:11px;font-weight:800;background:rgba(255,181,158,.14);color:#ffb59e;flex-shrink:0}
+.dot.on{background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902}
+.primary{height:50px;border-radius:999px;background:linear-gradient(90deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+.ghost{height:46px;border-radius:999px;border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:rgba(255,255,255,.88)}
+.note{font-size:12px;line-height:17px;color:#A0A0A0;text-align:center}
+/* email */
+.mail{width:393px;height:852px;border-radius:40px;overflow:hidden;background:#1b1a19;font-family:-apple-system,Helvetica,Arial,sans-serif}
+.mhead{background:#232221;padding:58px 20px 14px;border-bottom:1px solid #2e2d2c}
+.from{display:flex;gap:10px;align-items:center}
+.av{width:38px;height:38px;border-radius:19px;background:#ffb59e;color:#5c1902;display:grid;place-items:center;font-family:Georgia,serif;font-style:italic;font-weight:700}
+.fn{font-size:15px;font-weight:700}.fm{font-size:12px;color:#8a8682}
+.subj{font-size:17px;font-weight:700;margin-top:12px}
+.mbody{padding:24px 16px}
+.brand{text-align:center;font-family:Georgia,serif;font-style:italic;font-size:17px;font-weight:700;letter-spacing:4px;color:#ffb59e;margin-bottom:18px}
+.ecard{background:#262626;border:1px solid #363636;border-radius:20px;padding:30px 24px 26px;text-align:center}
+.ek{font-size:10.5px;font-weight:800;letter-spacing:2.5px;color:#ffb59e;margin-bottom:10px}
+.et{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;line-height:1.2;margin:0 0 14px}
+.ep{font-size:14.5px;line-height:1.6;color:#d4d1ce;margin:0 0 12px}
+.ebtn{display:inline-block;margin:10px auto 4px;padding:14px 34px;border-radius:999px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902;font-weight:800;font-size:15px}
+.enote{font-size:12px;line-height:1.5;color:#8a8682;margin:16px 0 0}
+.elink{color:#ffb59e;text-decoration:underline}
+.efacts{text-align:left;background:#2c2b2a;border-radius:14px;margin:4px 0 14px}
+.ef{display:flex;justify-content:space-between;padding:10px 14px;font-size:13px;color:#a8a49f}
+.ef b{color:#fff;font-weight:600}
+.ef+.ef{border-top:1px solid #363534}
+.foot{text-align:center;font-size:11.5px;color:#8a8682;margin-top:18px}
+/* browser page */
+.web{width:393px;height:852px;border-radius:40px;overflow:hidden;background:#282828}
+.url{margin:54px 14px 0;height:36px;border-radius:12px;background:#1c1c1c;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:#a8a49f}
+.badge{width:64px;height:64px;border-radius:32px;margin:6px auto 4px;display:grid;place-items:center;background:linear-gradient(135deg,#D97757,#ffb59e);color:#5c1902}
+</style></head><body>
+<h1>Mockup 30 · Account approval</h1>
+<p class="sub">Team Beta stays invite-only even with the public link: a new account waits until it is approved. Approving is one tap from an email. The Apple review account is approved in advance.</p>
+<div class="row">
+
+<!-- A: waiting page -->
+<div class="col"><div class="tag"><b>A</b>Waiting page</div><p class="desc">Shown after sign-up (and on every open) until the account is approved. Opens on its own once approved; Check again is there for the impatient.</p>
+<div class="phone"><div class="status"><span>9:41</span><span class="mi" style="font-size:18px">battery_full</span></div>
+<div class="content">
+<div class="head"><div class="glow"></div><div class="word">RIVAL</div><div class="kick">TEAM BETA</div><div class="title">Waiting for approval</div><div class="hsub">Signed in as Jamie Taylor</div></div>
+<div class="card"><span class="mi art">hourglass_top</span>
+<div class="body">RIVAL is in beta, so each new account is approved before it opens. This usually takes less than a day.</div>
+<div class="steps">
+<div class="step"><span class="dot on"><span class="mi" style="font-size:14px">check</span></span>Account created</div>
+<div class="step"><span class="dot">2</span>Approved by the RIVAL team</div>
+<div class="step"><span class="dot">3</span>Choose activities and get started</div>
+</div></div>
+<div class="note">An email arrives when the account is ready.</div>
+<div style="height:190px"></div>
+<div class="primary">Check again</div>
+<div class="ghost">Sign out</div>
+</div></div></div>
+
+<!-- B: email to Ricky -->
+<div class="col"><div class="tag"><b>B</b>Email to you</div><p class="desc">Sent to hello@therivalapp.com for every new sign-up. Approve lets them in straight away. Ignoring it leaves the account waiting.</p>
+<div class="mail"><div class="mhead"><div class="from"><div class="av">R</div><div><div class="fn">RIVAL</div><div class="fm">to hello@therivalapp.com</div></div></div><div class="subj">New sign-up: Jamie Taylor</div></div>
+<div class="mbody"><div class="brand">RIVAL</div><div class="ecard">
+<div class="ek">NEW SIGN-UP</div><div class="et">Jamie Taylor</div>
+<div class="efacts"><div class="ef">Email<b>jamie.taylor@gmail.com</b></div><div class="ef">Signed up<b>Today, 6:42 pm</b></div></div>
+<a class="ebtn">Approve</a>
+<p class="enote">Not someone you know? <span class="elink">Decline</span> removes the account.</p>
+</div><div class="foot">RIVAL · therivalapp.com</div></div></div></div>
+
+<!-- C: approved page -->
+<div class="col"><div class="tag"><b>C</b>After tapping Approve</div><p class="desc">A small page on therivalapp.com confirms it. Nothing to sign in to: the link in the email only works once.</p>
+<div class="web"><div class="url"><span class="mi" style="font-size:14px">lock</span>therivalapp.com</div>
+<div class="content" style="padding-top:150px;text-align:center;align-items:center">
+<div class="badge"><span class="mi" style="font-size:34px">check</span></div>
+<div class="title" style="margin-top:8px">Jamie Taylor is approved</div>
+<div class="hsub" style="max-width:280px">An email is on its way to Jamie. RIVAL opens for them next time they open the app.</div>
+</div></div></div>
+
+<!-- D: email to the new member -->
+<div class="col"><div class="tag"><b>D</b>Email to the new member</div><p class="desc">Sent the moment the account is approved, in the same layout as the other RIVAL emails.</p>
+<div class="mail"><div class="mhead"><div class="from"><div class="av">R</div><div><div class="fn">RIVAL</div><div class="fm">to jamie.taylor@gmail.com</div></div></div><div class="subj">You are in</div></div>
+<div class="mbody"><div class="brand">RIVAL</div><div class="ecard">
+<div class="ek">TEAM BETA</div><div class="et">You are in</div>
+<p class="ep">Your RIVAL account is approved. Open RIVAL to choose your activities and bring in your history.</p>
+<a class="ebtn">Open RIVAL</a>
+</div><div class="foot">RIVAL · therivalapp.com</div></div></div></div>
+
+</div></body></html>

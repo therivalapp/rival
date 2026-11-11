@@ -58,6 +58,7 @@ const ICONS = {
   remove: 'remove',
   watch: 'watch',
   check: 'check',
+  hourglass: 'hourglass-top',
   refresh: 'refresh',
   checkCircle: 'check-circle',
   checkCircleOutline: 'check-circle-outline',
