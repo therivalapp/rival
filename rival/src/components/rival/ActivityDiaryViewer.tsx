@@ -864,8 +864,8 @@ export function ActivityDiaryViewer({
               <View style={styles.headerRight}>
                 {viewOnly ? null : (
                   <>
-                    <TouchableOpacity style={styles.pinCorner} onPress={() => router.push(`/manual-entry?editId=${activity.id}`)}>
-                      <RivalIcon name="edit" size={14} color={RivalColors.accentText} />
+                    <TouchableOpacity style={[styles.pinCorner, { width: 'auto', paddingHorizontal: 12 }]} onPress={() => router.push(`/manual-entry?editId=${activity.id}`)} accessibilityRole="button">
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: RivalColors.accentText }}>Edit</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.pinCorner} onPress={togglePin}>
                       <RivalIcon name={activity.pinned ? 'star' : 'starOutline'} size={15} color={RivalColors.accentText} />

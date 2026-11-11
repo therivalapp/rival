@@ -3376,7 +3376,7 @@ export default function HomeScreen() {
               {/* Everything not set up yet, as tiles at the bottom of Today —
                   out of the podium's way. Each tile leaves once it's set up. */}
               <View style={styles.mStartBottom}>
-                <RivalStartTiles tiles={createOptions.map((o) => ({ ...o, onPress: () => o.onPress() }))} />
+                <RivalStartTiles art artLit={false} tiles={createOptions.map((o) => ({ ...o, onPress: () => o.onPress() }))} />
               </View>
             </>
           ) : (

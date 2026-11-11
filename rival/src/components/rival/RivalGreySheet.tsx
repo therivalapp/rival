@@ -635,7 +635,7 @@ const mt = StyleSheet.create({
  *  tile; once it's set up, the page shows it as its own titled section and
  *  the tile drops out. Renders nothing when everything is set up. */
 export function RivalStartTiles({
-  tiles, title = "What's next", ghost, art, titleStyle,
+  tiles, title = "What's next", ghost, art, artLit = true, titleStyle,
 }: {
   tiles: { key: string; icon: RivalIconName; label: string; onPress: () => void }[];
   title?: string;
@@ -644,13 +644,15 @@ export function RivalStartTiles({
   ghost?: boolean;
   /** Log an activity tiles, the first one lit as the main action. */
   art?: boolean;
+  /** With art: light the first tile. Off for a row of equal choices. */
+  artLit?: boolean;
 }) {
   if (tiles.length === 0) return null;
   return (
     <View style={st.wrap}>
       <Text style={[st.title, titleStyle]}>{title}</Text>
       <View style={st.row}>
-        {art ? tiles.map((t, i) => <GreyArtTile key={t.key} label={t.label} icon={t.icon} on={i === 0} style={st.artTile} onPress={t.onPress} />) : tiles.map((t) => (
+        {art ? tiles.map((t, i) => <GreyArtTile key={t.key} label={t.label} icon={t.icon} on={artLit && i === 0} style={st.artTile} onPress={t.onPress} />) : tiles.map((t) => (
           <TouchableOpacity key={t.key} style={[st.tile, ghost && st.tileGhost]} onPress={t.onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.label}>
             <View style={st.badge}>
               <RivalIcon name={t.icon} size={15} color={RivalColors.surfaceLowest} />
