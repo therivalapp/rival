@@ -12,8 +12,9 @@ and the information RIVAL holds.
 ## What RIVAL collects
 
 **Account.** Email address, name, date of birth, time zone, optional username,
-profile photo, cover photo and personal quote. Your date of birth is used only to
-confirm your age and is never shown to other members.
+profile photo, cover photo and personal quote. Your date of birth is used to confirm your age. If you turn on
+“Teammates can see my birthday”, your teams see the day and month only, never
+the year.
 
 **Activities.** Each activity you add: type, date and time, duration, distance,
 elevation, exercises, sets and weights, notes, Effort, personal bests, goals,

@@ -67,6 +67,10 @@ const ICONS = {
   wavingHand: 'waving-hand',
   celebration: 'celebration',
   addReaction: 'add-reaction',
+  // Privacy (Mockup 34).
+  doneAll: 'done-all',
+  map: 'map',
+  description: 'description',
   refresh: 'refresh',
   checkCircle: 'check-circle',
   checkCircleOutline: 'check-circle-outline',

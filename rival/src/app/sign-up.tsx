@@ -17,6 +17,8 @@ export default function SignUpScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dob, setDob] = useState('');
+  // Off until ticked (Mockup 34): teams see the day and month only.
+  const [showBirthday, setShowBirthday] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -62,7 +64,7 @@ export default function SignUpScreen() {
         // Date of birth and needs_setup ride along with the account, so they
         // survive email confirmation; lib/finishSignUp.ts saves the date of
         // birth and opens setup on the first signed-in moment.
-        data: { display_name: displayName, date_of_birth: dobIso, needs_setup: true }
+        data: { display_name: displayName, date_of_birth: dobIso, birthday_visible: showBirthday, needs_setup: true }
       }
     });
 
@@ -161,6 +163,18 @@ export default function SignUpScreen() {
                 keyboardType="number-pad"
                 maxLength={10}
               />
+              <TouchableOpacity
+                style={su.check}
+                onPress={() => setShowBirthday((v) => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: showBirthday }}
+                activeOpacity={0.8}
+              >
+                <View style={[su.box, showBirthday && su.boxOn]}>
+                  {showBirthday ? <RivalIcon name="check" size={14} color="#2a1710" /> : null}
+                </View>
+                <Text style={su.checkText}>Teammates can see my birthday (day and month)</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
@@ -383,4 +397,15 @@ const ms = StyleSheet.create({
   noticeText: { color: RivalColors.accentText },
   linkStrong: { color: RivalColors.accentText, fontWeight: '700' },
   primary: { ...rm.primary, borderWidth: 0, marginTop: 6 } as any,
+});
+
+// The birthday choice under Date of birth (Mockup 34, 2026-11-11).
+const su = StyleSheet.create({
+  check: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  box: {
+    width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  boxOn: { backgroundColor: RivalColors.accentText, borderColor: RivalColors.accentText },
+  checkText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
 });

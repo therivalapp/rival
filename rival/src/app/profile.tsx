@@ -801,6 +801,10 @@ export default function ProfileScreen() {
       <GreyRows>
         <GreyRow icon="person" label="Personal info" value={displayName} onPress={() => open('personal')} />
         <GreyRow icon="tune" label="Preferences" value={prefs.units === 'imperial' ? 'Imperial' : 'Metric'} onPress={() => open('preferences')} />
+        {/* Privacy (Mockup 34, 2026-11-11): birthday, team chat switches, route maps, blocks. */}
+        <GreyRow icon="lock" label="Privacy" onPress={() => router.push('/privacy-settings' as any)}>
+          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
+        </GreyRow>
         <GreyRow icon="stats" label="Statistics" onPress={() => router.push('/stats')}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>
@@ -827,16 +831,13 @@ export default function ProfileScreen() {
         <GreyRow icon="feedback" label="Send feedback" onPress={openFeedback}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>
-        <GreyRow icon="flag" label="How RIVAL works" onPress={() => router.push('/getting-started')}>
+        <GreyRow icon="flag" label="How Rival works" onPress={() => router.push('/getting-started')}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>
         <GreyRow icon="bolt" label="How Effort works" onPress={() => router.push('/effort')}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>
-        {/* Report and block (Mockup 27 v8, panel F). */}
-        <GreyRow icon="block" label="Blocked members" onPress={() => router.push('/blocked-members' as any)}>
-          <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
-        </GreyRow>
+        {/* Blocked members moved into Privacy (Mockup 34). */}
         <GreyRow icon="settings" label="Account" onPress={() => open('account')}>
           <RivalIcon name="chevronRight" size={18} color="rgba(255,255,255,0.4)" />
         </GreyRow>

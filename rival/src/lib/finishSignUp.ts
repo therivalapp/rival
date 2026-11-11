@@ -20,7 +20,7 @@ export async function finishSignUp(): Promise<boolean> {
   if (typeof meta.date_of_birth === 'string') {
     const { error } = await supabase
       .from('users')
-      .update({ date_of_birth: meta.date_of_birth })
+      .update({ date_of_birth: meta.date_of_birth, birthday_visible: meta.birthday_visible === true })
       // No date_of_birth filter: the app may write that column but not read
       // it (lock_down_user_email.sql), and a filter on it is a read.
       .eq('id', user.id);
@@ -32,7 +32,7 @@ export async function finishSignUp(): Promise<boolean> {
   }
   // needs_setup stays until Choose activities is saved or skipped, so setup
   // opens again if the app is closed part way (Ricky, 2026-11-11).
-  const { error: clearError } = await supabase.auth.updateUser({ data: { date_of_birth: null } });
+  const { error: clearError } = await supabase.auth.updateUser({ data: { date_of_birth: null, birthday_visible: null } });
   if (clearError) console.warn('Sign-up details not cleared:', clearError.message);
   return true;
 }

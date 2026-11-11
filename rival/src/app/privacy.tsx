@@ -11,7 +11,7 @@ import { goToTab } from '../lib/tabNav';
 
 // Set both when the policy is published (BETA_PLAN.md).
 const CONTACT = 'hello@therivalapp.com';
-const UPDATED: string | null = '9 November 2026';
+const UPDATED: string | null = '11 November 2026';
 
 type Section = { title: string; paras: (string | { b: string; t: string })[]; bullets?: string[] };
 
@@ -19,7 +19,7 @@ const SECTIONS: Section[] = [
   {
     title: 'What RIVAL collects',
     paras: [
-      { b: 'Account.', t: 'Email address, name, date of birth, time zone, optional username, profile photo, cover photo and personal quote. Your date of birth is used only to confirm your age and is never shown to other members.' },
+      { b: 'Account.', t: 'Email address, name, date of birth, time zone, optional username, profile photo, cover photo and personal quote. Your date of birth is used to confirm your age. If you turn on “Teammates can see my birthday”, your teams see the day and month only, never the year.' },
       { b: 'Activities.', t: 'Each activity you add: type, date and time, duration, distance, elevation, exercises, sets and weights, notes, Effort, personal bests, goals, events and finish times. Activities come from manual entry, activity scanning, archive import and RIVAL’s own GPS recording, and, once available, Apple Health on iPhone and Garmin.' },
       { b: 'Routes.', t: 'When an activity has a GPS route, RIVAL stores a simplified outline of it. Teammates see route maps only if you turn on route sharing.' },
       { b: 'Photos and videos.', t: 'Files you attach to activities, set as a cover, or upload for activity scanning.' },
