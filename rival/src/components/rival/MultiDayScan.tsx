@@ -259,7 +259,7 @@ export function MultiDayScan() {
         effort_score: effort,
         raw_effort_score: effort,
         exercises: d.exercises,
-        race_id: await findMatchingRaceId(user.id, startedAt),
+        race_id: await findMatchingRaceId(user.id, startedAt, { type: d.type, distanceMeters: meters }),
       }).select('id').single();
       if (insertError || !row) { failed.push(d); continue; }
       const lifts = (d.exercises ?? [])

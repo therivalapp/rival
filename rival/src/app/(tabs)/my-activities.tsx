@@ -3,7 +3,7 @@ import { JournalYearView } from '../../components/rival/JournalYearView';
 import { SkyBackdrop } from '../../components/rival/SkyBackdrop';
 import { GoldStar } from '../../components/rival/RespectStar';
 import { arrivedFromTab, goToTab, onTabReselect } from '../../lib/tabNav';
-import { clearShareRequest, onShareRequest, pendingShare } from '../../lib/shareRequest';
+import { clearShareRequest, onShareRequest, pendingShare, pendingWantsShare } from '../../lib/shareRequest';
 import { onActivityDeleted } from '../../lib/activityEvents';
 import { type LiftPb } from '../../lib/liftPb';
 import { isHoldLift } from '../../lib/lifts';
@@ -529,13 +529,24 @@ export default function MyActivitiesScreen() {
   // A Share from the feed or a team: open that activity with its share up,
   // once it's among the loaded activities; done, it goes back to Teams.
   const [shareFromTeams, setShareFromTeams] = useState<string | null>(null);
+  const reloadedFor = useRef<string | null>(null);
   useEffect(() => {
     const take = () => {
       const id = pendingShare();
-      if (!id || !allActivities.some((a) => a.id === id)) return;
+      if (!id) return;
+      if (!allActivities.some((a) => a.id === id)) {
+        // Just saved: the list may have loaded moments before the save.
+        if (reloadedFor.current !== id) { reloadedFor.current = id; loadActivities(); }
+        return;
+      }
+      const share = pendingWantsShare();
       clearShareRequest();
-      openDiary(allActivities, id);
-      setShareFromTeams(id);
+      if (share) {
+        openDiary(allActivities, id);
+        setShareFromTeams(id);
+      } else {
+        openDiary(allActivities, id, true);
+      }
     };
     take();
     return onShareRequest(take);
@@ -869,8 +880,17 @@ export default function MyActivitiesScreen() {
     );
   }
 
-  function openDiary(flatActivities: Activity[], activityId: string) {
-    const list = flatActivities.map(toDiaryActivity);
+  // The viewer runs oldest to newest, so left is earlier and right is later,
+  // like the week strip. Opened from a week, it stays in that week: no left
+  // arrow on the week's first activity (Ricky, 2026-11-12).
+  function openDiary(flatActivities: Activity[], activityId: string, weekOnly = false) {
+    const tapped = flatActivities.find((a) => a.id === activityId);
+    const week = tapped ? getMondayStart(new Date(tapped.started_at)) : null;
+    const list = flatActivities
+      .filter((a) => !weekOnly || week == null || getMondayStart(new Date(a.started_at)) === week)
+      .slice()
+      .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+      .map(toDiaryActivity);
     const idx = list.findIndex((a) => a.id === activityId);
     if (idx < 0) return;
     setDiaryList(list);
@@ -1028,7 +1048,7 @@ export default function MyActivitiesScreen() {
         key={activity.id}
         style={[styles.jGridCard, inRow && styles.jRowCard, cardIn(ci)]}
         activeOpacity={0.85}
-        onPress={() => openDiary(flatOrdered, activity.id)}
+        onPress={() => openDiary(flatOrdered, activity.id, true)}
       >
         {activity.photo_url ? (
           <CoverImage
@@ -2451,7 +2471,7 @@ export default function MyActivitiesScreen() {
                               key={cell.day}
                               style={[styles.jCalCellActive, mobileNav && styles.jCalCellPhone, mobileNav && styles.jCalCellActivePhone, badgeStyle, mobileNav && badgeStyle && styles.jCalCellBadgePhone, sizeOverride]}
                               activeOpacity={0.85}
-                              onPress={() => openDiary(flatOrdered, dayActs[0].id)}
+                              onPress={() => openDiary(flatOrdered, dayActs.reduce((a, b) => (a.started_at <= b.started_at ? a : b)).id, true)}
                             >
                               {/* Phones: no photo means the day's own sky, as on the
                                   day tiles (Ricky, 2026-10-20: never salmon). */}

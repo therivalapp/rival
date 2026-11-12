@@ -759,7 +759,7 @@ export default function ScanWorkoutScreen() {
         ? extractedWorkout.exercises.map((ex, i) => liftTags[i] ? { ...ex, prLift: liftTags[i] } : ex)
         : null;
 
-      const raceId = await findMatchingRaceId(user.id, startedAt.toISOString());
+      const raceId = await findMatchingRaceId(user.id, startedAt.toISOString(), { type: extractedWorkout.workoutType, distanceMeters: extractedWorkout.distance ? extractedWorkout.distance * 1000 : 0 });
 
       const activityPayload = {
         user_id: user.id,
