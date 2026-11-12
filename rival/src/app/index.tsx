@@ -46,10 +46,8 @@ export default function WelcomeScreen() {
           <Text style={styles.logo}>RIVAL</Text>
 
           <View style={styles.taglineWrap}>
+            {/* The headline alone (Ricky, 2026-11-11: subtext line removed). */}
             <Text style={[styles.tagline, mobile && ms.tagline]}>Fitness is better shared</Text>
-            {/* The one place the name is explained. Everywhere else the
-                product carries it: rivals as the people who lift you. */}
-            <Text style={styles.taglineSub}>A Rival is someone who brings out your best.</Text>
           </View>
 
           {mobile ? (
@@ -147,11 +145,9 @@ const styles = StyleSheet.create({
     color: RivalColors.textPrimary,
     textAlign: 'center',
   },
+  // Centred between the wordmark and the buttons.
   taglineWrap: {
     alignItems: 'center',
-    gap: 16,
-    paddingBottom: 32,
-    marginTop: 80,
   },
   tagline: {
     ...RivalType.headlineLg,
@@ -161,14 +157,6 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
     fontSize: 17,
     lineHeight: 22,
-  },
-  taglineSub: {
-    ...RivalType.bodyMd,
-    color: RivalColors.textSecondary,
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 21,
-    maxWidth: 300,
   },
   buttons: {
     gap: 4,
