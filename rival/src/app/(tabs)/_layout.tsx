@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
+import { NativeTabBar } from '../../components/rival/RivalTopNav';
 
 // The four bottom-nav screens as real tabs: each is built the first time it's
 // opened and then kept, so switching back is instant and keeps its scroll
@@ -42,7 +43,8 @@ export default function TabsLayout() {
   }, []);
 
   return (
-    <Tabs tabBar={() => null} backBehavior="history" screenOptions={{ headerShown: false, lazy: true }}>
+    // Web: each screen draws the bar (RivalTopNav). iPhone app: drawn here.
+    <Tabs tabBar={Platform.OS === 'web' ? () => null : (props) => <NativeTabBar routeName={props.state.routes[props.state.index].name} />} backBehavior="history" screenOptions={{ headerShown: false, lazy: true }}>
       <Tabs.Screen name="home" />
       <Tabs.Screen name="my-activities" />
       <Tabs.Screen name="team-feed" />

@@ -336,7 +336,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   // nav chrome at all there; acceptable since this app is mobile-first.
   if (hideBar) {
     if (!isFocused) return null;
-    return narrow ? (bottomNavPortalTarget ? createPortal(bottomNav, bottomNavPortalTarget) : bottomNav) : null;
+    return narrow && bottomNavPortalTarget ? createPortal(bottomNav, bottomNavPortalTarget) : null;
   }
 
   return (
@@ -565,8 +565,64 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           </View>
         </View>
       </View>
-      {narrow && isFocused && (bottomNavPortalTarget ? createPortal(bottomNav, bottomNavPortalTarget) : bottomNav)}
+      {/* iPhone app: the bar is NativeTabBar, drawn by the tab layout. */}
+      {narrow && isFocused && bottomNavPortalTarget ? createPortal(bottomNav, bottomNavPortalTarget) : null}
       {narrow && isFocused && notifOpen && notifAnchor && <NotificationsMenu anchor={notifAnchor} onClose={() => setNotifOpen(false)} />}
+    </View>
+  );
+}
+
+/**
+ * The iPhone app's bottom bar (2026-11-11, first TestFlight open): `position:
+ * fixed` does nothing in the native app, so the bar drawn inside each screen's
+ * header stayed up in the header. Here the tab layout draws it once, floating
+ * at the bottom of the tab screens. Same look as the web bar.
+ */
+export function NativeTabBar({ routeName }: { routeName: string }) {
+  const insets = useSafeAreaInsets();
+  const { live } = useLive();
+  const now = useTick(!!live && live.pausedAt == null);
+  const [unreadChats, setUnreadChats] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    getUnreadChats().then((r) => { if (!cancelled) setUnreadChats(r.count); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [routeName]);
+  const active = LINKS.find((l) => l.route === `/${routeName}`)?.key;
+  return (
+    <View style={[styles.nativeBarOuter, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 12, 8) : 6 }]} pointerEvents="box-none">
+      <View style={styles.bottomNav}>
+        {LINKS.map((l, i) => {
+          const isActive = active === l.key;
+          return (
+            <Fragment key={l.key}>
+              {i === 2 && <View style={styles.bottomNavGap} />}
+              <TouchableOpacity onPress={() => goToTab(l.route as TabRoute)} style={[styles.bottomNavItem, isActive && styles.bottomNavItemActive]}>
+                <View>
+                  <RivalIcon name={l.icon} size={20} color={isActive ? RivalColors.accentText : RivalColors.textSecondary} />
+                  {l.key === 'chat' && unreadChats > 0 && <View style={styles.navBadge} />}
+                </View>
+                <Text style={[styles.bottomNavLabel, isActive && styles.bottomNavLabelActive]}>{l.label}</Text>
+              </TouchableOpacity>
+            </Fragment>
+          );
+        })}
+      </View>
+      <TouchableOpacity
+        onPress={() => router.push('/start')}
+        accessibilityLabel={live ? 'Return to the activity' : 'Start an activity'}
+        activeOpacity={0.85}
+        style={styles.startCircle}
+      >
+        {live ? (
+          <>
+            <Text style={styles.startTime}>{liveClock(liveSeconds(live, now))}</Text>
+            <Text style={styles.startLive}>{live.pausedAt != null ? 'PAUSED' : 'LIVE'}</Text>
+          </>
+        ) : (
+          <Text style={styles.startText}>Start</Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -673,6 +729,7 @@ const styles = StyleSheet.create({
       : {}),
   },
   bottomNavGap: { flex: 1 },
+  nativeBarOuter: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16 },
   // Raised out of the bar's middle, the same circle as the running timer.
   startCircle: {
     position: 'absolute', top: -12, left: '50%', marginLeft: -33,

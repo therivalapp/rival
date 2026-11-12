@@ -1,3 +1,5 @@
+// First, before any screen's styles are created: iPhone-only style translation.
+import '../lib/nativeStyleFixes';
 import { softKeyboardUp } from '../lib/keyboard';
 import { startTextFit } from '../lib/textFit';
 import { startMouseDragScroll } from '../lib/mouseDragScroll';
