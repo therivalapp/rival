@@ -127,7 +127,10 @@ export default function Root({ children }: { children: React.ReactNode }) {
             font: italic 700 22px/1 Georgia, 'Times New Roman', serif;
             letter-spacing: 0.2em; text-indent: 0.2em; color: #ffb59e;
             pointer-events: none;
-            animation: rivalBootIn 450ms ease-out both, rivalBootPulse 1.65s ease-in-out 450ms infinite;
+            /* Mockup 48 · Opening v2 B (Ricky, 2026-11-13): RIVAL tightens
+               from wide spacing as it fades in, then pulses while loading,
+               then glides into the top bar's RIVAL (lib/appReveal.ts). */
+            animation: rivalBootIn 900ms cubic-bezier(.22,.8,.24,1) both, rivalBootPulse 1.65s cubic-bezier(.65,0,.35,1) 900ms infinite;
             /* Its own layer, so the pulse runs on the GPU and keeps going
                while the phone is busy starting the app's JavaScript (Ricky,
                2026-10-24: "RIVAL isn't pulsing"). */
@@ -146,7 +149,16 @@ export default function Root({ children }: { children: React.ReactNode }) {
           /* Fades in from the plain launch screen, then pulses with a slight
              shrink (Ricky, 2026-10-24: "make RIVAL pulse" when opening the
              app). */
-          @keyframes rivalBootIn { from { opacity: 0; } to { opacity: 0.9; } }
+          @keyframes rivalBootIn {
+            0% { opacity: 0; letter-spacing: 0.55em; text-indent: 0.55em; }
+            50% { opacity: 0.9; }
+            100% { opacity: 0.9; letter-spacing: 0.2em; text-indent: 0.2em; }
+          }
+          /* The glide: set going by appReveal with the move as inline style. */
+          #rival-boot.rival-boot-glide {
+            animation: none; opacity: 1; transform-origin: 0 0;
+            transition: transform 600ms cubic-bezier(.65,0,.35,1), opacity 150ms linear;
+          }
           @keyframes rivalBootPulse {
             0%, 100% { opacity: 0.9; transform: translateY(-50%) scale(1); }
             /* Half the first version's dip and shrink (0.3, 0.95), at half

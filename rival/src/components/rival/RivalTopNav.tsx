@@ -22,6 +22,7 @@ import { liveClock, liveSeconds } from '../../lib/liveActivity';
 import { webFx } from '../../lib/webFx';
 import { GradientText } from './GradientText';
 import { resetNavShrink, subscribeNavShrink } from '../../lib/navShrink';
+import { isWordmarkHidden, onWordmarkHidden, setWordmarkNode } from '../../lib/wordmarkSpot';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -144,6 +145,8 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   // isn't the active one (e.g. it was still showing over the sign-out
   // welcome screen, which renders no RivalTopNav of its own at all).
   const isFocused = useIsFocused();
+  const [wordmarkHidden, setWordmarkHiddenState] = useState(isWordmarkHidden());
+  useEffect(() => onWordmarkHidden(setWordmarkHiddenState), []);
   const insets = useSafeAreaInsets();
   // Keyboard-only offset. When the software keyboard opens, visualViewport
   // shrinks below the layout viewport and this keeps the pill above it.
@@ -356,7 +359,14 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
       <View style={[styles.row, narrow && styles.rowNarrow]}>
         <View style={[styles.logoRow, narrow && centerSlot ? styles.logoWrapBalanced : undefined]}>
           <TouchableOpacity onPress={() => goToTab('/home')}>
-            <GradientText style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</GradientText>
+            {/* Registered for the opening's glide into it (lib/wordmarkSpot.ts). */}
+            <View
+              ref={(n) => { if (isFocused && narrow) setWordmarkNode(n); }}
+              collapsable={false}
+              style={{ opacity: wordmarkHidden ? 0 : 1 }}
+            >
+              <GradientText style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</GradientText>
+            </View>
           </TouchableOpacity>
           {/* Team Beta (Ricky, 2026-11-10, Mockup 26 B): one tap from any
               page opens Send feedback. Phones only; remove at launch. */}
