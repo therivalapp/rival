@@ -56,6 +56,29 @@ const StarBurst = ({ at }: { at: number }) => (Platform.OS !== 'web' ? null : (
   </View>
 ));
 
+// A new rank's name rising into place letter by letter (Mockup 48 · More
+// motion D). Remounted per name, so each new rank plays it once.
+function LetterRise({ text, style, play }: { text: string; style: any; play: boolean }) {
+  const letters = text.split('');
+  const vals = useRef(letters.map(() => new Animated.Value(play ? 0 : 1))).current;
+  useEffect(() => {
+    if (!play) return;
+    Animated.stagger(45, vals.map((v) => Animated.timing(v, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }))).start();
+  }, [play, vals]);
+  return (
+    <View style={{ flexDirection: 'row' }} accessibilityLabel={text}>
+      {letters.map((ch, i) => (
+        <Animated.Text
+          key={i}
+          style={[style, { opacity: vals[i], transform: [{ translateY: vals[i].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}
+        >
+          {ch}
+        </Animated.Text>
+      ))}
+    </View>
+  );
+}
+
 export function RankLadder({ effort, climb = false, delay = 0, next = false, label = '2026 rank' }: {
   effort: number;
   climb?: boolean;
@@ -63,13 +86,14 @@ export function RankLadder({ effort, climb = false, delay = 0, next = false, lab
   next?: boolean;
   label?: string;
 }) {
-  const [shown, setShown] = useState(climb && Platform.OS === 'web' ? 0 : effort);
+  // Climbs on iPhone too now (Mockup 48 · More motion D).
+  const [shown, setShown] = useState(climb ? 0 : effort);
   const pop = useRef(new Animated.Value(1)).current;
   const rise = useRef(new Animated.Value(0)).current;
   const lastLevel = useRef(getLevel(shown).level);
 
   useEffect(() => {
-    if (!climb || Platform.OS !== 'web') { setShown(effort); return; }
+    if (!climb) { setShown(effort); return; }
     const steps = getLevel(effort).level;
     const duration = Math.min(4000, Math.max(1600, steps * 450));
     let raf = 0;
@@ -160,7 +184,9 @@ export function RankLadder({ effort, climb = false, delay = 0, next = false, lab
         {next && nextLevel ? (
           <GradientText style={[s.name, s.nameNext, rankTextSheen(nextLevel.level)]}>{nextLevel.name} next</GradientText>
         ) : (
-          <Animated.Text style={[s.name, rankTextSheen(lvl.level), { transform: [{ translateY: rise }, { scale: pop }] }]}>{lvl.name}</Animated.Text>
+          <Animated.View style={{ transform: [{ scale: pop }] }}>
+            <LetterRise key={lvl.name} text={lvl.name} style={[s.name, rankTextSheen(lvl.level)]} play={climb} />
+          </Animated.View>
         )}
         {next && nextLevel ? (
           <Text style={[s.togo, { color: nextSheen.light }]}>{fmt(nextLevel.minXp - effort)} Effort to go</Text>

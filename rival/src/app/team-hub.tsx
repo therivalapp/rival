@@ -1,4 +1,5 @@
 import { useSnapState } from '../lib/snapState';
+import { RollingNumber } from '../components/rival/RollingNumber';
 import { SkyBackdrop } from '../components/rival/SkyBackdrop';
 import { formatActivityDistance } from '../lib/units';
 // Real Team Hub — exact visual port of the "Team Hub v3" mockup Ricky
@@ -23,7 +24,7 @@ import { useEffect, useState, useId, useMemo } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
 import { setOpenTeam } from '../lib/tabNav';
-import { ActivityIndicator, Image, ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Modal } from '../components/rival/RivalModal';
 import { RivalMiniTile, RivalStartTiles, GreySheet, GreyPrimary, GreyNote, GreyField, GreyLabel, GreyRows } from '../components/rival/RivalGreySheet';
 import { BREAKPOINT_WIDE_LAYOUT, sidePageWide, SIDE_PAGE_MAX_WIDTH } from '../constants/breakpoints';
@@ -257,11 +258,24 @@ const chipActiveWeb = webFx({ backgroundImage: `linear-gradient(135deg, ${RivalC
 // salmon, never red), the most first (Ricky, 2026-11-09).
 const SHARE_TONES = [RivalColors.accentText, '#ffd2bf', '#f4ead8', 'rgba(244,234,216,0.45)'];
 
-function ChallengeRing({ pct, value, unit, size = 200, thickness = 14, shares }: { pct: number; value: number; unit: string; size?: number; thickness?: number; shares?: { fraction: number; tone: string }[] }) {
-  const clamped = Math.max(0, Math.min(1, pct));
+// The Team Challenge ring (Mockup 49 · C, Ricky 2026-11-13): when the team
+// has added to it since the last visit, each member's share draws in turn,
+// their picture appearing with it (`draw`, 0 to 1, shared with the pictures
+// under the ring), and the total rolls up alongside.
+const lastRingTotal = new Map<string, number>();
+const RING_DRAW_MS = 1800;
+function ChallengeRing({ pct, value, unit, size = 200, thickness = 14, shares, draw }: { pct: number; value: number; unit: string; size?: number; thickness?: number; shares?: { fraction: number; tone: string }[]; draw?: Animated.Value | null }) {
+  const [f, setF] = useState(draw ? 0 : 1);
+  useEffect(() => {
+    if (!draw) { setF(1); return; }
+    const idListen = draw.addListener(({ value: v }) => setF(v));
+    return () => draw.removeListener(idListen);
+  }, [draw]);
+  const clamped = Math.max(0, Math.min(1, pct)) * f;
   const ringId = `ringGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`; // unique per ring on the page
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
+  const total = shares ? shares.reduce((t, sh) => t + Math.max(0, sh.fraction), 0) : 0;
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
@@ -273,19 +287,23 @@ function ChallengeRing({ pct, value, unit, size = 200, thickness = 14, shares }:
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
         {shares ? (() => {
-          // One arc per member, end to end from the top, with a hairline gap.
+          // One arc per member, end to end from the top, with a hairline gap,
+          // drawn up to how far the ring has drawn.
           let start = 0;
+          const drawnTo = Math.min(1, total) * f;
           return shares.map((sh, i) => {
-            const len = Math.max(0, Math.min(1 - start, sh.fraction)) * circumference;
-            const arc = (
+            const full = Math.max(0, Math.min(1 - start, sh.fraction));
+            const shown = Math.max(0, Math.min(full, drawnTo - start));
+            const len = shown * circumference;
+            const arc = shown > 0 ? (
               <Circle
                 key={i}
                 cx={size / 2} cy={size / 2} r={radius}
                 stroke={sh.tone} strokeWidth={thickness} fill="none"
-                strokeDasharray={`${Math.max(len - 3, 0.5)} ${circumference}`}
+                strokeDasharray={`${Math.max(len - (shown >= full ? 3 : 0), 0.5)} ${circumference}`}
                 strokeDashoffset={-start * circumference}
               />
-            );
+            ) : null;
             start += sh.fraction;
             return arc;
           });
@@ -300,7 +318,11 @@ function ChallengeRing({ pct, value, unit, size = 200, thickness = 14, shares }:
         )}
       </Svg>
       <RivalIcon name="flag" size={22} color={RivalColors.accentText} style={{ marginBottom: 4 }} />
-      <Text style={styles.ringValue}>{value.toLocaleString()}</Text>
+      {draw ? (
+        <RollingNumber text={value.toLocaleString()} style={styles.ringValue} duration={RING_DRAW_MS - 200} waitForView={false} />
+      ) : (
+        <Text style={styles.ringValue}>{value.toLocaleString()}</Text>
+      )}
       <Text style={styles.ringTarget}>{unit}</Text>
     </View>
   );
@@ -939,6 +961,22 @@ export default function TeamHub() {
     if (inserted) setCommentsMap(prev => ({ ...prev, [key]: [...(prev[key] || []), inserted] }));
   }
 
+  // Plays only when the team has added to the challenge since the last
+  // visit (or on the first visit this session).
+  const ringTotal = Math.round(goalProgress);
+  const ringKey = `${id}:${standingsFilter}`;
+  const [ringDraw] = useState(() => new Animated.Value(0));
+  const [ringPlays, setRingPlays] = useState(false);
+  useEffect(() => {
+    if (!ringTotal) return;
+    const before = lastRingTotal.get(ringKey);
+    lastRingTotal.set(ringKey, ringTotal);
+    if (before === ringTotal) { setRingPlays(false); return; }
+    setRingPlays(true);
+    ringDraw.setValue(0);
+    Animated.timing(ringDraw, { toValue: 1, duration: RING_DRAW_MS, delay: 250, easing: Easing.bezier(0.22, 0.8, 0.24, 1), useNativeDriver: false }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ringTotal, ringKey]);
   if (loading) {
     return (
       <View style={styles.root}>
@@ -1102,6 +1140,7 @@ export default function TeamHub() {
                   <ChallengeRing
                     pct={pct} value={Math.round(goalProgress)} unit={`/ ${target.toLocaleString()} ${unit}`}
                     shares={ringShares}
+                    draw={ringPlays ? ringDraw : null}
                   />
                 </TouchableOpacity>
                 <View style={styles.ringMetaRow}>
@@ -1115,15 +1154,28 @@ export default function TeamHub() {
                   <Text style={styles.shareEmpty}>No activities in this sport yet.</Text>
                 ) : null}
                 {challengeShares.length > 0 && (() => {
-                  const items = challengeShares.map((c, i) => (
-                    <TouchableOpacity key={c.userId} style={styles.shareItem} onPress={() => router.push(`/stats?userId=${c.userId}` as any)}>
+                  // Each picture appears as its share of the ring starts to draw.
+                  const drawnTotal = ringShares ? ringShares.reduce((t, sh) => t + sh.fraction, 0) : 0;
+                  let before = 0;
+                  const items = challengeShares.map((c, i) => {
+                    const at = drawnTotal > 0 ? Math.min(0.98, before / drawnTotal) : 0;
+                    before += target ? c.value / target : 0;
+                    const appear = ringPlays ? {
+                      opacity: ringDraw.interpolate({ inputRange: [at, Math.min(1, at + 0.08)], outputRange: [0, 1], extrapolate: 'clamp' }),
+                      transform: [{ translateY: ringDraw.interpolate({ inputRange: [at, Math.min(1, at + 0.08)], outputRange: [6, 0], extrapolate: 'clamp' }) }],
+                    } : null;
+                    return (
+                    <Animated.View key={c.userId} style={appear}>
+                    <TouchableOpacity style={styles.shareItem} onPress={() => router.push(`/stats?userId=${c.userId}` as any)}>
                       <View style={[styles.shareAvatar, { borderColor: shareTone(i) }]}>
                         <RivalAvatar uri={memberAvatar(c.userId)} name={memberName(c.userId)} size={40} />
                       </View>
                       <Text style={styles.shareValue}>{c.value.toLocaleString()}<Text style={styles.shareUnit}> {unit}</Text></Text>
                       <Text style={styles.shareName} numberOfLines={1}>{memberName(c.userId).split(' ')[0]}</Text>
                     </TouchableOpacity>
-                  ));
+                    </Animated.View>
+                    );
+                  });
                   return challengeShares.length > 4 ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shareScroll} contentContainerStyle={styles.shareScrollInner}>
                       {items}

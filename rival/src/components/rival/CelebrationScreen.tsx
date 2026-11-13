@@ -7,6 +7,7 @@ import type { Celebration } from '../../lib/celebration';
 import { GreyPrimary } from './RivalGreySheet';
 import { activityIconName, RivalIcon, type RivalIconName } from './RivalIcon';
 import { SkyBackdrop } from './SkyBackdrop';
+import { RollingNumber } from './RollingNumber';
 import { webFx } from '../../lib/webFx';
 
 // A personal best or one of the year's achievements, full screen (Ricky,
@@ -43,6 +44,11 @@ export function CelebrationScreen({ celebration: c, activity, busy, error, onAdd
   const fade = useRef(new Animated.Value(0)).current;
   const burst = useRef(new Animated.Value(0)).current;
   const stepIn = useRef(new Animated.Value(counts ? 0 : 1)).current;
+  // A personal best: the old best rolls to the new one in ivory, then turns
+  // PB gold and a gold rule draws from the centre (Mockup 48 · Moments B).
+  const gold = useRef(new Animated.Value(counts && pb ? 0 : 1)).current;
+  const ruleIn = useRef(new Animated.Value(counts && pb ? 0 : 1)).current;
+  const landedRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     Animated.timing(fade, { toValue: 1, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
@@ -54,18 +60,17 @@ export function CelebrationScreen({ celebration: c, activity, busy, error, onAdd
       Animated.timing(stepIn, { toValue: 1, duration: 500, useNativeDriver: false }).start();
     };
     if (counts) {
-      const from = c.countFrom ?? 0;
-      const to = c.countTo!;
-      timer = setTimeout(() => {
-        const start = Date.now();
-        const tick = () => {
-          const t = Math.min(1, (Date.now() - start) / COUNT_MS);
-          const eased = 1 - Math.pow(1 - t, 3);
-          setShown(t < 1 ? fmt(from + (to - from) * eased, c.decimals) : c.big);
-          if (t < 1) raf = requestAnimationFrame(tick); else celebrate();
-        };
-        raf = requestAnimationFrame(tick);
-      }, 350);
+      // The rolling digits run the count (RollingNumber below) and call
+      // landed() when they settle.
+      landedRef.current = () => {
+        celebrate();
+        if (pb) {
+          Animated.parallel([
+            Animated.timing(gold, { toValue: 1, duration: 450, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            Animated.timing(ruleIn, { toValue: 1, duration: 500, delay: 150, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+          ]).start();
+        }
+      };
     } else {
       timer = setTimeout(celebrate, 400);
     }
@@ -94,7 +99,24 @@ export function CelebrationScreen({ celebration: c, activity, busy, error, onAdd
         {event ? <RivalIcon name="flag" size={28} color={EVENT} style={{ marginBottom: 10 }} /> : null}
         <Text style={[s.kicker, pb && { color: PB_GOLD, opacity: 1 }, event && { color: EVENT, opacity: 1 }]}>{c.kicker}</Text>
         <View style={s.bigWrap}>
-          <Text style={[s.big, { fontSize: bigSize, lineHeight: bigSize * 1.05 }]} numberOfLines={1} adjustsFontSizeToFit>{shown}</Text>
+          {counts ? (
+            <View>
+              <RollingNumber
+                text={c.big}
+                from={fmt(c.countFrom ?? 0, c.decimals)}
+                style={[s.big, { fontSize: bigSize, lineHeight: Math.round(bigSize * 1.05) }, pb && { color: RivalColors.event }]}
+                delay={350}
+                duration={COUNT_MS}
+                waitForView={false}
+                onDone={() => landedRef.current()}
+              />
+              {pb ? (
+                <Animated.Text style={[s.big, s.bigGold, { fontSize: bigSize, lineHeight: Math.round(bigSize * 1.05), opacity: gold }]} numberOfLines={1}>{c.big}</Animated.Text>
+              ) : null}
+            </View>
+          ) : (
+            <Text style={[s.big, { fontSize: bigSize, lineHeight: bigSize * 1.05 }]} numberOfLines={1} adjustsFontSizeToFit>{shown}</Text>
+          )}
           <View style={[s.burst, { pointerEvents: 'none' }]}>
             {pieces.map((p, i) => (
               <Animated.View
@@ -117,7 +139,7 @@ export function CelebrationScreen({ celebration: c, activity, busy, error, onAdd
         {c.pill ? <View style={[s.delta, s.eventPill]}><Text style={[s.deltaText, { color: EVENT }]}>{c.pill}</Text></View> : null}
         {c.delta ? <View style={s.delta}><Text style={s.deltaText}>{c.delta}</Text></View> : null}
         {c.was && !event ? <Text style={s.was}>{c.was}</Text> : null}
-        <View style={s.rule} />
+        <Animated.View style={[s.rule, pb && { backgroundColor: PB_GOLD, width: 120 }, { transform: [{ scaleX: ruleIn }] }]} />
         <Text style={s.title}>{c.title}</Text>
         <Text style={s.sub}>{event ? `${c.was}.` : `${pb ? 'Set on ' : 'Reached on '}${on}.`}</Text>
         {c.legs ? (
@@ -230,6 +252,7 @@ const s = StyleSheet.create({
   delta: { marginTop: 12, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,215,0,0.45)' },
   deltaText: { fontSize: 13, fontWeight: '800', color: PB_GOLD },
   was: { fontSize: 12.5, color: 'rgba(255,255,255,0.55)', marginTop: 10 },
+  bigGold: { position: 'absolute', left: 0, right: 0, top: 0, color: PB_GOLD },
   rule: { width: 46, height: 1, backgroundColor: 'rgba(255,255,255,0.5)', marginVertical: 22 },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 26, lineHeight: 32, color: '#fff', textAlign: 'center' },
   sub: { fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: 8 },

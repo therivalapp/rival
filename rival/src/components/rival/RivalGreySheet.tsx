@@ -1,5 +1,5 @@
 import { Children, Fragment, isValidElement, useRef, type ReactNode } from 'react';
-import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps } from 'react-native';
+import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps, Pressable } from 'react-native';
 import { useSheetMotion } from './RivalModal';
 import { useScreenHeight } from '../../lib/keyboard';
 import { RivalButtonColors, RivalColors, RivalGhost, RivalMainGlow, RivalSerifFamily, rivalPhoneVar } from '../../constants/rivalTheme';
@@ -203,9 +203,10 @@ export function GreyNote({ children }: { children: ReactNode }) {
  *  is the outlined second button (Cancel, Done). */
 export function GreyPrimary({ label, busy, disabled, onPress, tone }: { label: string; busy?: boolean; disabled?: boolean; onPress: () => void; tone?: 'warn' | 'danger' | 'ghost' }) {
   return (
-    <TouchableOpacity style={[g.primary, tone ? g[tone] : null, disabled && g.primaryOff]} onPress={onPress} disabled={disabled} activeOpacity={0.85}>
+    // Presses in a little (Mockup 48 · Moments A).
+    <Pressable style={({ pressed }) => [g.primary, tone ? g[tone] : null, disabled && g.primaryOff, pressed && !disabled && { opacity: 0.85, transform: [{ scale: 0.96 }] }]} onPress={onPress} disabled={disabled}>
       <BusyText busy={!!busy} style={[g.primaryText, tone ? TONE_TEXT[tone] : null]}>{label}</BusyText>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

@@ -19,6 +19,11 @@ export const ROLL_EASE = Easing.bezier(0.22, 1, 0.36, 1);
 const LOOPS = 2; // full turns of the wheel before it lands
 const DIGITS = Array.from({ length: (LOOPS + 1) * 10 }, (_, i) => String(i % 10));
 
+// The last figure each remembered number showed, so a number that has
+// changed since (a new activity's Effort) rolls on from the old one, with the
+// difference shown beside it, instead of from zero (Moments A).
+const lastShown = new Map<string, string>();
+
 function reducedOnWeb(): boolean {
   return Platform.OS === 'web' && typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
@@ -33,6 +38,7 @@ export function RollingNumber({
   duration = 1100,
   stagger = 90,
   waitForView = true,
+  memory,
   onDone,
 }: {
   /** The final figure exactly as it should read, e.g. "12,480" or "21:12". */
@@ -49,6 +55,9 @@ export function RollingNumber({
   stagger?: number;
   /** Web: wait until the number is on screen before rolling. */
   waitForView?: boolean;
+  /** Remember the figure under this name: when it next shows a different
+   *  figure it rolls on from the old one and shows the gain ("+19"). */
+  memory?: string;
   onDone?: () => void;
 }) {
   const flat = (StyleSheet.flatten(style) ?? {}) as TextStyle & { __gradientText?: string };
@@ -56,7 +65,18 @@ export function RollingNumber({
   const fontSize = flat.fontSize ?? 16;
   const rowH = flat.lineHeight ?? Math.round(fontSize * 1.15);
   const chars = useMemo(() => text.split(''), [text]);
-  const fromChars = from && from.length === text.length ? from.split('') : null;
+  const [remembered] = useState(() => (memory ? lastShown.get(memory) ?? null : null));
+  const rollOn = remembered && remembered !== text && remembered.length === text.length ? remembered : null;
+  const fromChars = from && from.length === text.length ? from.split('') : rollOn ? rollOn.split('') : null;
+  // The gain beside the number while it rolls on from the old figure.
+  const gain = useMemo(() => {
+    if (!rollOn) return null;
+    const a = Number(rollOn.replace(/[^\d.]/g, '')), b = Number(text.replace(/[^\d.]/g, ''));
+    const d = Math.round((b - a) * 10) / 10;
+    return d > 0 ? `+${d.toLocaleString()}` : null;
+  }, [rollOn, text]);
+  const gainFade = useRef(new Animated.Value(0)).current;
+  useEffect(() => { if (memory) lastShown.set(memory, text); }, [memory, text]);
 
   const [reduce, setReduce] = useState(reducedOnWeb());
   useEffect(() => {
@@ -66,10 +86,11 @@ export function RollingNumber({
 
   // One position per character (separators keep theirs at 0, unused).
   const pos = useRef<Animated.Value[]>([]);
-  const fade = useRef(new Animated.Value(0.35)).current;
+  const fade = useRef(new Animated.Value(from || rollOn ? 1 : 0.35)).current;
   if (pos.current.length !== chars.length) {
     pos.current = chars.map((ch, i) => {
-      const start = fromChars && /\d/.test(fromChars[i]) ? Number(fromChars[i]) : 0;
+      // From another figure: one turn earlier, so each digit rolls forward.
+      const start = fromChars && /\d/.test(fromChars[i]) ? 10 + Number(fromChars[i]) : 0;
       return new Animated.Value(/\d/.test(ch) ? -start * rowH : 0);
     });
   }
@@ -104,8 +125,16 @@ export function RollingNumber({
         useNativeDriver: Platform.OS !== 'web',
       });
     });
+    const nd = Platform.OS !== 'web';
+    if (gain) {
+      Animated.sequence([
+        Animated.timing(gainFade, { toValue: 1, duration: 250, delay, useNativeDriver: nd }),
+        Animated.delay(duration + 600),
+        Animated.timing(gainFade, { toValue: 0, duration: 400, useNativeDriver: nd }),
+      ]).start();
+    }
     Animated.parallel([
-      Animated.timing(fade, { toValue: 1, duration: 300, delay, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(fade, { toValue: 1, duration: 300, delay, useNativeDriver: nd }),
       ...anims,
     ]).start(({ finished }) => finished && onDone?.());
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,20 +187,24 @@ export function RollingNumber({
     </Animated.View>
   );
 
+  const gainTag = gain ? (
+    <Animated.Text pointerEvents="none" style={[s.gain, { fontFamily: flat.fontFamily, fontSize: Math.max(13, Math.round(fontSize * 0.45)), top: rowH * 0.18, opacity: gainFade }]}>{gain}</Animated.Text>
+  ) : null;
   if (grad && Platform.OS !== 'web') {
     return (
-      <MaskedView style={layout} maskElement={row('#000')}>
+      <View style={layout}>{gainTag}<MaskedView maskElement={row('#000')}>
         <View style={{ experimental_backgroundImage: grad } as any}>
           <Text style={[textStyle, { opacity: 0 }]}>{text}</Text>
         </View>
-      </MaskedView>
+      </MaskedView></View>
     );
   }
-  return <View ref={boxRef} style={layout} accessibilityLabel={text}>{row()}</View>;
+  return <View ref={boxRef} style={layout} accessibilityLabel={text}>{gainTag}{row()}</View>;
 }
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   strip: { position: 'absolute', top: 0, left: 0, right: 0 },
   cell: { textAlign: 'center' },
+  gain: { position: 'absolute', right: '100%', marginRight: 6, fontStyle: 'italic', fontWeight: '700', color: '#ffb59e' },
 });

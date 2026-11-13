@@ -3276,7 +3276,7 @@ export default function HomeScreen() {
                   >
                     {/* This year first: rank is built on it. Lifetime is a swipe away. */}
                     <View style={[styles.mLegacyHeroPage, heroWidth ? { width: heroWidth } : null]}>
-                      <RollingNumber text={Math.round(seasonEffortTotal).toLocaleString()} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} />
+                      <RollingNumber text={Math.round(seasonEffortTotal).toLocaleString()} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} memory="today.season" />
                       {/* The heading already says the year, so the label says
                           where it counts from, matching the lifetime page. */}
                       <Text style={styles.mLegacyHeroLabel}>
@@ -3296,7 +3296,7 @@ export default function HomeScreen() {
                       </TouchableOpacity>
                     </View>
                     <View style={[styles.mLegacyHeroPage, heroWidth ? { width: heroWidth } : null]}>
-                      <RollingNumber text={Math.round(lifetimeXp).toLocaleString()} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} />
+                      <RollingNumber text={Math.round(lifetimeXp).toLocaleString()} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} memory="today.lifetime" />
                       <Text style={styles.mLegacyHeroLabel}>
                         Total Effort{firstActivityAt ? ` · since ${new Date(firstActivityAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}` : ''}
                       </Text>

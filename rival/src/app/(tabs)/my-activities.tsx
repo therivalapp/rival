@@ -2124,7 +2124,7 @@ export default function MyActivitiesScreen() {
                         kicker={thisWeekEvent ? `Event week · ${formatWeekRangeCompact(currentWeekStartForHero)}` : thisWeekCount === 0 ? 'This week' : formatWeekRangeCompact(currentWeekStartForHero)}
                         title={thisWeekEvent ? thisWeekEvent.name : thisWeekCount === 0 ? '' : 'This week'}
                         event={!!thisWeekEvent}
-                        effort={<RollingNumber key={journalVisit} text={thisWeekTotal.toFixed(Number.isInteger(thisWeekTotal) ? 0 : 1)} style={thisWeekEffortStyle} run={thisWeekTotal > 0} />}
+                        effort={<RollingNumber key={journalVisit} text={thisWeekTotal.toFixed(Number.isInteger(thisWeekTotal) ? 0 : 1)} style={thisWeekEffortStyle} run={thisWeekTotal > 0} memory="activity.thisWeek" />}
                         expanded={heroExpanded}
                         onToggle={() => setHeroExpanded((v) => !v)}
                         still={thisWeekCount === 0}
