@@ -22,6 +22,7 @@ import { liveClock, liveSeconds } from '../../lib/liveActivity';
 import { webFx } from '../../lib/webFx';
 import { GradientText } from './GradientText';
 import { resetNavShrink, subscribeNavShrink } from '../../lib/navShrink';
+import { isWordmarkHidden, onWordmarkHidden, setWordmarkNode } from '../../lib/wordmarkSpot';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -144,6 +145,9 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
   // isn't the active one (e.g. it was still showing over the sign-out
   // welcome screen, which renders no RivalTopNav of its own at all).
   const isFocused = useIsFocused();
+  const tabHl = useTabHighlight(active);
+  const [wordmarkHidden, setWordmarkHiddenState] = useState(isWordmarkHidden());
+  useEffect(() => onWordmarkHidden(setWordmarkHiddenState), []);
   const insets = useSafeAreaInsets();
   // Keyboard-only offset. When the software keyboard opens, visualViewport
   // shrinks below the layout viewport and this keeps the pill above it.
@@ -285,6 +289,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
       ]}
     >
       <View nativeID="rival-bottom-nav" style={[styles.bottomNav, navShrunk && styles.bottomNavShrunk]}>
+        {tabHl.highlight}
         {LINKS.map((l, i) => {
           const isActive = active === l.key;
           return (
@@ -300,7 +305,8 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
                 goToTab(l.route as TabRoute);
                 if (onTabPage) scrollPageToTop();
               }}
-              style={[styles.bottomNavItem, isActive && styles.bottomNavItemActive, navShrunk && styles.bottomNavItemShrunk]}
+              onLayout={tabHl.onItemLayout(l.key)}
+              style={[styles.bottomNavItem, navShrunk && styles.bottomNavItemShrunk]}
             >
               <View>
                 <RivalIcon name={l.icon} size={navShrunk ? 22 : 20} color={isActive ? RivalColors.accentText : RivalColors.textSecondary} />
@@ -356,7 +362,14 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
       <View style={[styles.row, narrow && styles.rowNarrow]}>
         <View style={[styles.logoRow, narrow && centerSlot ? styles.logoWrapBalanced : undefined]}>
           <TouchableOpacity onPress={() => goToTab('/home')}>
-            <GradientText style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</GradientText>
+            {/* Registered for the opening's glide into it (lib/wordmarkSpot.ts). */}
+            <View
+              ref={(n) => { if (isFocused && narrow) setWordmarkNode(n); }}
+              collapsable={false}
+              style={{ opacity: wordmarkHidden ? 0 : 1 }}
+            >
+              <GradientText style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</GradientText>
+            </View>
           </TouchableOpacity>
           {/* Team Beta (Ricky, 2026-11-10, Mockup 26 B): one tap from any
               page opens Send feedback. Phones only; remove at launch. */}
@@ -596,6 +609,43 @@ export function getNativeNavTop() {
   return nativeNavTop;
 }
 
+
+// One highlight behind the bottom bar's tabs that slides to the tab you
+// chose, instead of each tab lighting its own background (Mockup 48 ·
+// Moments D, Ricky 2026-11-13). Each page has its own bar on the web, so the
+// tab you came from is remembered here and the new bar slides from there.
+let lastTabKey: string | null = null;
+function useTabHighlight(active: string | undefined) {
+  const [spots, setSpots] = useState<Record<string, { x: number; w: number; y: number; h: number }>>({});
+  const left = useRef(new Animated.Value(0)).current;
+  const width = useRef(new Animated.Value(0)).current;
+  const shown = useRef(false);
+  useEffect(() => {
+    if (!active) return;
+    const to = spots[active];
+    if (!to) return;
+    const from = lastTabKey && lastTabKey !== active ? spots[lastTabKey] : null;
+    if (!shown.current) {
+      shown.current = true;
+      left.setValue((from ?? to).x);
+      width.setValue((from ?? to).w);
+    }
+    lastTabKey = active;
+    Animated.parallel([
+      Animated.spring(left, { toValue: to.x, damping: 18, stiffness: 220, mass: 1, useNativeDriver: false }),
+      Animated.spring(width, { toValue: to.w, damping: 18, stiffness: 220, mass: 1, useNativeDriver: false }),
+    ]).start();
+  }, [active, spots, left, width]);
+  const onItemLayout = (key: string) => (e: any) => {
+    const { x, y, width: w, height: h } = e.nativeEvent.layout;
+    setSpots((cur) => (cur[key]?.x === x && cur[key]?.w === w && cur[key]?.h === h ? cur : { ...cur, [key]: { x, w, y, h } }));
+  };
+  const highlight = active && spots[active] ? (
+    <Animated.View pointerEvents="none" style={[styles.tabHighlight, { left, width, top: spots[active].y, height: spots[active].h }]} />
+  ) : null;
+  return { onItemLayout, highlight };
+}
+
 export function NativeTabBar({ routeName }: { routeName: string }) {
   const insets = useSafeAreaInsets();
   const { live } = useLive();
@@ -607,6 +657,7 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
     return () => { cancelled = true; };
   }, [routeName]);
   const active = LINKS.find((l) => l.route === `/${routeName}`)?.key;
+  const tabHl = useTabHighlight(active);
   // Shrinks while scrolling down and settles toward the bottom edge, as on
   // the web (bottomNavShrunk / startCircleShrunk). Pages report their scroll
   // through usePullToRefresh (lib/navShrink.ts).
@@ -635,12 +686,13 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
   return (
     <View style={[styles.nativeBarOuter, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 12, 8) : 6 }]} pointerEvents="box-none" onLayout={(e) => { nativeNavTop = e.nativeEvent.layout.y; }}>
       <Animated.View style={[styles.bottomNav, barShrink]} onLayout={(e) => setBarH(e.nativeEvent.layout.height)}>
+        {tabHl.highlight}
         {LINKS.map((l, i) => {
           const isActive = active === l.key;
           return (
             <Fragment key={l.key}>
               {i === 2 && <View style={styles.bottomNavGap} />}
-              <TouchableOpacity onPress={() => goToTab(l.route as TabRoute)} style={[styles.bottomNavItem, isActive && styles.bottomNavItemActive]}>
+              <TouchableOpacity onLayout={tabHl.onItemLayout(l.key)} onPress={() => goToTab(l.route as TabRoute)} style={styles.bottomNavItem}>
                 <View>
                   <RivalIcon name={l.icon} size={20} color={isActive ? RivalColors.accentText : RivalColors.textSecondary} />
                   {l.key === 'chat' && unreadChats > 0 && <View style={styles.navBadge} />}
@@ -801,6 +853,8 @@ const styles = StyleSheet.create({
 
   bottomNavItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 5, paddingHorizontal: 5, borderRadius: 16 },
   bottomNavItemActive: { backgroundColor: `${RivalColors.accentFill}22` },
+  // The sliding highlight behind the active tab (useTabHighlight).
+  tabHighlight: { position: 'absolute', borderRadius: 16, backgroundColor: `${RivalColors.accentFill}22` },
   bottomNavItemShrunk: { paddingVertical: 8, gap: 0 },
   bottomNavLabel: { fontSize: 11, fontWeight: '600', color: RivalColors.textSecondary },
   bottomNavLabelActive: { color: RivalColors.accentText },

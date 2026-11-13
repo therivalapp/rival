@@ -78,8 +78,10 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
   50% { opacity: 0.5; }
 }
 /* A pop-up's sheet rising and dropping; its backdrop only fades (RivalModal.tsx). */
+/* Rises with a short settle past its place and back (Mockup 48 · More motion C). */
 @keyframes rivalSheetUp {
   from { translate: 0 100%; }
+  78% { translate: 0 -8px; }
   to { translate: 0 0; }
 }
 @keyframes rivalSheetDown {
@@ -90,6 +92,17 @@ input:focus, textarea:focus, button:focus, div:focus, [tabindex]:focus {
 @keyframes rivalMenuIn {
   from { opacity: 0; transform: scale(0.9) translateY(-4px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+/* Today filling in from the top down once loaded (RiseIn.tsx, Mockup 48 · Loading B). */
+@keyframes rivalRiseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+/* The pull-to-refresh hairline running while a page reloads (usePullToRefresh). */
+@keyframes rivalHairRun {
+  0% { transform: scaleX(0.15); opacity: 0.5; }
+  50% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(0.15); opacity: 0.5; }
 }
 @keyframes rivalSkelPulse {
   0%, 100% { opacity: 0.4; }

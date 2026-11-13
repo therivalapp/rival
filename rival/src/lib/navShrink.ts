@@ -15,8 +15,16 @@ function set(next: boolean) {
   listeners.forEach((l) => l(next));
 }
 
+// Anything that waits to be on screen (lib/onScreen.ts) re-checks on scroll.
+const scrollWatchers = new Set<() => void>();
+export function onAnyScroll(fn: () => void): () => void {
+  scrollWatchers.add(fn);
+  return () => { scrollWatchers.delete(fn); };
+}
+
 /** Call with a page's vertical scroll offset on every scroll event. */
 export function reportNavScroll(y: number) {
+  scrollWatchers.forEach((fn) => fn());
   const delta = y - lastY;
   lastY = y;
   if (y <= 4) set(false);

@@ -4,6 +4,8 @@
 // revealApp(); the root layout, the bottom bar and Today's own animations
 // wait for it.
 
+import { measureWordmark, setWordmarkHidden } from './wordmarkSpot';
+
 let done = false;
 const listeners = new Set<() => void>();
 // Shown comes two frames after the reveal: Today does its own work at the
@@ -31,7 +33,7 @@ export function revealApp() {
       shownListeners.clear();
       // The wordmark and fade are web only; the iPhone app has no document.
       if (typeof document === 'undefined') return;
-      document.getElementById('rival-boot')?.remove();
+      glideBoot();
       document.documentElement.classList.add('rival-shown');
       // Once the fade is over (+html.tsx drops the fade's transition).
       setTimeout(() => document.documentElement.classList.add('rival-ready'), 800);
@@ -70,4 +72,35 @@ export function onAppShown(fn: () => void): () => void {
   if (shown) { fn(); return () => {}; }
   shownListeners.add(fn);
   return () => { shownListeners.delete(fn); };
+}
+
+// The loading RIVAL glides into the top bar's RIVAL as the app fades in
+// (Mockup 48 · Opening v2 B, Ricky 2026-11-13), then hands over to it. With
+// no top bar on the page (the welcome page), it simply goes.
+const GLIDE_MS = 600;
+function glideBoot() {
+  const boot = document.getElementById('rival-boot');
+  if (!boot) { setWordmarkHidden(false); return; }
+  const finish = () => { boot.remove(); setWordmarkHidden(false); };
+  measureWordmark((spot) => {
+    const text = boot.firstChild;
+    if (!spot || !text) { finish(); return; }
+    const range = document.createRange();
+    range.selectNodeContents(boot);
+    const from = range.getBoundingClientRect();
+    if (!from.width) { finish(); return; }
+    // Pin it where it is, as a plain box at its text's own place.
+    boot.style.left = `${from.left}px`;
+    boot.style.top = `${from.top}px`;
+    boot.style.right = 'auto';
+    boot.style.textIndent = '0';
+    boot.style.transform = 'none';
+    boot.classList.add('rival-boot-glide');
+    const k = spot.w / from.width;
+    requestAnimationFrame(() => {
+      boot.style.transform = `translate(${spot.x - from.left}px, ${spot.y + (spot.h - from.height * k) / 2 - from.top}px) scale(${k})`;
+    });
+    setTimeout(() => { setWordmarkHidden(false); boot.style.opacity = '0'; }, GLIDE_MS);
+    setTimeout(() => boot.remove(), GLIDE_MS + 200);
+  });
 }

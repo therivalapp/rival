@@ -4,7 +4,7 @@ import { bandFit } from '../../lib/titleFit';
 import { SkyBackdrop } from './SkyBackdrop';
 import { defaultActivityName } from '../../lib/activityName';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, useWindowDimensions } from 'react-native';
 import { Modal } from './RivalModal';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -202,6 +202,15 @@ export function ActivityDiaryViewer({
   // handle bar (not the whole photo/scroll area), so it doesn't fight the
   // left/right tap-to-advance zones or the footer's TextInputs.
   const dragY = useRef(new Animated.Value(0)).current;
+  // The page slides in from the right when it opens (Mockup 49 · A, Ricky
+  // 2026-11-13): 1 = off to the right, 0 = in place.
+  const slideX = useRef(new Animated.Value(wide ? 0 : 1)).current;
+  const { width: screenW } = useWindowDimensions();
+  useEffect(() => {
+    if (wide) return;
+    Animated.timing(slideX, { toValue: 0, duration: 350, easing: Easing.bezier(0.22, 0.8, 0.24, 1), useNativeDriver: Platform.OS !== 'web' }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -323,7 +332,9 @@ export function ActivityDiaryViewer({
   // requiring Save before you're allowed to leave.
   async function handleClose() {
     if (dirty && !(await confirmAction({ title: 'Discard unsaved changes?', confirmLabel: 'Discard', destructive: true }))) return;
-    onClose();
+    // Back reverses the slide in (Mockup 49 · A).
+    if (wide) { onClose(); return; }
+    Animated.timing(slideX, { toValue: 1, duration: 280, easing: Easing.bezier(0.65, 0, 0.35, 1), useNativeDriver: Platform.OS !== 'web' }).start(() => onClose());
   }
   const firstCloseSignal = useRef(closeSignal);
   useEffect(() => {
@@ -759,7 +770,7 @@ export function ActivityDiaryViewer({
   );
 
   return (
-    <Animated.View ref={wide ? undefined : sheetDrag} style={[styles.overlay, { transform: [{ translateY: dragY }] }]}>
+    <Animated.View ref={wide ? undefined : sheetDrag} style={[styles.overlay, { transform: [{ translateY: dragY }, { translateX: slideX.interpolate({ inputRange: [0, 1], outputRange: [0, screenW] }) }] }]}>
       <EffortBreakdownSheet
         activity={breakdownFor ? { ...breakdownFor, canReview: !viewOnly && !breakdownFor.shared_from_activity_id } : null}
         onClose={() => setBreakdownFor(null)}

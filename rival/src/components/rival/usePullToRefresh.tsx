@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, RefreshControl, StyleSheet, View } from 'react-native';
+import { Platform, RefreshControl, StyleSheet, View } from 'react-native';
 import { reportNavScroll, resetNavShrink } from '../../lib/navShrink';
 import { RivalColors } from '@/constants/rivalTheme';
 
@@ -122,17 +122,18 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>) {
   // child still counts as a flex child, so it collected the scroll content's
   // `gap` and pushed the first card down by that gap, opening a dark band
   // between the top nav and the hero image that bleeds up behind it.
+  // A hairline, not a spinner (Mockup 48 · More motion B, Ricky 2026-11-13):
+  // it grows with the pull, then runs while the page reloads.
   const indicator = pull === 0 && !refreshing ? null : (
-    <View style={[styles.wrap, { height: pull }, { pointerEvents: 'none' }]}>
-      {pull > 8 ? (
-        <ActivityIndicator
-          size="small"
-          color={RivalColors.accentText}
-          // Before the threshold the spinner fades in with the pull, so the
-          // gesture reads as "keep going"; past it, full strength says "let go".
-          style={{ opacity: refreshing ? 1 : Math.min(pull / THRESHOLD, 1) }}
-        />
-      ) : null}
+    <View style={[styles.wrap, { height: refreshing ? Math.max(pull, 28) : pull }, { pointerEvents: 'none' }]}>
+      <View
+        style={[
+          styles.hair,
+          refreshing
+            ? ({ width: 72, animationName: 'rivalHairRun', animationDuration: '1.1s', animationIterationCount: 'infinite', animationTimingFunction: 'cubic-bezier(.65,0,.35,1)' } as any)
+            : { width: Math.round(72 * Math.min(pull / THRESHOLD, 1)), opacity: pull >= THRESHOLD ? 1 : 0.6 },
+        ]}
+      />
     </View>
   );
 
@@ -172,4 +173,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  hair: { height: 1, borderRadius: 1, backgroundColor: RivalColors.accentText },
 });

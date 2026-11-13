@@ -43,6 +43,6 @@ export function useSheetMotion(): any {
 export function sheetMotion(open: boolean | null): any {
   if (open === null || Platform.OS !== 'web') return null;
   return open
-    ? { animationName: 'rivalSheetUp', animationDuration: '250ms', animationTimingFunction: 'cubic-bezier(0.215, 0.61, 0.355, 1)', animationFillMode: 'backwards' }
+    ? { animationName: 'rivalSheetUp', animationDuration: '380ms', animationTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)', animationFillMode: 'backwards' }
     : { animationName: 'rivalSheetDown', animationDuration: '220ms', animationTimingFunction: 'cubic-bezier(0.47, 0, 0.745, 0.715)', animationFillMode: 'forwards' };
 }

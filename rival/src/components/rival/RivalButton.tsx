@@ -95,7 +95,8 @@ const styles = StyleSheet.create({
   destructive: { backgroundColor: 'transparent' },
   text: { backgroundColor: 'transparent', paddingHorizontal: 8 },
   disabled: { opacity: 0.5 },
-  pressed: { opacity: 0.85 },
+  // Pressed: a small press-in (Mockup 48 · Moments A).
+  pressed: { opacity: 0.85, transform: [{ scale: 0.96 }] },
   label: { ...RivalType.titleMd, fontSize: 16, fontWeight: '600' },
   labelPrimary: { color: RivalColors.accentText },
   labelSecondary: { color: RivalColors.textPrimary },

@@ -28,6 +28,7 @@ import { savePendingInvite } from '../lib/pendingInvite';
 import { RivalAlertHost, FeedbackHost, SafetyHost } from '../components/rival';
 import { PreparingMediaHost } from '../components/rival/MediaPicker';
 import { SimUpdateTag } from '../components/rival/SimProbe';
+import { BootWordmark } from '../components/rival/BootWordmark';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 import { PhotoPrompt } from '../components/rival/PhotoPrompt';
 import { SavedActivityNote } from '../components/rival/SavedActivityNote';
@@ -236,6 +237,8 @@ export default function RootLayout() {
       <SafetyHost />
       <RivalAlertHost />
       <PreparingMediaHost />
+      {/* iPhone opening: RIVAL tightens, pulses, glides into the top bar. */}
+      {Platform.OS !== 'web' && <BootWordmark />}
       <SimUpdateTag />
     </SafeAreaProvider>
   );

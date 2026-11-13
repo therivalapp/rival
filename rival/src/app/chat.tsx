@@ -2,7 +2,7 @@ import { useSnapState } from '../lib/snapState';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
-  Image, ActivityIndicator, Platform, KeyboardAvoidingView, useWindowDimensions, Pressable,
+  Image, ActivityIndicator, Animated, Easing, Platform, KeyboardAvoidingView, useWindowDimensions, Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -129,6 +129,8 @@ function useKeyboardInset(): number {
 }
 
 export default function ChatScreen() {
+  // Messages that arrive while the chat is open animate in (MessageArrive).
+  const openedAt = useRef(Date.now() - 2000);
   const { id } = useLocalSearchParams<{ id?: string }>();
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
@@ -627,7 +629,7 @@ export default function ChatScreen() {
               const isLastOfGroup = !groupWithNext;
 
               return (
-                <View key={msg.id} onLayout={firstUnreadId === msg.id ? (e) => { newLineY.current = e.nativeEvent.layout.y; settleScroll(contentH.current); } : undefined}>
+                <MessageArrive key={msg.id} play={t > openedAt.current} mine={isMe} onLayout={firstUnreadId === msg.id ? (e) => { newLineY.current = e.nativeEvent.layout.y; settleScroll(contentH.current); } : undefined}>
                   {showSeparator && (
                     <View style={styles.sepRow}>
                       <Text style={[styles.sepText, mob && ms.sepText]}>{separatorLabel(msg.created_at)}</Text>
@@ -750,7 +752,7 @@ export default function ChatScreen() {
                       </View>
                     </View>
                   )}
-                </View>
+                </MessageArrive>
               );
             })}
           </ScrollView>
@@ -916,6 +918,24 @@ const webEditorStyle: any = {
 // the reactions sit above the pressed message, and a menu below it holds
 // Reply and Copy, then Report (amber) and Block (red) in their own group,
 // away from Reply. Your own messages have no Report or Block.
+// A message arriving while the chat is open (Mockup 49 · B, Ricky
+// 2026-11-13): yours rises out of the composer into place, a reply slides in
+// from the left. Messages already there when the chat opens just show.
+function MessageArrive({ play, mine, onLayout, children }: { play: boolean; mine: boolean; onLayout?: (e: any) => void; children: React.ReactNode }) {
+  const v = useRef(new Animated.Value(play ? 0 : 1)).current;
+  useEffect(() => {
+    if (!play) return;
+    Animated.timing(v, { toValue: 1, duration: mine ? 320 : 360, easing: Easing.bezier(0.22, 0.8, 0.24, 1), useNativeDriver: Platform.OS !== 'web' }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const from = v.interpolate({ inputRange: [0, 1], outputRange: [mine ? 28 : -24, 0] });
+  return (
+    <Animated.View onLayout={onLayout} style={{ opacity: v, transform: [mine ? { translateY: from } : { translateX: from }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
 function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, onReport, onBlock }: {
   msg: Msg; isMe: boolean; name: string; mine: string | null;
   onClose: () => void; onReact: (emoji: string) => void; onReply: () => void; onCopy: () => void;

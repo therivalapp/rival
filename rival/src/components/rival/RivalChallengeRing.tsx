@@ -1,4 +1,5 @@
 import { GradientText } from './GradientText';
+import { RollingNumber } from './RollingNumber';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Platform, View, Text, StyleSheet, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -118,6 +119,17 @@ export function RivalChallengeRing({
           that unused descender space so the numeral's actual ink — not its
           box — sits at the ring's visual center. Scales with the ring so a
           smaller ring elsewhere isn't over-corrected. */}
+      {animate ? (
+        // Rolls to its value as the ring draws (Mockup 48 · More motion E).
+        <RollingNumber
+          text={valueText ?? formatRingValue(value, target)}
+          gradient="linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)"
+          style={[styles.ringValue, { fontSize: valueSize, lineHeight: Math.round(valueSize * 1.06), marginTop: -Math.round(valueSize * 0.12) }]}
+          run={animate.run}
+          duration={Math.max(600, animate.ms - 300)}
+          waitForView={false}
+        />
+      ) : (
       <GradientText
         gradient="linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)"
         style={[
@@ -127,6 +139,7 @@ export function RivalChallengeRing({
       >
         {formatted}
       </GradientText>
+      )}
       <Text style={styles.ringTarget}>{unit}</Text>
     </View>
   );

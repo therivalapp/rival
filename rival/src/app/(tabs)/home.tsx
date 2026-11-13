@@ -5,6 +5,9 @@ import { useState, useCallback, useRef, useEffect, useId, memo } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated, Dimensions } from 'react-native';
 import { getNativeNavTop } from '../../components/rival/RivalTopNav';
 import { GradientText } from '../../components/rival/GradientText';
+import { RollingNumber } from '../../components/rival/RollingNumber';
+import { RiseIn } from '../../components/rival/RiseIn';
+import { useOnScreen } from '../../lib/onScreen';
 
 // Gradients of the text styles below (background-clip: text on the web), for
 // GradientText on iPhone.
@@ -1190,9 +1193,25 @@ function SkeletonBar({ width, height, radius = 6, style }: { width: number | `${
   return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: 'rgba(255,209,190,0.10)' }, SKEL_PULSE_WEB ?? { opacity: pulse }, style]} />;
 }
 
+// The pulse runs down the page, each block 70ms after the one above
+// (Mockup 48 · Loading B, Ricky 2026-11-13).
+function SkelBlock({ i, st }: { i: number; st: any }) {
+  const pulse = useRef(new Animated.Value(0.45)).current;
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.45, duration: 700, useNativeDriver: true }),
+    ]));
+    const t = setTimeout(() => loop.start(), i * 70);
+    return () => { clearTimeout(t); loop.stop(); };
+  }, [pulse, i]);
+  return <Animated.View style={[styles.mSkel, st, SKEL_PULSE_WEB ? { ...SKEL_PULSE_WEB, animationDelay: `${i * 70}ms` } : { opacity: pulse }]} />;
+}
+
 function MobileHomeSkeleton() {
-  const pulse = useSkeletonPulse();
-  const block = (st: any) => <Animated.View style={[styles.mSkel, st, SKEL_PULSE_WEB ?? { opacity: pulse }]} />;
+  let n = 0;
+  const block = (st: any) => <SkelBlock i={n++} st={st} />;
   return (
     <View accessibilityLabel="Loading" style={{ gap: 0 }}>
       <View style={[styles.mLeaderCard, styles.mSkelLeader]}>
@@ -1433,20 +1452,11 @@ function MHeading({ title, subtitle, icon, onTitlePress, oneLine }: { title?: st
 const FOCUS_RING_MS = 1600;
 function FocusRing(props: Omit<React.ComponentProps<typeof RivalChallengeRing>, 'animate'>) {
   const ref = useRef<View>(null);
-  const [seen, setSeen] = useState(!PODIUM_MOTION);
-  useEffect(() => {
-    const el = ref.current as any;
-    if (seen) return;
-    if (Platform.OS !== 'web' || !el || typeof IntersectionObserver === 'undefined') { setSeen(true); return; }
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.intersectionRatio >= 0.4) { setSeen(true); io.disconnect(); }
-    }, { threshold: [0, 0.4] });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [seen]);
+  // Draws when it comes on screen, on the web and on iPhone (Mockup 48 · More motion E).
+  const seen = useOnScreen(ref);
   return (
-    <View ref={ref}>
-      <RivalChallengeRing {...props} animate={PODIUM_MOTION ? { run: seen, ms: FOCUS_RING_MS, ease: riseEase } : undefined} />
+    <View ref={ref} collapsable={false}>
+      <RivalChallengeRing {...props} animate={{ run: seen, ms: FOCUS_RING_MS, ease: riseEase }} />
     </View>
   );
 }
@@ -2881,6 +2891,7 @@ export default function HomeScreen() {
                   size to its own content width, and a page whose width
                   comes FROM that same measurement starts at 0, so it never
                   has any content to measure a nonzero size from. */}
+              <RiseIn index={0}>
               <RivalCard style={styles.mLeaderCard}>
                 {/* The card's dark band, on its own layer so its bottom fades out
                     into the page instead of ending in a line, without fading the
@@ -2978,9 +2989,11 @@ export default function HomeScreen() {
                   <WeeklyLeaderCardBody key={`single-${podiumVisit}`} leader={weeklyLeaders[0] ?? null} self={{ name: myName, avatarUrl }} stretch={podiumStretch} />
                 )}
               </RivalCard>
+              </RiseIn>
 
               {/* Add activity goes straight in. The + beside it opens what can
                   still be set up (focus, event, team) and leaves once all are. */}
+              <RiseIn index={1}>
               <View style={styles.mAddRow}>
                 <RivalButton
                   label="Add activity"
@@ -2994,9 +3007,11 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+              </RiseIn>
 
               {/* Today — sits with the day's actions, just under Add activity,
                   so Legacy below it is purely lifetime. */}
+              <RiseIn index={2}>
               <View ref={todayRowRef} onLayout={fitPodiumToScreen} style={[styles.mLegacyStatBox, styles.mTodayRow, styles.mFocusLit]}>
                 {/* A quiet day shows the last session rather than "+0" —
                     the same information, without reading as an empty score. */}
@@ -3067,6 +3082,7 @@ export default function HomeScreen() {
                   )}
                 </TouchableOpacity>
               </View>
+              </RiseIn>
 
               {/* The year, made visible. In December, a countdown to the rank
                   reset with the Effort still needed for the next rank; through
@@ -3231,6 +3247,7 @@ export default function HomeScreen() {
                   2026-08-24) — same style works unmodified since this
                   section shares that card's paddingHorizontal:16, which is
                   what mPodiumSmoke's baked-in bleed margins are sized for. */}
+              <RiseIn index={4}>
               <View style={styles.mLegacySection}>
                 <Image
                   source={require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
@@ -3259,7 +3276,7 @@ export default function HomeScreen() {
                   >
                     {/* This year first: rank is built on it. Lifetime is a swipe away. */}
                     <View style={[styles.mLegacyHeroPage, heroWidth ? { width: heroWidth } : null]}>
-                      <CountUpText value={Math.round(seasonEffortTotal)} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} />
+                      <RollingNumber text={Math.round(seasonEffortTotal).toLocaleString()} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} memory="today.season" />
                       {/* The heading already says the year, so the label says
                           where it counts from, matching the lifetime page. */}
                       <Text style={styles.mLegacyHeroLabel}>
@@ -3279,7 +3296,7 @@ export default function HomeScreen() {
                       </TouchableOpacity>
                     </View>
                     <View style={[styles.mLegacyHeroPage, heroWidth ? { width: heroWidth } : null]}>
-                      <CountUpText value={Math.round(lifetimeXp)} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} />
+                      <RollingNumber text={Math.round(lifetimeXp).toLocaleString()} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} memory="today.lifetime" />
                       <Text style={styles.mLegacyHeroLabel}>
                         Total Effort{firstActivityAt ? ` · since ${new Date(firstActivityAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}` : ''}
                       </Text>
@@ -3417,6 +3434,7 @@ export default function HomeScreen() {
 
 
               </View>
+              </RiseIn>
 
               {/* Next Event — only when a race is booked; races are added from
                   the Races page, so an empty card here was just taking room. */}
