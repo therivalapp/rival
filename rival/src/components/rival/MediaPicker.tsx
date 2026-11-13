@@ -1,5 +1,5 @@
-import { createElement, useMemo, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { createElement, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Modal } from './RivalModal';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -127,12 +127,49 @@ export function pickMediaFiles(opts: { camera?: boolean } = {}): Promise<PickRes
   });
 }
 
+// iPhone: after the picker closes, iOS may still be downloading the photo
+// from iCloud and converting it, which can take a while with nothing on
+// screen, so it looked broken (Ricky, 2026-11-12). This cover shows for that
+// gap; the picker opens full screen, so it stays hidden while choosing.
+let preparing = false;
+const preparingListeners = new Set<(on: boolean) => void>();
+function setPreparing(on: boolean) {
+  preparing = on;
+  preparingListeners.forEach((fn) => fn(on));
+}
+
+/** Mounted once in the root layout. */
+export function PreparingMediaHost() {
+  const [on, setOn] = useState(preparing);
+  useEffect(() => {
+    preparingListeners.add(setOn);
+    return () => { preparingListeners.delete(setOn); };
+  }, []);
+  if (!on) return null;
+  return (
+    <View style={pm.preparing}>
+      <ActivityIndicator size="small" color={RivalColors.accentText} />
+      <Text style={pm.preparingText}>Preparing photos…</Text>
+    </View>
+  );
+}
+
 async function pickNative(camera = false): Promise<PickResult> {
+  try {
+    return await pickNativeInner(camera);
+  } finally {
+    setPreparing(false);
+  }
+}
+
+async function pickNativeInner(camera: boolean): Promise<PickResult> {
   const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) return { items: [], rejected: [camera ? 'Camera access is needed to take photos and videos' : 'Photo library access is needed to add photos and videos'] };
+  setPreparing(true);
   const result = camera
     ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.8 })
     : await ImagePicker.launchImageLibraryAsync({
+      presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
       mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
       orderedSelection: true,
@@ -531,6 +568,11 @@ const styles = StyleSheet.create({
 
 // Phone: the grey pop-up version.
 const pm = StyleSheet.create({
+  preparing: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+    backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', gap: 12,
+  },
+  preparingText: { color: RivalColors.accentText, fontSize: 14, fontWeight: '600', letterSpacing: 0.3 },
   overlay: { backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end', alignItems: 'stretch' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 },
   cell: { borderRadius: 12, overflow: 'hidden', backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border },

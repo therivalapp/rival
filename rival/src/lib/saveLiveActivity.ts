@@ -54,7 +54,7 @@ export async function saveLiveActivity(live: LiveActivity, seconds: number, phot
     exercises,
     provider: 'rival_manual',
     provider_activity_id: `manual-${Date.now()}`,
-    race_id: await findMatchingRaceId(user.id, startedAt.toISOString()),
+    race_id: await findMatchingRaceId(user.id, startedAt.toISOString(), { type: live.activityType, distanceMeters: distance }),
     // From a watch or sensor, in the columns Strava imports already fill.
     avg_heartrate: live.avgBpm ?? null,
     max_heartrate: live.maxBpm ?? null,

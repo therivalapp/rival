@@ -356,9 +356,12 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           {/* Team Beta (Ricky, 2026-11-10, Mockup 26 B): one tap from any
               page opens Send feedback. Phones only; remove at launch. */}
           {narrow ? (
-            <TouchableOpacity onPress={openFeedback} style={styles.beta} hitSlop={8} accessibilityRole="button" accessibilityLabel="Send feedback">
+            // With a centre slot (Today's Total time earned) the full pill is
+            // wider than the logo's third of the row and ran under the centred
+            // time, so there it is the icon alone (Ricky, 2026-11-12).
+            <TouchableOpacity onPress={openFeedback} style={[styles.beta, !!centerSlot && styles.betaCompact]} hitSlop={8} accessibilityRole="button" accessibilityLabel="Send feedback">
               <RivalIcon name="feedback" size={11} color={RivalColors.accentText} />
-              <Text style={styles.betaText}>BETA</Text>
+              {!centerSlot && <Text style={styles.betaText}>BETA</Text>}
             </TouchableOpacity>
           ) : null}
         </View>
@@ -680,6 +683,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, paddingHorizontal: 8, marginLeft: 8,
     borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.5)',
   },
+  betaCompact: { width: 24, paddingHorizontal: 0, justifyContent: 'center' },
   betaText: { fontSize: 9, fontWeight: '800', letterSpacing: 1.2, color: RivalColors.accentText },
   rightBalanced: { flex: 1, justifyContent: 'flex-end' },
   // Floating bottom tab bar, mobile only (`narrow` breakpoint above) — replaces

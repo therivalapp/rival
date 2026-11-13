@@ -186,7 +186,7 @@ function WeeklyScanScreen() {
         const distance = workout.distance || 0;
         const effortScore = calculateEffortScore(workoutType, duration, workout.elevation || 0, await loadScoringConfig(), distance * 1000);
 
-        const raceId = await findMatchingRaceId(user.id, day.date.toISOString());
+        const raceId = await findMatchingRaceId(user.id, day.date.toISOString(), { type: workoutType, distanceMeters: distance * 1000 });
 
         const { data: inserted, error: insertErr } = await supabase.from('activities').insert({
           user_id: user.id,

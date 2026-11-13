@@ -25,6 +25,7 @@ import { registerForPushNotifications } from '../lib/notifications';
 import { supabase } from '../lib/supabase';
 import { savePendingInvite } from '../lib/pendingInvite';
 import { RivalAlertHost, FeedbackHost, SafetyHost } from '../components/rival';
+import { PreparingMediaHost } from '../components/rival/MediaPicker';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 import { PhotoPrompt } from '../components/rival/PhotoPrompt';
 import { SavedActivityNote } from '../components/rival/SavedActivityNote';
@@ -231,6 +232,7 @@ export default function RootLayout() {
       <FeedbackHost />
       <SafetyHost />
       <RivalAlertHost />
+      <PreparingMediaHost />
     </SafeAreaProvider>
   );
 }
