@@ -10,6 +10,7 @@ import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalTyp
 import { sidePageWide } from '../constants/breakpoints';
 import { SaveChoiceTile, SavedWorkoutTiles } from '../components/rival/SavedWorkoutTiles';
 import { loadSavedWorkouts, photoUrls, todaysWorkout, type SavedWorkoutRow } from '../lib/savedWorkouts';
+import { webFx } from '../lib/webFx';
 
 const PROCESS_STEPS: Array<{ icon: RivalIconName; title: string; body: string }> = [
   { icon: 'addPhoto', title: '1. Capture', body: 'Photograph a fitness app screen, gym whiteboard or written plan.' },
@@ -398,8 +399,8 @@ const ms = StyleSheet.create({
   tileIconGhost: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,181,158,0.1)', marginBottom: 'auto' },
   tileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   tileFade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  tileFadePrimary: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' } as any : {},
-  tileFadeGhost: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' } as any : {},
+  tileFadePrimary: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' }),
+  tileFadeGhost: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' }),
   tileTitle: { fontSize: 17, fontWeight: '800', color: RivalColors.textPrimary },
   tileSub: { fontSize: 12, fontWeight: '500', color: RivalColors.textSecondary },
   tileNote: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },

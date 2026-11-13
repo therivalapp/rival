@@ -6,6 +6,7 @@ import { SkyBackdrop } from './SkyBackdrop';
 import { activityTypeLabel } from './EffortBreakdownSheet';
 import { formatDuration } from '../../lib/format';
 import { formatActivityDistance, formatElevation, formatSpeedOrPace } from '../../lib/units';
+import { webFx } from '../../lib/webFx';
 
 export type SoloActivity = {
   id: string;
@@ -143,7 +144,7 @@ const s = StyleSheet.create({
   art: { alignItems: 'center', justifyContent: 'center' },
   scrim: Platform.OS === 'web'
     ? { backgroundImage: 'linear-gradient(180deg, rgba(14,12,11,0.5) 0%, rgba(14,12,11,0) 26%, rgba(14,12,11,0.25) 52%, rgba(20,17,16,0.96) 100%)' } as any
-    : { backgroundColor: 'rgba(14,12,11,0.35)' },
+    : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(14,12,11,0.5) 0%, rgba(14,12,11,0) 26%, rgba(14,12,11,0.25) 52%, rgba(20,17,16,0.96) 100%)' } as any) } as any),
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
   kicker: { flex: 1, fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: '#ffd3c2', marginTop: 3 },
   effort: { alignItems: 'center' },

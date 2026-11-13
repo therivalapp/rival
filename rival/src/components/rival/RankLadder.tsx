@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
 import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
+import { GradientText } from './GradientText';
 import { rankSheen, rankTextSheen } from '../../constants/rankSheen';
 import { LEVELS, getLevel, xpProgressInLevel } from '../../lib/xp';
 import Svg, { Path } from 'react-native-svg';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
+import { webFx } from '../../lib/webFx';
 
 // The rank as a ladder of ten coins (Ricky, 2026-10-18, "W3"): ranks passed
 // filled in their materials, the current one large with its icon, the rest
@@ -156,7 +158,7 @@ export function RankLadder({ effort, climb = false, delay = 0, next = false, lab
 
       <View style={s.line}>
         {next && nextLevel ? (
-          <Text style={[s.name, s.nameNext, rankTextSheen(nextLevel.level)]}>{nextLevel.name} next</Text>
+          <GradientText style={[s.name, s.nameNext, rankTextSheen(nextLevel.level)]}>{nextLevel.name} next</GradientText>
         ) : (
           <Animated.Text style={[s.name, rankTextSheen(lvl.level), { transform: [{ translateY: rise }, { scale: pop }] }]}>{lvl.name}</Animated.Text>
         )}
@@ -186,10 +188,10 @@ export function RankLadder({ effort, climb = false, delay = 0, next = false, lab
 
 const coinFill = (m: { light: string; dark: string }): object => (Platform.OS === 'web'
   ? { backgroundImage: `linear-gradient(160deg, ${m.light}, ${m.dark})` }
-  : { backgroundColor: m.dark });
+  : ({ ...webFx({ backgroundImage: `linear-gradient(160deg, ${m.light}, ${m.dark})` }) } as any));
 const barFill = (m: { light: string; dark: string }): object => (Platform.OS === 'web'
   ? { backgroundImage: `linear-gradient(90deg, ${m.dark}, ${m.light})` }
-  : { backgroundColor: m.light });
+  : ({ ...webFx({ backgroundImage: `linear-gradient(90deg, ${m.dark}, ${m.light})` }) } as any));
 
 const s = StyleSheet.create({
   wrap: { gap: 10 },

@@ -5,6 +5,9 @@ import { emitAlert, emitConfirm, ConfirmOptions } from './alertBus';
 // critical paths (leave team, sync failed, import failed) never reach web users.
 // On web this now routes to RivalAlertHost (mounted once in _layout.tsx) — an
 // on-brand styled modal — instead of the browser's native window.alert.
+// The iPhone app keeps Apple's own alert: the styled host is a pop-up drawn
+// from the root, and iPhone can't show it above a screen opened on top of the
+// app (Start, for one), which left Discard doing nothing (tried 2026-11-13).
 export function notify(title: string, message?: string) {
   if (Platform.OS === 'web') {
     emitAlert(title, message);

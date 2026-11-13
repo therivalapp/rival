@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import { RivalColors } from '../../../constants/rivalTheme';
+import { GradientText } from '../GradientText';
 import { RESPECT_COLOUR, respectGivenText } from '../../../constants/reactionColours';
 import { RivalIcon } from '../RivalIcon';
 
@@ -96,7 +97,7 @@ export function CommentThread({
         </View>
         <TouchableOpacity style={s.star} onPress={() => toggleStar(c.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={mine ? 'Remove star' : 'Star comment'}>
           <RivalIcon name={mine ? 'star' : 'starOutline'} size={15} color={mine ? RESPECT_COLOUR : 'rgba(255,255,255,0.55)'} />
-          {given.length > 0 ? <Text style={[s.starCount, mine && respectGivenText]}>{given.length}</Text> : null}
+          {given.length > 0 ? <GradientText style={[s.starCount, mine && respectGivenText]}>{given.length}</GradientText> : null}
         </TouchableOpacity>
       </View>
     );

@@ -1,0 +1,122 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mockup 48 · Motion pass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+@property --n { syntax: '<integer>'; inherits: false; initial-value: 0; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0b0b0b}
+body{font-family:Manrope,-apple-system,system-ui,sans-serif;color:#e5e2e1;-webkit-font-smoothing:antialiased;padding:40px 40px 36px}
+.serif{font-family:Georgia,'Times New Roman',serif;font-style:italic}
+.caps{font-size:11px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase}
+.pagehead{display:flex;align-items:baseline;gap:18px;margin-bottom:6px}
+.pagehead h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:34px;color:#fff}
+.pagehead .sub{font-size:14px;color:#a0a0a0}
+.cols{display:flex;gap:40px;margin-top:26px;align-items:flex-start}
+.col{width:360px}
+.col .lab{display:flex;gap:10px;align-items:baseline;margin-bottom:12px}
+.col .lab .k{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:26px;color:#ffb59e}
+.col .lab .t{font-size:12px;font-weight:800;letter-spacing:2.4px;text-transform:uppercase;color:#fff}
+.col .lab .rec{font-size:12px;color:#a0a0a0;margin-left:auto}
+.col .cap{font-size:13.5px;line-height:20px;color:#bdb6b2;margin-top:14px;min-height:40px}
+.ph{position:relative;width:360px;height:760px;border-radius:46px;overflow:hidden;background:#131313;
+  box-shadow:0 0 0 1px rgba(255,255,255,.10), 0 0 0 9px #1f1f1f, 0 0 0 10px rgba(255,255,255,.08)}
+.ph.short{height:640px;border-radius:40px}
+.layer{position:absolute;inset:0}
+.status{position:absolute;top:0;left:0;right:0;height:44px;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0;font-size:14px;font-weight:700;color:#fff;z-index:50}
+.status .bars{display:flex;gap:5px;align-items:center}
+.status .bat{width:24px;height:11px;border:1.4px solid rgba(255,255,255,.6);border-radius:3px;position:relative}
+.status .bat:after{content:'';position:absolute;inset:1.5px;right:5px;background:#fff;border-radius:1px}
+.island{position:absolute;top:10px;left:50%;margin-left:-58px;width:116px;height:33px;border-radius:20px;background:#000;z-index:60}
+.reset{position:absolute;inset:0;background:#131313;z-index:40;opacity:0;pointer-events:none}
+
+/* top bar (RivalTopNav, phone) */
+.tb{position:absolute;top:0;left:0;right:0;height:96px;padding-top:44px;background:#161313;
+  background-image:linear-gradient(180deg,rgba(255,209,190,.10),rgba(255,209,190,.03)),linear-gradient(rgba(255,209,190,.06),rgba(255,209,190,.06));
+  border-bottom:1px solid rgba(255,209,190,.12);display:flex;align-items:center;justify-content:space-between;padding-left:14px;padding-right:12px}
+.wm{font-family:Georgia,serif;font-style:italic;font-weight:700;letter-spacing:.2em;line-height:1.25}
+.tb-wm{font-size:17px;background-image:linear-gradient(100deg,#D97757 0%,#ffb59e 45%,#F5B759 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tb-right{display:flex;align-items:center;gap:8px}
+.rank{text-align:right}
+.rank .l{font-size:9px;font-weight:700;letter-spacing:.6px;color:#a0a0a0}
+.rank .v{font-size:14px;font-weight:700;color:#9F57D9}
+.bellc{width:34px;height:34px;border-radius:17px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:#cfc8c4}
+.av{width:34px;height:34px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#2a1a14}
+
+/* Today */
+.card{position:absolute;left:12px;right:12px;border-radius:24px;background:rgba(255,209,190,.035);border:1px solid rgba(255,181,158,.14)}
+.hero{top:108px;height:332px;background-image:radial-gradient(120% 60% at 50% 0%,rgba(255,181,158,.13),rgba(255,181,158,0) 70%)}
+.hero .ttl{position:absolute;top:18px;left:0;right:0;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:23px;color:#fff}
+.ruled{display:flex;align-items:center;justify-content:center;gap:9px;color:#ffb59e}
+.ruled .r{width:28px;height:1px;background:rgba(255,181,158,.4)}
+.hero .ruled{position:absolute;top:56px;left:0;right:0}
+.stage{position:absolute;left:50%;bottom:100px;width:220px;height:148px;margin-left:-110px}
+.stage .base{position:absolute;left:10px;right:10px;bottom:-10px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03)}
+.pil{position:absolute;bottom:2px;width:74px;border-radius:6px 6px 3px 3px;transform-origin:50% 100%;display:flex;flex-direction:column;align-items:center;padding-top:9px}
+.pil .nm{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:13px;color:#fff}
+.pil .num{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;color:#fff;line-height:1.1}
+.pil .ef{font-size:10px;color:rgba(255,255,255,.7)}
+.pil.p1{left:118px;height:108px;background:linear-gradient(180deg,rgba(255,215,0,.30),rgba(255,215,0,.07));border:1px solid rgba(255,215,0,.45)}
+.pil.p2{left:28px;height:78px;background:linear-gradient(180deg,rgba(244,234,216,.22),rgba(244,234,216,.05));border:1px solid rgba(244,234,216,.32)}
+.pav{position:absolute;width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#2a1a14}
+.pav.a1{left:135px;bottom:116px;background:#ffd2bf;border:2px solid rgba(255,215,0,.8)}
+.pav.a2{left:45px;bottom:86px;background:#c9d3ef;border:2px solid rgba(244,234,216,.7)}
+.lead{position:absolute;left:0;right:0;bottom:46px;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:24px;color:#fff}
+.lead b{color:#ffb59e}
+.hero .ruled.ends{top:auto;bottom:24px}
+.dots{position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;gap:6px}
+.dots i{width:5px;height:5px;border-radius:3px;background:rgba(255,255,255,.22)}
+.dots i:first-child{background:#ffb59e}
+.pill{position:absolute;top:452px;left:50%;width:270px;margin-left:-135px;height:46px;border-radius:23px;background:linear-gradient(90deg,#D97757,#ffb59e);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#5c1902}
+.week{top:512px;height:180px;background:rgba(255,209,190,.035)}
+.week .dt{position:absolute;top:20px;left:20px;color:#ffb59e}
+.week .wk{position:absolute;top:36px;left:20px;font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:28px;color:#fff}
+.week .eff{position:absolute;top:14px;right:20px;text-align:right}
+.week .eff .big{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:44px;color:#fff;line-height:1.1}
+.week .eff .caps{color:#ffb59e;margin-top:2px}
+.tiles{position:absolute;left:16px;right:16px;bottom:16px;display:flex;gap:8px}
+.tile{flex:1;height:66px;border-radius:14px;background:rgba(255,209,190,.05);border:1px solid rgba(255,181,158,.16);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.tile .v{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:20px;color:#fff}
+.tile .v small{font-size:12px;color:#bbb}
+.tile .caps{font-size:9.5px;letter-spacing:1.8px;color:#a0a0a0}
+
+/* bottom bar */
+.nav{position:absolute;left:12px;right:12px;bottom:14px;height:56px}
+.navbar{position:absolute;inset:0;background:#1c1c1c;border-radius:20px;border:1px solid rgba(255,255,255,.08);display:flex;padding:4px 6px}
+.navi{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:600;color:#a0a0a0;border-radius:16px;position:relative;z-index:2}
+.navi.on{color:#ffb59e;background:rgba(217,119,87,.13)}
+.navgap{flex:1}
+.startc{position:absolute;top:-12px;left:50%;margin-left:-31px;width:62px;height:62px;border-radius:31px;background:#232120;border:2px solid #e8835f;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-style:italic;font-weight:600;font-size:15px;color:rgba(255,255,255,.92);z-index:3}
+
+/* odometer */
+.odo{display:inline-flex;line-height:1;vertical-align:baseline}
+.odo-col{display:inline-block;height:1.15em;vertical-align:bottom;overflow:hidden;width:.6em;text-align:center}
+.odo-strip{display:flex;flex-direction:column}
+.odo-strip span{height:1.15em;line-height:1.15em}
+.odo-sep{display:inline-block}
+.cnt{counter-reset:n var(--n)}
+.cnt:after{content:counter(n)}
+.touch{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:22px;background:rgba(255,255,255,.28);border:1.5px solid rgba(255,255,255,.5);z-index:45;opacity:0}
+
+/* still strips */
+.strip{display:flex;gap:22px;margin-top:22px}
+.frame{width:360px}
+.frame .tl{font-size:12px;font-weight:800;letter-spacing:2px;color:#a0a0a0;margin-bottom:10px;text-transform:uppercase}
+.frame *{animation-play-state:paused!important}
+</style><style>
+.list{margin-top:26px;width:1160px;border-top:1px solid rgba(255,209,190,.10)}
+.r{display:grid;grid-template-columns:44px 210px 1fr 130px 250px;gap:18px;align-items:baseline;padding:18px 6px;border-bottom:1px solid rgba(255,209,190,.08)}
+.r.h{padding:12px 6px}
+.r.h div{font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#a0a0a0}
+.n{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:22px;color:#ffb59e}
+.p{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:19px;color:#fff}
+.m{font-size:14.5px;line-height:21px;color:#e5e2e1}
+.m small{display:block;font-size:12px;color:#8d8682;margin-top:4px}
+.pv{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:#ffd2bf}
+.nt{font-size:13px;color:#a0a0a0}
+.key{margin-top:22px;font-size:13px;color:#8d8682;width:1160px;line-height:20px}
+</style>
+<style></style>
+</head><body>
+<div class="pagehead"><h1>Mockup 48 · Motion pass</h1><span class="sub">Eleven places, most value first.</span></div><div class="list"><div class="r h"><div></div><div>Place</div><div>Motion</div><div>Preview</div><div>iPhone app today</div></div><div class="r"><div class="n">1</div><div class="p">Opening</div><div class="m">Wordmark tightens, hairline loads, RIVAL moves into the top bar, Today rises in.<small>app.json splash, +html.tsx, appReveal.ts</small></div><div class="pv">Opening A</div><div class="nt">Plain dark screen, then the app appears at once</div></div><div class="r"><div class="n">2</div><div class="p">Loading</div><div class="m">The pulse runs down the page; the page fills in from the top.<small>home.tsx skeleton</small></div><div class="pv">Loading B</div><div class="nt">Pulse only</div></div><div class="r"><div class="n">3</div><div class="p">Save an activity</div><div class="m">Save presses in, the pop-up drops away, the activity slides into the week, Effort rolls up.<small>add-workout.tsx, WeekCard</small></div><div class="pv">Moments A</div><div class="nt">None</div></div><div class="r"><div class="n">4</div><div class="p">Personal best</div><div class="m">The old best rolls back to the new one and turns PB gold.<small>CelebrationScreen.tsx</small></div><div class="pv">Moments B</div><div class="nt">Count-up</div></div><div class="r"><div class="n">5</div><div class="p">Respect</div><div class="m">Star presses in and springs back filled, count rolls, picture joins the row.<small>RespectStar.tsx</small></div><div class="pv">Moments C</div><div class="nt">Plain icon swap</div></div><div class="r"><div class="n">6</div><div class="p">Tab change</div><div class="m">Highlight slides to the tab, the page moves the same way.<small>RivalTopNav.tsx bottom bar</small></div><div class="pv">Moments D</div><div class="nt">Instant swap</div></div><div class="r"><div class="n">7</div><div class="p">Rolling numbers</div><div class="m">Every count-up becomes rolling digits, so numbers sit still while they change.<small>CountUpText, CountUp.tsx (not the podium)</small></div><div class="pv">Opening C</div><div class="nt">Re-renders every frame</div></div><div class="r"><div class="n">8</div><div class="p">Pull to refresh</div><div class="m">The hairline under the top bar follows the pull, then runs while it loads.<small>usePullToRefresh.tsx</small></div><div class="pv">Loading C</div><div class="nt">System spinner</div></div><div class="r"><div class="n">9</div><div class="p">Pop-ups</div><div class="m">Rise with a short settle; drag down follows the finger.<small>RivalGreySheet.tsx</small></div><div class="pv"></div><div class="nt">Drag only</div></div><div class="r"><div class="n">10</div><div class="p">Rank up</div><div class="m">The new rank name rises letter by letter as the ladder fills.<small>RankLadder.tsx</small></div><div class="pv"></div><div class="nt">Pop, sparks web only</div></div><div class="r"><div class="n">11</div><div class="p">Focus and challenge rings</div><div class="m">Rings draw to their value the first time they show.<small>RivalChallengeRing.tsx</small></div><div class="pv"></div><div class="nt">None</div></div></div><div class="key">Every motion is built with Reanimated (installed, not yet used) so it runs the same on the iPhone app and the web. Motion respects Reduce Motion. No new glows, halos or light sweeps. The Weekly Leader podium is left as it is.</div></body></html>

@@ -25,6 +25,7 @@ import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyArtTile, Grey
 import { sidePageWide } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost, RivalMainGlow, rivalTextShadow } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
+import { webFx } from '../lib/webFx';
 
 type GoalMetric = 'xp' | 'distance' | 'elevation' | 'duration' | 'activities';
 type Mode = 'target' | 'race';
@@ -448,7 +449,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'linear-gradient(180deg, rgba(19,19,19,0.15) 0%, rgba(19,19,19,0.55) 55%, #131313 100%)' }
-      : { backgroundColor: 'rgba(19,19,19,0.55)' }),
+      : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(19,19,19,0.15) 0%, rgba(19,19,19,0.55) 55%, #131313 100%)' }) } as any)),
   } as any,
   topRow: { paddingHorizontal: RivalSpacing.gutter, paddingTop: 8 },
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
@@ -465,12 +466,12 @@ const styles = StyleSheet.create({
   preview: {
     flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 22,
     backgroundColor: '#1f1b19', borderWidth: 1, borderColor: `${RivalColors.accentFill}55`,
-    ...(Platform.OS === 'web' ? { boxShadow: '0 10px 30px rgba(217,119,87,0.14)' } : {}),
+    ...(webFx({ boxShadow: '0 10px 30px rgba(217,119,87,0.14)' })),
   } as any,
   previewIcon: {
     width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: WARM_GRADIENT } : {}),
+    ...(webFx({ backgroundImage: WARM_GRADIENT })),
   } as any,
   previewKicker: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, color: RivalColors.accentText },
   previewValue: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.4, marginTop: 1 },
@@ -511,7 +512,7 @@ const styles = StyleSheet.create({
   },
   metricIconOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: WARM_GRADIENT } : {}),
+    ...(webFx({ backgroundImage: WARM_GRADIENT })),
   } as any,
   metricTileText: { fontSize: 13, fontWeight: '700', color: RivalColors.textSecondary },
   metricTileTextOn: { color: '#fff' },
@@ -562,7 +563,7 @@ const styles = StyleSheet.create({
   createBtn: {
     marginTop: 8, minHeight: 54, borderRadius: RivalRadius.full, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: WARM_GRADIENT, boxShadow: '0 10px 28px rgba(255,135,115,0.3)' } : {}),
+    ...(webFx({ backgroundImage: WARM_GRADIENT, boxShadow: '0 10px 28px rgba(255,135,115,0.3)' })),
   } as any,
   createBtnDisabled: { opacity: 0.6 },
   createBtnText: { fontSize: 16, fontWeight: '800', letterSpacing: 0.2, color: '#1a1411' },

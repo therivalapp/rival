@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#0b0b0b;font-family:-apple-system,"SF Pro Text",Helvetica,Arial,sans-serif;color:#fff}
+.title{font:italic 700 26px Georgia,serif;text-align:center;padding:26px 0 6px}
+.sub{text-align:center;font-size:13px;color:rgba(255,255,255,.55);padding-bottom:22px}
+.row{display:flex;gap:28px;justify-content:center;padding:0 28px 34px}
+.col{width:375px}
+.lab{font:800 12px/1 -apple-system,Helvetica;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;text-align:center;margin-bottom:12px}
+.lab b{color:#fff;font-size:15px;letter-spacing:1px;margin-right:6px}
+.page{background:#131313;padding:8px 16px 22px;border-radius:28px}
+.card{margin:18px -8px 0;border-radius:22px;padding:22px 16px 10px;display:flex;flex-direction:column;align-items:center;position:relative;
+ background:radial-gradient(ellipse 70% 55% at 50% 0%,rgba(217,119,87,.17),rgba(217,119,87,.035) 60%,rgba(217,119,87,0) 85%),#1f1d1c;
+ border:1px solid rgba(255,209,190,.12);border-top-color:rgba(255,209,190,.30)}
+.h{font:italic 700 22px Georgia,serif;text-align:center}
+.cd{display:flex;align-items:center;gap:10px;margin:10px 0 18px}
+.cd span{font:800 10.5px -apple-system,Helvetica;letter-spacing:2px;color:#ffb59e}
+.rule{width:34px;height:1px;background:linear-gradient(90deg,rgba(255,181,158,0),rgba(255,181,158,.5))}
+.rule.r{transform:scaleX(-1)}
+.ring{position:relative;width:200px;height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.val{font:italic 700 60px/64px Georgia,serif;margin-top:-7px;background:linear-gradient(180deg,#fff 0%,#D97757 150%);-webkit-background-clip:text;color:transparent}
+.unit{font-size:13px;color:rgba(255,255,255,.6);margin-top:2px}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;margin:16px 4px 0}
+.lg{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.85)}
+.lg i{width:8px;height:8px;border-radius:4px;display:block}
+.lg em{font-style:normal;color:rgba(255,255,255,.5);font-weight:500}
+.meta{display:flex;align-items:center;gap:28px;margin:18px 0 14px}
+.mc{text-align:center;min-width:84px}.mn{font:italic 700 28px/32px Georgia,serif}.ml{font:800 10.5px -apple-system,Helvetica;letter-spacing:2px;color:#ffb59e;margin-top:4px}
+.div{width:1px;height:38px;background:linear-gradient(180deg,rgba(255,181,158,0),rgba(255,181,158,.45),rgba(255,181,158,0))}
+.togo{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;margin:-2px 0 14px}
+.togo svg{width:15px;height:15px}
+.note{font-size:12px;line-height:17px;color:rgba(255,255,255,.55);text-align:center;margin-top:14px;padding:0 10px}
+</style></head><body>
+<div class="title">Mockup 50 · Focus ring by sport</div>
+<div class="sub">Focus "300 km in November", any activity with distance. Run 128 · Ride 64 · Walk 12 · Swim 1 = 205 km</div>
+<div class="row" id="row"></div>
+<script>
+const R=93,C=2*Math.PI*R,T=300;
+const segs=[["Run",128],["Ride",64],["Walk",12],["Swim",1]];
+const sets={
+ now:null,
+ A:{Run:"url(#brand)",Ride:"#f3e1cf",Walk:"#b9a596",Swim:"#ffd2bf"},
+ B:{Run:"url(#brand)",Ride:"#9fd9bd",Walk:"#d8d3cc",Swim:"#9fb6e6"},
+};
+const flat={A:{Run:"#e8906f",Ride:"#f3e1cf",Walk:"#b9a596",Swim:"#ffd2bf"},B:{Run:"#e8906f",Ride:"#9fd9bd",Walk:"#d8d3cc",Swim:"#9fb6e6"}};
+function ring(k){
+ let s=`<svg width="200" height="200"><defs><linearGradient id="brand${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D97757"/><stop offset="1" stop-color="#ffb59e"/></linearGradient></defs>
+ <circle cx="100" cy="100" r="${R}" stroke="rgba(255,255,255,0.08)" stroke-width="14" fill="none"/>`;
+ const total=segs.reduce((a,b)=>a+b[1],0);
+ if(!sets[k]){s+=`<circle cx="100" cy="100" r="${R}" stroke="url(#brand${k})" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-total/T)}"/>`;return s+"</svg>";}
+ // segments: min 1.5% so a 1 km swim still shows; 2px gaps between; round outer caps
+ let start=0;const gap=2.5;
+ const parts=segs.map(([n,v])=>{const len=Math.max(v/T*C,C*0.015);return [n,len]});
+ parts.forEach(([n,len],i)=>{
+  const col=sets[k][n].replace('#brand','#brand'+k);
+  const l=len-(i<parts.length-1?gap:0);
+  const cap=(i===0||i===parts.length-1)?"round":"butt";
+  s+=`<circle cx="100" cy="100" r="${R}" stroke="${col}" stroke-width="14" fill="none" stroke-linecap="butt" stroke-dasharray="${l} ${C}" stroke-dashoffset="${-start}"/>`;
+  start+=len;
+ });
+ // round caps at the very start and end
+ const end=start;const cs=(a,c)=>{const ang=a/C*2*Math.PI;return `<circle cx="${100+R*Math.cos(ang)}" cy="${100+R*Math.sin(ang)}" r="7" fill="${c}"/>`};
+ s+=cs(0,flat[k].Run)+cs(end,flat[k].Swim);
+ return s+"</svg>";
+}
+const labels={now:["Now","One colour"],A:["A","Warm shades"],B:["B","Rank gem colours"]};
+const notes={now:"Today: every km fills the same orange, so the swim can't be seen.",A:"Shades of the RIVAL orange, ivory and sand. Calm, but Ride and Swim sit close together.",B:"The rank colours already in the app: emerald, stone, sapphire. Each sport is clear at a glance. Run keeps the RIVAL orange."};
+let html="";
+for(const k of ["now","A","B"]){
+ const leg=sets[k]?`<div class="legend">${segs.map(([n,v])=>`<div class="lg"><i style="background:${flat[k][n]}"></i>${n} <em>${v} km</em></div>`).join("")}</div>`:"";
+ html+=`<div class="col"><div class="lab"><b>${labels[k][0]}</b>${labels[k][1]}</div><div class="page"><div class="card">
+ <div class="h">Any activity · 300 km</div><div class="cd"><div class="rule"></div><span>FOCUS</span><div class="rule r"></div></div>
+ <div class="ring">${ring(k)}<div class="val">205</div><div class="unit">/ 300 km</div></div>${leg}
+ <div class="meta"><div class="mc"><div class="mn">68%</div><div class="ml">COMPLETE</div></div><div class="div"></div><div class="mc"><div class="mn">17</div><div class="ml">DAYS LEFT</div></div></div>
+ <div class="togo"><svg viewBox="0 0 24 24" fill="#ffb59e"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>95 km to go · 5.6 km a day</div>
+ </div></div><div class="note">${notes[k]}</div></div>`;
+}
+document.getElementById('row').innerHTML=html;
+</script></body></html>

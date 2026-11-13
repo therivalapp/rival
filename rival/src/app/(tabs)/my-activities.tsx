@@ -3,7 +3,7 @@ import { JournalYearView } from '../../components/rival/JournalYearView';
 import { SkyBackdrop } from '../../components/rival/SkyBackdrop';
 import { GoldStar } from '../../components/rival/RespectStar';
 import { arrivedFromTab, goToTab, onTabReselect } from '../../lib/tabNav';
-import { clearShareRequest, onShareRequest, pendingShare } from '../../lib/shareRequest';
+import { clearShareRequest, onShareRequest, pendingShare, pendingWantsShare } from '../../lib/shareRequest';
 import { onActivityDeleted } from '../../lib/activityEvents';
 import { type LiftPb } from '../../lib/liftPb';
 import { isHoldLift } from '../../lib/lifts';
@@ -45,6 +45,7 @@ import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColor
 import { BREAKPOINT_TWO_UP_GRID, BREAKPOINT_SPACIOUS_GALLERY, BREAKPOINT_MOBILE_NAV, BREAKPOINT_WIDE_LAYOUT, sidePageWide } from '../../constants/breakpoints';
 import { cardPhoto, fullPhoto } from '../../lib/imageUrl';
 import { EventSheet } from '../../components/rival/EventSheet';
+import { webFx } from '../../lib/webFx';
 
 type ExerciseEntry = {
   name: string;
@@ -529,13 +530,24 @@ export default function MyActivitiesScreen() {
   // A Share from the feed or a team: open that activity with its share up,
   // once it's among the loaded activities; done, it goes back to Teams.
   const [shareFromTeams, setShareFromTeams] = useState<string | null>(null);
+  const reloadedFor = useRef<string | null>(null);
   useEffect(() => {
     const take = () => {
       const id = pendingShare();
-      if (!id || !allActivities.some((a) => a.id === id)) return;
+      if (!id) return;
+      if (!allActivities.some((a) => a.id === id)) {
+        // Just saved: the list may have loaded moments before the save.
+        if (reloadedFor.current !== id) { reloadedFor.current = id; loadActivities(); }
+        return;
+      }
+      const share = pendingWantsShare();
       clearShareRequest();
-      openDiary(allActivities, id);
-      setShareFromTeams(id);
+      if (share) {
+        openDiary(allActivities, id);
+        setShareFromTeams(id);
+      } else {
+        openDiary(allActivities, id, true);
+      }
     };
     take();
     return onShareRequest(take);
@@ -869,8 +881,17 @@ export default function MyActivitiesScreen() {
     );
   }
 
-  function openDiary(flatActivities: Activity[], activityId: string) {
-    const list = flatActivities.map(toDiaryActivity);
+  // The viewer runs oldest to newest, so left is earlier and right is later,
+  // like the week strip. Opened from a week, it stays in that week: no left
+  // arrow on the week's first activity (Ricky, 2026-11-12).
+  function openDiary(flatActivities: Activity[], activityId: string, weekOnly = false) {
+    const tapped = flatActivities.find((a) => a.id === activityId);
+    const week = tapped ? getMondayStart(new Date(tapped.started_at)) : null;
+    const list = flatActivities
+      .filter((a) => !weekOnly || week == null || getMondayStart(new Date(a.started_at)) === week)
+      .slice()
+      .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+      .map(toDiaryActivity);
     const idx = list.findIndex((a) => a.id === activityId);
     if (idx < 0) return;
     setDiaryList(list);
@@ -1028,7 +1049,7 @@ export default function MyActivitiesScreen() {
         key={activity.id}
         style={[styles.jGridCard, inRow && styles.jRowCard, cardIn(ci)]}
         activeOpacity={0.85}
-        onPress={() => openDiary(flatOrdered, activity.id)}
+        onPress={() => openDiary(flatOrdered, activity.id, true)}
       >
         {activity.photo_url ? (
           <CoverImage
@@ -2451,7 +2472,7 @@ export default function MyActivitiesScreen() {
                               key={cell.day}
                               style={[styles.jCalCellActive, mobileNav && styles.jCalCellPhone, mobileNav && styles.jCalCellActivePhone, badgeStyle, mobileNav && badgeStyle && styles.jCalCellBadgePhone, sizeOverride]}
                               activeOpacity={0.85}
-                              onPress={() => openDiary(flatOrdered, dayActs[0].id)}
+                              onPress={() => openDiary(flatOrdered, dayActs.reduce((a, b) => (a.started_at <= b.started_at ? a : b)).id, true)}
                             >
                               {/* Phones: no photo means the day's own sky, as on the
                                   day tiles (Ricky, 2026-10-20: never salmon). */}
@@ -3017,6 +3038,7 @@ export default function MyActivitiesScreen() {
           pbLegIds={new Set((openEvent?.legs ?? []).filter((a) => pbs[a.id] || fastest[a.id]?.length).map((a) => a.id))}
           onClose={() => setOpenEvent(null)}
           onOpenLeg={(id) => { setOpenEvent(null); openDiary(flatOrdered, id); }}
+          onChanged={() => loadActivities()}
         />
 
         {/* Mobile Activity Journal's full-screen diary viewer. */}
@@ -3169,9 +3191,9 @@ const styles = StyleSheet.create({
   towardBadge: {
     width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
-  towardBadgeQuiet: { backgroundColor: 'rgba(255,255,255,0.06)', ...(Platform.OS === 'web' ? { backgroundImage: 'none' } : {}) } as any,
+  towardBadgeQuiet: { backgroundColor: 'rgba(255,255,255,0.06)', ...(webFx({ backgroundImage: 'none' })) } as any,
   towardText: { flex: 1, minWidth: 0, gap: 2 },
   towardTitle: { fontSize: 14.5, fontWeight: '600', color: '#fff' },
   towardSub: { fontSize: 12, color: RivalColors.textSecondary },
@@ -3185,7 +3207,7 @@ const styles = StyleSheet.create({
   photoBand: { position: 'absolute', top: 0, left: 0, right: 0, height: 360, overflow: 'hidden' },
   photoBandFade: {
     backgroundColor: 'rgba(17,14,12,0.6)',
-    ...(Platform.OS === 'web' ? { backgroundColor: 'transparent', backgroundImage: 'linear-gradient(180deg, rgba(17,14,12,0.35) 0%, rgba(17,14,12,0.72) 55%, var(--rival-activity-ground, #131313) 100%)' } : {}),
+    ...(webFx({ backgroundColor: 'transparent', backgroundImage: 'linear-gradient(180deg, rgba(17,14,12,0.35) 0%, rgba(17,14,12,0.72) 55%, var(--rival-activity-ground, #131313) 100%)' })),
   } as any,
   jTitleBlockB: { alignItems: 'center', marginTop: 10, marginBottom: 4 },
   jTitleB: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff' },
@@ -3198,10 +3220,10 @@ const styles = StyleSheet.create({
   weekHero: {
     borderRadius: 18, paddingTop: 14, paddingBottom: 14, paddingHorizontal: 16, overflow: 'hidden', gap: 12,
     backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(217,119,87,0.14), rgba(217,119,87,0) 80%)',
       borderWidth: 0,
-    } : {}),
+    })),
   } as any,
   weekHeroEdge: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 18, padding: 1,
@@ -3222,11 +3244,11 @@ const styles = StyleSheet.create({
   weekDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: 'rgba(255,255,255,0.12)' },
   weekDotOn: {
     backgroundColor: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } : {}),
+    ...(webFx({ backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` })),
   } as any,
   weekDotPb: {
     backgroundColor: '#f5b759',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffe6b0, #f5b759)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffe6b0, #f5b759)' })),
   } as any,
   weekDotToday: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.6)' },
   weekDotLabel: { fontSize: 9.5, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
@@ -3501,7 +3523,7 @@ const styles = StyleSheet.create({
   jMonthCardPhone: {
     borderRadius: 22, borderWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderBottomColor: 'rgba(255,255,255,0.06)',
     backgroundColor: '#232120', paddingBottom: 14,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'none' } as any : {}),
+    ...(webFx({ backgroundImage: 'none' })),
   },
   jMonthTitlePhone: { fontWeight: '700', fontSize: 23, color: '#fff' },
   jCalCellQuiet: { backgroundColor: 'rgba(255,255,255,0.035)' },
@@ -3511,9 +3533,9 @@ const styles = StyleSheet.create({
     borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,181,158,0.14)',
     borderBottomWidth: 2, borderBottomColor: RivalColors.accentFill,
     backgroundColor: '#2d241f', paddingBottom: 10, overflow: 'hidden',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(135deg, rgba(45,36,31,0.88) 0%, rgba(59,40,33,0.88) 100%)',
-    } as any : {}),
+    })),
   },
   jMonthHeader: { alignItems: 'center', paddingTop: 16, paddingBottom: 10, paddingHorizontal: 16 },
   jMonthTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '600', fontSize: 20, color: 'rgba(255,255,255,0.92)' },
@@ -3524,7 +3546,9 @@ const styles = StyleSheet.create({
     width: 190, height: 1.5, marginTop: 7, marginBottom: 4,
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.8) 50%, rgba(217,119,87,0) 100%)',
-    } as any : { backgroundColor: 'rgba(217,119,87,0.8)' }),
+    } as any : ({ ...webFx({
+      backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.8) 50%, rgba(217,119,87,0) 100%)',
+    } as any) } as any)),
   },
   jDowRow: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 6 },
   jDow: { flex: 1, textAlign: 'center', fontSize: 9, fontWeight: '800', letterSpacing: 0.4, color: 'rgba(255,255,255,0.3)' },
@@ -3568,9 +3592,9 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: RivalColors.accentFill,
     borderRightWidth: 3, borderRightColor: RivalColors.accentFill,
     backgroundColor: '#2d241f',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
-    } as any : {}),
+    })),
     gap: 9,
   },
   // Collapsed, the card is just the title row — tighter padding reads as a
@@ -3742,7 +3766,7 @@ const styles = StyleSheet.create({
   fvTiles: { flexDirection: 'row', gap: 8 },
   fvListTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: '#fff', marginTop: 24, marginBottom: 10 },
   fvBar: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  fvBarFill: { height: '100%', backgroundColor: RivalColors.accentText, ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}) } as any,
+  fvBarFill: { height: '100%', backgroundColor: RivalColors.accentText, ...(webFx({ backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' })) } as any,
   fvCount: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 6, marginBottom: 10 },
   fvSteps: { backgroundColor: '#262220', borderRadius: 16, borderWidth: 1, borderColor: RivalColors.surfaceBright, paddingHorizontal: 12 },
   fvStep: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 60 },
@@ -3750,7 +3774,7 @@ const styles = StyleSheet.create({
   fvNum: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,181,158,0.5)' },
   fvNumDone: {
     borderWidth: 0, backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   fvNumText: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 13, color: RivalColors.accentText },
   fvStepTitle: { fontSize: 14, fontWeight: '600', color: '#fff' },
@@ -3767,7 +3791,7 @@ const styles = StyleSheet.create({
   lwPhotos: { flexDirection: 'row' },
   lwPhoto: { width: 44, height: 44, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#232120', backgroundColor: '#2a2522' },
   lwPhotoOverlap: { marginLeft: -12 },
-  lwSky: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #2c3846, #4d5f72)' } as any : { backgroundColor: '#3a4a5c' },
+  lwSky: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #2c3846, #4d5f72)' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, #2c3846, #4d5f72)' } as any) } as any),
   lwPhotoImg: { width: '100%', height: '100%' },
   lwKicker: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: '#fff' },
   lwDates: { fontFamily: RivalFontFamily, fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginTop: 2 },
@@ -3776,7 +3800,7 @@ const styles = StyleSheet.create({
   nwRow: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 10, borderRadius: 14, backgroundColor: RivalColors.surfaceLowest, borderWidth: 1, borderColor: '#2a2a2a' },
   nwTile: {
     width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' })),
   } as any,
   nwText: { flex: 1, minWidth: 0, gap: 2 },
   nwName: { fontSize: 14, fontWeight: '600', color: '#fff' },
@@ -3803,13 +3827,13 @@ const styles = StyleSheet.create({
   jCardArt: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#2d241f',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 90% 60% at 50% 40%, rgba(255,209,190,0.10) 0%, rgba(19,19,19,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
-    } as any : {}),
+    })),
   },
   jCardScrim: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 42%, rgba(8,8,8,0.88) 100%)' } as any : { backgroundColor: 'rgba(8,8,8,0.35)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 42%, rgba(8,8,8,0.88) 100%)' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 42%, rgba(8,8,8,0.88) 100%)' } as any) } as any)),
   },
   jCardDayBadge: { position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center' },
   jCardDayText: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '500', fontSize: 13, color: 'rgba(255,255,255,0.75)' },

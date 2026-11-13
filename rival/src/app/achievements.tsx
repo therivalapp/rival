@@ -16,6 +16,7 @@ import { ActivityDiaryViewer, type DiaryActivity } from '../components/rival/Act
 import { onActivityDeleted } from '../lib/activityEvents';
 import { yearAchievements, type EarnedAchievement, type YearActivity } from '../lib/yearAchievements';
 import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, GREY_PAGE_BG, type RivalIconName } from '../components/rival';
+import { webFx } from '../lib/webFx';
 
 // Real icons on phones instead of the achievement's emoji: one per category.
 const CATEGORY_ICON: Record<string, RivalIconName> = {
@@ -247,7 +248,7 @@ const ms = StyleSheet.create({
   grid3: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tile: { flexGrow: 1, flexBasis: '45%', height: 160, borderRadius: 18, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: '#232120' },
   sky: { alignItems: 'center', justifyContent: 'center' },
-  tileShade: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 30%, rgba(10,9,8,0.9) 100%)' } as any) : { backgroundColor: 'rgba(10,9,8,0.35)' },
+  tileShade: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 30%, rgba(10,9,8,0.9) 100%)' } as any) : ({ ...webFx(({ backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 30%, rgba(10,9,8,0.9) 100%)' } as any)) } as any),
   pill: { position: 'absolute', top: 8, alignSelf: 'center', paddingHorizontal: 9, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(14,13,12,0.55)' },
   pillText: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: '#fff' },
   tileFoot: { paddingHorizontal: 12, paddingBottom: 10 },

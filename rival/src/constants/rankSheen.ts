@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { webFx } from '../lib/webFx';
 
 // Each rank's material, by level (Rookie first): stone, copper, bronze, then
 // sapphire, emerald, ruby, amethyst, opal, platinum and gold. Picked by Ricky
@@ -25,12 +26,12 @@ export function rankSheen(level: number): { light: string; dark: string } {
 }
 
 /** A rank name in its material: white fading into the highlight on web, the
- *  highlight itself elsewhere. */
+ *  on iPhone GradientText reads __gradientText (plain Text shows `light`). */
 export function rankTextSheen(level: number): object {
   const { light } = rankSheen(level);
   return Platform.OS === 'web'
     ? { backgroundImage: `linear-gradient(180deg, #ffffff 10%, ${light} 120%)`, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' }
-    : { color: light };
+    : { color: light, __gradientText: `linear-gradient(180deg, #ffffff 10%, ${light} 120%)` };
 }
 
 /** The circle behind a rank icon: a soft sheen with a light rim and glow. */
@@ -39,7 +40,7 @@ export function rankBadgeSheen(level: number, lit = true): object {
   if (!lit) return { backgroundColor: dark + '1f', borderColor: light + '2a' };
   return Platform.OS === 'web'
     ? { backgroundImage: `radial-gradient(circle at 35% 25%, ${light}33, ${dark}22 70%)`, borderColor: light + '66', boxShadow: `0 0 18px ${dark}33` }
-    : { backgroundColor: dark + '33', borderColor: light + '66' };
+    : ({ ...webFx({ backgroundImage: `radial-gradient(circle at 35% 25%, ${light}33, ${dark}22 70%)`, borderColor: light + '66', boxShadow: `0 0 18px ${dark}33` }) } as any);
 }
 
 /** An earned rank's tile, filled solid in its material (Ricky, 2026-10-03:
@@ -48,7 +49,7 @@ export function rankTileFill(level: number): object {
   const { light, dark } = rankSheen(level);
   return Platform.OS === 'web'
     ? { backgroundImage: `linear-gradient(160deg, ${light} 0%, ${dark} 100%)`, borderColor: light }
-    : { backgroundColor: dark, borderColor: light };
+    : ({ ...webFx({ backgroundImage: `linear-gradient(160deg, ${light} 0%, ${dark} 100%)`, borderColor: light }) } as any);
 }
 
 export const RANK_TILE_INK = '#1a1210';

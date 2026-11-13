@@ -4,6 +4,7 @@ import { BREAKPOINT_WIDE_LAYOUT, SIDE_SHEET_MAX_WIDTH } from '../../constants/br
 import { RivalButtonColors, RivalColors, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalBackButton } from './RivalBackButton';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
+import { webFx } from '../../lib/webFx';
 
 // The RIVAL look on mobile, in one place.
 //
@@ -52,9 +53,9 @@ export const rm = StyleSheet.create({
   hero: {
     borderRadius: 20, padding: 20, gap: 12,
     borderWidth: 1, borderColor: 'rgba(255,181,158,0.16)', backgroundColor: '#2d241f',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(circle at -10% -15%, rgba(255,209,190,0.16) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
-    } as any : {}),
+    })),
   },
 
   field: { backgroundColor: RivalWarm.field, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
     height: 1, alignSelf: 'stretch',
     ...(Platform.OS === 'web'
       ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.35) 50%, rgba(255,181,158,0) 100%)' } as any)
-      : { backgroundColor: 'rgba(255,181,158,0.2)' }),
+      : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.35) 50%, rgba(255,181,158,0) 100%)' } as any)) } as any)),
   },
 });
 

@@ -9,13 +9,14 @@ import type { TrackPoint } from '../../lib/liveTrack';
 import { toDisplayElevation, toDisplayWeight, weightUnit, elevationUnit } from '../../lib/units';
 import { FinishTiles } from './LiveFinishParts';
 import { RivalIcon } from './RivalIcon';
+import { webFx } from '../../lib/webFx';
 
 // The Finish cards that only some activities have (Ricky, 2026-11-02:
 // design/finish-weights-mockup.png, design/finish-special-mockup.png,
 // design/finish-ski-crossfit-mockup.png, design/crossfit-live-mockup.png).
 
 const serif = { fontFamily: RivalSerifFamily, fontStyle: 'italic' as const, fontWeight: '700' as const };
-const grad = (deg: number) => (Platform.OS === 'web' ? { backgroundImage: `linear-gradient(${deg}deg, #D97757, #ffb59e)` } as any : {});
+const grad = (deg: number) => (webFx({ backgroundImage: `linear-gradient(${deg}deg, #D97757, #ffb59e)` }));
 const kgText = (kg: number) => `${Math.round(toDisplayWeight(kg) * 10) / 10} ${weightUnit()}`;
 
 /** Lifts in three columns, a PB pill by any lift heavier than ever before. */

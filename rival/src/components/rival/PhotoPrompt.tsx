@@ -20,6 +20,7 @@ import { GreyPrimary } from './RivalGreySheet';
 import { MomentCaptured } from './MomentCaptured';
 import { RivalIcon } from './RivalIcon';
 import { useSheetDrag } from './useSheetDrag';
+import { webFx } from '../../lib/webFx';
 
 // Capture The Moment: a pop-up over the page, so the page itself never moves
 // (Ricky, 2026-10-31, option 3). Phones only, on the four main tabs.
@@ -162,11 +163,11 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: SHEET, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 18, overflow: 'hidden' },
   sky: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 330, backgroundColor: '#a7786a',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #5b5f7d 0%, #a7786a 50%, #e0a46a 100%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #5b5f7d 0%, #a7786a 50%, #e0a46a 100%)' })),
   },
   fade: {
     position: 'absolute', top: 150, left: 0, right: 0, height: 181,
-    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(180deg, rgba(40,40,40,0), ${SHEET})` } as any : {}),
+    ...(webFx({ backgroundImage: `linear-gradient(180deg, rgba(40,40,40,0), ${SHEET})` })),
   },
   grabber: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, backgroundColor: 'rgba(255,255,255,0.45)' },
   camera: { alignItems: 'center', marginTop: 90, marginBottom: 96 },

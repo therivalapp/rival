@@ -1,0 +1,362 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mockup 47 · Podium</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0b0b;color:#fff;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.board{padding:28px 32px 32px;display:inline-block}
+.label{font-size:20px;font-weight:700;letter-spacing:.2px;margin-bottom:4px}
+.label b{color:#ffb59e;font-weight:700}
+.sub{font-size:13px;color:#a8a29c;margin-bottom:18px}
+.row{display:flex;gap:28px;align-items:flex-start}
+.panel-t{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#8d8781;margin-bottom:8px}
+.phone{width:375px;background:#131313;position:relative;overflow:hidden;border-radius:6px}
+.topbar{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 10px 0 9px;background:linear-gradient(#2c2725,#262220);border-bottom:1px solid rgba(255,255,255,.14)}
+.word{font-size:17px;font-weight:700;letter-spacing:3.4px;color:#ffb59e;background:linear-gradient(90deg,#d98f76,#ffc3ae);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tte{text-align:center}
+.tte i{display:block;font-style:normal;font-size:9px;font-weight:600;letter-spacing:1.3px;color:#b9b2ac}
+.tte span{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:21px;color:#ffb59e;line-height:22px}
+.tte small{font-family:-apple-system,Arial,sans-serif;font-style:normal;font-weight:500;font-size:13px;margin:0 3px 0 1px}
+.right{display:flex;align-items:center;gap:12px}
+.me{width:42px;height:42px;border-radius:21px;border:1.5px solid #8d8781;padding:2px}
+.me img{width:100%;height:100%;border-radius:50%;display:block}
+.card{position:relative;padding:22px 16px 0;text-align:center;overflow:hidden;background:#161313}
+.card .warm{position:absolute;inset:0;background:radial-gradient(ellipse 90% 60% at 50% 38%,rgba(190,140,110,.11),rgba(0,0,0,0) 70%)}
+.card img.smoke{position:absolute;left:0;top:-128px;width:100%;height:480px;opacity:.28;-webkit-mask-image:linear-gradient(#000 62%,transparent 96%)}
+.card>.in{position:relative}
+.h1{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:22px;letter-spacing:.2px;line-height:26px}
+.cd{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:10px}
+.cd span{font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ffb59e}
+.cd i{width:34px;height:1px;background:linear-gradient(90deg,rgba(255,181,158,0),rgba(255,181,158,.5))}
+.cd i:last-child{transform:scaleX(-1)}
+svg.scene{display:block;margin:6px -16px 0;width:375px;height:300px;overflow:visible}
+.status{margin-top:6px;padding-bottom:38px}
+.btn{width:262px;height:44px;border-radius:22px;margin:-22px auto 0;position:relative;background:linear-gradient(90deg,#d5826a,#f0b3a0);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#4a1d0c}
+.strip{margin:15px 16px 18px;height:96px;border-radius:18px;border:1px solid rgba(255,255,255,.15);background:linear-gradient(#2b2b2b,#1d1d1d);display:flex}
+.strip div{flex:1;text-align:center;padding-top:9px;position:relative}
+.strip div+div:before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:rgba(255,255,255,.1)}
+.strip svg{display:block;margin:0 auto 1px}
+.strip b{display:block;font-family:Georgia,serif;font-style:italic;font-size:21px;line-height:26px}
+.strip u{display:block;text-decoration:none;font-size:10.5px;font-weight:700;letter-spacing:1px;margin-top:4px}
+.strip s{display:block;text-decoration:none;font-size:10.5px;color:#a8a29c;margin-top:2px}
+.detail{width:375px;height:470px;overflow:hidden;border-radius:6px;background:#161313;position:relative}
+.detail svg.scene{position:absolute;left:0;top:0;margin:0;transform-origin:0 0;transform:translate(-187px,-150px) scale(2)}
+.detail img.smoke{position:absolute;left:0;top:-200px;width:100%;height:900px;opacity:.28}
+.replay{margin:14px 0 0;font:600 13px -apple-system,Arial;color:#1b1a19;background:#ffb59e;border:0;border-radius:18px;padding:9px 18px}
+text{font-family:Georgia,serif;font-style:italic;font-weight:700}
+text.sans{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;font-style:normal;font-weight:500}
+body.gif .board{padding:10px 0 0}
+body.gif .label{font-size:13px;padding:0 10px;margin-bottom:8px}
+body.gif .sub,body.gif .panel-t,body.gif .detail,body.gif .replay{display:none}
+body.gif .phone{border-radius:0}
+.focus{text-align:center;padding:14px 16px 30px}
+.fstats{display:flex;justify-content:center;align-items:center;gap:30px;margin-top:20px}
+.fstats b{display:block;font-family:Georgia,serif;font-style:italic;font-size:27px;line-height:30px}
+.fstats u{display:block;text-decoration:none;font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ffb59e;margin-top:5px}
+.fstats i{width:1px;height:36px;background:rgba(255,181,158,.25)}
+.fline{font-size:14px;font-weight:600;margin-top:16px}
+</style></head><body>
+<div id="root"></div>
+<script>
+const Q=new URLSearchParams(location.search);
+const LBL={D:'A2',E:'A',F:'A3',G:'A4'};const NAMES={F:'Soft lines',G:'Soft lines, rounded corners',E:'Cast glass, current motion kept',D:'Smoked glass',A:'Cast glass',B:'Brushed metal',C:'Stone and inlay'};
+const NOTE={F:'Same glass and colour as A; outlines thinner and dimmer, no hard white rim',G:'As A3, with the block corners rounded slightly, like polished cast glass',E:'The light sweep across each pillar and the stars from behind the leader, as they run on Today now',D:'The same glass, darker and quieter: colour held in the edges and top face, soft outlines',A:'Translucent blocks, back edges seen through the glass, mirrored in a polished stage',
+            B:'Solid machined metal, engraved names and numbers, a turned steel stage',
+            C:'Honed dark stone, a metal cap for each place, long shadows from one light'};
+const BASE=250,CW=82,XR=CW*.86,D=8,S=CW*.14;
+const COLS=[{rank:1,x:52.5,h:122,slope:[0,.20]},{rank:0,x:146.5,h:156,slope:[.15,0]},{rank:2,x:240.5,h:104,slope:[.25,0]}];
+const PEOPLE=[{name:'Ricky J.',pts:312,wins:10,photo:'avatar-ricky.png'},{name:'Sandy M.',pts:248,wins:3,initial:'S'},{name:'Emma T.',pts:187,wins:0,initial:'E'}];
+const RS=[{av:55,name:16,pts:31,tint:'#FFD700',padTop:38,laurel:.6,lnum:19},{av:51,name:14,pts:20,tint:'#ffb59e',padTop:29,laurel:.5,lnum:18},{av:51,name:14,pts:20,tint:'#5edac7',padTop:31,laurel:.4,lnum:15}];
+// Metal ramps: dark, mid, light, mid, dark
+const METAL=[['#8f6a00','#e2b417','#fff0a6','#f0c21a','#8a6600'],['#5f544c','#a89788','#f1e7de','#b3a294','#574c45'],['#0a5a50','#2fae9b','#b4f3e9','#3fc0ad','#094c44']];
+const INK=['#3b2a00','#2a221c','#04302a'];
+const DELAY={0:1135,1:700,2:270};
+const DUR={D:1500,A:1500,B:1150,C:1900};
+const cl=x=>Math.max(0,Math.min(1,x));
+const eOut=x=>1-Math.pow(1-x,3);
+const eBack=x=>{const c1=1.35,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const eIO=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const EASE={D:eOut,A:eOut,B:eBack,C:eIO};
+const f1=n=>n.toFixed(1);
+const P=a=>a.map(p=>f1(p[0])+','+f1(p[1])).join(' ');
+
+function wreath(av){ // port of LaurelWreath.tsx build()
+  const PAD=26,GAP=5,RANGE=[22,120],PAIRS=9,LEN=7.8,WID=2.35,SPREAD=28,TAIL=1.55;
+  const size=av+PAD*2,c=size/2,r=av/2+GAP,[t0,t1]=RANGE;
+  const at=(side,t)=>{const th=(90+side*t)*Math.PI/180;return{x:c+r*Math.cos(th),y:c+r*Math.sin(th),th}};
+  const stems=[],leaves=[];
+  for(const side of[-1,1]){
+    const a0=at(side,t0),a1=at(side,t1),gx=side*-Math.sin(a0.th),gy=side*Math.cos(a0.th),cross=(c-a0.x)/-gx;
+    stems.push(`M${f1(a0.x)},${f1(a0.y)} L${f1(a0.x-gx*cross*TAIL)},${f1(a0.y-gy*cross*TAIL)}`);
+    stems.push(`M${f1(a0.x)},${f1(a0.y)} A${r},${r} 0 0 ${side<0?0:1} ${f1(a1.x)},${f1(a1.y)}`);
+    for(let i=0;i<PAIRS;i++){
+      const f=i/(PAIRS-1),p=at(side,t0+(t1-t0)*f),base=Math.atan2(side*Math.cos(p.th),side*-Math.sin(p.th))*180/Math.PI;
+      const len=LEN*(1-f*.45),wid=WID*(1-f*.35);
+      for(const k of[-1,1]){
+        const wob=Math.sin(i*2.3+k*1.7),l=len*(1+wob*.08),bend=-k*side*wid*.9;
+        leaves.push({f,x:p.x,y:p.y,angle:base+k*(SPREAD+wob*7),
+          d:`M0,0 C${f1(l*.25)},${f1(-wid*1.25)} ${f1(l*.7)},${f1(-wid*1.05+bend*.3)} ${f1(l)},${f1(bend*.55)} C${f1(l*.72)},${f1(wid*.85+bend*.3)} ${f1(l*.28)},${f1(wid*1.05)} 0,0 Z`,
+          vein:`M0.8,0 Q${f1(l*.5)},${f1(bend*.1)} ${f1(l*.8)},${f1(bend*.4)}`});
+      }
+    }
+    const e=at(side,t1+4),tl=LEN*.6;
+    leaves.push({f:1.05,x:e.x,y:e.y,angle:Math.atan2(side*Math.cos(e.th),side*-Math.sin(e.th))*180/Math.PI,d:`M0,0 Q${f1(tl*.45)},-2.2 ${f1(tl)},0 Q${f1(tl*.45)},2.2 0,0 Z`,vein:''});
+  }
+  return{size,stems,leaves};
+}
+// grow: 0..1, leaves open from the base of each branch to its tip
+function wreathSvg(av,grow,fill,edge){
+  const w=wreath(av);let s='';
+  const so=cl(grow*2.2);
+  w.stems.forEach(d=>s+=`<path d="${d}" fill="none" stroke="${fill}" stroke-width="1" stroke-linecap="round" opacity="${f1(so)}"/>`);
+  w.leaves.forEach(l=>{const k=eOut(cl((grow-l.f*.55)/.42));if(k<=0)return;
+    s+=`<g transform="translate(${f1(l.x)} ${f1(l.y)}) rotate(${f1(l.angle)}) scale(${k.toFixed(3)})"><path d="${l.d}" fill="${fill}" stroke="${edge}" stroke-opacity=".55" stroke-width=".45"/>${l.vein?`<path d="${l.vein}" fill="none" stroke="${edge}" stroke-opacity=".5" stroke-width=".5"/>`:''}</g>`});
+  return{size:w.size,s};
+}
+
+function geom(c){
+  const top=BASE-c.h,[tl,tr]=c.slope,x=c.x;
+  const yAt=px=>top+tl*c.h+(tr-tl)*c.h*(px/CW);
+  const fL=yAt(0)+D,fR=yAt(XR)+D,bR=yAt(XR),bL=yAt(0);
+  return{top,fL,fR,bR,bL,
+    front:[[x,fL],[x+XR,fR],[x+XR,BASE],[x,BASE]],
+    topF:[[x,fL],[x+XR,fR],[x+CW,bR],[x+S,bL]],
+    side:[[x+XR,fR],[x+CW,bR],[x+CW,BASE-D],[x+XR,BASE]]};
+}
+
+function defs(v){
+  let d=`<clipPath id="above"><rect x="-50" y="-200" width="500" height="${BASE+200}"/></clipPath>
+  <clipPath id="onStage"><ellipse cx="187.5" cy="${BASE+2}" rx="${v==='B'?158:155}" ry="30"/></clipPath>
+  <linearGradient id="laurel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF4B8"/><stop offset=".5" stop-color="#FFD700"/><stop offset="1" stop-color="#B8860B"/></linearGradient>
+  <radialGradient id="contact"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset=".55" stop-color="#000" stop-opacity=".3"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <linearGradient id="rim" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".5" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity=".25"/></linearGradient>
+  <pattern id="grain" width="3" height="8" patternUnits="userSpaceOnUse"><rect width="1" height="8" fill="#fff" opacity=".07"/><rect x="1.5" width=".8" height="8" fill="#000" opacity=".07"/></pattern>
+  <pattern id="turn" width="6" height="3" patternUnits="userSpaceOnUse"><rect width="6" height="1" fill="#fff" opacity=".05"/></pattern>`;
+  [0,1,2].forEach(r=>{const t=RS[r].tint,m=METAL[r];
+    d+=`<linearGradient id="gA${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t}" stop-opacity=".46"/><stop offset=".62" stop-color="${t}" stop-opacity=".13"/><stop offset="1" stop-color="${t}" stop-opacity=".3"/></linearGradient>
+    <linearGradient id="gAside${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t}" stop-opacity=".3"/><stop offset="1" stop-color="${t}" stop-opacity=".08"/></linearGradient>
+    <linearGradient id="gAtop${r}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="${t}" stop-opacity=".5"/></linearGradient>
+    <linearGradient id="gAedge${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="${t}" stop-opacity=".25"/></linearGradient>
+    <linearGradient id="refl${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t}" stop-opacity=".42"/><stop offset=".45" stop-color="${t}" stop-opacity=".12"/><stop offset="1" stop-color="${t}" stop-opacity="0"/></linearGradient>
+    <linearGradient id="gD${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t}" stop-opacity=".24"/><stop offset=".6" stop-color="${t}" stop-opacity=".05"/><stop offset="1" stop-color="${t}" stop-opacity=".15"/></linearGradient>
+    <linearGradient id="gDside${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t}" stop-opacity=".16"/><stop offset="1" stop-color="${t}" stop-opacity=".04"/></linearGradient>
+    <linearGradient id="gDtop${r}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset="1" stop-color="${t}" stop-opacity=".38"/></linearGradient>
+    <linearGradient id="gDedge${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="${t}" stop-opacity=".12"/></linearGradient>
+    <linearGradient id="reflD${r}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t}" stop-opacity=".24"/><stop offset=".45" stop-color="${t}" stop-opacity=".07"/><stop offset="1" stop-color="${t}" stop-opacity="0"/></linearGradient>
+    <linearGradient id="gM${r}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${m[0]}"/><stop offset=".16" stop-color="${m[1]}"/><stop offset=".4" stop-color="${m[2]}"/><stop offset=".64" stop-color="${m[3]}"/><stop offset="1" stop-color="${m[4]}"/></linearGradient>
+    <linearGradient id="gMtop${r}" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="${m[2]}"/><stop offset="1" stop-color="${m[1]}"/></linearGradient>
+    <radialGradient id="init${r}" cx=".3" cy=".25" r=".9"><stop offset="0" stop-color="${t}" stop-opacity=".6"/><stop offset="1" stop-color="#332e2a"/></radialGradient>
+    <linearGradient id="ring${r}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${t}"/><stop offset=".45" stop-color="#fff8e0"/><stop offset="1" stop-color="${t}"/></linearGradient>`});
+  d+=`<linearGradient id="rimD" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".1"/><stop offset=".5" stop-color="#fff" stop-opacity=".42"/><stop offset="1" stop-color="#fff" stop-opacity=".1"/></linearGradient><linearGradient id="rimS" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity=".2"/></linearGradient><linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <filter id="starGlow" x="-1" y="-1" width="3" height="3"><feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#FFD700" flood-opacity=".9"/></filter><linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient>
+  <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3531"/><stop offset="1" stop-color="#1c1a18"/></linearGradient>
+  <linearGradient id="stoneLight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".1"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient>
+  <linearGradient id="cast" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".62"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+  <radialGradient id="stA" cx=".5" cy=".35" r=".65"><stop offset="0" stop-color="#34302d" stop-opacity=".95"/><stop offset="1" stop-color="#141211" stop-opacity=".95"/></radialGradient>
+  <linearGradient id="riserA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2622" stop-opacity=".9"/><stop offset="1" stop-color="#0f0d0b" stop-opacity=".3"/></linearGradient>
+  <radialGradient id="stB" cx=".42" cy=".3" r=".75"><stop offset="0" stop-color="#5a5551"/><stop offset=".6" stop-color="#34312f"/><stop offset="1" stop-color="#1f1d1c"/></radialGradient>
+  <linearGradient id="riserB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1b1918"/><stop offset=".3" stop-color="#6a645f"/><stop offset=".55" stop-color="#3a3633"/><stop offset="1" stop-color="#151413"/></linearGradient>
+  <radialGradient id="stC" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#3b3733"/><stop offset="1" stop-color="#1d1b19"/></radialGradient>
+  <linearGradient id="riserC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242120"/><stop offset="1" stop-color="#121110"/></linearGradient>`;
+  return`<defs>${d}</defs>`;
+}
+
+function stage(v,o,press){
+  const cx=187.5,cy=BASE+2+press,ry=30,rx=v==='B'?158:155,R=(v==='A'||v==='D')?11:v==='B'?15:13,l=cx-rx,r=cx+rx;
+  const front=`M${l},${cy} A${rx},${ry} 0 0 0 ${r},${cy}`,back=`M${l},${cy} A${rx},${ry} 0 0 1 ${r},${cy}`;
+  const riser=`${front} L${r},${cy+R} A${rx},${ry} 0 0 1 ${l},${cy+R} Z`,foot=`M${l},${cy+R} A${rx},${ry} 0 0 0 ${r},${cy+R}`;
+  let s=`<g opacity="${o.toFixed(2)}"><ellipse cx="${cx}" cy="${cy+R+7}" rx="${rx*.92}" ry="${ry*.8}" fill="url(#contact)" opacity=".8"/>`;
+  if(v==='A')s+=`<path d="${riser}" fill="url(#riserA)"/><path d="${foot}" fill="none" stroke="#fff" stroke-opacity=".2"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#stA)"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx-7}" ry="${ry-2.6}" fill="none" stroke="#fff" stroke-opacity=".07"/>
+    <path d="${back}" fill="none" stroke="#fff" stroke-opacity="${SOFT?.2:.22}"/><path d="${front}" fill="none" stroke="url(#${SOFT?'rimS':'rim'})" stroke-width="${SOFT?1:1.2}"/>`;
+  if(v==='D')s+=`<path d="${riser}" fill="url(#riserA)"/><path d="${foot}" fill="none" stroke="#fff" stroke-opacity=".1"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#stA)"/>
+    <path d="${back}" fill="none" stroke="#fff" stroke-opacity=".1"/><path d="${front}" fill="none" stroke="url(#rimD)" stroke-width="1"/>`;
+  if(v==='B')s+=`<path d="${riser}" fill="url(#riserB)"/><path d="${riser}" fill="url(#turn)"/><path d="${foot}" fill="none" stroke="#000" stroke-opacity=".6"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#stB)"/>
+    ${[.86,.7,.52,.33].map(k=>`<ellipse cx="${cx}" cy="${cy}" rx="${rx*k}" ry="${ry*k}" fill="none" stroke="#fff" stroke-opacity=".055"/>`).join('')}
+    <path d="${back}" fill="none" stroke="#000" stroke-opacity=".5"/><path d="${front}" fill="none" stroke="url(#rim)" stroke-width="1.4" opacity=".8"/>`;
+  if(v==='C')s+=`<path d="${riser}" fill="url(#riserC)"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#stC)"/>
+    <path d="${front}" fill="none" stroke="#f4ead8" stroke-opacity=".38" stroke-width="1"/><path d="${back}" fill="none" stroke="#000" stroke-opacity=".45"/>`;
+  return s+'</g>';
+}
+
+function floor(v,c,p){ // what the pillar leaves on the stage: mirror image or cast shadow
+  const r=c.rank,x=c.x,vis=c.h*p;let s='';
+  if(vis<1)return s;
+  if(v==='C'){const L=vis*.62,k=.3;
+    s+=`<polygon points="${P([[x+2,BASE],[x+CW,BASE-D],[x+CW+L,BASE-D+L*k],[x+2+L,BASE+L*k]])}" fill="url(#cast)"/>`;
+    s+=`<ellipse cx="${x+CW/2}" cy="${BASE+2}" rx="45" ry="5" fill="url(#contact)"/>`;return s}
+  const gl=v==='A'||v==='D',rf=v==='D'?'reflD':'refl',rh=Math.min(vis,gl?40:24),y=BASE+2;
+  s+=`<ellipse cx="${x+CW/2+3}" cy="${BASE+2}" rx="46" ry="6" fill="url(#contact)"/>`;
+  s+=`<polygon points="${P([[x,y],[x+XR,y],[x+XR,y+rh],[x,y+rh]])}" fill="url(#${rf}${r})" opacity="${gl?1:.7}"/>`;
+  s+=`<polygon points="${P([[x+XR,y],[x+CW,y-D],[x+CW,y-D+rh],[x+XR,y+rh]])}" fill="url(#${rf}${r})" opacity="${gl?.45:.3}"/>`;
+  return s;
+}
+
+function smallLaurel(v,r,cx,cy,wins){
+  const sc=RS[r].laurel,ink=v==='B';
+  const w=wreathSvg(55,1,ink?INK[r]:'url(#laurel)',ink?INK[r]:'#7a5a10');
+  const col=v==='B'?INK[r]:(r===0?'#FFF4D6':RS[r].tint);
+  return`<g transform="translate(${f1(cx-w.size*sc/2)} ${f1(cy-w.size*sc/2)}) scale(${sc})" ${ink?'opacity=".8"':''}>${w.s}</g>
+  <text x="${cx}" y="${cy+RS[r].lnum*.34}" text-anchor="middle" font-size="${wins>=10?RS[r].lnum:RS[r].lnum+2}" fill="${col}">${wins}</text>`;
+}
+
+let SOFT=false,RND=false;
+const SP=pts=>'M'+pts.map(q=>f1(q[0])+','+f1(q[1])).join(' L')+' Z';
+function RP(pts){if(!RND)return'M'+pts.map(q=>f1(q[0])+','+f1(q[1])).join(' L')+' Z';
+  const n=pts.length;let d='';
+  for(let k=0;k<n;k++){const a=pts[(k+n-1)%n],b=pts[k],c=pts[(k+1)%n];
+    const la=Math.hypot(a[0]-b[0],a[1]-b[1]),lc=Math.hypot(c[0]-b[0],c[1]-b[1]),r=Math.min(3,la/2,lc/2);
+    const p1=[b[0]+(a[0]-b[0])*r/la,b[1]+(a[1]-b[1])*r/la],p2=[b[0]+(c[0]-b[0])*r/lc,b[1]+(c[1]-b[1])*r/lc];
+    d+=(k?' L':'M')+f1(p1[0])+','+f1(p1[1])+' Q'+f1(b[0])+','+f1(b[1])+' '+f1(p2[0])+','+f1(p2[1])}
+  return d+' Z'}
+function pillar(v,c,p,count,sh,uid){
+  const r=c.rank,g=geom(c),t=RS[r].tint,m=METAL[r],per=PEOPLE[r],x=c.x,dy=(1-p)*c.h,cx=x+XR/2;
+  let s=`<g clip-path="url(#above)"><g transform="translate(0 ${f1(dy)})">`;
+  if(v==='A'){
+    const sil=[[x,BASE],[x,g.fL],[x+S,g.bL],[x+CW,g.bR],[x+CW,BASE-D],[x+XR,BASE]];
+    s+=`${RND?`<clipPath id="sil${uid}${r}"><path d="${RP(sil)}"/></clipPath><g clip-path="url(#sil${uid}${r})">`:''}<path d="${SP(g.side)}" fill="#0c0a09" fill-opacity=".5"/><path d="${SP(g.side)}" fill="url(#gAside${r})" stroke="${t}" stroke-opacity=".35"/>
+    <path d="${SP(g.front)}" fill="#0c0a09" fill-opacity=".34"/><path d="${SP(g.front)}" fill="url(#gA${r})"/>
+    <polyline points="${P([[x+S,g.bL+3],[x+S,BASE-D],[x+XR,BASE-D]])}" fill="none" stroke="${t}" stroke-opacity=".22"/>
+    <line x1="${x+S}" y1="${BASE-D}" x2="${x}" y2="${BASE}" stroke="${t}" stroke-opacity=".18"/>
+    <path d="${RP([[x+3.5,g.fL+4],[x+XR-3.5,g.fR+4],[x+XR-3.5,BASE-3.5],[x+3.5,BASE-3.5]])}" fill="none" stroke="#fff" stroke-opacity=".09"/>
+    <path d="${SP(g.front)}" fill="none" stroke="${t}" stroke-opacity="${SOFT?.62:.7}" stroke-width="${SOFT?.8:1}"/>
+    <path d="${SP(g.topF)}" fill="${t}" fill-opacity=".3"/><path d="${SP(g.topF)}" fill="url(#gAtop${r})" stroke="#fff" stroke-opacity="${SOFT?.5:.55}" stroke-width="${SOFT?.6:.8}"/>
+    <line x1="${x+.8}" y1="${g.fL}" x2="${x+.8}" y2="${BASE}" stroke="url(#gAedge${r})" stroke-width="${SOFT?1:1.6}" opacity="${SOFT?.95:1}"/>
+    <line x1="${x}" y1="${g.fL}" x2="${x+XR}" y2="${g.fR}" stroke="#fff" stroke-opacity="${SOFT?.85:.9}" stroke-width="${SOFT?1:1.5}"/>${RND?`</g><path d="${RP(sil)}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width=".7"/>`:''}`;
+  }
+  if(v==='D'){
+    s+=`<polygon points="${P(g.side)}" fill="#0c0a09" fill-opacity=".6"/><polygon points="${P(g.side)}" fill="url(#gDside${r})" stroke="${t}" stroke-opacity=".2"/>
+    <polygon points="${P(g.front)}" fill="#0c0a09" fill-opacity=".46"/><polygon points="${P(g.front)}" fill="url(#gD${r})"/>
+    <polyline points="${P([[x+S,g.bL+3],[x+S,BASE-D],[x+XR,BASE-D]])}" fill="none" stroke="${t}" stroke-opacity=".14"/>
+    <line x1="${x+S}" y1="${BASE-D}" x2="${x}" y2="${BASE}" stroke="${t}" stroke-opacity=".12"/>
+    <polygon points="${P(g.front)}" fill="none" stroke="${t}" stroke-opacity=".34" stroke-width="1"/>
+    <polygon points="${P(g.topF)}" fill="${t}" fill-opacity=".22"/><polygon points="${P(g.topF)}" fill="url(#gDtop${r})" stroke="#fff" stroke-opacity=".28" stroke-width=".8"/>
+    <line x1="${x+.7}" y1="${g.fL}" x2="${x+.7}" y2="${BASE}" stroke="url(#gDedge${r})" stroke-width="1.2"/>
+    <line x1="${x}" y1="${g.fL}" x2="${x+XR}" y2="${g.fR}" stroke="#fff" stroke-opacity=".55" stroke-width="1.1"/>`;
+  }
+  if(v==='B'){
+    s+=`<polygon points="${P(g.side)}" fill="${m[0]}"/><polygon points="${P(g.side)}" fill="#000" fill-opacity=".42"/>
+    <polygon points="${P(g.front)}" fill="url(#gM${r})"/><polygon points="${P(g.front)}" fill="url(#grain)"/><polygon points="${P(g.front)}" fill="url(#shade)"/>
+    <polygon points="${P(g.topF)}" fill="url(#gMtop${r})"/>
+    <line x1="${x+XR}" y1="${g.fR}" x2="${x+XR}" y2="${BASE}" stroke="#000" stroke-opacity=".35" stroke-width="1.2"/>
+    <line x1="${x+XR-1.4}" y1="${g.fR+1}" x2="${x+XR-1.4}" y2="${BASE}" stroke="#fff" stroke-opacity=".28" stroke-width=".8"/>
+    <line x1="${x+.7}" y1="${g.fL}" x2="${x+.7}" y2="${BASE}" stroke="#fff" stroke-opacity=".45" stroke-width="1.4"/>
+    <line x1="${x}" y1="${g.fL+.3}" x2="${x+XR}" y2="${g.fR+.3}" stroke="#fff" stroke-opacity=".95" stroke-width="1.6"/>
+    <line x1="${x+S}" y1="${g.bL}" x2="${x+CW}" y2="${g.bR}" stroke="#fff" stroke-opacity=".5" stroke-width=".8"/>`;
+  }
+  if(v==='C'){
+    const band=r===0?9:7;
+    s+=`<polygon points="${P(g.side)}" fill="#141312"/>
+    <polygon points="${P(g.front)}" fill="url(#stone)"/><polygon points="${P(g.front)}" fill="url(#stoneLight)"/>
+    <polygon points="${P([[x,g.fL],[x+XR,g.fR],[x+XR,g.fR+band],[x,g.fL+band]])}" fill="url(#gM${r})"/>
+    <polygon points="${P([[x+XR,g.fR],[x+CW,g.bR],[x+CW,g.bR+band],[x+XR,g.fR+band]])}" fill="${m[0]}"/>
+    <line x1="${x}" y1="${g.fL+band}" x2="${x+XR}" y2="${g.fR+band}" stroke="#000" stroke-opacity=".55"/>
+    <polygon points="${P(g.topF)}" fill="url(#gMtop${r})"/>
+    <line x1="${x+.6}" y1="${g.fL+band}" x2="${x+.6}" y2="${BASE}" stroke="#fff" stroke-opacity=".2" stroke-width="1.2"/>
+    <line x1="${x}" y1="${g.fL+.3}" x2="${x+XR}" y2="${g.fR+.3}" stroke="#fff" stroke-opacity=".9" stroke-width="1.4"/>
+    <line x1="${x+XR}" y1="${g.fR}" x2="${x+XR}" y2="${BASE}" stroke="#000" stroke-opacity=".5"/>`;
+  }
+  if(sh!=null){const bw=CW*.45,bx=x+sh*bw;
+    s+=`<clipPath id="fc${uid}${r}"><path d="${RP(g.front)}"/></clipPath><g clip-path="url(#fc${uid}${r})"><rect x="${f1(bx)}" y="${g.top-20}" width="${f1(bw)}" height="${c.h+40}" fill="url(#sheen)" transform="skewX(-18)" style="transform-box:fill-box;transform-origin:center"/></g>`}
+  // words
+  const rs=RS[r],nsz=Math.max(10,Math.min(rs.name,Math.floor((56/(per.name.length*.6))*2)/2)),ny=g.top+rs.padTop+(v==='C'?4:0)+rs.name*.8,py=ny+4+rs.pts*.86,ey=py+13;
+  const nameCol=v==='B'?INK[r]:(v==='C'?'#f4ead8':'#fff'),ptsCol=v==='B'?INK[r]:(v==='C'?t:'#fff'),effCol=v==='B'?INK[r]:(r===0&&v!=='C'?'#FFF4D6':t);
+  const eng=(txt,y,size,col,cls)=>(v==='B'?`<text x="${cx}" y="${y+.9}" text-anchor="middle" font-size="${size}" fill="#fff" fill-opacity=".5" ${cls||''}>${txt}</text>`:'')+`<text x="${cx}" y="${y}" text-anchor="middle" font-size="${size}" fill="${col}" ${cls||''}>${txt}</text>`;
+  s+=eng(per.name,ny,nsz,nameCol)+eng(count,py,rs.pts,ptsCol)+eng('Effort',ey,10,effCol,'class="sans"');
+  if(per.wins)s+=smallLaurel(v,r,cx,ey+(r===0?24:20),per.wins);
+  return s+'</g></g>';
+}
+
+function avatar(v,c,p,crest,drop,uid){
+  const r=c.rank,g=geom(c),rs=RS[r],per=PEOPLE[r],col=COLS.indexOf(c),rad=rs.av/2,cx=c.x+CW/2;
+  const cy=g.top-2-rad-(r===0?3:0)+(1-p)*c.h+drop,o=cl(p*3.5);
+  if(o<=0)return'';
+  const rot=col===0?-7:col===2?7:0;
+  let s=`<g opacity="${o.toFixed(2)}">`;
+  if(r===0&&crest>0){const w=wreathSvg(rs.av,crest,'url(#laurel)','#7a5a10');
+    s+=`<g transform="translate(${f1(cx-w.size/2)} ${f1(cy-w.size/2)})">${w.s}</g>`}
+  const ringW=v==='B'?3:1.2,ringFill=(v==='A'||v==='D')?`url(#ring${r})`:`url(#gM${r})`;
+  s+=`<g transform="rotate(${rot} ${cx} ${f1(cy)})"><circle cx="${cx}" cy="${f1(cy)}" r="${rad}" fill="${ringFill}"/>`;
+  if(v==='B')s+=`<circle cx="${cx}" cy="${f1(cy)}" r="${rad-.5}" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width=".8"/><circle cx="${cx}" cy="${f1(cy)}" r="${rad-ringW+.2}" fill="none" stroke="#000" stroke-opacity=".5" stroke-width=".8"/>`;
+  if(per.photo)s+=`<clipPath id="ac${uid}${r}"><circle cx="${cx}" cy="${f1(cy)}" r="${rad-ringW}"/></clipPath><image href="${per.photo}" x="${cx-rad}" y="${f1(cy-rad)}" width="${rs.av}" height="${rs.av}" clip-path="url(#ac${uid}${r})" preserveAspectRatio="xMidYMid slice"/>`;
+  else s+=`<circle cx="${cx}" cy="${f1(cy)}" r="${rad-ringW}" fill="url(#init${r})"/><text x="${cx}" y="${f1(cy+rs.av*.16)}" text-anchor="middle" font-size="${rs.av*.46}" fill="#fff">${per.initial}</text>`;
+  return s+'</g></g>';
+}
+
+const BURST=[[2.4,0,9,-19.7,-3.5,-55.1,-9.7],[2.0,1.1,6,-15.3,-12.9,-42.9,-36],[2.6,.5,8,-8.5,-18.1,-23.7,-50.8],[2.2,1.7,10,0,-20,0,-56],[2.5,.3,7,8.5,-18.1,23.7,-50.8],[2.1,1.4,9,15.3,-12.9,42.9,-36],[2.7,.8,6,19.7,-3.5,55.1,-9.7],[2.3,2.0,7,19.3,5.2,54.1,14.5],[2.4,1.2,6,-19.3,5.2,-54.1,14.5]];
+function stars(c,p,t){ // AvatarStarBurst, same paths and timings as home.tsx + global.css
+  const g=geom(c),rad=RS[0].av/2,cx=c.x+CW/2,cy=g.top-2-rad-3+(1-p)*c.h;let s='';
+  BURST.forEach(([dur,del,sz,x0,y0,x1,y1])=>{const st=(3.6+del)*1000;if(t<st)return;const k=((t-st)%(dur*1000))/(dur*1000),e=1-Math.pow(1-k,2);
+    const o=k<.18?k/.18:1-(k-.18)/.82,x=cx+x0+(x1-x0)*e,y=cy+y0+(y1-y0)*e,sc=(.3+.7*e)*sz/10;
+    s+=`<g transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(120*e)}) scale(${sc.toFixed(3)}) translate(-5 -5)" opacity="${(o*.95).toFixed(2)}" filter="url(#starGlow)"><polygon points="5,0 6,4 10,5 6,6 5,10 4,6 0,5 4,4" fill="#FFF3C4"/></g>`});
+  return s}
+function scene(v,t,uid){const fx='EFG'.includes(v);SOFT=v==='F'||v==='G';RND=v==='G';if(fx)v='A';
+  const ease=EASE[v],dur=DUR[v],pr={},raw={};
+  COLS.forEach(c=>{raw[c.rank]=cl((t-DELAY[c.rank])/dur);pr[c.rank]=ease(raw[c.rank])});
+  const landed=DELAY[0]+dur,crest=cl((t-(landed-(v==='B'?120:250)))/(v==='C'?1100:800));
+  // B: each block lands with weight, the stage gives a little
+  let press=0;if(v==='B')COLS.forEach(c=>{const k=(t-(DELAY[c.rank]+dur*.62))/260;if(k>0&&k<1)press+=Math.sin(k*Math.PI)*1.6});
+  const stageO=cl((t-120)/700);
+  let s=defs(v)+stage(v,stageO,press);
+  s+=`<g clip-path="url(#onStage)" transform="translate(0 ${f1(press)})">`+COLS.map(c=>floor(v,c,Math.min(1,pr[c.rank]))).join('')+'</g>';
+  const order=[COLS[0],COLS[2],COLS[1]];
+  s+=`<g transform="translate(0 ${f1(press)})">`;
+  order.forEach(c=>{const p=pr[c.rank];if(raw[c.rank]<=0)return;
+    const count=Math.round(PEOPLE[c.rank].pts*eOut(cl((t-DELAY[c.rank])/(dur+350))));
+    let sh=null;if(fx){const k=((t-(3500+c.rank*700))%7000+7000)%7000,on=t>=3500+c.rank*700;if(on&&k<1540)sh=-1.6+5.2*eIO(k/1540)}
+    s+=pillar(v,c,p,count,sh,uid)});
+  order.forEach(c=>{const p=pr[c.rank];if(raw[c.rank]<=0)return;
+    // the crest settles: a short drop that eases to rest as the leaves open
+    let drop=0;if(c.rank===0){const k=cl((t-(landed-250))/620);drop=-7*(1-eOut(k))*(k<1?1:0);if(v==='B')drop=-16*Math.abs(Math.cos(k*Math.PI*1.5))*(1-k)}
+    if(fx&&c.rank===0&&raw[0]>0)s+=stars(c,p,t);
+    s+=avatar(v,c,p,c.rank===0?crest:0,drop,uid)});
+  s+='</g>';
+  if(v==='C'){const dim=.55*(1-eOut(cl(t/1500)));if(dim>0)s+=`<rect x="0" y="-80" width="375" height="460" fill="#000" opacity="${dim.toFixed(2)}"/>`}
+  return{svg:s,status:cl((t-(landed+350))/500)};
+}
+
+const ICON={bolt:'M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z',
+ diamond:'M12.16 3h-.32L9.21 8.25h5.58zm4.3 5.25h5.16L19 3h-5.16zm4.92 1.5h-8.63V20.1zM11.25 20.1V9.75H2.62zM7.54 8.25 10.16 3H5L2.38 8.25z',
+ fire:'M19.48 12.35c-1.57-4.08-7.16-4.3-5.81-10.23.1-.44-.37-.78-.75-.55C9.29 3.71 6.68 8 8.87 13.62c.18.46-.36.89-.75.59-1.81-1.37-2-3.34-1.84-4.75.06-.52-.62-.77-.91-.34C4.69 10.16 4 11.84 4 14.37c.38 5.6 5.11 7.32 6.81 7.54 2.43.31 5.06-.14 6.95-1.87 2.08-1.93 2.84-5.01 1.72-7.69z',
+ bell:'M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z'};
+const ic=(n,c,s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24"><path d="${ICON[n]}" fill="${c}"/></svg>`;
+
+const FOCUS=`<div class="focus"><div class="h1">Running</div><div class="cd"><i></i><span>Focus</span><i></i></div>
+<svg width="200" height="200" viewBox="0 0 200 200" style="display:block;margin:22px auto 0"><defs><linearGradient id="fr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6a48c"/><stop offset="1" stop-color="#ffc7b4"/></linearGradient></defs>
+<circle cx="100" cy="100" r="92" fill="none" stroke="#2f2d2c" stroke-width="13"/><circle cx="100" cy="100" r="92" fill="none" stroke="url(#fr)" stroke-width="13" stroke-linecap="round" stroke-dasharray="${(2*Math.PI*92*.61).toFixed(1)} 999" transform="rotate(-90 100 100)"/>
+<text x="100" y="112" text-anchor="middle" font-size="46" fill="#ffd2bf">18.4</text><text x="100" y="138" text-anchor="middle" font-size="13" fill="#a8a29c" class="sans">/ 30 km</text></svg>
+<div class="fstats"><div><b>61%</b><u>Complete</u></div><i></i><div><b>12</b><u>Days left</u></div></div>
+<div class="fline">11.6 km to go · 1 km a day</div></div>`;
+function shell(v,key){key=key||v;return`
+<div class="board"><div class="label">Mockup 47 · Podium · <b>${LBL[v]||v} · ${NAMES[v]}</b></div><div class="sub">${NOTE[v]}</div>
+<div class="row"><div><div class="panel-t">Panel 1 · Today</div>
+<div class="phone"><div class="topbar"><div class="word">RIVAL</div><div class="tte"><i>TOTAL TIME EARNED</i><span>206<small>h</small>58<small>m</small></span></div><div class="right">${ic('bell','#ffb59e',24)}<div class="me"><img src="avatar-ricky.png"></div></div></div>
+<div class="card"><div class="warm"></div><img class="smoke" src="../../assets/images/backgrounds/optimized/podium-smoke.jpg"><div class="in">
+<div class="h1">The Hidden Leaf</div><div class="cd"><i></i><span>Weekly leader</span><i></i></div>
+<svg class="scene" id="s-${key}" viewBox="0 0 375 300"></svg>
+<div class="status" id="st-${key}"><div class="h1">You're leading</div><div class="cd"><i></i><span>5 days remaining</span><i></i></div></div></div></div>
+<div class="btn">Add activity</div>
+<div class="strip"><div>${ic('bolt','#f0c75e')}<b style="color:#f0c75e">+64</b><u>EFFORT TODAY</u><s>+312 this week</s></div><div>${ic('diamond','#b9c8ee')}<b style="color:#d5def5;letter-spacing:1.5px">ELITE</b><u>2026 RANK</u><s>49 days left</s></div><div>${ic('fire','#e08a6c')}<b style="color:#ffb59e">4</b><u>WEEK STREAK</u><s>3 of 3 this week</s></div></div>
+${Q.get('long')?FOCUS:''}</div>${(Q.get('play')||!Q.has('v'))?`<button class="replay" onclick="T0=performance.now()">Replay</button>`:''}</div>
+<div style="${Q.get('long')?'display:none':''}"><div class="panel-t">Panel 2 · Detail</div><div class="detail"><img class="smoke" src="../../assets/images/backgrounds/optimized/podium-smoke.jpg"><svg class="scene" id="d-${key}" viewBox="0 0 375 300"></svg></div></div>
+</div></div>`}
+
+const PLAY=Q.get('play')||!Q.has('v');
+const vs=(Q.get('v')||'ABC').split('');
+if(Q.get('gif')||Q.get('sheet'))document.body.className='gif';
+const root=document.getElementById('root');root.style.display='flex';root.style.flexWrap='wrap';
+function paint(key,v,t){const sc=scene(v,t,key);document.getElementById('s-'+key).innerHTML=sc.svg;const d=document.getElementById('d-'+key);if(d&&!document.body.className)d.innerHTML=sc.svg;
+  const st=document.getElementById('st-'+key);st.style.opacity=sc.status;st.style.transform=`translateY(${(1-sc.status)*6}px)`}
+let T0=performance.now();
+if(Q.get('sheet')){const n=+Q.get('sheet'),step=+Q.get('step')||100,v=vs[0];root.style.width=(375*9)+'px';
+  root.innerHTML=Array.from({length:n},(_,i)=>`<div style="width:375px;height:600px;overflow:hidden">${shell(v,v+i)}</div>`).join('');
+  for(let i=0;i<n;i++)paint(v+i,v,i*step)}
+else{root.innerHTML=vs.map(v=>shell(v)).join('');
+  if(PLAY){document.querySelectorAll('.detail').forEach(e=>e.parentNode.style.display='none');
+    (function loop(){let t=performance.now()-T0;if(t>7500){T0=performance.now();t=0}vs.forEach(v=>paint(v,v,t));requestAnimationFrame(loop)})()}
+  else vs.forEach(v=>paint(v,v,Q.has('t')?+Q.get('t'):99999))}
+</script></body></html>

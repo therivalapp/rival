@@ -8,6 +8,7 @@ import { RivalColors, RivalFontFamily, RivalMainGlow, RivalSerifFamily, rivalPho
 import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { goToTab } from '../../lib/tabNav';
 import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../../lib/stravaSharing';
+import { webFx } from '../../lib/webFx';
 
 // The bell's dropdown on phones: the latest few notifications at a glance,
 // with "See all" leading to the full Notifications page. Anything that needs
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,209,190,0.12)',
     overflow: 'hidden',
     ...RivalMainGlow,
-    ...(Platform.OS === 'web' ? ({ boxShadow: '-10px 18px 36px rgba(0,0,0,0.5)' } as any) : {}),
+    ...(webFx({ boxShadow: '-10px 18px 36px rgba(0,0,0,0.5)' })),
   },
   tab: {
     position: 'absolute', backgroundColor: PANEL,

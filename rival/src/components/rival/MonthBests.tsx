@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
+import { webFx } from '../../lib/webFx';
+import { GradientText } from './GradientText';
 
 // The month's personal bests on Activity (phones, Ricky 2026-10-16, option
 // B3): the week card's grey (no glow since 2026-10-29), the month as a serif
@@ -38,10 +40,10 @@ function Figure({ b, small }: { b: MonthBest; small?: boolean }) {
           <Text style={s.arrow}>→</Text>
         </>
       ) : null}
-      <Text style={[s.value, small && s.valueSmall]} numberOfLines={1}>
+      <GradientText style={[s.value, small && s.valueSmall]} numberOfLines={1}>
         {b.value}
         {b.unit ? <Text style={s.unit}>{b.unit}</Text> : null}
-      </Text>
+      </GradientText>
     </>
   );
 }
@@ -116,7 +118,7 @@ const s = StyleSheet.create({
   arrow: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginHorizontal: -5 },
   value: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, lineHeight: 26, color: '#ffc94d',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #fff4d6, #ffc94d)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #fff4d6, #ffc94d)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' })),
   },
   valueSmall: { fontSize: 20, lineHeight: 25 },
   unit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.5)', marginLeft: 2, WebkitTextFillColor: 'rgba(255,255,255,0.5)' } as any,

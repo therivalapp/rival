@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import { svgFill } from '../../lib/svgFill';
 import { Platform, View } from 'react-native';
 import { RivalIcon } from './RivalIcon';
 
@@ -79,7 +80,7 @@ export function GoldStar({ size }: { size: number }) {
           <Stop offset="1" stopColor={STAR_GOLD[1]} />
         </LinearGradient>
       </Defs>
-      <Path d={STAR_FILLED} fill={`url(#${gid}) ${STAR_GOLD[1]}`} />
+      <Path d={STAR_FILLED} fill={svgFill(gid, STAR_GOLD[1])} />
     </Svg>
   );
 }

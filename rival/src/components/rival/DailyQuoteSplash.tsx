@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { isAppShown, onAppShown } from '../../lib/appReveal';
 import { createPortal } from 'react-dom';
@@ -8,6 +9,7 @@ import { getPrefs } from '../../lib/prefs';
 import { setQuoteUp } from '../../lib/photoPrompt';
 import { getDailyBackground } from '../../lib/dailyBackground';
 import { RivalColors, RivalFontFamily, RivalSerifFamily, rivalWordmark } from '../../constants/rivalTheme';
+import { webFx } from '../../lib/webFx';
 
 // The daily quote, shown once a day the first time a signed-in person opens
 // the app. It sits over the whole app rather than being its own screen, so the
@@ -51,12 +53,20 @@ function localDayKey(): string {
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
-function seenToday(): boolean {
-  try { return globalThis.localStorage?.getItem(SEEN_KEY) === localDayKey(); } catch { return false; }
+// The web keeps this in localStorage; the iPhone app has none, so it showed
+// the quote on every open (2026-11-13). The app uses AsyncStorage instead.
+async function seenToday(): Promise<boolean> {
+  try {
+    const v = Platform.OS === 'web' ? globalThis.localStorage?.getItem(SEEN_KEY) : await AsyncStorage.getItem(SEEN_KEY);
+    return v === localDayKey();
+  } catch { return false; }
 }
 
 function markSeen() {
-  try { globalThis.localStorage?.setItem(SEEN_KEY, localDayKey()); } catch {}
+  try {
+    if (Platform.OS === 'web') globalThis.localStorage?.setItem(SEEN_KEY, localDayKey());
+    else AsyncStorage.setItem(SEEN_KEY, localDayKey()).catch(() => {});
+  } catch {}
 }
 
 function prefersReducedMotion(): boolean {
@@ -86,7 +96,7 @@ export function DailyQuoteSplash() {
     async function maybeShow(userId: string) {
       if (checked.current) return;
       checked.current = true;
-      if (seenToday()) return;
+      if (await seenToday()) return;
       // Switched off in Profile → Preferences.
       if (!getPrefs().dailyQuote) return;
       const path = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.pathname : '';
@@ -221,10 +231,10 @@ const styles = StyleSheet.create({
   rule: { width: 32, height: 1 },
   ruleLeft: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.55) 100%)' } as any)
-    : { backgroundColor: 'rgba(255,181,158,0.35)' },
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.55) 100%)' } as any)) } as any),
   ruleRight: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55) 0%, rgba(255,181,158,0) 100%)' } as any)
-    : { backgroundColor: 'rgba(255,181,158,0.35)' },
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55) 0%, rgba(255,181,158,0) 100%)' } as any)) } as any),
   quoteText: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700',
     fontSize: 28, lineHeight: 37, color: '#fff', textAlign: 'center', marginTop: 18,

@@ -1,6 +1,7 @@
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { RivalButtonColors, RivalColors } from '../../constants/rivalTheme';
+import { webFx } from '../../lib/webFx';
 
 // Take photo and Upload, the same two tiles, words and icons as the Add an
 // activity pop-up (src/app/add-workout.tsx). Used wherever a photo is read,
@@ -48,8 +49,8 @@ const t = StyleSheet.create({
   primaryText: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
   art: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   fade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  fadePrimary: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' } as any : {},
-  fadeGhost: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' } as any : {},
+  fadePrimary: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' }),
+  fadeGhost: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' }),
   title: { fontSize: 17, fontWeight: '800', color: RivalColors.textPrimary },
   sub: { fontSize: 12, fontWeight: '500', color: RivalColors.textSecondary },
 });

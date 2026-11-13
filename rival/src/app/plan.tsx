@@ -10,6 +10,7 @@ import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { GreyArtTile, RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, activityIconName, RivalSheet, RivalSheetCard, rb, GreyPageHead, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
 import { activityTypeLabel } from '../components/rival/EffortBreakdownSheet';
 import { goToTab } from '../lib/tabNav';
+import { webFx } from '../lib/webFx';
 
 // Class-based types use sessions (1 session = 45 min) instead of free duration entry
 const SESSION_TYPES = new Set([
@@ -844,7 +845,7 @@ const ms = StyleSheet.create({
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.5)' },
   tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' } as any,

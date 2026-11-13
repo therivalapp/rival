@@ -61,6 +61,8 @@ import { markTeamOpened } from '../lib/recentTeams';
 import { liftPbChecker, liftsFromEntries } from '../lib/liftPb';
 import { selectAll, inChunks } from '../lib/selectAll';
 import { avatarImage, cardPhoto } from '../lib/imageUrl';
+import { webFx } from '../lib/webFx';
+import { GradientText } from '../components/rival/GradientText';
 
 // Matches chat.tsx's SESSION_GRACE_MS — a session stays "upcoming" for 12
 // hours past its start, since sessions carry no duration.
@@ -225,12 +227,8 @@ function HeroPhoto({ style, children, fade = '19,19,19', sideFade = false, plain
   );
 }
 
-const warmCardWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: 'var(--rival-plain-image, radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%))' } as any)
-  : null;
-const paceCardWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: 'linear-gradient(135deg, rgba(217,119,87,0.16), rgba(217,119,87,0.05))' } as any)
-  : null;
+const warmCardWeb = webFx({ backgroundImage: 'var(--rival-plain-image, radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%))' });
+const paceCardWeb = webFx({ backgroundImage: 'linear-gradient(135deg, rgba(217,119,87,0.16), rgba(217,119,87,0.05))' });
 // Phones: plain cards, solid so they keep their grey on the black ground; the
 // On pace card is the page's one main card.
 const hubPhone = StyleSheet.create({
@@ -246,22 +244,14 @@ const hubPhone = StyleSheet.create({
   // Stands clear of the photo behind it.
   nextTitle: { color: '#fff', textShadowColor: 'rgba(0,0,0,0.65)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
 });
-const heroScrimWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: 'linear-gradient(0deg, rgba(19,19,19,0.95) 0%, transparent 45%)', backgroundColor: 'transparent' } as any)
-  : null;
+const heroScrimWeb = webFx({ backgroundImage: 'linear-gradient(0deg, rgba(19,19,19,0.95) 0%, transparent 45%)', backgroundColor: 'transparent' });
 // Phones fade into the warm grey page instead of near-black, so the photo
 // has no hard edge where the page begins.
 // On a wide screen the phone design is held to a centred column.
 const hubColumn = { width: '100%' as const, maxWidth: SIDE_PAGE_MAX_WIDTH, alignSelf: 'center' as const };
-const heroScrimPhoneWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: `linear-gradient(0deg, rgb(${HUB_FADE}) 0%, rgba(${HUB_FADE},0.9) 12%, transparent 45%)`, backgroundColor: 'transparent' } as any)
-  : null;
-const barFillWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any)
-  : null;
-const chipActiveWeb = Platform.OS === 'web'
-  ? ({ backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any)
-  : null;
+const heroScrimPhoneWeb = webFx({ backgroundImage: `linear-gradient(0deg, rgb(${HUB_FADE}) 0%, rgba(${HUB_FADE},0.9) 12%, transparent 45%)`, backgroundColor: 'transparent' });
+const barFillWeb = webFx({ backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` });
+const chipActiveWeb = webFx({ backgroundImage: `linear-gradient(135deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` });
 
 // Each member's share of the challenge, in the warm data tones (ivory to
 // salmon, never red), the most first (Ricky, 2026-11-09).
@@ -1552,7 +1542,7 @@ export default function TeamHub() {
                             <View style={styles.evStub}>
                               {days === 0 ? <Text style={styles.evToday}>Today</Text> : (
                                 <>
-                                  <Text style={styles.evDays}>{days}</Text>
+                                  <GradientText style={styles.evDays}>{days}</GradientText>
                                   <Text style={styles.evDaysLabel}>{days === 1 ? 'Day' : 'Days'}</Text>
                                 </>
                               )}
@@ -2054,12 +2044,17 @@ function ActivityPostCard({
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
           <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
         </>
-      ) : (
+      ) : ({ ...((
         <>
           <View style={[styles.postAccentBarNative, styles.postAccentBarLeft, { backgroundColor: accentColor }]} />
           <View style={[styles.postAccentBarNative, styles.postAccentBarRight, { backgroundColor: accentColor }]} />
         </>
-      )}
+      )), ...webFx((
+        <>
+          <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
+          <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
+        </>
+      )) } as any)}
 
       <View style={styles.postHeader}>
         <TouchableOpacity onPress={() => router.push(`/stats?userId=${a.user_id}` as any)} style={[styles.postAvatar, { backgroundColor: tint.bg, borderColor: tint.color }]}>
@@ -2142,7 +2137,7 @@ function ActivityPostCard({
           </View>
           {a.effort_score ? (
             <View style={styles.effortLine}>
-              <Text style={[styles.effortNum, styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</Text>
+              <GradientText style={[styles.effortNum, styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</GradientText>
               <Text style={styles.effortUnit}>Effort</Text>
             </View>
           ) : null}
@@ -2190,7 +2185,7 @@ function ActivityPostCard({
         )}
         {a.effort_score ? (
           <View style={styles.effortLine}>
-            <Text style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</Text>
+            <GradientText style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</GradientText>
             <Text style={styles.effortUnit}>Effort</Text>
           </View>
         ) : null}
@@ -2203,13 +2198,13 @@ function ActivityPostCard({
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
           <RespectStar on={myReaction === 'respect'} size={15} onColour={reactPhone ? RESPECT_COLOUR : RivalColors.accentText} offColour={RivalColors.onSurface} animate={reactPhone} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && (reactPhone ? respectGivenText : { color: RivalColors.accentText })]}>Respect</Text>
-          <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'respect' && respectGivenText]}>{respectCount}</Text>
+          <GradientText style={[styles.reactionLabel, myReaction === 'respect' && (reactPhone ? respectGivenText : { color: RivalColors.accentText })]}>Respect</GradientText>
+          <GradientText style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'respect' && respectGivenText]}>{respectCount}</GradientText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
           <InspiredBolt on={myReaction === 'inspired'} size={15} onColour={reactPhone ? INSPIRED_COLOUR : RivalColors.rankAnchors.unrivaled} offColour={RivalColors.onSurface} onStyle={reactPhone && inspiredGivenText} animate={reactPhone} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && (reactPhone ? inspiredGivenText : { color: RivalColors.rankAnchors.unrivaled })]}>Inspired</Text>
-          <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'inspired' && inspiredGivenText]}>{inspiredCount}</Text>
+          <GradientText style={[styles.reactionLabel, myReaction === 'inspired' && (reactPhone ? inspiredGivenText : { color: RivalColors.rankAnchors.unrivaled })]}>Inspired</GradientText>
+          <GradientText style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'inspired' && inspiredGivenText]}>{inspiredCount}</GradientText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>
           <RivalIcon name="chat" size={15} color={RivalColors.onSurface} />
@@ -2315,7 +2310,7 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   boardComposeTitleInput: { color: RivalColors.accentText, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', paddingVertical: 4 },
   boardComposeRule: {
     alignSelf: 'flex-start', width: 60, height: 1, marginTop: 2, marginBottom: 8,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)' } as any : { backgroundColor: 'rgba(217,119,87,0.6)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)' } as any) } as any)),
   },
   boardComposeBodyInput: { fontFamily: SERIF, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 20, minHeight: 50, textAlignVertical: 'top', paddingVertical: 0 },
   boardComposeBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
@@ -2414,7 +2409,7 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   boardNoteTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', color: RivalColors.accentText },
   boardNoteTitleRule: {
     alignSelf: 'flex-start', width: 44, height: 1, marginTop: 4, marginBottom: 2,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)' } as any : { backgroundColor: 'rgba(217,119,87,0.6)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)' } as any) } as any)),
   },
   boardNoteBody: { fontFamily: SERIF, fontStyle: 'italic', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 17 },
   boardNoteFoot: { flexDirection: 'row', gap: 12, marginTop: 2 },
@@ -2492,7 +2487,7 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   evStub: { width: 84, alignItems: 'center', justifyContent: 'center' },
   evDays: {
     fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 34, lineHeight: 36, color: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' })),
   },
   evDaysLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 3 },
   evToday: { fontFamily: SERIF, fontStyle: 'italic', fontWeight: '700', fontSize: 22, color: RivalColors.accentText },
@@ -2538,19 +2533,19 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   post: {
     position: 'relative', borderRadius: 20, borderWidth: 1, borderColor: cardBorder,
     backgroundColor: '#2d241f',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
-    } as any : {}),
+    })),
     padding: 12, gap: 11,
   },
   // Phones: the same card as team-feed.tsx's postPhone (Ricky, 2026-11-01).
   postPhone: {
     backgroundColor: RivalColors.surfaceHigh,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       borderWidth: 1, borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
       backgroundImage: 'radial-gradient(ellipse 70% 220px at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
       backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
-    } as any : {}),
+    })),
   },
   postAccentBar: { position: 'absolute', top: 6, bottom: 6, width: 3 },
   postAccentBarNative: { position: 'absolute', top: 6, bottom: 6, width: 3, opacity: 0.7 },
@@ -2568,9 +2563,9 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
     position: 'absolute', top: 36, right: 0, zIndex: 10, minWidth: 168,
     borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {
+    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : ({ ...({
       boxShadow: '0px 4px 10px rgba(0,0,0,0.4)', elevation: 8,
-    }),
+    }), ...webFx({ boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any) } as any)),
   },
   postMoreArrow: {
     position: 'absolute', top: -6, right: 9, width: 11, height: 11, backgroundColor: RivalColors.surfaceHigh,
@@ -2616,9 +2611,9 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
   noPhotoPanel: {
     position: 'relative', borderRadius: 14, overflow: 'hidden', padding: 20, alignItems: 'center', gap: 8,
     backgroundColor: '#2d241f',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 90% 60% at 50% 40%, rgba(255,209,190,0.10) 0%, rgba(19,19,19,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
-    } as any : {}),
+    })),
   },
   noPhotoBody: { fontFamily: SERIF, fontStyle: 'italic', fontSize: 13, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
 

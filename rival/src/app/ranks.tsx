@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { GradientText } from '../components/rival/GradientText';
 import { Image } from 'react-native';
 import { Modal } from '../components/rival/RivalModal';
 import { makeRankCard, shareCardFile, type ShareFigure } from '../lib/shareCard';
@@ -20,6 +21,7 @@ import { supabase, getAuthUser } from '../lib/supabase';
 import { LEVELS, getLevel } from '../lib/xp';
 import { rankPace, type RankPace } from '../lib/rankPace';
 import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead } from '../components/rival';
+import { webFx } from '../lib/webFx';
 
 // A rough idea of the training each rank takes, for a person reading the list:
 // Effort earned over a whole year at a typical mix of activities. About 70
@@ -211,7 +213,7 @@ export default function RanksScreen() {
                 <View style={[ms.paceCoin, rankTileFill(pace.yearEnd.level.level)]}><RivalIcon name={`rank${pace.yearEnd.level.name}` as RivalIconName} size={18} color={RANK_TILE_INK} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={rb.label}>On pace for</Text>
-                  <Text style={[ms.paceRank, rankTextSheen(pace.yearEnd.level.level)]}>{pace.yearEnd.level.name}</Text>
+                  <GradientText style={[ms.paceRank, rankTextSheen(pace.yearEnd.level.level)]}>{pace.yearEnd.level.name}</GradientText>
                   <Text style={ms.sub2}>About {pace.yearEnd.effort.toLocaleString()} Effort by 31 December at the current pace.</Text>
                 </View>
               </View>
@@ -258,7 +260,7 @@ export default function RanksScreen() {
                       color={isEarned ? 'rgba(26,18,16,0.16)' : isNext ? sheen.light + '33' : sheen.light + '14'}
                     />
                   </View>
-                  <Text style={[ms.tileName, isEarned ? { color: RANK_TILE_INK } : isNext ? rankTextSheen(lvl.level) : ms.tileNameOff]} numberOfLines={1}>{lvl.name}</Text>
+                  <GradientText style={[ms.tileName, isEarned ? { color: RANK_TILE_INK } : isNext ? rankTextSheen(lvl.level) : ms.tileNameOff]} numberOfLines={1}>{lvl.name}</GradientText>
                   {isNext ? (
                     <View style={ms.tileTrack}><View style={[ms.tileFill, { width: `${Math.max(4, Math.round(pct * 100))}%` as any, backgroundColor: sheen.light }]} /></View>
                   ) : null}
@@ -293,7 +295,7 @@ export default function RanksScreen() {
                   />
                 </View>
                 <Text style={[ms.topKicker, reached && { color: RANK_TILE_INK }]}>{reached ? 'You' : 'The top rank'}</Text>
-                <Text style={[ms.topName, reached ? ms.topNameReached : rankTextSheen(top.level)]}>{top.name}</Text>
+                <GradientText style={[ms.topName, reached ? ms.topNameReached : rankTextSheen(top.level)]}>{top.name}</GradientText>
                 <Text style={[ms.topValue, reached && { color: RANK_TILE_INK }]}>
                   {isNext ? `${Math.ceil(top.minXp - totalXp).toLocaleString()} Effort to go` : `${top.minXp.toLocaleString()} Effort`}
                 </Text>
@@ -507,7 +509,7 @@ const ms = StyleSheet.create({
   // see-through black (Ricky, 2026-10-22).
   shareBackdrop: {
     flex: 1, backgroundColor: RivalGhost.ground, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' })),
   },
   sharePreview: { aspectRatio: 9 / 16, borderRadius: 18 },
   stampStage: { overflow: 'hidden', backgroundColor: '#2a2522', justifyContent: 'flex-end', alignItems: 'center' },
@@ -546,7 +548,7 @@ const ms = StyleSheet.create({
   num: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   numOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   numText: { fontSize: 12.5, fontWeight: '800', color: 'rgba(255,255,255,0.45)' },
   numTextOn: { color: RivalColors.surfaceLowest },
@@ -581,9 +583,9 @@ const ms = StyleSheet.create({
   topTileReached: { paddingBottom: 56 },
   topGlow: {
     position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,215,0,0.12) 0%, rgba(255,215,0,0) 55%)' } : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,215,0,0.12) 0%, rgba(255,215,0,0) 55%)' })),
   } as any,
-  topGlowReached: Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,215,0,0.3) 0%, rgba(255,215,0,0) 58%)' } as any : {},
+  topGlowReached: webFx({ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,215,0,0.3) 0%, rgba(255,215,0,0) 58%)' }),
   topArt: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
   topIcon: { width: 58, height: 58, borderRadius: 29, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,215,0,0.1)' },
   topKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: '#FFD700' },

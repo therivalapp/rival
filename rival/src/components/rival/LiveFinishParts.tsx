@@ -6,12 +6,13 @@ import { liveClock } from '../../lib/liveActivity';
 import { elevationGain, fastestEfforts, metresBetween, paceClock, splitBars, splits, type TrackPoint } from '../../lib/liveTrack';
 import { distanceUnit, elevationUnit, toDisplayElevation } from '../../lib/units';
 import { RivalIcon } from './RivalIcon';
+import { webFx } from '../../lib/webFx';
 
 // The parts of the Finish pop-up and its More details (Ricky, 2026-11-02:
 // design/finish-923-mockup-v5.png, design/more-details-mockup-v3.png).
 
 const serif = { fontFamily: RivalSerifFamily, fontStyle: 'italic' as const, fontWeight: '700' as const };
-const grad = (deg: number) => (Platform.OS === 'web' ? { backgroundImage: `linear-gradient(${deg}deg, #D97757, #ffb59e)` } as any : {});
+const grad = (deg: number) => (webFx({ backgroundImage: `linear-gradient(${deg}deg, #D97757, #ffb59e)` }));
 
 export type Tile = { value: string; unit?: string | null; name: string; effort?: boolean; onPress?: () => void };
 

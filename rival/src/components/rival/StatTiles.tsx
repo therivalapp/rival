@@ -1,6 +1,7 @@
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RivalButtonColors, RivalGhost, RivalSerifFamily } from '../../constants/rivalTheme';
 import { MAX_STATS, type StatKey, type StatOption } from '../../lib/shareStamp';
+import { webFx } from '../../lib/webFx';
 
 // The stats to put on a share card or stamp, as mini tiles that show the real
 // figure (rival/design/share-stat-tiles.html, Ricky 2026-10-22: tiles, not
@@ -90,10 +91,10 @@ const t = StyleSheet.create({
   // bottom right, and a faint bright top edge (Ricky, 2026-10-22).
   tileGold: {
     borderColor: 'transparent', backgroundColor: '#f5c76a',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(160deg, #fff0b0 0%, #f5c76a 45%, #c4932a 100%)',
       boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45)',
-    } as any : {}),
+    })),
   },
   value: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 15, lineHeight: 18, color: 'rgba(255,255,255,0.6)' },
   valueOn: { color: '#2a120a' },

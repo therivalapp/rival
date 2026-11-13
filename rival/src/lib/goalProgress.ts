@@ -130,6 +130,31 @@ export function computeGoalProgress(goal: GoalRow, activities: ActivityRow[]): n
   return Math.round(progress * 10) / 10;
 }
 
+/** A distance goal's km by sport (Run, Ride, Walk, Hike, Swim, then any
+ *  others by size), for the Focus ring coloured by sport (Mockup 50 B, Ricky
+ *  2026-11-13). Variants count as their sport (a trail run is Run). Null when
+ *  it isn't a distance goal or only one sport has counted, so the ring keeps
+ *  its one colour. Same window and filter as computeGoalProgress. */
+export const SPORT_ORDER = ['Run', 'Ride', 'Walk', 'Hike', 'Swim'];
+export function goalSportSplit(goal: GoalRow, activities: ActivityRow[]): { sport: string; label: string; km: number }[] | null {
+  if (goal.goal_type !== 'distance') return null;
+  const start = localDay(goal.start_date);
+  const end = localDay(goal.end_date);
+  end.setHours(23, 59, 59, 999);
+  const km = new Map<string, number>();
+  for (const a of activities) {
+    const d = new Date(a.started_at);
+    if (d < start || d > end || !matchesFilter(goal, a) || !(a.distance_meters! > 0)) continue;
+    const sport = Object.keys(ACTIVITY_TYPE_GROUPS).find((g) => ACTIVITY_TYPE_GROUPS[g].includes(a.activity_type)) ?? a.activity_type;
+    km.set(sport, (km.get(sport) ?? 0) + a.distance_meters! / 1000);
+  }
+  if (km.size < 2) return null;
+  const rank = (s: string) => { const i = SPORT_ORDER.indexOf(s); return i < 0 ? SPORT_ORDER.length : i; };
+  return [...km.entries()]
+    .map(([sport, v]) => ({ sport, label: GOAL_ACTIVITY_TYPES.find((t) => t.value === sport)?.label ?? sport, km: Math.round(v * 10) / 10 }))
+    .sort((a, b) => rank(a.sport) - rank(b.sport) || b.km - a.km);
+}
+
 export function goalUnit(goalType: GoalRow['goal_type']): string {
   return goalType === 'distance' ? 'km' : goalType === 'elevation' ? 'm' : 'activities';
 }

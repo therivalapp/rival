@@ -7,6 +7,7 @@ import type { Celebration } from '../../lib/celebration';
 import { GreyPrimary } from './RivalGreySheet';
 import { activityIconName, RivalIcon, type RivalIconName } from './RivalIcon';
 import { SkyBackdrop } from './SkyBackdrop';
+import { webFx } from '../../lib/webFx';
 
 // A personal best or one of the year's achievements, full screen (Ricky,
 // 2026-11-02, mock B: design/achievement-celebration-mockup.png). The
@@ -217,7 +218,7 @@ const s = StyleSheet.create({
   ghost: { position: 'absolute', right: -40, top: 150 },
   fade: {
     position: 'absolute', left: 0, right: 0, bottom: 0, height: 420,
-    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(180deg, rgba(19,19,19,0), ${GROUND} 70%)` } as any : { backgroundColor: 'rgba(19,19,19,0.6)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(180deg, rgba(19,19,19,0), ${GROUND} 70%)` } as any : ({ ...webFx({ backgroundImage: `linear-gradient(180deg, rgba(19,19,19,0), ${GROUND} 70%)` } as any) } as any)),
   },
   body: { flex: 1, alignItems: 'center', paddingHorizontal: 26 },
   kicker: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: '#fff', opacity: 0.85, textAlign: 'center' },
@@ -234,7 +235,7 @@ const s = StyleSheet.create({
   sub: { fontSize: 13.5, lineHeight: 19, color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginTop: 8 },
   steps: { flexDirection: 'row', gap: 6, marginTop: 22 },
   step: { width: 30, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
-  stepOn: Platform.OS === 'web' ? ({ backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any) : { backgroundColor: RivalColors.accentText },
+  stepOn: Platform.OS === 'web' ? ({ backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any) : ({ ...webFx(({ backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})` } as any)) } as any),
   cap: { fontSize: 12, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   eventPill: { borderColor: 'rgba(244,234,216,0.5)' },
   alsoLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginTop: 20 },

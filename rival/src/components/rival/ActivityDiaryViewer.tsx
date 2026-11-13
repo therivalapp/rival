@@ -30,6 +30,8 @@ import { fullPhoto } from '../../lib/imageUrl';
 import { StatTiles } from './StatTiles';
 import { StampStage, defaultPlacement } from './StampStage';
 import { MatchCard, usePageMatch } from './MatchResult';
+import { webFx } from '../../lib/webFx';
+import { GradientText } from './GradientText';
 
 /** "38 seconds", "1 min 12 s": how much faster a new best was. */
 function fasterBy(seconds: number): string {
@@ -1110,8 +1112,8 @@ export function ActivityDiaryViewer({
                   </>
                 ) : null}
                 <View style={styles.statRow}>
-                {duration ? <View style={styles.stat}><Text style={[styles.statLabel, pbOnTime && styles.statLabelBest]}>{pbOnTime ? 'Best' : 'Time'}</Text><Text style={[styles.statValue, pbOnTime && styles.statValueBest]}>{duration}</Text></View> : null}
-                {distance ? <View style={[styles.stat, !!duration && styles.statDivided]}><Text style={[styles.statLabel, pbOnDistance && styles.statLabelBest]}>{pbOnDistance ? 'Best' : 'Distance'}</Text><Text style={[styles.statValue, pbOnDistance && styles.statValueBest]}>{distance}</Text></View> : null}
+                {duration ? <View style={styles.stat}><Text style={[styles.statLabel, pbOnTime && styles.statLabelBest]}>{pbOnTime ? 'Best' : 'Time'}</Text><GradientText style={[styles.statValue, pbOnTime && styles.statValueBest]}>{duration}</GradientText></View> : null}
+                {distance ? <View style={[styles.stat, !!duration && styles.statDivided]}><Text style={[styles.statLabel, pbOnDistance && styles.statLabelBest]}>{pbOnDistance ? 'Best' : 'Distance'}</Text><GradientText style={[styles.statValue, pbOnDistance && styles.statValueBest]}>{distance}</GradientText></View> : null}
                 {elevation ? <View style={[styles.stat, !!(duration || distance) && styles.statDivided]}><Text style={styles.statLabel}>Elevation</Text><Text style={styles.statValue}>{elevation.replace('↑ ', '')}</Text></View> : null}
                 <TouchableOpacity
                   style={[styles.stat, !!(duration || distance || elevation) && styles.statDivided]}
@@ -1121,7 +1123,7 @@ export function ActivityDiaryViewer({
                   accessibilityLabel={`${activity.effort_score} Effort. Show breakdown`}
                 >
                   <Text style={styles.statLabel}>Effort ›</Text>
-                  <Text style={[styles.statValue, styles.statEffort, styles.statEffortBright]}>{activity.effort_score}</Text>
+                  <GradientText style={[styles.statValue, styles.statEffort, styles.statEffortBright]}>{activity.effort_score}</GradientText>
                 </TouchableOpacity>
                 </View>
               </View>
@@ -1362,7 +1364,7 @@ const styles = StyleSheet.create({
   // fade (#ffe6b0 to #f5b759) read dull and brownish (Ricky, 2026-10-11).
   statEffortBright: Platform.OS === 'web'
     ? ({ color: '#ffc94d', backgroundImage: 'linear-gradient(180deg, #fff4d6 0%, #ffc94d 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' } as any)
-    : { color: '#ffc94d' },
+    : ({ color: '#ffc94d', __gradientText: 'linear-gradient(180deg, #fff4d6 0%, #ffc94d 100%)' } as any),
   statCard: {
     flexDirection: 'row', marginTop: 0, paddingVertical: 13,
     borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, backgroundColor: RivalGhost.fill,
@@ -1370,9 +1372,7 @@ const styles = StyleSheet.create({
   // Equal columns split by hairlines, so the figures fill the card evenly.
   statCardPop: {
     backgroundColor: RivalColors.surfaceBright, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden',
-    ...(Platform.OS === 'web'
-      ? { backgroundImage: 'radial-gradient(ellipse 80% 120% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.08) 45%, rgba(217,119,87,0) 100%)' } as any
-      : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 80% 120% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.08) 45%, rgba(217,119,87,0) 100%)' })),
   },
   // Only the plain card: Today's soft glow from the top centre, gone well
   // before the bottom, and the lit edge as plain border colours (a masked
@@ -1398,19 +1398,19 @@ const styles = StyleSheet.create({
   raceEdge: { borderColor: 'rgba(244,234,216,0.6)' },
   raceBand: {
     borderBottomColor: 'rgba(244,234,216,0.16)',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(244,234,216,0.12), rgba(244,234,216,0))' } as any : { backgroundColor: 'rgba(244,234,216,0.07)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(244,234,216,0.12), rgba(244,234,216,0))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(90deg, rgba(244,234,216,0.12), rgba(244,234,216,0))' } as any) } as any)),
   },
   raceBandTitle: { fontWeight: '700', color: RivalColors.event },
   statRow: { flexDirection: 'row', paddingVertical: 13 },
   pbBand: {
     flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 9,
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,201,77,0.18)',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.13), rgba(255,201,77,0))' } as any : { backgroundColor: 'rgba(255,201,77,0.08)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.13), rgba(255,201,77,0))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.13), rgba(255,201,77,0))' } as any) } as any)),
   },
   pbBandText: { flex: 1, fontSize: 12.5 },
   pbBandSub: {
     paddingVertical: 6, paddingLeft: 35,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.07), rgba(255,201,77,0))' } as any : { backgroundColor: 'rgba(255,201,77,0.04)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.07), rgba(255,201,77,0))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.07), rgba(255,201,77,0))' } as any) } as any)),
   },
   finerCard: { marginTop: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.055)' },
   detailsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1427,7 +1427,7 @@ const styles = StyleSheet.create({
   statLabelBest: { color: '#ffd27a' },
   statValueBest: Platform.OS === 'web'
     ? ({ color: '#ffc94d', backgroundImage: 'linear-gradient(180deg, #fff4d6 0%, #ffc94d 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' } as any)
-    : { color: '#ffc94d' },
+    : ({ color: '#ffc94d', __gradientText: 'linear-gradient(180deg, #fff4d6 0%, #ffc94d 100%)' } as any),
   statLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
   statValue: { fontSize: 19, fontWeight: '700', color: '#fff' },
   detailsCard: { marginTop: 10, gap: 8, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.055)' },
@@ -1447,7 +1447,7 @@ const styles = StyleSheet.create({
   // The pop-up standard: warm grey ground with the soft glow from the top.
   cardSheet: {
     flex: 1, backgroundColor: RivalGhost.ground,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' })),
   },
   cardSheetContent: { alignItems: 'center', gap: 14, paddingHorizontal: 20, minHeight: '100%' as any, justifyContent: 'center' },
   cardBelow: { alignSelf: 'stretch', alignItems: 'center', gap: 14 },
@@ -1499,7 +1499,7 @@ const styles = StyleSheet.create({
   choiceHint: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' },
   choiceFade: {
     position: 'absolute', top: 0, bottom: 0, right: 0, width: 36,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(46,42,40,0), rgb(46,42,40))' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(90deg, rgba(46,42,40,0), rgb(46,42,40))' })),
   },
   cardBack: { position: 'absolute', left: 16 },
   cardEnlarged: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
@@ -1525,7 +1525,7 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, bottom: 0, height: 64, zIndex: 2,
     ...(Platform.OS === 'web'
       ? { backgroundImage: `linear-gradient(0deg, ${RivalColors.surfaceHigh} 0%, rgba(40,40,40,0.8) 40%, rgba(40,40,40,0) 100%)` } as any
-      : { backgroundColor: 'rgba(40,40,40,0.5)' }),
+      : ({ ...webFx({ backgroundImage: `linear-gradient(0deg, ${RivalColors.surfaceHigh} 0%, rgba(40,40,40,0.8) 40%, rgba(40,40,40,0) 100%)` } as any) } as any)),
   },
   photoTitle: { position: 'absolute', left: 20, right: 20, bottom: 2, zIndex: 4 },
   photoFallbackPhone: { backgroundColor: RivalColors.surfaceContainer },
@@ -1534,7 +1534,7 @@ const styles = StyleSheet.create({
   fallbackArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   fallbackFade: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 90% 60% at 50% 40%, rgba(255,209,190,0.10) 0%, rgba(19,19,19,0) 65%), linear-gradient(0deg, rgba(32,32,31,0.55), rgba(32,32,31,0) 65%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 90% 60% at 50% 40%, rgba(255,209,190,0.10) 0%, rgba(19,19,19,0) 65%), linear-gradient(0deg, rgba(32,32,31,0.55), rgba(32,32,31,0) 65%)' })),
   },
   fallbackTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', color: '#fff', textAlign: 'center' },
   fallbackSub: { fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginTop: 4, maxWidth: 240 },
@@ -1560,7 +1560,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 40, right: 0, minWidth: 200,
     borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {}),
+    ...(webFx({ boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' })),
   },
   menuCaret: {
     position: 'absolute', top: -6, right: 10, width: 12, height: 12,
@@ -1612,7 +1612,9 @@ const styles = StyleSheet.create({
     width: 150, height: 1.5, marginTop: 4, marginBottom: 2,
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'linear-gradient(90deg, rgba(217,199,172,0.9) 0%, rgba(217,199,172,0.9) 40%, rgba(217,199,172,0) 100%)',
-    } as any : { backgroundColor: 'rgba(217,199,172,0.9)' }),
+    } as any : ({ ...webFx({
+      backgroundImage: 'linear-gradient(90deg, rgba(217,199,172,0.9) 0%, rgba(217,199,172,0.9) 40%, rgba(217,199,172,0) 100%)',
+    } as any) } as any)),
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   locationInput: { flex: 1, padding: 0, fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)', ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
@@ -1637,7 +1639,9 @@ const styles = StyleSheet.create({
     width: 60, height: 1, marginTop: 6, marginBottom: 8,
     ...(Platform.OS === 'web' ? {
       backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)',
-    } as any : { backgroundColor: 'rgba(217,119,87,0.6)' }),
+    } as any : ({ ...webFx({
+      backgroundImage: 'linear-gradient(90deg, rgba(217,119,87,0) 0%, rgba(217,119,87,0.6) 25%, rgba(217,119,87,0.6) 75%, rgba(217,119,87,0) 100%)',
+    } as any) } as any)),
   },
   // outlineStyle suppresses the browser's default blue focus ring on web —
   // RNW passes this straight through to the underlying <textarea>'s CSS.

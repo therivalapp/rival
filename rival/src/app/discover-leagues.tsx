@@ -17,6 +17,7 @@ import { useSnapState } from '../lib/snapState';
 import { avatarImage } from '../lib/imageUrl';
 import { inChunks, selectAll } from '../lib/selectAll';
 import { liftPbChecker, liftsFromEntries } from '../lib/liftPb';
+import { webFx } from '../lib/webFx';
 
 type MembershipState = 'none' | 'pending' | 'active';
 
@@ -736,7 +737,7 @@ const styles = StyleSheet.create({
   teamGrid: { gap: 14, marginBottom: 28, marginTop: 10 },
   teamGridWide: { flexDirection: 'row', flexWrap: 'wrap' },
   gridCard: { borderRadius: RivalRadius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 18, minHeight: 260, position: 'relative', overflow: 'hidden', ...(Platform.OS === 'web' ? { transitionProperty: 'transform, box-shadow', transitionDuration: '150ms', transitionTimingFunction: 'ease' } as any : {}) },
-  gridCardHovered: { transform: [{ scale: 1.03 }], ...(Platform.OS === 'web' ? { boxShadow: '0 12px 28px rgba(0,0,0,0.35)' } as any : {}) },
+  gridCardHovered: { transform: [{ scale: 1.03 }], ...(webFx({ boxShadow: '0 12px 28px rgba(0,0,0,0.35)' })) },
   // flexGrow: 0 keeps every card the same size regardless of row count — a
   // team's crest photo (background-cover) was cropping badly when a
   // near-empty row let flexGrow stretch a card much wider than tall.

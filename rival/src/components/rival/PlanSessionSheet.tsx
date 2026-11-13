@@ -12,6 +12,7 @@ import { BusyText } from './BusyText';
 import { BREAKPOINT_WIDE_LAYOUT, sidePageWide, SIDE_SHEET_MAX_WIDTH } from '../../constants/breakpoints';
 import { useSheetDrag } from './useSheetDrag';
 import { tilesFor, useRecentTypes } from '../../lib/recentTypes';
+import { webFx } from '../../lib/webFx';
 
 // Planning a meet-up, in one sheet, from anywhere.
 //
@@ -822,7 +823,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, height: 150,
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }
-      : { backgroundColor: 'rgba(217,119,87,0.07)' }),
+      : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }) } as any)),
   },
   grabber: {
     width: 38, height: 4, borderRadius: 2, alignSelf: 'center',
@@ -936,12 +937,10 @@ const styles = StyleSheet.create({
   },
   wheelFade: {
     position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
-    ...(Platform.OS === 'web'
-      ? {
+    ...(webFx({
           backgroundImage:
             'linear-gradient(to bottom, #282828 0%, rgba(40,40,40,0.85) 14%, rgba(40,40,40,0) 34%, rgba(40,40,40,0) 66%, rgba(40,40,40,0.85) 86%, #282828 100%)',
-        }
-      : {}),
+        })),
   },
   wheel: { width: 68, flexGrow: 0 },
   wheelCell: { height: ROW, alignItems: 'center', justifyContent: 'center' },
@@ -965,7 +964,7 @@ const styles = StyleSheet.create({
   postBtn: {
     marginTop: 16, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999,
     paddingVertical: 15, alignItems: 'center',
-    ...(Platform.OS === 'web' ? { boxShadow: '0 6px 22px rgba(217,119,87,0.32)' } : {}),
+    ...(webFx({ boxShadow: '0 6px 22px rgba(217,119,87,0.32)' })),
   },
   postBtnOff: { opacity: 0.5 },
   postBtnText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.surfaceLowest), letterSpacing: 0.2 },
@@ -985,7 +984,7 @@ const styles = StyleSheet.create({
   },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   },
   tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' },
   tileTextOn: { color: '#fff' },

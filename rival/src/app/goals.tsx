@@ -22,6 +22,7 @@ import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButto
 import { BusyText } from '../components/rival/BusyText';
 import { GoalCardGestures } from '../components/rival/GoalCardGestures';
 import { goToTab } from '../lib/tabNav';
+import { webFx } from '../lib/webFx';
 
 const GESTURE_HINT_KEY = 'rival.goals.gestureHintSeen';
 
@@ -1585,11 +1586,11 @@ const ms = StyleSheet.create({
   hero: {
     alignItems: 'center', gap: 14, borderRadius: 22, paddingTop: 18, paddingBottom: 18, paddingHorizontal: 16,
     backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
       borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
       backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
-    } : {}),
+    })),
   } as any,
   heroNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 38, lineHeight: 42, color: '#fff' },
   heroOf: { fontSize: 12.5, fontWeight: '700', color: RivalColors.textSecondary, marginTop: 1 },
@@ -1601,7 +1602,7 @@ const ms = StyleSheet.create({
     width: 1, height: 38,
     ...(Platform.OS === 'web'
       ? ({ backgroundImage: 'linear-gradient(180deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.45) 50%, rgba(255,181,158,0) 100%)' } as any)
-      : { backgroundColor: 'rgba(255,181,158,0.3)' }),
+      : ({ ...webFx(({ backgroundImage: 'linear-gradient(180deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.45) 50%, rgba(255,181,158,0) 100%)' } as any)) } as any)),
   },
   heroPace: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   heroPaceText: { fontSize: 13.5, fontWeight: '600', color: '#fff' },
@@ -1629,10 +1630,10 @@ const ms = StyleSheet.create({
     alignItems: 'center', paddingTop: 18, paddingBottom: 20, paddingHorizontal: 16,
     borderRadius: 22, overflow: 'hidden',
     backgroundColor: '#1b1512', borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
       borderWidth: 0,
-    } : {}),
+    })),
   } as any,
   focusEdge: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, padding: 1,
@@ -1657,10 +1658,10 @@ const ms = StyleSheet.create({
   slimTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.07)', overflow: 'hidden', marginTop: 12, marginBottom: 10 },
   slimFill: {
     height: '100%', borderRadius: 3, backgroundColor: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: `linear-gradient(90deg, ${RivalColors.accentFill}, ${RivalColors.accentText})`,
       transitionProperty: 'width', transitionDuration: '1200ms', transitionTimingFunction: 'cubic-bezier(0.2, 0.9, 0.25, 1)',
-    } : {}),
+    })),
   } as any,
   footRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   gestureHint: { fontSize: 12.5, color: RivalWarm.muted, marginTop: -6, marginLeft: 4 },

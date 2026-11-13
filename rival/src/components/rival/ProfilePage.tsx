@@ -25,6 +25,8 @@ import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
 import { SkyBackdrop } from './SkyBackdrop';
 import { EventSheet } from './EventSheet';
 import { useBlockedIds, openReport, openBlock, unblockMember, firstName } from '../../lib/safety';
+import { webFx } from '../../lib/webFx';
+import { GradientText } from './GradientText';
 
 // A person's profile on phones: what a teammate sees when they tap someone
 // (Ricky, 2026-10-30, the cover). Cover, the year's numbers, Highlights,
@@ -628,7 +630,7 @@ export function ProfilePage({
                   <View style={s.stub}>
                     {daysUntil(upcoming[0].race_date!, now) === 0 ? <Text style={s.stubToday}>Today</Text> : (
                       <>
-                        <Text style={s.stubDays}>{daysUntil(upcoming[0].race_date!, now)}</Text>
+                        <GradientText style={s.stubDays}>{daysUntil(upcoming[0].race_date!, now)}</GradientText>
                         <Text style={s.stubLabel}>{daysUntil(upcoming[0].race_date!, now) === 1 ? 'Day' : 'Days'}</Text>
                       </>
                     )}
@@ -883,7 +885,7 @@ const s = StyleSheet.create({
   mainCard: {
     backgroundColor: '#282828', borderRadius: 22, borderWidth: 1, paddingTop: 15, paddingHorizontal: 14, paddingBottom: 12,
     borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 70% 220px at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)', backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 70% 220px at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)', backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box' })),
   },
   mainTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, lineHeight: 29, color: '#fff', textAlign: 'center', marginTop: 3 },
   mainSub: { fontSize: 12.5, color: '#A0A0A0', textAlign: 'center', marginTop: 2, marginBottom: 10 },
@@ -919,7 +921,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 44, right: 0, minWidth: 190,
     borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {}),
+    ...(webFx({ boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' })),
   },
   menuCaret: {
     position: 'absolute', top: -6, right: 12, width: 12, height: 12,
@@ -931,7 +933,7 @@ const s = StyleSheet.create({
 
   coverShade: {
     position: 'absolute', left: 0, right: 0, bottom: 0, top: '35%',
-    ...(Platform.OS === 'web' ? { backgroundImage: `linear-gradient(180deg, rgba(27,26,25,0), #1b1a19)` } as any : {}),
+    ...(webFx({ backgroundImage: `linear-gradient(180deg, rgba(27,26,25,0), #1b1a19)` })),
   },
   coverFoot: { position: 'absolute', left: 18, right: 18, bottom: 10 },
   rank: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, borderWidth: 0 },
@@ -975,7 +977,7 @@ const s = StyleSheet.create({
 
   tile: { borderRadius: 18, overflow: 'hidden', backgroundColor: '#232120', position: 'relative' },
   tileArt: { alignItems: 'center', justifyContent: 'center' },
-  tileShade: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 40%, rgba(10,9,8,0.85))' } as any : { backgroundColor: 'rgba(0,0,0,0.25)' },
+  tileShade: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 40%, rgba(10,9,8,0.85))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 40%, rgba(10,9,8,0.85))' } as any) } as any),
   stampWrap: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center' },
   stamp: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: '#fff', paddingHorizontal: 9, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(14,13,12,0.55)', overflow: 'hidden' },
   tileFoot: { position: 'absolute', left: 12, right: 12, bottom: 10 },
@@ -996,7 +998,7 @@ const s = StyleSheet.create({
   stub: { width: 84, alignItems: 'center', justifyContent: 'center' },
   stubDays: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 34, lineHeight: 36, color: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' })),
   },
   stubLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 3 },
   stubToday: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, color: RivalColors.accentText },

@@ -12,6 +12,7 @@
 // first — this file should stay traceable back to the design export.
 
 import { Platform } from 'react-native';
+import { webFx } from '../lib/webFx';
 
 // A colour that differs on phones. Phones are the mobile-only design phase, so
 // the phone value lives in global.css under max-width 839px and desktop keeps
@@ -22,7 +23,7 @@ export function rivalPhoneVar(name: string, phone: string, desktop: string): str
 
 /** The soft top glow on a page's one main card (Ricky, 2026-11-01). Set on
  *  phones only; see global.css. */
-export const RivalMainGlow: any = Platform.OS === 'web' ? { backgroundImage: 'var(--rival-main-glow, none)' } : {};
+export const RivalMainGlow: any = webFx({ backgroundImage: 'var(--rival-main-glow, none)' });
 
 export const RivalColors = {
   // Surfaces — tiered charcoal system, darkest to lightest.
@@ -204,11 +205,15 @@ export const RivalButtonColors = {
   // (the one Team Hub's filter chips already use) over the salmon fill; on
   // desktop the variable is unset, so it is `none` and nothing changes.
   // Native has no CSS gradients and keeps the flat salmon.
-  gradient: (Platform.OS === 'web' ? { backgroundImage: 'var(--rival-button-image, none)' } : {}) as any,
+  // iPhone app (2026-11-11): React Native 0.85 draws CSS gradients through
+  // experimental_backgroundImage, so phones get the same gradient as the web.
+  gradient: (Platform.OS === 'web'
+    ? { backgroundImage: 'var(--rival-button-image, none)' }
+    : { experimental_backgroundImage: 'linear-gradient(135deg, #D97757 0%, #ffb59e 100%)' }) as any,
   // A gradient paints over the background colour, so any disabled or "off"
   // style that works by swapping the colour must also clear the gradient, or
   // a greyed-out button would stay orange.
-  noGradient: (Platform.OS === 'web' ? { backgroundImage: 'none' } : {}) as any,
+  noGradient: (Platform.OS === 'web' ? { backgroundImage: 'none' } : { experimental_backgroundImage: [] }) as any,
 };
 
 // The Add an activity look (Ricky, 2026-10-03), the standard for every page

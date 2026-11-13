@@ -5,6 +5,7 @@ import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { RivalButtonColors } from '../../constants/rivalTheme';
 import { ConfirmOptions, setAlertListener, setConfirmListener } from '../../lib/alertBus';
 import { RivalColors, RivalRadius, RivalSerifFamily } from '../../constants/rivalTheme';
+import { webFx } from '../../lib/webFx';
 
 // Mounted once at the app root (_layout.tsx). Replaces window.alert's flat
 // white browser dialog — notify() hands off here via alertBus so every
@@ -187,10 +188,10 @@ const pm = StyleSheet.create({
   primary: {
     marginTop: 8, paddingVertical: 13, borderRadius: 999, alignItems: 'center',
     backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient,
-    ...(Platform.OS === 'web' ? { boxShadow: '0 6px 22px rgba(217,119,87,0.28)' } : {}),
+    ...(webFx({ boxShadow: '0 6px 22px rgba(217,119,87,0.28)' })),
   } as any,
   primaryText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
-  destructive: { backgroundColor: 'rgba(255,107,107,0.14)', borderWidth: 1, borderColor: 'rgba(255,143,143,0.45)', ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } : {}) } as any,
+  destructive: { backgroundColor: 'rgba(255,107,107,0.14)', borderWidth: 1, borderColor: 'rgba(255,143,143,0.45)', ...RivalButtonColors.noGradient, ...(webFx({ boxShadow: 'none' })) } as any,
   destructiveText: { color: '#ff8f8f' },
   ghost: { paddingVertical: 12, borderRadius: 999, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)' },
   ghostText: { fontSize: 14.5, fontWeight: '700', color: RivalColors.accentText },

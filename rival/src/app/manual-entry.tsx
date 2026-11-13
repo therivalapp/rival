@@ -34,8 +34,10 @@ import { GreySheet, GreyPrimary } from '../components/rival/RivalGreySheet';
 import { statFamily, type ActivityStats, type MatchResult, type Score } from '../lib/activityStats';
 import { fetchTeammates, tagTeammates, withinTagWindow, TAG_WINDOW_HOURS } from '../lib/sharedActivities';
 import { backToOrigin, goToTab } from '../lib/tabNav';
+import { requestOpen } from '../lib/shareRequest';
 import { MilestonePhotoPrompt } from '../components/rival/MilestonePhotoPrompt';
 import { useKeyboardOpen } from '../lib/keyboard';
+import { webFx } from '../lib/webFx';
 
 // `markedPb`: a first-time lift the person says is a personal best (lib/liftPb.ts).
 // `pct`: the weight was set as a percentage of the person's best (liftHistory.ts).
@@ -219,7 +221,6 @@ export default function ManualEntryScreen() {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [savedActivityId, setSavedActivityId] = useState<string | null>(null);
   const [milestoneCheck, setMilestoneCheck] = useState<{ activityId: string; userId: string } | null>(null);
-  const [savedHasPhoto, setSavedHasPhoto] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEditMode);
   // Preserves the original time-of-day (not just the date) when editing, so
   // changing only the date field doesn't quietly reset an activity logged at
@@ -684,7 +685,7 @@ export default function ManualEntryScreen() {
           })
         : null;
 
-      const raceId = await findMatchingRaceId(user.id, startedAt.toISOString());
+      const raceId = await findMatchingRaceId(user.id, startedAt.toISOString(), { type: workoutType, distanceMeters: distance * 1000 });
       // Only for the activities that have them, so changing the type drops them.
       const fam = statFamily(workoutType);
       const keepResult = (fam === 'racket' || fam === 'team') ? result : null;
@@ -842,10 +843,12 @@ export default function ManualEntryScreen() {
         // Finish offered to keep these lifts as a saved activity.
         if (keepParam) createSavedWorkout({ name: workoutName.trim() || namePlaceholder, activityType: workoutType, exercises: exercises.filter((e) => e.name.trim()) }).catch(() => {});
       }
+      // Saved means done with this page: straight to the new activity on
+      // Activity, no "Activity saved" banner (Ricky, 2026-11-12). Without a
+      // photo, a milestone may first ask for one.
       setSavedActivityId(activityId);
-      setSavedHasPhoto(!!coverUrl);
-      // With a photo, offer to AI-enhance before leaving; otherwise head to the feed.
-      if (!coverUrl) setMilestoneCheck({ activityId, userId: user.id });
+      if (coverUrl) requestOpen(activityId);
+      else setMilestoneCheck({ activityId, userId: user.id });
     } catch (err) {
       console.error('Save failed:', err);
       setGeneralError('The activity could not be saved. Try again.');
@@ -2574,19 +2577,6 @@ export default function ManualEntryScreen() {
 
         {loadingEdit && <Text style={styles.subtitle}>Loading activity…</Text>}
 
-        {saved && (
-          <View style={styles.successBanner}>
-            <Text style={styles.successText}>Activity saved</Text>
-            {savedHasPhoto ? (
-              <View style={styles.successActions}>
-                <TouchableOpacity onPress={backToOrigin}>
-                  <Text style={styles.doneText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
-        )}
-
         {!loadingEdit && !wide && mobileLayout}
 
         {!loadingEdit && wide && (
@@ -2618,7 +2608,7 @@ export default function ManualEntryScreen() {
           onDone={(items) => { setMedia(items); setMediaPicker(null); }}
         />
       )}
-      {milestoneCheck ? <MilestonePhotoPrompt {...milestoneCheck} onDone={backToOrigin} /> : null}
+      {milestoneCheck ? <MilestonePhotoPrompt {...milestoneCheck} onDone={() => requestOpen(milestoneCheck.activityId)} /> : null}
     </SafeAreaView>
   );
 }
@@ -2653,12 +2643,8 @@ const styles = StyleSheet.create({
   // rest of the screen with no clue which field it referred to.
   fieldError: { color: RivalColors.error, fontSize: 12, fontWeight: '600' },
 
-  successBanner: { backgroundColor: `${RivalColors.success}22`, borderRadius: RivalRadius.lg, padding: 16, marginBottom: 20, gap: 8, alignItems: 'center' },
-  successText: { color: RivalColors.success, fontSize: 15, fontWeight: '700' },
-  successActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   enhanceBtn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: RivalRadius.DEFAULT, paddingHorizontal: 16, paddingVertical: 10 },
   enhanceBtnText: { color: RivalButtonColors.label(RivalColors.onAccentFill), fontWeight: '700', fontSize: 14 },
-  doneText: { color: RivalColors.textSecondary, fontSize: 14 },
 
   twoCol: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
   leftCol: { width: '38%', minWidth: 300, maxWidth: 420, flexGrow: 0, flexShrink: 0, gap: 16 },
@@ -2767,7 +2753,7 @@ const m = StyleSheet.create({
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.5)' },
   tileText: { fontSize: 13, fontWeight: '800', color: '#fff' } as any,
@@ -3014,9 +3000,9 @@ const m = StyleSheet.create({
   pbSwitch: { width: 42, height: 25, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', padding: 3, justifyContent: 'center' },
   pbSwitchOn: {
     backgroundColor: '#f5c76a',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(160deg, #fff0b0 0%, #f5c76a 45%, #c4932a 100%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(160deg, #fff0b0 0%, #f5c76a 45%, #c4932a 100%)' })),
   },
-  pbKnob: { width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff', ...(Platform.OS === 'web' ? { boxShadow: '0px 1px 3px rgba(0,0,0,0.35)' } as any : {}) },
+  pbKnob: { width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff', ...(webFx({ boxShadow: '0px 1px 3px rgba(0,0,0,0.35)' })) },
   pbKnobOn: { alignSelf: 'flex-end' },
 
   dangerZone: { alignItems: 'center', paddingVertical: 18 },
