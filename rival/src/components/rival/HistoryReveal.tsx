@@ -15,6 +15,7 @@ import { RankLadder } from './RankLadder';
 import { activityTypeLabel } from './EffortBreakdownSheet';
 import { decodePolyline, projectRoute } from '../../lib/polyline';
 import { formatActivityDistance, formatDistanceWhole } from '../../lib/units';
+import { webFx } from '../../lib/webFx';
 
 // The moment a history lands in RIVAL (Ricky, 2026-10-17/18): shared by
 // importing an archive and by connecting Strava. The archive's photos (or
@@ -215,7 +216,7 @@ const r = StyleSheet.create({
   skyTile: { alignItems: 'center', justifyContent: 'center' },
   fade: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(40,40,40,0) 50%, #282828 96%)' } as any : { backgroundColor: 'rgba(40,40,40,0.5)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(40,40,40,0) 50%, #282828 96%)' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(40,40,40,0) 50%, #282828 96%)' } as any) } as any)),
   },
   body: { marginTop: -200, paddingHorizontal: 16, gap: 12 },
   kick: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText },
@@ -227,7 +228,7 @@ const r = StyleSheet.create({
   effort: { borderRadius: 22, padding: 16, gap: 4, borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)', backgroundColor: CARD },
   effortNum: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 64, lineHeight: 70, color: '#ffd2bf',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #fff6ea, #ffd2bf 50%, #ffb59e)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #fff6ea, #ffd2bf 50%, #ffb59e)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' })),
   },
   effortLabel: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   split: { flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2, marginTop: 10, marginBottom: 6 },

@@ -9,6 +9,7 @@ import { BusyText } from './BusyText';
 import { RivalBackButton } from './RivalBackButton';
 import { useSheetDrag } from './useSheetDrag';
 import { BREAKPOINT_WIDE_LAYOUT, SIDE_PAGE_MAX_WIDTH, SIDE_SHEET_MAX_WIDTH } from '../../constants/breakpoints';
+import { webFx } from '../../lib/webFx';
 
 // The phone pop-up style set by Plan an activity: grey sheet with a warm glow
 // at the top, centred kicker and serif title, grey caps labels, recessed cards
@@ -307,14 +308,12 @@ const gp = StyleSheet.create({
   head: { alignItems: 'center', marginHorizontal: -16, paddingHorizontal: 60, paddingTop: 16, paddingBottom: 12 },
   glow: {
     position: 'absolute', top: -80, left: 0, right: 0, height: 240,
-    ...(Platform.OS === 'web'
-      ? { backgroundImage: 'var(--rival-head-glow, radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%))' }
-      : {}),
+    ...(webFx({ backgroundImage: 'var(--rival-head-glow, radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%))' })),
   } as any,
   // Its ellipse reaches exactly the box's sides, so nothing shows at the edge.
   glowWide: {
     left: -260, right: -260,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 50% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' } : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 50% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' })),
   } as any,
   back: { position: 'absolute', left: 16, top: 8 },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 28, lineHeight: 34, color: '#fff', textAlign: 'center', marginTop: 3 },
@@ -336,9 +335,9 @@ export const rb = StyleSheet.create({
   hero: {
     borderColor: rivalPhoneVar('rival-hero-border', RivalGhost.border, 'rgba(255,181,158,0.16)'),
     backgroundColor: rivalPhoneVar('rival-hero-fill', RivalGhost.fill, '#2d241f'),
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'var(--rival-hero-image, radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%))',
-    } as any : {}),
+    })),
   },
   /** Grey spaced caps: a card's own label, or a section label between cards. */
   label: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
@@ -355,12 +354,12 @@ export const rb = StyleSheet.create({
   /** Big serif figure with the white-to-ember fill. */
   big: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 38, lineHeight: 44, color: '#fff', textAlign: 'center',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' })),
   } as any,
   bar: { alignSelf: 'stretch', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   barFill: {
     height: '100%', borderRadius: 3, backgroundColor: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' })),
   } as any,
 });
 
@@ -406,7 +405,7 @@ const g = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, height: 150,
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }
-      : { backgroundColor: 'rgba(217,119,87,0.07)' }),
+      : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }) } as any)),
   },
   dragZone: { ...(Platform.OS === 'web' ? ({ touchAction: 'none', cursor: 'grab' } as any) : {}) },
   grabber: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', backgroundColor: RivalColors.surfaceBright, marginBottom: 14 },
@@ -471,7 +470,7 @@ const g = StyleSheet.create({
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   },
   tileText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.72)', maxWidth: '92%' },
   tileTextOn: { color: '#fff' },
@@ -481,16 +480,16 @@ const g = StyleSheet.create({
   primary: {
     backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, borderRadius: 999,
     paddingVertical: 15, alignItems: 'center',
-    ...(Platform.OS === 'web' ? { boxShadow: '0 6px 22px rgba(217,119,87,0.32)' } : {}),
+    ...(webFx({ boxShadow: '0 6px 22px rgba(217,119,87,0.32)' })),
   },
   primaryOff: { opacity: 0.5 },
   // Report amber and Block red (Mockup 27 v8): RivalColors.accentGold and
   // RivalColors.danger, the red already on Delete account.
-  warn: { backgroundColor: RivalColors.accentGold, ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } as any : {}) },
+  warn: { backgroundColor: RivalColors.accentGold, ...RivalButtonColors.noGradient, ...(webFx({ boxShadow: 'none' })) },
   warnText: { color: '#2a1a05' },
-  danger: { backgroundColor: RivalColors.danger, ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } as any : {}) },
+  danger: { backgroundColor: RivalColors.danger, ...RivalButtonColors.noGradient, ...(webFx({ boxShadow: 'none' })) },
   dangerText: { color: '#2a0b0b' },
-  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 14, ...RivalButtonColors.noGradient, ...(Platform.OS === 'web' ? { boxShadow: 'none' } as any : {}) },
+  ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 14, ...RivalButtonColors.noGradient, ...(webFx({ boxShadow: 'none' })) },
   ghostText: { color: 'rgba(255,255,255,0.88)' },
   artTileWarn: { backgroundColor: RivalColors.accentGold, ...RivalButtonColors.noGradient },
   badgeRing: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
@@ -547,7 +546,7 @@ const a = StyleSheet.create({
   badge: {
     width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   badgeLarge: { width: 30, height: 30, borderRadius: 15 },
   text: { fontSize: 13, fontWeight: '700', color: '#fff' },
@@ -589,7 +588,7 @@ const t = StyleSheet.create({
   badge: {
     width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   text: { flex: 1, minWidth: 0, gap: 2 },
   title: { fontSize: 15, fontWeight: '700', color: '#fff' },
@@ -626,7 +625,7 @@ const mt = StyleSheet.create({
   badge: {
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   label: { fontSize: 11.5, lineHeight: 14, fontWeight: '700', color: '#fff', textAlign: 'center' },
 });
@@ -679,18 +678,18 @@ const st = StyleSheet.create({
     // (SessionCard's "inviting" style): lit from the top, fading down.
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'linear-gradient(180deg, #2a1d18 0%, #1c1a19 70%)' }
-      : { backgroundColor: '#241b17' }),
+      : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, #2a1d18 0%, #1c1a19 70%)' }) } as any)),
   } as any,
   tileGhost: {
     backgroundColor: RivalGhost.fill, borderColor: RivalGhost.border,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'none' } : {}),
+    ...(webFx({ backgroundImage: 'none' })),
   } as any,
   filler: { flexBasis: '22%', flexGrow: 1 },
   artTile: { minWidth: 118 },
   badge: {
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   label: { fontSize: 10.5, lineHeight: 13, fontWeight: '700', color: '#fff', textAlign: 'center' },
 });

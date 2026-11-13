@@ -1,4 +1,5 @@
 import { getMyTeamRows } from '../../lib/myTeams';
+import { GradientText } from '../../components/rival/GradientText';
 import { MatchBand, matchFrom } from '../../components/rival/MatchResult';
 import type { MatchResult } from '../../lib/activityStats';
 import { requestShare } from '../../lib/shareRequest';
@@ -43,6 +44,7 @@ import { RUN_TYPES, STACKED_BESTS, fastestBests, fastestRest, fastestTitle, type
 import { inChunks, selectAll } from '../../lib/selectAll';
 import { getPrefs } from '../../lib/prefs';
 import { avatarImage, cardPhoto } from '../../lib/imageUrl';
+import { webFx } from '../../lib/webFx';
 
 // Combined multi-team activity feed — separate destination from league.tsx's
 // existing per-team feed tab (per the Team architecture split: Feed = watch,
@@ -703,12 +705,13 @@ export default function TeamFeedScreen() {
           // rather than bottoming out onto a spinner. loadMore self-guards
           // against the repeat calls this necessarily produces.
           scrollEventThrottle={16}
-          onScroll={({ nativeEvent }) => {
-            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          {...pullProps}
+          onScroll={(e) => {
+            (pullProps as any).onScroll?.(e);
+            const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
             const fromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
             if (fromEnd < 600) loadMore();
           }}
-          {...pullProps}
         >
           {pullIndicator}
           <HeroPhoto style={styles.hero}>
@@ -1027,12 +1030,17 @@ function PostCard({
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
           <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
         </>
-      ) : (
+      ) : ({ ...((
         <>
           <View style={[styles.postAccentBarNative, styles.postAccentBarLeft, { backgroundColor: accentColor }]} />
           <View style={[styles.postAccentBarNative, styles.postAccentBarRight, { backgroundColor: accentColor }]} />
         </>
-      )}
+      )), ...webFx((
+        <>
+          <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
+          <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
+        </>
+      )) } as any)}
 
       <View style={styles.postHeader}>
         <TouchableOpacity onPress={() => router.push(`/stats?userId=${post.userId}` as any)} style={[styles.postAvatar, { backgroundColor: tint.bg, borderColor: tint.color }]}>
@@ -1234,7 +1242,7 @@ function PostCard({
               ) : null}
               <View style={[styles.fcCell, styles.fcDivided]}>
                 <Text style={styles.fcLabel}>Effort</Text>
-                <Text style={[styles.fcValue, styles.fcEffort, effortGoldText]}>{post.xp}</Text>
+                <GradientText style={[styles.fcValue, styles.fcEffort, effortGoldText]}>{post.xp}</GradientText>
               </View>
             </TouchableOpacity>
           ) : reactPhone && post.kind === 'activity' ? (
@@ -1286,7 +1294,7 @@ function PostCard({
                 ) : null}
                 <View style={[styles.fcCell, (post.durationSeconds > 0 || post.distanceMeters >= 100 || post.elevationMeters > 0) && styles.fcDivided]}>
                   <Text style={styles.fcLabel}>Effort</Text>
-                  <Text style={[styles.fcValue, styles.fcEffort, effortGoldText]}>{post.xp}</Text>
+                  <GradientText style={[styles.fcValue, styles.fcEffort, effortGoldText]}>{post.xp}</GradientText>
                 </View>
               </View>
             </TouchableOpacity>
@@ -1302,7 +1310,7 @@ function PostCard({
             )}
             {post.xp > 0 && (
               <View style={styles.effortLine}>
-                <Text style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{post.xp}</Text>
+                <GradientText style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{post.xp}</GradientText>
                 <Text style={styles.effortUnit}>Effort</Text>
               </View>
             )}
@@ -1344,13 +1352,13 @@ function PostCard({
       <View style={styles.reactionRow}>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('respect')}>
           <RespectStar on={myReaction === 'respect'} size={15} onColour={reactPhone ? RESPECT_COLOUR : RivalColors.accentText} offColour={RivalColors.onSurface} animate={reactPhone} />
-          <Text style={[styles.reactionLabel, myReaction === 'respect' && (reactPhone ? respectGivenText : { color: RivalColors.accentText })]}>Respect</Text>
-          <Text style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'respect' && respectGivenText]}>{respectCount}</Text>
+          <GradientText style={[styles.reactionLabel, myReaction === 'respect' && (reactPhone ? respectGivenText : { color: RivalColors.accentText })]}>Respect</GradientText>
+          <GradientText style={[styles.reactionCount, respectCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'respect' && respectGivenText]}>{respectCount}</GradientText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reactionItem} onPress={() => onReact('inspired')}>
           <InspiredBolt on={myReaction === 'inspired'} size={15} onColour={reactPhone ? INSPIRED_COLOUR : RivalColors.rankAnchors.unrivaled} offColour={RivalColors.onSurface} onStyle={reactPhone && inspiredGivenText} animate={reactPhone} />
-          <Text style={[styles.reactionLabel, myReaction === 'inspired' && (reactPhone ? inspiredGivenText : { color: RivalColors.rankAnchors.unrivaled })]}>Inspired</Text>
-          <Text style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'inspired' && inspiredGivenText]}>{inspiredCount}</Text>
+          <GradientText style={[styles.reactionLabel, myReaction === 'inspired' && (reactPhone ? inspiredGivenText : { color: RivalColors.rankAnchors.unrivaled })]}>Inspired</GradientText>
+          <GradientText style={[styles.reactionCount, inspiredCount > 0 && styles.reactionCountActive, reactPhone && myReaction === 'inspired' && inspiredGivenText]}>{inspiredCount}</GradientText>
         </TouchableOpacity>
         <TouchableOpacity style={styles.commentCount} onPress={onToggleComments}>
           <RivalIcon name="chat" size={15} color={RivalColors.onSurface} />
@@ -1411,7 +1419,7 @@ const styles = StyleSheet.create({
     position: 'fixed' as any, top: 0, left: 0, right: 0, width: '100%',
     height: '100vh' as any,
     backgroundColor: '#131313',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 140% 90% at 88% 105%, rgba(217,119,87,0.10) 0%, rgba(19,19,19,0) 55%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 140% 90% at 88% 105%, rgba(217,119,87,0.10) 0%, rgba(19,19,19,0) 55%)' })),
   },
   container: { flex: 1 },
   content: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 48, gap: 20, width: '100%', maxWidth: 640, marginHorizontal: 'auto' },
@@ -1483,9 +1491,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1, borderColor: 'rgba(255,181,158,0.14)',
     backgroundColor: '#2d241f',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(circle at -10% -15%, rgba(255,209,190,0.14) 0%, rgba(255,209,190,0) 70%), linear-gradient(135deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
-    } as any : {}),
+    })),
     padding: 12,
     gap: 11,
   },
@@ -1493,13 +1501,13 @@ const styles = StyleSheet.create({
   // (Ricky, 2026-10-21, option A), in place of the brown gradient.
   postPhone: {
     backgroundColor: RivalColors.surfaceHigh,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       // The lit edge as border colours, not a masked overlay: one layer per
       // post made the phone leave black patches while scrolling.
       borderWidth: 1, borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
       backgroundImage: 'radial-gradient(ellipse 70% 220px at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
       backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
-    } as any : {}),
+    })),
   },
   postAccentBar: { position: 'absolute', top: 6, bottom: 6, width: 3 },
   postAccentBarNative: { position: 'absolute', top: 6, bottom: 6, width: 3, opacity: 0.7 },
@@ -1521,9 +1529,9 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 36, right: 0, zIndex: 10, minWidth: 168,
     borderRadius: 14, paddingVertical: 6, backgroundColor: RivalColors.surfaceHigh,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : {
+    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any : ({ ...({
       boxShadow: '0px 4px 10px rgba(0,0,0,0.4)', elevation: 8,
-    }),
+    }), ...webFx({ boxShadow: '0px 10px 24px rgba(0,0,0,0.45)', transformOrigin: 'top right' } as any) } as any)),
   },
   postMoreArrow: {
     position: 'absolute', top: -6, right: 9, width: 11, height: 11, backgroundColor: RivalColors.surfaceHigh,
@@ -1583,7 +1591,7 @@ const styles = StyleSheet.create({
   fcBand: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' },
   fcBandPb: {
     borderBottomColor: 'rgba(255,201,77,0.18)',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.13), rgba(255,201,77,0))' } as any : { backgroundColor: 'rgba(255,201,77,0.08)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.13), rgba(255,201,77,0))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.13), rgba(255,201,77,0))' } as any) } as any)),
   },
   fcBandText: { flex: 1, fontSize: 12.5, fontWeight: '700' },
   fcBandRest: { fontWeight: '500', color: 'rgba(255,255,255,0.5)' },
@@ -1591,7 +1599,7 @@ const styles = StyleSheet.create({
   // and fainter.
   fcBandSub: {
     paddingVertical: 6, paddingLeft: 32,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.07), rgba(255,201,77,0))' } as any : { backgroundColor: 'rgba(255,201,77,0.04)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.07), rgba(255,201,77,0))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(90deg, rgba(255,201,77,0.07), rgba(255,201,77,0))' } as any) } as any)),
   },
   fcRow: { flexDirection: 'row', paddingVertical: 10 },
   fcCell: { flex: 1, alignItems: 'center', gap: 3 },
@@ -1602,15 +1610,15 @@ const styles = StyleSheet.create({
   noPhotoPanel: {
     position: 'relative', borderRadius: 14, overflow: 'hidden', padding: 20, alignItems: 'center', gap: 8,
     backgroundColor: '#2d241f',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 90% 60% at 50% 40%, rgba(255,209,190,0.10) 0%, rgba(19,19,19,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%)',
-    } as any : {}),
+    })),
   },
   panelBigArt: { minHeight: 150, justifyContent: 'center' },
   panelArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   panelArtFade: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(0deg, rgba(38,33,32,0.55), rgba(38,33,32,0) 65%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(0deg, rgba(38,33,32,0.55), rgba(38,33,32,0) 65%)' })),
   },
   noPhotoBody: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   addPhotoPanel: { borderWidth: 1.5, borderColor: 'rgba(255,209,190,0.35)', borderStyle: 'dashed' as any },

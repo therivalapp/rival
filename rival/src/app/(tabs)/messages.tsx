@@ -10,6 +10,7 @@ import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { getUnreadChats, latestMessageByLeague } from '../../lib/unreadChats';
 import { RivalColors, RivalGhost, RivalSerifFamily, RivalButtonColors } from '../../constants/rivalTheme';
 import { avatarImage } from '../../lib/imageUrl';
+import { webFx } from '../../lib/webFx';
 
 // Same per-name color assignment as team-feed.tsx's team rail — kept as a
 // local copy rather than shared, matching how timeAgo is already duplicated
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     position: 'fixed' as any, top: 0, left: 0, right: 0, width: '100%',
     height: '100vh' as any,
     backgroundColor: '#131313',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 140% 90% at 88% 105%, rgba(217,119,87,0.10) 0%, rgba(19,19,19,0) 55%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 140% 90% at 88% 105%, rgba(217,119,87,0.10) 0%, rgba(19,19,19,0) 55%)' })),
   },
   container: { flex: 1 },
   content: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 48, gap: 16, width: '100%', maxWidth: 640, marginHorizontal: 'auto' },
@@ -268,8 +269,8 @@ const ms = StyleSheet.create({
   kicker: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   kickerText: { fontSize: 11, fontWeight: '800', letterSpacing: 2.2, textTransform: 'uppercase', color: RivalColors.accentText },
   rule: { width: 36, height: 1 },
-  ruleLeft: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,181,158,0.55))' } as any) : { backgroundColor: 'rgba(255,181,158,0.4)' },
-  ruleRight: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55), transparent)' } as any) : { backgroundColor: 'rgba(255,181,158,0.4)' },
+  ruleLeft: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,181,158,0.55))' } as any) : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,181,158,0.55))' } as any)) } as any),
+  ruleRight: Platform.OS === 'web' ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55), transparent)' } as any) : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.55), transparent)' } as any)) } as any),
   list: { gap: 10 },
   row: {
     // The activity page's cards: a faint warm fill and a soft peach edge.
@@ -277,22 +278,18 @@ const ms = StyleSheet.create({
     borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12,
     // Today's soft glow at the top centre (Ricky, 2026-10-21), drawn once so
     // it doesn't repeat under the border along the bottom.
-    ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)', backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box' } as any)
-      : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)', backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box' })),
   },
   // Unread: the card lifts a little — a salmon edge and a faint warm wash.
   rowUnread: {
     borderColor: RivalGhost.borderOn, borderBottomColor: RivalGhost.borderOn,
-    ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%), linear-gradient(100deg, rgba(217,119,87,0.12) 0%, rgba(217,119,87,0) 60%)', boxShadow: '0 0 18px rgba(217,119,87,0.12)' } as any)
-      : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%), linear-gradient(100deg, rgba(217,119,87,0.12) 0%, rgba(217,119,87,0) 60%)', boxShadow: '0 0 18px rgba(217,119,87,0.12)' })),
   },
   crest: { borderWidth: 1, borderColor: RivalWarm.cardBorder },
   crestUnread: { borderColor: 'rgba(255,181,158,0.6)' },
   unreadDot: {
     width: 10, height: 10, borderRadius: 5,
-    ...(Platform.OS === 'web' ? ({ boxShadow: '0 0 8px rgba(217,119,87,0.8)' } as any) : {}),
+    ...(webFx({ boxShadow: '0 0 8px rgba(217,119,87,0.8)' })),
   },
   rowName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 17 },
   empty: { alignItems: 'center', paddingVertical: 28 },

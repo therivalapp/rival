@@ -8,6 +8,7 @@ import { GreyPageHead, GREY_PAGE_BG, RivalIcon, invalidateNavIdentity, type Riva
 import { supabase, getAuthUser } from '../lib/supabase';
 import { goToTab } from '../lib/tabNav';
 import { buildArchive, type ArchiveCounts } from '../lib/archive';
+import { webFx } from '../lib/webFx';
 
 // Delete account, modelled on Strava (Ricky, 2026-10-17): what is removed,
 // a copy to keep first (A2, a receipt of what was saved), then deletion in a
@@ -254,7 +255,7 @@ const s = StyleSheet.create({
   coinRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   coin: {
     width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalButtonColors.fill,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(160deg, #ffc2ad, #c96a4a)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(160deg, #ffc2ad, #c96a4a)' })),
   },
   serif: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, color: '#fff' },
   serifSm: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, color: '#fff' },

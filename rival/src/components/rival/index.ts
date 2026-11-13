@@ -2,7 +2,7 @@ export { RivalButton } from './RivalButton';
 export { RivalCard } from './RivalCard';
 export { RivalStatTile } from './RivalStatTile';
 export { RivalProgressBar } from './RivalProgressBar';
-export { RivalChallengeRing } from './RivalChallengeRing';
+export { RivalChallengeRing, RingSportKey, sportRingSegments, type RingSegment } from './RivalChallengeRing';
 export { RivalChip } from './RivalChip';
 export { RivalEmptyState } from './RivalEmptyState';
 export { RivalAvatar } from './RivalAvatar';

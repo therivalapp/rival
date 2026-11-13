@@ -1,5 +1,6 @@
 import { Platform, StyleSheet, View } from 'react-native';
 import { RivalColors, RivalRadius } from '../../constants/rivalTheme';
+import { webFx } from '../../lib/webFx';
 
 // Shared progress bar for Goals/Streaks/Levels — terracotta fill on a charcoal
 // track, with optional milestone ticks (e.g. 25/50/75% checkpoints on Goals).
@@ -24,10 +25,12 @@ export function RivalProgressBar({
   // has no equivalent without adding expo-linear-gradient (not currently a
   // dependency), so it falls back to a flat fill using the gradient's first
   // color — acceptable given this app runs primarily on web.
-  const fillColorStyle =
-    gradientColors && Platform.OS === 'web'
+  const fillColorStyle = !gradientColors
+    ? { backgroundColor: RivalColors.accentFill }
+    : Platform.OS === 'web'
       ? ({ backgroundImage: `linear-gradient(90deg, ${gradientColors[0]}, ${gradientColors[1]})` } as any)
-      : { backgroundColor: gradientColors ? gradientColors[0] : RivalColors.accentFill };
+      // iPhone draws the same gradient (experimental_backgroundImage).
+      : ({ backgroundColor: gradientColors[0], ...webFx({ backgroundImage: `linear-gradient(90deg, ${gradientColors[0]}, ${gradientColors[1]})` }) } as any);
   return (
     <View style={[styles.track, { height, borderRadius: radius }]}>
       <View style={[styles.fill, { width: `${clamped * 100}%`, height, borderRadius: radius }, fillColorStyle]} />

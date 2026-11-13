@@ -25,6 +25,7 @@ import { RivalSerifFamily } from '../constants/rivalTheme';
 import { goBack, goToTab } from '../lib/tabNav';
 import { avatarImage } from '../lib/imageUrl';
 import { garminStatus, garminStatusLine } from '../lib/garmin';
+import { webFx } from '../lib/webFx';
 
 const UNIT_OPTIONS: Array<{ value: UnitSystem; label: string; sub: string }> = [
   { value: 'metric', label: 'Metric', sub: 'Kilometres, metres and kilograms.' },
@@ -921,7 +922,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: -110, left: -24, right: -24, height: 240,
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }
-      : { backgroundColor: 'rgba(217,119,87,0.05)' }),
+      : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(217,119,87,0.22) 0%, rgba(217,119,87,0.07) 45%, rgba(217,119,87,0) 100%)' }) } as any)),
   } as any,
   mKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, color: RivalColors.accentText },
   mTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, color: '#fff', marginTop: 3 },

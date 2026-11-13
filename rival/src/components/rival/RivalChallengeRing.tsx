@@ -1,8 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { GradientText } from './GradientText';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Platform, View, Text, StyleSheet, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { RivalColors, RivalSerifFamily } from '../../constants/rivalTheme';
+import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, RivalIconName } from './RivalIcon';
+import { webFx } from '../../lib/webFx';
 
 // Below a target of 100, a whole-number progress value reads as sparse in
 // the ring's large digit slot ("7 / 10" looks empty where "428 / 1,000"
@@ -42,6 +44,7 @@ export function RivalChallengeRing({
   thickness = 14,
   style,
   animate,
+  segments,
 }: {
   pct: number;
   value: number;
@@ -56,6 +59,9 @@ export function RivalChallengeRing({
   /** Fill the ring from empty and count the number up from 0, starting when
    *  `run` turns true. Once per mount. */
   animate?: { run: boolean; ms: number; ease: (p: number) => number };
+  /** The fill split by sport (Mockup 50 B): each part's share of the target
+   *  and its colour, in drawing order. Left out, the ring is one colour. */
+  segments?: RingSegment[] | null;
 }) {
   const [f, setF] = useState(animate ? 0 : 1);
   const done = useRef(!animate);
@@ -89,6 +95,9 @@ export function RivalChallengeRing({
           </LinearGradient>
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.08)" strokeWidth={thickness} fill="none" />
+        {segments && segments.length > 1 ? (
+          drawSegments(segments, f, size, radius, thickness, circumference, ringId)
+        ) : (
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
           stroke={`url(#${ringId})`} strokeWidth={thickness} fill="none"
@@ -96,6 +105,7 @@ export function RivalChallengeRing({
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - clamped)}
         />
+        )}
       </Svg>
       {icon ? <RivalIcon name={icon} size={22} color={RivalColors.accentText} style={{ marginBottom: 4 } as any} /> : null}
       {/* Digits have no descenders, but the line box still reserves that
@@ -108,15 +118,101 @@ export function RivalChallengeRing({
           that unused descender space so the numeral's actual ink — not its
           box — sits at the ring's visual center. Scales with the ring so a
           smaller ring elsewhere isn't over-corrected. */}
-      <Text
+      <GradientText
+        gradient="linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)"
         style={[
           styles.ringValue,
           { fontSize: valueSize, lineHeight: Math.round(valueSize * 1.06), marginTop: -Math.round(valueSize * 0.12) },
         ]}
       >
         {formatted}
-      </Text>
+      </GradientText>
       <Text style={styles.ringTarget}>{unit}</Text>
+    </View>
+  );
+}
+
+export type RingSegment = { key: string; label: string; frac: number; amountText: string; colour: string };
+
+// Each sport's colour on the Focus ring (Mockup 50 B, Ricky 2026-11-13). Run
+// keeps the ring's own orange; the rest are rank colours from rankSheen.ts
+// (emerald, stone, amethyst, sapphire). 'brand' means the ring gradient.
+const SPORT_RING_COLOURS: Record<string, string> = {
+  Run: 'brand', Ride: '#9fd9bd', Walk: '#d8d3cc', Hike: '#c9b0e8', Swim: '#9fb6e6',
+};
+const OTHER_RING_COLOURS = ['#d4ecf0', '#eef1f5'];
+const BRAND_DOT = '#e8906f';
+
+/** Ring segments for a sport split (goalSportSplit), each a share of `target`. */
+export function sportRingSegments(split: { sport: string; label: string; km: number }[] | null, target: number, unit = 'km'): RingSegment[] | null {
+  if (!split || split.length < 2 || !(target > 0)) return null;
+  let other = 0;
+  return split.map((p) => ({
+    key: p.sport,
+    label: p.label,
+    frac: p.km / target,
+    amountText: `${p.km.toLocaleString()} ${unit}`,
+    colour: SPORT_RING_COLOURS[p.sport] ?? OTHER_RING_COLOURS[other++ % OTHER_RING_COLOURS.length],
+  }));
+}
+
+const dotColour = (c: string) => (c === 'brand' ? BRAND_DOT : c);
+
+// Sport by sport around the ring, with a small gap between sports and round
+// ends only at the very start and the end of the fill. `f` (0 to 1) is how
+// far the fill has drawn, so the sports draw in turn as it animates.
+function drawSegments(segs: RingSegment[], f: number, size: number, radius: number, thickness: number, circumference: number, ringId: string) {
+  const GAP = 2.5;
+  const MIN = circumference * 0.015; // a 1 km swim on a 300 km focus still shows
+  let lens = segs.map((sg) => Math.max(Math.max(0, sg.frac) * circumference, MIN));
+  const total = lens.reduce((a, b) => a + b, 0);
+  const full = circumference - GAP;
+  if (total > full) lens = lens.map((l) => (l * full) / total);
+  const drawn = lens.reduce((a, b) => a + b, 0) * f;
+  const c = size / 2;
+  const at = (len: number) => {
+    const ang = (len / circumference) * 2 * Math.PI;
+    return { cx: c + radius * Math.cos(ang), cy: c + radius * Math.sin(ang) };
+  };
+  const out: ReactNode[] = [];
+  let start = 0;
+  let lastColour = segs[0].colour;
+  lens.forEach((len, i) => {
+    const visible = Math.min(len - (i < lens.length - 1 ? GAP : 0), drawn - start);
+    if (visible > 0.5) {
+      const stroke = segs[i].colour === 'brand' ? `url(#${ringId})` : segs[i].colour;
+      out.push(
+        <Circle
+          key={segs[i].key}
+          cx={c} cy={c} r={radius}
+          stroke={stroke} strokeWidth={thickness} fill="none"
+          strokeDasharray={`${visible} ${circumference}`}
+          strokeDashoffset={-start}
+        />,
+      );
+      lastColour = segs[i].colour;
+    }
+    start += len;
+  });
+  if (drawn > 0.5) {
+    const end = at(Math.min(drawn, start));
+    out.push(<Circle key="cap-start" {...at(0)} r={thickness / 2} fill={dotColour(segs[0].colour)} />);
+    out.push(<Circle key="cap-end" {...end} r={thickness / 2} fill={dotColour(lastColour)} />);
+  }
+  return out;
+}
+
+/** The key under a ring split by sport: a dot, the sport and its amount. */
+export function RingSportKey({ segments }: { segments: RingSegment[] | null | undefined }) {
+  if (!segments || segments.length < 2) return null;
+  return (
+    <View style={styles.key}>
+      {segments.map((sg) => (
+        <View key={sg.key} style={styles.keyItem}>
+          <View style={[styles.keyDot, { backgroundColor: dotColour(sg.colour) }]} />
+          <Text style={styles.keyLabel}>{sg.label} <Text style={styles.keyAmount}>{sg.amountText}</Text></Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -130,10 +226,15 @@ const styles = StyleSheet.create({
   ringValue: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', color: RivalColors.accentFill,
     textAlign: 'center',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
-    } as any : {}),
+    })),
   },
   ringTarget: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  key: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 16, rowGap: 8, marginTop: 16, marginHorizontal: 4 },
+  keyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  keyDot: { width: 8, height: 8, borderRadius: 4 },
+  keyLabel: { fontFamily: RivalFontFamily, fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  keyAmount: { fontWeight: '500', color: 'rgba(255,255,255,0.5)' },
 });

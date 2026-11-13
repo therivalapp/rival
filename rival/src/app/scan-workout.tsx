@@ -1,4 +1,5 @@
 import { defaultActivityName } from '../lib/activityName';
+import { GradientText } from '../components/rival/GradientText';
 import { formatTime, parseTime, timeFieldProps } from '../lib/time';
 import { fitPhoto } from '../lib/imageResize';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -953,7 +954,7 @@ export default function ScanWorkoutScreen() {
                 { v: String(saved.effort), l: 'EFFORT', gold: true },
               ].filter(Boolean).map((f, i) => (
                 <View key={f!.l} style={[mx.savedFig, i > 0 && mx.savedFigLine]}>
-                  <Text style={[mx.savedFigValue, f!.gold && effortGoldText]}>{f!.v}</Text>
+                  <GradientText style={[mx.savedFigValue, f!.gold && effortGoldText]}>{f!.v}</GradientText>
                   <Text style={mx.savedFigLabel}>{f!.l}</Text>
                 </View>
               ))}

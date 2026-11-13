@@ -19,6 +19,8 @@ import { useSheetDrag } from '../components/rival/useSheetDrag';
 import { EventSheet, type EventLeg } from '../components/rival/EventSheet';
 import { EventTimesSheet } from '../components/rival/EventTimesSheet';
 import { eventKind } from '../lib/eventPage';
+import { webFx } from '../lib/webFx';
+import { GradientText } from '../components/rival/GradientText';
 
 // An event's name is the week's title on the Activity page, beside its
 // Effort. 20 letters is about what fits on that line on a phone, so a name
@@ -1060,7 +1062,7 @@ export default function RacesScreen() {
                   <View style={ms.stub}>
                     {!past ? (
                       <>
-                        <Text style={ms.stubNum}>{days}</Text>
+                        <GradientText style={ms.stubNum}>{days}</GradientText>
                         <Text style={rb.label}>{days === 1 ? 'Day' : 'Days'}</Text>
                       </>
                     ) : (
@@ -1555,7 +1557,7 @@ const ms = StyleSheet.create({
   stub: { alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', minWidth: 64, paddingLeft: 12, borderLeftWidth: 1.5, borderStyle: 'dashed', borderLeftColor: 'rgba(255,209,190,0.18)' },
   stubNum: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 30, lineHeight: 34, color: '#fff',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' })),
   } as any,
   content: { paddingBottom: 120 },
   actions: { flexDirection: 'row', gap: 10 },

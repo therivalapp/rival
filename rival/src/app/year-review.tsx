@@ -1,4 +1,5 @@
 import { formatDistance, formatDistanceWhole, formatElevation } from '../lib/units';
+import { GradientText } from '../components/rival/GradientText';
 import { useEffect, useState } from 'react';
 import { Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { sidePageWide } from '../constants/breakpoints';
@@ -15,6 +16,7 @@ import { RivalIcon, RivalTopNav, RivalMobileHeader, RivalWarm, rm, rb, GreyPageH
 import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../constants/rivalTheme';
 import { rankTextSheen } from '../constants/rankSheen';
 import { goToTab } from '../lib/tabNav';
+import { webFx } from '../lib/webFx';
 
 // Year in review: a person's whole year of training, reachable from the
 // January card on Home, the December countdown, and each year on Stats.
@@ -121,7 +123,7 @@ export default function YearReviewScreen() {
                 <View style={[s.rule, s.ruleRight]} />
               </View>
               <Text style={s.title}>{year}</Text>
-              <Text style={[s.rank, rankTextSheen(rank.level)]}>{rank.name}</Text>
+              <GradientText style={[s.rank, rankTextSheen(rank.level)]}>{rank.name}</GradientText>
               <Text style={s.caps}>{isCurrent ? 'Rank so far' : 'Final rank'}</Text>
               <Text style={s.effort}>{review.effort.toLocaleString()}</Text>
               <Text style={s.capsAccent}>Total Effort</Text>
@@ -245,10 +247,10 @@ const s = StyleSheet.create({
   rule: { width: 30, height: 1 },
   ruleLeft: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.5) 100%)' } as any)
-    : { backgroundColor: 'rgba(255,181,158,0.3)' },
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.5) 100%)' } as any)) } as any),
   ruleRight: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.5) 0%, rgba(255,181,158,0) 100%)' } as any)
-    : { backgroundColor: 'rgba(255,181,158,0.3)' },
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.5) 0%, rgba(255,181,158,0) 100%)' } as any)) } as any),
   ruleText: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 34, lineHeight: 40, color: '#fff', marginTop: 6 },
   rank: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, lineHeight: 30, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 14 },

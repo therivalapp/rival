@@ -37,6 +37,7 @@ import { backToOrigin, goToTab } from '../lib/tabNav';
 import { requestOpen } from '../lib/shareRequest';
 import { MilestonePhotoPrompt } from '../components/rival/MilestonePhotoPrompt';
 import { useKeyboardOpen } from '../lib/keyboard';
+import { webFx } from '../lib/webFx';
 
 // `markedPb`: a first-time lift the person says is a personal best (lib/liftPb.ts).
 // `pct`: the weight was set as a percentage of the person's best (liftHistory.ts).
@@ -2752,7 +2753,7 @@ const m = StyleSheet.create({
   badge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   badgeAll: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.5)' },
   tileText: { fontSize: 13, fontWeight: '800', color: '#fff' } as any,
@@ -2999,9 +3000,9 @@ const m = StyleSheet.create({
   pbSwitch: { width: 42, height: 25, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', padding: 3, justifyContent: 'center' },
   pbSwitchOn: {
     backgroundColor: '#f5c76a',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(160deg, #fff0b0 0%, #f5c76a 45%, #c4932a 100%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(160deg, #fff0b0 0%, #f5c76a 45%, #c4932a 100%)' })),
   },
-  pbKnob: { width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff', ...(Platform.OS === 'web' ? { boxShadow: '0px 1px 3px rgba(0,0,0,0.35)' } as any : {}) },
+  pbKnob: { width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff', ...(webFx({ boxShadow: '0px 1px 3px rgba(0,0,0,0.35)' })) },
   pbKnobOn: { alignSelf: 'flex-end' },
 
   dangerZone: { alignItems: 'center', paddingVertical: 18 },

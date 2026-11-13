@@ -7,6 +7,7 @@ import { GreyCalendar, GreyLabel, GreyRows, GreySheet } from './RivalGreySheet';
 import { GoldStar } from './RespectStar';
 import { distanceUnit, toDisplayDistance } from '../../lib/units';
 import { activityTypeLabel } from './EffortBreakdownSheet';
+import { webFx } from '../../lib/webFx';
 
 // The week card on Activity (phones, Ricky 2026-10-16): the Add an activity
 // grey with its warm glow, a date kicker over the serif title and Effort, the
@@ -510,7 +511,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, height: 120,
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%)' } as any
-      : { backgroundColor: 'rgba(232,131,95,0.06)' }),
+      : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%)' } as any) } as any)),
   },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   kicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: RivalColors.accentText, marginBottom: 2 },
@@ -556,16 +557,16 @@ const s = StyleSheet.create({
   colBar: { alignSelf: 'stretch', borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)' },
   colBarOn: {
     backgroundColor: '#d98466',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #f0b29b, #c96a4a)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #f0b29b, #c96a4a)' })),
   },
   colBarPb: {
     backgroundColor: '#ffc94d',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #fff4d6, #ffc94d)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #fff4d6, #ffc94d)' })),
   },
   colBarBoth: {
     backgroundColor: '#ffc94d', borderWidth: 1.5,
     borderTopColor: '#ffd27a', borderLeftColor: '#ffd27a', borderRightColor: RivalColors.event, borderBottomColor: RivalColors.event,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffd27a, #fbf4e6)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffd27a, #fbf4e6)' })),
   },
   colWeekLabel: { fontSize: 9.5, letterSpacing: 0.2 },
   colBarToday: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.28)' },
@@ -574,7 +575,7 @@ const s = StyleSheet.create({
   colDayPb: { color: '#ffe6a8' },
   colBarEvent: {
     backgroundColor: RivalColors.event,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #fbf4e6, #cdbd9f)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #fbf4e6, #cdbd9f)' })),
   },
   colDayEvent: { color: RivalColors.event },
   // A little tighter than the other pills, so four fit on one row.
@@ -584,7 +585,7 @@ const s = StyleSheet.create({
   kickerEvent: { color: RivalColors.event },
   glowEvent: Platform.OS === 'web'
     ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(244,234,216,0.15), rgba(244,234,216,0) 70%)' } as any
-    : { backgroundColor: 'rgba(244,234,216,0.05)' },
+    : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(244,234,216,0.15), rgba(244,234,216,0) 70%)' } as any) } as any),
   earned: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 26, paddingHorizontal: 10, borderRadius: 999 },
   pillUp: { backgroundColor: 'rgba(95,211,138,0.12)' },
@@ -703,7 +704,7 @@ const ls = StyleSheet.create({
   ladderTrack: { position: 'absolute', left: 8, top: 22, bottom: 11, width: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'flex-start', overflow: 'hidden' },
   ladderLit: {
     width: 2, backgroundColor: '#e8835f',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #f0b29b, #c96a4a)', boxShadow: '0 0 8px rgba(232,131,95,0.6)' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #f0b29b, #c96a4a)', boxShadow: '0 0 8px rgba(232,131,95,0.6)' })),
   },
   rung: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   rungTick: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0b29b' },

@@ -22,11 +22,13 @@ import {
 import { PlacingsEditor } from './PlacingsEditor';
 import { EventTimesSheet, type TimesSaved } from './EventTimesSheet';
 import { router } from 'expo-router';
+import { confirmAction, notify } from '../../lib/notify';
 import { legDistance, legName } from '../../lib/eventLegs';
 import { effortDistance, fastestBests, RUN_TYPES, type EffortRow } from '../../lib/bestEfforts';
 
 import { EventShare } from './EventShare';
 import type { EventShareFacts } from '../../lib/eventShare';
+import { GradientText } from './GradientText';
 
 // A one-day event opened from its card (Ricky, 2026-11-04,
 // design/event-compare-v9.png): the photo with the event's name, the finish
@@ -268,6 +270,23 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
   const meta = [when, race?.location, total].filter(Boolean).join(' · ');
   const showSplitLabels = legs.length <= 3;
   const own = !!race && !!me && race.user_id === me;
+
+  // An activity linked to the wrong event (a 10 km run on half marathon
+  // day): undo the link. The activities and the event both stay (Ricky,
+  // 2026-11-12).
+  async function unlinkLegs() {
+    const one = legs.length === 1;
+    const ok = await confirmAction({
+      title: one ? 'Remove the activity from this event?' : 'Remove the activities from this event?',
+      message: one ? 'The activity stays in Activity. The event stays in Events.' : 'The activities stay in Activity. The event stays in Events.',
+      confirmLabel: 'Remove',
+    });
+    if (!ok) return;
+    const { error } = await supabase.from('activities').update({ race_id: null }).in('id', legs.map((l) => l.id)).eq('user_id', me!);
+    if (error) { notify('The event link could not be removed', error.message); return; }
+    onChanged?.();
+    onClose();
+  }
   const placings = shownPlacings(race?.placings);
   const parts = race?.placings?.parts ?? {};
   const one = legs[0];
@@ -379,6 +398,12 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
                       <RivalIcon name="calendar" size={16} color={RivalColors.onSurface} />
                       <Text style={s.menuText}>Edit event details</Text>
                     </TouchableOpacity>
+                    {legs.length ? (
+                      <TouchableOpacity style={s.menuItem} onPress={() => { setMenuOpen(false); unlinkLegs(); }} accessibilityRole="button">
+                        <RivalIcon name="close" size={16} color={RivalColors.onSurface} />
+                        <Text style={s.menuText}>Remove from event</Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 </>
               ) : null}
@@ -419,7 +444,7 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
                     </TouchableOpacity>
                   ) : null}
                 </View>
-                <Text style={[s.big, beat && s.bigGold]} numberOfLines={1}>{finish > 0 ? liveClock(finish) : '--:--'}</Text>
+                <GradientText style={[s.big, beat && s.bigGold]} numberOfLines={1}>{finish > 0 ? liveClock(finish) : '--:--'}</GradientText>
               </View>
               {last !== undefined ? (
                 <View style={s.side}>
@@ -961,7 +986,7 @@ const s = StyleSheet.create({
   big: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 46, lineHeight: 50, color: '#fff' },
   bigGold: web
     ? ({ backgroundImage: `linear-gradient(180deg, #FFF6CC 0%, ${PB_GOLD} 55%, #C9962B 100%)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } as any)
-    : { color: PB_GOLD },
+    : ({ color: PB_GOLD, __gradientText: `linear-gradient(180deg, #FFF6CC 0%, ${PB_GOLD} 55%, #C9962B 100%)` } as any),
   side: { alignItems: 'flex-end', paddingBottom: 6 },
   sideNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 20, color: '#fff' },
   sideFirst: { fontSize: 18 },

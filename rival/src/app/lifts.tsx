@@ -14,6 +14,8 @@ import { RivalColors, RivalRadius, RivalType, RivalSerifFamily, RivalButtonColor
 import { sidePageWide } from '../constants/breakpoints';
 import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
+import { webFx } from '../lib/webFx';
+import { GradientText } from '../components/rival/GradientText';
 
 type Entry = { id: string; exercise_name: string; weight_kg: number; reps: number | null; performed_at: string };
 // kg as stored → the chosen units, to one decimal; and back for saving.
@@ -221,7 +223,7 @@ export default function LiftsScreen() {
               {hasEntries ? (
                 <>
                   <View style={pb.pbRow}>
-                    <Text style={pb.pbValue}>{active.pb}</Text>
+                    <GradientText style={pb.pbValue}>{active.pb}</GradientText>
                     <Text style={pb.pbUnit}>{weightUnit()}</Text>
                   </View>
                   {prDate(active.history, active.pb) ? <Text style={pb.muted}>Best set on {prDate(active.history, active.pb)}</Text> : null}
@@ -386,7 +388,7 @@ export default function LiftsScreen() {
               {hasEntries ? (
                 <>
                   <View style={styles.pbRow}>
-                    <Text style={[styles.pbValue, !wide && ms.pbValue]}>{active.pb}</Text>
+                    <GradientText style={[styles.pbValue, !wide && ms.pbValue]}>{active.pb}</GradientText>
                     <Text style={styles.pbUnit}>{weightUnit().toUpperCase()}</Text>
                   </View>
 
@@ -427,7 +429,7 @@ export default function LiftsScreen() {
                 </>
               ) : (
                 <View style={styles.pbRow}>
-                  <Text style={[styles.pbValue, { color: RivalColors.textSecondary }]}>—</Text>
+                  <GradientText style={[styles.pbValue, { color: RivalColors.textSecondary }]}>—</GradientText>
                   <Text style={styles.noGoalHint}>No PB logged yet. Log your first {active.name.toLowerCase()}.</Text>
                 </View>
               )}
@@ -705,13 +707,13 @@ const pb = StyleSheet.create({
     position: 'absolute', top: -60, left: 0, right: 0, height: 200,
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'radial-gradient(ellipse 70% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.06) 45%, rgba(217,119,87,0) 100%)' }
-      : { backgroundColor: 'rgba(217,119,87,0.05)' }),
+      : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 70% 100% at 50% 0%, rgba(217,119,87,0.20) 0%, rgba(217,119,87,0.06) 45%, rgba(217,119,87,0) 100%)' }) } as any)),
   } as any,
   focus: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', color: RivalColors.accentText },
   pbRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   pbValue: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 76, lineHeight: 84, color: '#fff',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' })),
   } as any,
   pbUnit: { fontSize: 16, fontWeight: '800', color: RivalColors.textSecondary },
   goalBlock: { alignSelf: 'stretch', gap: 8, marginTop: 10 },
@@ -721,7 +723,7 @@ const pb = StyleSheet.create({
   check: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)' },
   checkOn: {
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   checkText: { fontSize: 11.5, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   stats: { flexDirection: 'row', alignSelf: 'stretch', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(50,50,50,0.8)' },

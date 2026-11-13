@@ -4,6 +4,7 @@ import { RivalColors, rivalPhoneVar, RivalGhost } from '../../constants/rivalThe
 import { formatAttendees } from '../../lib/attendees';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { RivalIcon, activityIconName } from './RivalIcon';
+import { webFx } from '../../lib/webFx';
 
 // One planned activity, as a card. Shared by the team chat and Team Hub's
 // Coming Up so the two can't drift apart — they did once already, when only
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   },
   tagLive: {
     borderColor: 'transparent', backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' })),
   } as any,
   tagDot: {
     width: 7, height: 7, borderRadius: 4, backgroundColor: RivalColors.accentText,
@@ -212,9 +213,7 @@ const styles = StyleSheet.create({
     width: 58, height: 58, borderRadius: 15,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web'
-      ? { backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' }
-      : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' })),
   },
   sessionTilePast: { backgroundImage: 'none', backgroundColor: rivalPhoneVar('rival-badge-fill', 'transparent', RivalColors.surfaceBright) } as any,
   // minWidth 0 so a long location ellipsises instead of pushing Edit off the card.
@@ -240,9 +239,7 @@ const styles = StyleSheet.create({
   rsvpBtn: {
     paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999,
     backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web'
-      ? { backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' }
-      : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(225deg, #FFB86B 0%, #FF8773 100%)' })),
   },
   rsvpText: { fontSize: 15, fontWeight: '800', color: '#1a1411' },
 });

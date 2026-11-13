@@ -22,6 +22,7 @@ import { avatarImage } from '../lib/imageUrl';
 import { useBlockedIds, openReport, openBlock, firstName } from '../lib/safety';
 import { ChatCardStrip } from '../components/rival/ChatCardStrip';
 import { buildChatCards, closeChatCard, todaysChatCard, type ChatCard, type ChatCardChip } from '../lib/chatCards';
+import { webFx } from '../lib/webFx';
 
 // Dedicated team chat, laid out the way Messenger does it.
 //
@@ -973,7 +974,7 @@ const pm = StyleSheet.create({
     flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: RivalColors.surfaceBright, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)' } as any : {}),
+    ...(webFx({ boxShadow: '0px 10px 24px rgba(0,0,0,0.45)' })),
   },
   react: { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 999 },
   reactOn: { backgroundColor: `${RivalColors.accentFill}55` },
@@ -983,7 +984,7 @@ const pm = StyleSheet.create({
   menu: {
     width: 250, borderRadius: 14, overflow: 'hidden', backgroundColor: RivalColors.surfaceBright,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    ...(Platform.OS === 'web' ? { boxShadow: '0px 10px 24px rgba(0,0,0,0.45)' } as any : {}),
+    ...(webFx({ boxShadow: '0px 10px 24px rgba(0,0,0,0.45)' })),
   },
   menuMe: {},
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48, paddingHorizontal: 16 },
@@ -1252,9 +1253,7 @@ const ms = StyleSheet.create({
     backgroundColor: RivalColors.pageGround,
   },
   // Your own messages keep the brand gradient.
-  bubbleMe: Platform.OS === 'web'
-    ? ({ backgroundImage: 'linear-gradient(135deg, #e6927a 0%, #D97757 100%)' } as any)
-    : {},
+  bubbleMe: webFx({ backgroundImage: 'linear-gradient(135deg, #e6927a 0%, #D97757 100%)' }),
   header: { borderBottomColor: RivalColors.surfaceBright },
   headerLogo: { borderRadius: 12, borderWidth: 1, borderColor: RivalColors.surfaceBright },
   headerTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', lineHeight: 24 },

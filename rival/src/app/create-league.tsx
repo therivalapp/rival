@@ -17,6 +17,7 @@ import { timeFieldProps } from '../lib/time';
 import { Asset } from 'expo-asset';
 import { BusyText } from '../components/rival/BusyText';
 import { avatarImage } from '../lib/imageUrl';
+import { webFx } from '../lib/webFx';
 
 const MODAL_BG_SOURCE = require('../../assets/images/backgrounds/optimized/trail-sisters-finish-line.jpg');
 // Same RN-Web gap as RivalFixedBackground: Image's style/resizeMode can't
@@ -1406,7 +1407,7 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? { boxShadow: '0 0 15px rgba(217,119,87,0.3)' } as any : {}),
+    ...(webFx({ boxShadow: '0 0 15px rgba(217,119,87,0.3)' })),
   },
   namePreviewHint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   namePreviewHintText: { fontSize: 12, color: RivalColors.textSecondary, flexShrink: 1 },
@@ -1456,7 +1457,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: RivalRadius.lg,
     alignItems: 'center',
-    ...(Platform.OS === 'web' ? { boxShadow: '0 10px 30px rgba(217,119,87,0.2)' } as any : {}),
+    ...(webFx({ boxShadow: '0 10px 30px rgba(217,119,87,0.2)' })),
   },
   createButtonDisabled: { opacity: 0.5 },
   createButtonText: { ...RivalType.titleMd, fontSize: 15, color: RivalButtonColors.label(RivalColors.onAccentFill), textTransform: 'uppercase', letterSpacing: 1.5 },
@@ -1477,7 +1478,7 @@ const styles = StyleSheet.create({
     borderColor: RivalColors.accentFill,
     overflow: 'hidden',
     marginVertical: 8,
-    ...(Platform.OS === 'web' ? { boxShadow: '0 0 40px rgba(217,119,87,0.35)' } as any : {}),
+    ...(webFx({ boxShadow: '0 0 40px rgba(217,119,87,0.35)' })),
   },
   revealCrestImg: { width: '100%', height: '100%' },
 

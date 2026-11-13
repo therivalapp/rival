@@ -2,10 +2,18 @@ import { getMyTeamRows } from '../../lib/myTeams';
 import { isAppRevealed, onAppReveal, revealApp } from '../../lib/appReveal';
 import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation, fromDisplayDistance, fromDisplayElevation } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useId, memo } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated, Dimensions } from 'react-native';
+import { getNativeNavTop } from '../../components/rival/RivalTopNav';
+import { GradientText } from '../../components/rival/GradientText';
+
+// Gradients of the text styles below (background-clip: text on the web), for
+// GradientText on iPhone.
+const TIME_EARNED_GRADIENT = 'linear-gradient(100deg, #D97757 0%, #ffb59e 45%, #F5B759 100%)';
+const LEGACY_GRADIENT = 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)';
+import { svgFill, svgStop } from '../../lib/svgFill';
 import { Modal } from '../../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
-import Svg, { Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { ClipPath, Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { supabase, getAuthUser } from '../../lib/supabase';
@@ -20,7 +28,7 @@ import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
 import { formatValue, gainedText, isPerformance, performanceState, performanceTitle, toGoText, type PerformanceGoal } from '../../lib/goalPerformance';
 import { loadPerformanceData } from '../../lib/goalPerformanceData';
 import { formatWeight } from '../../lib/units';
-import { computeGoalProgress, goalActivityLabel, goalToGoLine, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
+import { computeGoalProgress, goalActivityLabel, goalSportSplit, goalToGoLine, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
 // distances read as near-zero once rounded to km ("0.7km" is really "700m").
 // Distance goals always store/compute progress and target in km regardless
@@ -31,11 +39,12 @@ import { formatTeamName, formatRaceName } from '../../lib/identity';
 import { LaurelWreath } from '../../components/rival/LaurelWreath';
 import { selectAll, inChunks } from '../../lib/selectAll';
 import { useSnapState } from '../../lib/snapState';
-import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, RivalMiniTile, RivalStartTiles, GreySheet, GreyNote, GreyPrimary, type RivalIconName } from '../../components/rival';
+import { RivalButton, RivalCard, RivalProgressBar, RivalChallengeRing, RivalIcon, RivalTopNav, rm, activityIconName, RivalMiniTile, RivalStartTiles, GreySheet, GreyNote, GreyPrimary, RingSportKey, sportRingSegments, type RingSegment, type RivalIconName } from '../../components/rival';
 import { RivalColors, RivalRadius, RivalType, RivalFontFamily, RivalSerifFamily, RivalButtonColors, rivalTextShadow } from '../../constants/rivalTheme';
 import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { arrivedFromTab, getCurrentPath, goToTab, sincePathChange } from '../../lib/tabNav';
 import { avatarImage } from '../../lib/imageUrl';
+import { webFx } from '../../lib/webFx';
 
 // Empty podium: a faint wreath round an empty seat over first place.
 // false = the older medal in a ring.
@@ -402,8 +411,10 @@ const WB_PLATFORM = {
   rim: '#ffffff', surface: '#1c1815', riserTop: '#2a2622', riserBottom: '#0f0d0b',
   surfaceOpacity: 0, tint: 0.12, tintY: 20, feather: 0.7,
   riserOpacity: 0.65, riserFade: 0.7,
-  rimOpacity: 1, rimWidth: 1.1, rimGlow: 0, rimGlowSize: 4, rimFade: 0.6,
-  backEdge: 0.22, footEdge: 0.18,
+  // Softer rim for the cast glass podium (Mockup 47 A4, 2026-11-13): the
+  // front rim runs white .2 at the ends to .75 in the middle, back rim .2.
+  rimOpacity: 0.75, rimWidth: 1, rimGlow: 0, rimGlowSize: 4, rimFade: 0.73,
+  backEdge: 0.2, footEdge: 0.2,
 };
 // Soft shadows under hovering pillars — for the floor/platform looks; off with the line.
 const SHOW_PILLAR_SHADOWS = PODIUM_STAGE === 'disc' || PODIUM_STAGE === 'platform' || PODIUM_STAGE === 'workbench';
@@ -512,7 +523,7 @@ function UnlitPodium({ members, run, immediate, noTeam }: { members: WeeklyLeade
           const size = rankStyle.avatarSize;
           const lead = effRank === 0;
           return (
-            <View key={colIdx} style={[styles.mPodiumColumn, styles.mPodiumColumnSparse]}>
+            <View key={colIdx} style={Platform.OS !== 'web' ? styles.mPodiumColumnFixed : [styles.mPodiumColumn, styles.mPodiumColumnSparse]}>
               <View style={[{ position: 'relative', zIndex: 2, top: lead ? -3 : 0, width: size, height: size, marginBottom: 6 }, podiumSettle(effRank, run, immediate)]}>
                 {lead && <View style={styles.mUnlitWreath}><LaurelWreath avatarSize={size} /></View>}
                 {lead && noTeam ? (
@@ -547,8 +558,8 @@ function UnlitPodium({ members, run, immediate, noTeam }: { members: WeeklyLeade
                 <Svg width="100%" height="100%" viewBox={`0 0 100 ${h}`} preserveAspectRatio="none" style={{ position: 'absolute' }}>
                   <Defs>
                     <LinearGradient id={`unlitGrad${gid}${colIdx}`} x1="0" y1="0" x2="0" y2="1">
-                      <Stop offset="0" stopColor={rankStyle.gradFrom} stopOpacity={0.4} />
-                      <Stop offset="1" stopColor={rankStyle.gradTo} stopOpacity={0.4} />
+                      <Stop offset="0" {...svgStop(rankStyle.gradFrom, 0.4)} />
+                      <Stop offset="1" {...svgStop(rankStyle.gradTo, 0.4)} />
                     </LinearGradient>
                     <LinearGradient id={`unlitFacet${gid}${colIdx}`} x1="0" y1="0" x2="1" y2="0">
                       <Stop offset="0" stopColor="#ffffff" stopOpacity={0.14} />
@@ -613,7 +624,7 @@ function TeammatesWaiting({ members, memberCount, flat, style }: { members: Week
 
 function PodiumStage({ inset }: { inset?: any }) {
   if (PODIUM_STAGE === 'none') return null;
-  if (PODIUM_STAGE === 'workbench' && Platform.OS === 'web') return <WorkbenchPlatform />;
+  if (PODIUM_STAGE === 'workbench') return <WorkbenchPlatform />;
   if (PODIUM_STAGE === 'disc' && Platform.OS === 'web') {
     return (
       <View style={[styles.mDisc, inset && { left: inset.left, right: undefined, width: inset.width + 12, marginLeft: inset.marginLeft - 6 }, { pointerEvents: 'none' }]}>
@@ -806,7 +817,7 @@ function hexAlpha(hex: string, a: number): string {
 function initialBackdrop(tint: string): any {
   return Platform.OS === 'web'
     ? { backgroundImage: `radial-gradient(circle at 30% 22%, ${hexAlpha(tint, 0.34)} 0%, ${hexAlpha(tint, 0.1)} 45%, rgba(0,0,0,0) 72%), linear-gradient(160deg, #3a2f29 0%, #1c1613 100%)` }
-    : { backgroundColor: '#2a221e' };
+    : ({ ...webFx({ backgroundImage: `radial-gradient(circle at 30% 22%, ${hexAlpha(tint, 0.34)} 0%, ${hexAlpha(tint, 0.1)} 45%, rgba(0,0,0,0) 72%), linear-gradient(160deg, #3a2f29 0%, #1c1613 100%)` }) } as any);
 }
 function initialGlow(tint: string): any {
   return Platform.OS === 'web' ? { textShadow: `0 0 10px ${hexAlpha(tint, 0.55)}` } : null;
@@ -819,7 +830,7 @@ const AVATAR_RING = 1;
 function avatarRing(tint: string): any {
   return Platform.OS === 'web'
     ? { backgroundImage: `conic-gradient(from 210deg, ${tint}, #fff8e0, ${hexAlpha(tint, 0.5)}, ${tint}, #fff8e0, ${tint})` }
-    : { backgroundColor: tint };
+    : ({ ...webFx({ backgroundImage: `conic-gradient(from 210deg, ${tint}, #fff8e0, ${hexAlpha(tint, 0.5)}, ${tint}, #fff8e0, ${tint})` }) } as any);
 }
 
 // The pillar as a solid block: a front face, a lit top face and a shaded right
@@ -861,6 +872,84 @@ function pillarFaces(slope: [number, number], h: number) {
     // The front face as a CSS clip-path, for the band of light.
     frontClip: `polygon(0% ${(fL / h) * 100}%, ${xr}% ${(fR / h) * 100}%, ${xr}% 100%, 0% 100%)`,
   };
+}
+
+// Cast glass pillar, Mockup 47 A4 (Ricky's pick, 2026-11-13; source
+// design/mockup-47/podium.html?v=G, values in design/mockup-47-podium-handover.md):
+// see-through tinted faces with the back edges showing through, thin bright
+// lines, and the outer corners rounded by clipping the whole block to one
+// rounded outline. Drawn in the pillar's own 0-100 x h box like before; the
+// corner radius is set in px for an 82px column.
+const GLASS_COL_W = 82;
+function roundedPath(pts: [number, number][], radiusPx: number): string {
+  const sx = 100 / GLASS_COL_W; // px to box units, across
+  const n = pts.length;
+  let d = '';
+  for (let k = 0; k < n; k++) {
+    const a = pts[(k + n - 1) % n], b = pts[k], c = pts[(k + 1) % n];
+    // Measured in px so the corners stay round in the stretched box.
+    const la = Math.hypot((a[0] - b[0]) / sx, a[1] - b[1]), lc = Math.hypot((c[0] - b[0]) / sx, c[1] - b[1]);
+    const r = Math.min(radiusPx, la / 2, lc / 2);
+    const p1 = [b[0] + ((a[0] - b[0]) * r) / la, b[1] + ((a[1] - b[1]) * r) / la];
+    const p2 = [b[0] + ((c[0] - b[0]) * r) / lc, b[1] + ((c[1] - b[1]) * r) / lc];
+    d += `${k ? ' L' : 'M'}${p1[0].toFixed(2)},${p1[1].toFixed(2)} Q${b[0].toFixed(2)},${b[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  return d + ' Z';
+}
+function GlassPillar({ slope, h, tint, id }: { slope: [number, number]; h: number; tint: string; id: string }) {
+  const [tl, tr] = slope;
+  const S = PILLAR_SIDE, XR = 100 - PILLAR_SIDE, D = PILLAR_DEPTH;
+  const yAt = (x: number) => tl * h + (tr - tl) * h * (x / 100);
+  const fL = yAt(0) + D, fR = yAt(XR) + D, bR = yAt(XR), bL = yAt(0);
+  const poly = (p: [number, number][]) => p.map((q) => `${q[0].toFixed(2)},${q[1].toFixed(2)}`).join(' ');
+  const front: [number, number][] = [[0, fL], [XR, fR], [XR, h], [0, h]];
+  const top: [number, number][] = [[0, fL], [XR, fR], [100, bR], [S, bL]];
+  const side: [number, number][] = [[XR, fR], [100, bR], [100, h - D], [XR, h]];
+  const sil: [number, number][] = [[0, h], [0, fL], [S, bL], [100, bR], [100, h - D], [XR, h]];
+  const ix = 3.5 * (100 / GLASS_COL_W); // the faint inner line, 3.5px in
+  const inner: [number, number][] = [[ix, fL + 4], [XR - ix, fR + 4], [XR - ix, h - 3.5], [ix, h - 3.5]];
+  const silPath = roundedPath(sil, 3);
+  const ns = { vectorEffect: 'non-scaling-stroke' as const };
+  return (
+    <>
+      <Defs>
+        <ClipPath id={`gSil${id}`}><Path d={silPath} /></ClipPath>
+        <LinearGradient id={`gFront${id}`} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={tint} stopOpacity={0.46} />
+          <Stop offset="0.62" stopColor={tint} stopOpacity={0.13} />
+          <Stop offset="1" stopColor={tint} stopOpacity={0.3} />
+        </LinearGradient>
+        <LinearGradient id={`gSide${id}`} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={tint} stopOpacity={0.3} />
+          <Stop offset="1" stopColor={tint} stopOpacity={0.08} />
+        </LinearGradient>
+        <LinearGradient id={`gTop${id}`} x1="0" y1="1" x2="1" y2="0">
+          <Stop offset="0" stopColor="#ffffff" stopOpacity={0.5} />
+          <Stop offset="1" stopColor={tint} stopOpacity={0.5} />
+        </LinearGradient>
+        <LinearGradient id={`gEdge${id}`} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#ffffff" stopOpacity={0.9} />
+          <Stop offset="1" stopColor={tint} stopOpacity={0.25} />
+        </LinearGradient>
+      </Defs>
+      <G clipPath={`url(#gSil${id})`}>
+        <Polygon points={poly(side)} fill="#0c0a09" fillOpacity={0.5} />
+        <Polygon points={poly(side)} fill={`url(#gSide${id})`} stroke={tint} strokeOpacity={0.35} strokeWidth={1} {...ns} />
+        <Polygon points={poly(front)} fill="#0c0a09" fillOpacity={0.34} />
+        <Polygon points={poly(front)} fill={`url(#gFront${id})`} />
+        {/* The back edges, seen through the glass. */}
+        <Path d={`M${S},${bL + 3} L${S},${h - D} L${XR},${h - D}`} fill="none" stroke={tint} strokeOpacity={0.22} strokeWidth={1} {...ns} />
+        <Line x1={S} y1={h - D} x2={0} y2={h} stroke={tint} strokeOpacity={0.18} strokeWidth={1} {...ns} />
+        <Path d={roundedPath(inner, 3)} fill="none" stroke="#ffffff" strokeOpacity={0.09} strokeWidth={1} {...ns} />
+        <Polygon points={poly(front)} fill="none" stroke={tint} strokeOpacity={0.62} strokeWidth={0.8} {...ns} />
+        <Polygon points={poly(top)} fill={tint} fillOpacity={0.3} />
+        <Polygon points={poly(top)} fill={`url(#gTop${id})`} stroke="#ffffff" strokeOpacity={0.5} strokeWidth={0.6} {...ns} />
+        <Line x1={0.8 * (100 / GLASS_COL_W)} y1={fL} x2={0.8 * (100 / GLASS_COL_W)} y2={h} stroke={`url(#gEdge${id})`} strokeWidth={1} opacity={0.95} {...ns} />
+        <Line x1={0} y1={fL} x2={XR} y2={fR} stroke="#ffffff" strokeOpacity={0.85} strokeWidth={1} {...ns} />
+      </G>
+      <Path d={silPath} fill="none" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.7} {...ns} />
+    </>
+  );
 }
 
 // Team Momentum's status line — reuses the same weeklyLeader standings the
@@ -927,6 +1016,8 @@ type FeaturedGoal = {
   /** A Performance goal's own words; its numbers are times or weights. */
   perf?: { current: string; target: string; toGo: string | null; open: boolean };
   daysLeft: number;
+  /** A distance focus over several sports, split for the ring (Mockup 50 B). */
+  sports?: RingSegment[] | null;
 };
 
 function todayLocalStr(): string {
@@ -1147,7 +1238,9 @@ type Milestone = {
 function milestoneFillIn(from: string, to: string): object {
   return Platform.OS === 'web'
     ? { backgroundColor: to, backgroundImage: `linear-gradient(90deg, ${from}, ${to})` }
-    : { backgroundColor: to };
+    // iPhone draws CSS gradients too; without this it kept the base style's
+    // button gradient (peach) instead of the milestone's own colours.
+    : { backgroundColor: to, experimental_backgroundImage: `linear-gradient(90deg, ${from}, ${to})` };
 }
 function nextMilestone(km: number, activities: number, elevM: number, seasonEffort: number, respect: number): Milestone {
   const step = (value: number, size: number) => {
@@ -1221,7 +1314,7 @@ function countUpFrom(value: number): number {
 }
 const COUNT_UP_MS = 1600;
 const WAITING_OPACITY = 0.25;
-function CountUpText({ value, style }: { value: number; style: any }) {
+function CountUpText({ value, style, gradient }: { value: number; style: any; gradient?: string }) {
   // Starts at the count's first frame, not the full total, so the number
   // doesn't flash at full and then drop back before counting up.
   const [shown, setShown] = useState(() => countUpFrom(value));
@@ -1286,7 +1379,9 @@ function CountUpText({ value, style }: { value: number; style: any }) {
     <View ref={boxRef} style={countUp.box}>
       <Text style={[style, countUp.ghost]} aria-hidden>{value.toLocaleString()}</Text>
       {/* data-nofit: the text fitter leaves it alone while it counts. */}
-      <Text ref={numRef} {...({ dataSet: { nofit: '' } } as any)} style={[style, countUp.live]}>{shown.toLocaleString()}</Text>
+      {gradient && Platform.OS !== 'web'
+        ? <GradientText gradient={gradient} style={[style, countUp.live]}>{shown.toLocaleString()}</GradientText>
+        : <Text ref={numRef} {...({ dataSet: { nofit: '' } } as any)} style={[style, countUp.live]}>{shown.toLocaleString()}</Text>}
     </View>
   );
 }
@@ -1551,7 +1646,9 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
                           absolutely-positioned stage line (inset relative to THIS wrapper)
                           would stay full bleed-width while the pillars sit centered and
                           narrower, drifting out of alignment on wide viewports. */}
-                      <View style={{ position: 'relative', maxWidth: 360, alignSelf: 'center', minWidth: PODIUM_ROW_MIN_W }}>
+                      {/* iPhone: the row is exactly the pillars' width, as the web's shrink-to-fit
+                          row is, so the oval stage (drawn to the row) is as wide as on the web. */}
+                      <View style={[{ position: 'relative', maxWidth: 360, alignSelf: 'center', minWidth: PODIUM_ROW_MIN_W }, Platform.OS !== 'web' && { width: Math.max(PODIUM_ROW_MIN_W, activeCount * 82 + Math.max(0, activeCount - 1) * 12) }]}>
                         {/* Light on the floor: a soft white pool around the stage line,
                             and a spill rising up the pillar bases behind them. */}
                         {Platform.OS === 'web' && (PODIUM_STAGE === 'line' || PODIUM_STAGE === 'none') && <View style={[styles.mPodiumFloorGlow, podiumStageIn(run, immediate), { pointerEvents: 'none' }]} />}
@@ -1626,7 +1723,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
                           // before the content stack itself gets squeezed again.
                           const effPadBottom = Math.max(8, Math.min(rankStyle.padBottom, pillarHeight - effPadTop - MIN_CONTENT_H));
                           return (
-                            <View key={entry.userId} style={[styles.mPodiumColumn, sparse && styles.mPodiumColumnSparse]}>
+                            <View key={entry.userId} style={sparse && Platform.OS !== 'web' ? styles.mPodiumColumnFixed : [styles.mPodiumColumn, sparse && styles.mPodiumColumnSparse]}>
                               {/* The leader's glow is its own layer beneath the picture's
                                   wrapper, not inside it: inside a filtered, animated
                                   wrapper Safari drew it over the photo. */}
@@ -1709,56 +1806,8 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
                                 {/* The glow sits on the pillar's shape alone. On the whole column it
                                     also wrapped the moving sheen and sparkles, so the phone redrew
                                     the blurred pillar on every frame (Ricky, 2026-10-21: laggy). */}
-                                <Svg key={`pillar-${pillarHeight}`} width="100%" height="100%" viewBox={`0 0 100 ${pillarHeight}`} preserveAspectRatio="none" style={[{ position: 'absolute' }, Platform.OS === 'web' ? ({ filter: `drop-shadow(0 0 ${rankStyle.glowRadius}px ${rankStyle.glow})` } as any) : null]}>
-                                  <Defs>
-                                    <LinearGradient id={`podiumGrad-${gid}-${colIdx}-${pillarHeight}`} x1="0" y1="0" x2="0" y2="1">
-                                      <Stop offset="0" stopColor={rankStyle.gradFrom} />
-                                      <Stop offset="1" stopColor={rankStyle.gradTo} />
-                                    </LinearGradient>
-                                    {/* Side light: brighter on the left face, shaded on the
-                                        right, so the pillar reads as a solid block, not a flat card. */}
-                                    <LinearGradient id={`podiumFacet-${gid}-${colIdx}-${pillarHeight}`} x1="0" y1="0" x2="1" y2="0">
-                                      <Stop offset="0" stopColor="#ffffff" stopOpacity={0.14} />
-                                      <Stop offset="0.45" stopColor="#ffffff" stopOpacity={0} />
-                                      <Stop offset="1" stopColor="#000000" stopOpacity={0.28} />
-                                    </LinearGradient>
-                                  </Defs>
-                                  {/* Side face: the pillar's colour, shaded. */}
-                                  <Polygon points={faces.side} fill={`url(#podiumGrad-${gid}-${colIdx}-${pillarHeight}) ${rankStyle.gradTo}`} />
-                                  <Polygon
-                                    points={faces.side}
-                                    fill="#000000" fillOpacity={0.42}
-                                    stroke={rankStyle.tint} strokeOpacity={0.35} strokeWidth={1}
-                                    strokeLinejoin="miter" vectorEffect="non-scaling-stroke"
-                                  />
-                                  {/* Top face: catches the light. */}
-                                  <Polygon points={faces.top} fill={rankStyle.tint} fillOpacity={effRank === 0 ? 0.42 : 0.3} />
-                                  <Polygon
-                                    points={faces.top}
-                                    fill="#ffffff" fillOpacity={0.12}
-                                    stroke={rankStyle.tint} strokeOpacity={0.6} strokeWidth={1}
-                                    strokeLinejoin="miter" vectorEffect="non-scaling-stroke"
-                                  />
-                                  {/* Front face. */}
-                                  <Polygon
-                                    points={faces.front}
-                                    fill={`url(#podiumGrad-${gid}-${colIdx}-${pillarHeight}) ${rankStyle.gradTo}`}
-                                    stroke={rankStyle.tint}
-                                    strokeWidth={1.25}
-                                    strokeOpacity={0.85}
-                                    strokeLinejoin="miter"
-                                    // The viewBox's non-uniform x/y scaling (preserveAspectRatio="none")
-                                    // otherwise stretches the stroke unevenly, blunting the sharp
-                                    // corners instead of a clean miter point.
-                                    vectorEffect="non-scaling-stroke"
-                                  />
-                                  <Polygon points={faces.front} fill={`url(#podiumFacet-${gid}-${colIdx}-${pillarHeight}) transparent`} />
-                                  {/* The lit front edge, where the top face meets the front. */}
-                                  <Line
-                                    {...faces.frontEdge}
-                                    stroke="#ffffff" strokeOpacity={effRank === 0 ? 0.75 : 0.5} strokeWidth={1.5}
-                                    vectorEffect="non-scaling-stroke"
-                                  />
+                                <Svg key={`pillar-${pillarHeight}`} width="100%" height="100%" viewBox={`0 0 100 ${pillarHeight}`} preserveAspectRatio="none" style={{ position: 'absolute', overflow: 'visible' } as any}>
+                                  <GlassPillar slope={shardSlope} h={pillarHeight} tint={rankStyle.tint} id={`${gid}-${colIdx}-${pillarHeight}`} />
                                 </Svg>
                                 {/* The sweep of light crosses every pillar, one after another. */}
                                 {PODIUM_MOTION && (
@@ -1909,6 +1958,17 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
   );
 }
 
+// The web can't shrink text to fit (adjustsFontSizeToFit is iPhone only), so
+// longer rank names cut off ("HUSTL…", Ricky 2026-11-13). Step the size down by
+// length so every rank fits the tile; 6 letters or fewer keep the full 18.
+function rankNameFit(name: string | null | undefined): object | null {
+  if (Platform.OS !== 'web' || !name) return null;
+  const n = name.length;
+  if (n <= 6) return null;
+  const size = n === 7 ? 16 : n === 8 ? 14.5 : 13.5;
+  return { fontSize: size, lineHeight: 24 };
+}
+
 export default function HomeScreen() {
   // Connected before the sharing consent existed: asked once, here.
   const [leagues, setLeagues] = useSnapState<League[]>('home.leagues', []);
@@ -2005,7 +2065,21 @@ export default function HomeScreen() {
   const [podiumStretch, setPodiumStretch] = useState(0);
   const todayRowRef = useRef<View>(null);
   const fitPodiumToScreen = () => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    if (Platform.OS !== 'web') {
+      // iPhone: the same fit, measured on screen instead of from the page.
+      const row = todayRowRef.current;
+      if (!row) return;
+      row.measureInWindow((_x, y, _w, h) => {
+        const navTop = getNativeNavTop() ?? Dimensions.get('window').height - 90;
+        const extra = navTop - 12 - (y + h);
+        setPodiumStretch((cur) => {
+          const next = Math.max(0, Math.min(260, Math.round(cur + extra)));
+          return Math.abs(next - cur) > 2 ? next : cur;
+        });
+      });
+      return;
+    }
+    if (typeof document === 'undefined') return;
     const row = todayRowRef.current as any as HTMLElement | null;
     const nav = document.getElementById('rival-bottom-nav');
     if (!row || !nav || !row.getBoundingClientRect) return;
@@ -2273,6 +2347,12 @@ export default function HomeScreen() {
         unit: useMeters ? 'm' : shownGoal(top.goal.goal_type, 0).unit,
         pct: perfState ? perfState.pct : top.pct,
         daysLeft: Math.max(0, Math.ceil((top.endMs - now.getTime()) / (1000 * 60 * 60 * 24))),
+        // In the person's own units (km or mi), like the ring's number.
+        sports: perfState ? null : sportRingSegments(
+          goalSportSplit(top.goal, activities)?.map((p) => ({ ...p, km: shownGoal('distance', p.km).value })) ?? null,
+          shownGoal('distance', top.goal.target_value).value,
+          shownGoal('distance', 0).unit,
+        ),
         perf: perfState ? {
           current: formatValue(topRow, perfState.current, formatWeight),
           target: formatValue(topRow, topRow.target_value, formatWeight),
@@ -2635,7 +2715,20 @@ export default function HomeScreen() {
                   instead of reading as units. */}
               {!loaded ? <SkeletonBar width={72} height={18} style={{ marginTop: 5 }} /> : totalTimeMinutes === 0 ? (
                 // Before any time is earned, never a bare "0m" (Ricky, 2026-11-03).
-                <Text style={styles.mTimeEarnedValue} numberOfLines={1}>Day One</Text>
+                <GradientText gradient={TIME_EARNED_GRADIENT} style={styles.mTimeEarnedValue} numberOfLines={1}>Day One</GradientText>
+              ) : Platform.OS !== 'web' ? (
+                // iPhone: a row, so each number can be its own gradient (a
+                // gradient can't sit inside a line of text there).
+                <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                  {heroHours > 0 && (
+                    <>
+                      <GradientText gradient={TIME_EARNED_GRADIENT} style={styles.mTimeEarnedValue}>{heroHours}</GradientText>
+                      <Text style={styles.mTimeEarnedUnit}>h </Text>
+                    </>
+                  )}
+                  <GradientText gradient={TIME_EARNED_GRADIENT} style={styles.mTimeEarnedValue}>{heroMins}</GradientText>
+                  <Text style={styles.mTimeEarnedUnit}>m</Text>
+                </View>
               ) : (
               <Text numberOfLines={1}>
                 {heroHours > 0 && (
@@ -2798,9 +2891,13 @@ export default function HomeScreen() {
                     text pages across on top of this fixed backdrop. */}
                 <Image
                   source={require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
-                  style={styles.mPodiumSmoke}
+                  style={[styles.mPodiumSmoke, Platform.OS !== 'web' && styles.mSmokeEdgesNative]}
                   resizeMode="cover"
                 />
+                {/* iPhone has no CSS mask: a fade to the card's colour over the
+                    photo's lower edge and the band's bottom does the web's job. */}
+                {Platform.OS !== 'web' && <View style={[styles.mPodiumSmoke, styles.mSmokeEdgesNative, styles.mSmokeFadeNative, { pointerEvents: 'none' }]} />}
+                {Platform.OS !== 'web' && <View style={[styles.mLeaderBgFadeNative, { pointerEvents: 'none' }]} />}
                 {weeklyLeaders.length > 1 ? (
                   <>
                     <ScrollView
@@ -2915,8 +3012,8 @@ export default function HomeScreen() {
                       {/* Serif and larger, like the rank beside it (Ricky, 2026-10-03). */}
                       {/* The figure is centred on its own; the plus hangs to its left. */}
                       <View>
-                        <Text style={[styles.mLegacyStatValue, styles.mEffortTodayValue, styles.mTodayBig]} numberOfLines={1}>{Math.round(todayEffort)}</Text>
-                        <Text style={[styles.mEffortTodayValue, styles.mTodayPlus]}>+</Text>
+                        <GradientText style={[styles.mLegacyStatValue, styles.mEffortTodayValue, styles.mTodayBig]} numberOfLines={1}>{Math.round(todayEffort)}</GradientText>
+                        <GradientText style={[styles.mEffortTodayValue, styles.mTodayPlus]}>+</GradientText>
                       </View>
                       <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg, styles.mTodayLabel]}>Effort today</Text>
                       {legacyWeek.effort > 0 ? <Text style={styles.mTodayMore}>+{legacyWeek.effort.toLocaleString()} this week</Text> : null}
@@ -2939,7 +3036,7 @@ export default function HomeScreen() {
                   accessibilityRole="button"
                 >
                   <RivalIcon name={`rank${getLevel(seasonEffortTotal).name}` as RivalIconName} size={16} color={rankSheen(getLevel(seasonEffortTotal).level).light} />
-                  <Text style={[styles.mLegacyStatValue, styles.mLegacyStatValueGold, styles.mTodayValue, { marginTop: 6, marginBottom: 0 }, rankTextSheen(getLevel(seasonEffortTotal).level)]} numberOfLines={1} adjustsFontSizeToFit>{rankName || '—'}</Text>
+                  <GradientText style={[styles.mLegacyStatValue, styles.mLegacyStatValueGold, styles.mTodayValue, { marginTop: 6, marginBottom: 0 }, rankNameFit(rankName), rankTextSheen(getLevel(seasonEffortTotal).level)]} numberOfLines={1} adjustsFontSizeToFit>{rankName || '—'}</GradientText>
                   <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg, styles.mTodayLabel]}>{seasonYear} rank</Text>
                   <Text style={styles.mRankDaysLeft}>{seasonDaysLeft === 1 ? '1 day left' : `${seasonDaysLeft} days left`}</Text>
                 </TouchableOpacity>
@@ -3036,7 +3133,9 @@ export default function HomeScreen() {
                       unit={featuredGoal.perf ? `/ ${featuredGoal.perf.target}` : `/ ${featuredGoal.target.toLocaleString()} ${featuredGoal.unit}`}
                       size={200}
                       thickness={14}
+                      segments={featuredGoal.sports}
                     />
+                    <RingSportKey segments={featuredGoal.sports} />
                     {/* Two figures in the brand serif over spaced caps, split
                         by a hairline — the same voice as the section headings,
                         instead of a line of small body text. */}
@@ -3135,9 +3234,10 @@ export default function HomeScreen() {
               <View style={styles.mLegacySection}>
                 <Image
                   source={require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
-                  style={styles.mLegacySmoke}
+                  style={[styles.mLegacySmoke, Platform.OS !== 'web' && styles.mSmokeEdgesNative]}
                   resizeMode="cover"
                 />
+                {Platform.OS !== 'web' && <View style={[styles.mLegacySmoke, styles.mSmokeEdgesNative, styles.mLegacyFadeNative, { pointerEvents: 'none' }]} />}
                 <View style={{ marginTop: 8 }}>
                   <MHeading title="Legacy" subtitle={heroPage === 0 ? `${seasonYear}` : "Lifetime of Effort"} />
                 </View>
@@ -3159,7 +3259,7 @@ export default function HomeScreen() {
                   >
                     {/* This year first: rank is built on it. Lifetime is a swipe away. */}
                     <View style={[styles.mLegacyHeroPage, heroWidth ? { width: heroWidth } : null]}>
-                      <CountUpText value={Math.round(seasonEffortTotal)} style={styles.mLegacyHeroNumber} />
+                      <CountUpText value={Math.round(seasonEffortTotal)} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} />
                       {/* The heading already says the year, so the label says
                           where it counts from, matching the lifetime page. */}
                       <Text style={styles.mLegacyHeroLabel}>
@@ -3171,7 +3271,7 @@ export default function HomeScreen() {
                         {rankName ? (
                           <>
                             <RivalIcon name={`rank${getLevel(seasonEffortTotal).name}` as RivalIconName} size={15} color={rankSheen(getLevel(seasonEffortTotal).level).light} />
-                            <Text style={[styles.mLegacyRankName, rankTextSheen(getLevel(seasonEffortTotal).level)]}>{rankName}</Text>
+                            <GradientText style={[styles.mLegacyRankName, rankTextSheen(getLevel(seasonEffortTotal).level)]}>{rankName}</GradientText>
                             <View style={styles.mLegacyRankDot} />
                           </>
                         ) : null}
@@ -3179,7 +3279,7 @@ export default function HomeScreen() {
                       </TouchableOpacity>
                     </View>
                     <View style={[styles.mLegacyHeroPage, heroWidth ? { width: heroWidth } : null]}>
-                      <CountUpText value={Math.round(lifetimeXp)} style={styles.mLegacyHeroNumber} />
+                      <CountUpText value={Math.round(lifetimeXp)} style={styles.mLegacyHeroNumber} gradient={LEGACY_GRADIENT} />
                       <Text style={styles.mLegacyHeroLabel}>
                         Total Effort{firstActivityAt ? ` · since ${new Date(firstActivityAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}` : ''}
                       </Text>
@@ -3288,7 +3388,7 @@ export default function HomeScreen() {
                             <Text style={[styles.mMilestoneToGo, ms ? { color: ms.light } : styles.mMilestoneToGoNeutral]}>{m.toGo}</Text>
                           </View>
                           <View style={styles.mMilestoneTitleLine}>
-                            <Text style={[styles.mMilestoneTitle, m.rankLevel ? rankTextSheen(m.rankLevel) : null]} numberOfLines={1}>{m.title}</Text>
+                            <GradientText style={[styles.mMilestoneTitle, m.rankLevel ? rankTextSheen(m.rankLevel) : null]} numberOfLines={1}>{m.title}</GradientText>
                             <RivalIcon name="chevronRight" size={16} color="rgba(255,255,255,0.45)" />
                           </View>
                         </View>
@@ -3341,7 +3441,7 @@ export default function HomeScreen() {
                       <Text style={styles.mTicketToday}>Today</Text>
                     ) : (
                       <>
-                        <Text style={styles.mTicketDays}>{days}</Text>
+                        <GradientText style={styles.mTicketDays}>{days}</GradientText>
                         <Text style={styles.mTicketDaysLabel}>{days === 1 ? 'Day' : 'Days'}</Text>
                       </>
                     )}
@@ -3384,7 +3484,7 @@ export default function HomeScreen() {
           {/* Hero: Total Time Earned — narrower + centered like the mockup */}
           <RivalCard glass style={styles.heroCard}>
             <Text style={[styles.heroLabel, { marginBottom: 4 }]}>TOTAL TIME EARNED</Text>
-            <Text
+            <GradientText
               style={[styles.heroValue, { fontSize: heroValueFontSize(heroTimeText, heroCardAvailableWidth), lineHeight: heroValueFontSize(heroTimeText, heroCardAvailableWidth) * 1.1 }]}
               numberOfLines={1}
             >
@@ -3397,7 +3497,7 @@ export default function HomeScreen() {
               )}
               {heroMins}
               <Text style={[styles.heroValueUnit, { fontSize: heroValueFontSize(heroTimeText, heroCardAvailableWidth) * 0.42 }]}>m</Text>
-            </Text>
+            </GradientText>
             <View style={{ marginTop: -10, alignItems: 'center' }}>
               <Text style={styles.heroSub}>Every minute here is yours.</Text>
             </View>
@@ -4012,7 +4112,7 @@ const styles = StyleSheet.create({
     // deviated from that pattern.
     height: '100vh' as any,
     backgroundColor: '#131313',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 140% 90% at 88% 105%, rgba(217,119,87,0.07) 0%, rgba(19,19,19,0) 55%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 140% 90% at 88% 105%, rgba(217,119,87,0.07) 0%, rgba(19,19,19,0) 55%)' })),
   },
   container: { flex: 1 },
   // Max-width + auto margins keep desktop content centered with the photo
@@ -4073,12 +4173,12 @@ const styles = StyleSheet.create({
   // in this file for web-only CSS. Native falls back to the flat mid-tone.
   heroValue: {
     ...RivalType.displayHero, fontSize: 96, lineHeight: 100, color: '#D8A81D',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(180deg, #FFE48A, #D8A81D)',
       backgroundClip: 'text',
       WebkitBackgroundClip: 'text',
       color: 'transparent',
-    } as any : {}),
+    })),
   },
   // Same digits-vs-unit split as the streak card's "WEEKS" suffix — smaller,
   // lighter weight, muted color — so "186h 10m" reads as two number+unit
@@ -4096,7 +4196,7 @@ const styles = StyleSheet.create({
   gridCardQuarter: { flexBasis: '22%', minWidth: 0 },
   // Same recipe as discover-leagues.tsx's team crest cards (gridCardHovered
   // there) — scale + lifted shadow, web-only (no hover concept natively).
-  gridCardHovered: { transform: [{ scale: 1.03 }], ...(Platform.OS === 'web' ? { boxShadow: '0 12px 28px rgba(0,0,0,0.35)' } as any : {}) },
+  gridCardHovered: { transform: [{ scale: 1.03 }], ...(webFx({ boxShadow: '0 12px 28px rgba(0,0,0,0.35)' })) },
   goalsEmptyCentered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   // The message is the hero here, not the "FOCUS" tag above it — normal
   // weight, not a heading, matching the reference's "message > title" note.
@@ -4195,10 +4295,10 @@ const styles = StyleSheet.create({
   mTimeEarnedLabel: { ...RivalType.labelCaps, fontSize: 9, lineHeight: 11, letterSpacing: 1, color: RivalColors.textSecondary },
   mTimeEarnedValue: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 24, fontWeight: '700', lineHeight: 26, letterSpacing: 0.2, color: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(100deg, #D97757 0%, #ffb59e 45%, #F5B759 100%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
-    } as any : {}),
+    })),
   },
   // Unit letters (h/m) — deliberately NOT the serif/italic/gradient of the
   // number: at the number's size, "h"/"m" rendered as giant swash letters
@@ -4220,11 +4320,11 @@ const styles = StyleSheet.create({
     paddingTop: 22, paddingBottom: 10, paddingHorizontal: 16, alignItems: 'center',
     marginTop: 18, marginHorizontal: -8, borderRadius: 22, overflow: 'hidden',
     backgroundColor: RivalColors.surfaceHigh, borderWidth: 1, borderColor: 'rgba(255,209,190,0.10)',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
       // The lit edge (mFocusEdge) replaces the plain border on web.
       borderWidth: 0,
-    } : {}),
+    })),
   } as any,
   // A fine, soft sand-coloured border, brightest along the top and fading down the
   // sides: a 1px gradient frame, with the middle masked out.
@@ -4253,7 +4353,7 @@ const styles = StyleSheet.create({
   mEndedBar: { alignSelf: 'stretch', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 12 },
   mEndedFill: {
     height: '100%', borderRadius: 3, backgroundColor: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' })),
   } as any,
   mEndedNote: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 10 },
   mEndedActions: { flexDirection: 'row', gap: 8, alignSelf: 'stretch', marginTop: 14, marginBottom: 8 },
@@ -4282,7 +4382,7 @@ const styles = StyleSheet.create({
   mFocusSlotLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: RivalColors.accentText, textTransform: 'uppercase' },
   mCreateBadge: {
     width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(135deg, #ffb59e, #D97757)' })),
   } as any,
   mCreateLabel: { fontSize: 12, fontWeight: '700', color: '#fff' },
   mSheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
@@ -4311,7 +4411,7 @@ const styles = StyleSheet.create({
     width: 1, height: 38,
     ...(Platform.OS === 'web'
       ? ({ backgroundImage: 'linear-gradient(180deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.45) 50%, rgba(255,181,158,0) 100%)' } as any)
-      : { backgroundColor: 'rgba(255,181,158,0.3)' }),
+      : ({ ...webFx(({ backgroundImage: 'linear-gradient(180deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.45) 50%, rgba(255,181,158,0) 100%)' } as any)) } as any)),
   },
   mFocusViewLink: { fontFamily: RivalFontFamily, fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText, marginTop: 8 },
 
@@ -4328,18 +4428,16 @@ const styles = StyleSheet.create({
     // A little less brown (Ricky, 2026-10-21): warm light 0.16 → 0.11, and a
     // base nearer neutral (#181312 → #161313).
     backgroundColor: 'transparent',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'none' } as any : {}),
+    ...(webFx({ backgroundImage: 'none' })),
   },
   mLeaderBg: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#161313',
-    ...(Platform.OS === 'web'
-      ? {
+    ...(webFx({
           backgroundImage: 'radial-gradient(ellipse 90% 65% at 50% 55%, rgba(217,119,87,0.11) 0%, rgba(19,19,19,0) 75%), linear-gradient(135deg, #111214 0%, #161313 100%)',
           maskImage: 'linear-gradient(to bottom, black calc(100% - 140px), transparent 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 140px), transparent 100%)',
-        } as any
-      : {}),
+        })),
   },
   // Vertically centred on the card, hugging the edges — the podium is capped
   // at 360 wide and centred, so on a phone there's empty card either side of
@@ -4459,7 +4557,21 @@ const styles = StyleSheet.create({
           // glow instead of a visible outline.
           filter: 'blur(1.5px)',
         } as any
-      : { backgroundColor: 'rgba(255,205,90,0.4)' }),
+      : ({ ...webFx({
+          // Radial, anchored at top-center, so it reads as one glow source
+          // brightest at the top and fading outward in every direction,
+          // rather than a horizontal band with a separate vertical fade.
+          // More tonal steps between the bright core and the transparent
+          // edge (rather than a straight two-stop fade) reads as a glow
+          // with real depth instead of a flat disc dimming outward.
+          backgroundImage:
+            'radial-gradient(ellipse 70% 130% at 50% 0%, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.65) 22%, rgba(255,255,255,0.55) 40%, rgba(255,255,255,0.33) 58%, rgba(255,255,255,0.13) 75%, rgba(255,255,255,0) 100%)',
+          clipPath: PODIUM_LENS_CLIP,
+          // clip-path always cuts a hard edge, no matter how faded the color
+          // is right at the boundary — blur feathers that edge into a soft
+          // glow instead of a visible outline.
+          filter: 'blur(1.5px)',
+        } as any) } as any)),
   },
   // Real smoke photo behind the whole Weekly Leader card, kept subtle (low
   // opacity) — bleeds all the way to the card's outer edges and up under
@@ -4480,6 +4592,13 @@ const styles = StyleSheet.create({
   // whatever height is given, so getting the glow-aligned bottom edge right
   // requires sizing the box itself, not an objectPosition crop-anchor (which
   // has nothing to shift when nothing is being cropped vertically).
+  // iPhone stand-ins for the web's mask-image fades (see where they're drawn).
+  // iPhone ignored the negative side margin that pulls the photo to the card's
+  // edge, leaving a strip down the left: pin it to both edges instead.
+  mSmokeEdgesNative: { left: 0, right: 0, width: 'auto', marginLeft: 0, marginRight: 0 },
+  mSmokeFadeNative: { opacity: 1, experimental_backgroundImage: 'linear-gradient(to bottom, rgba(22,19,19,0) 0%, rgba(22,19,19,0) 60%, #161313 100%)' } as any,
+  mLeaderBgFadeNative: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 140, experimental_backgroundImage: 'linear-gradient(to bottom, rgba(19,19,19,0) 0%, #131313 100%)' } as any,
+  mLegacyFadeNative: { opacity: 1, experimental_backgroundImage: 'linear-gradient(to bottom, #131313 0%, rgba(19,19,19,0) 35%, rgba(19,19,19,0) 55%, #131313 100%)' } as any,
   mPodiumSmoke: {
     // Taller than the card and pulled well above it, because the photo's own
     // top third is nearly black (sampled: brightness ~30/255 down to 30% in,
@@ -4535,22 +4654,23 @@ const styles = StyleSheet.create({
   // Without resetting it to 'auto' here, that inherited 0% survived the style
   // merge and silently zeroed this column's width regardless of `width: 110`.
   mPodiumColumnSparse: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: 82 },
+  // iPhone app: the same fixed 82px column without `flex: 1` at all. Native
+  // layout kept the shorthand's zero basis despite the overrides above, so
+  // every column measured 0 wide and the podium collapsed into one stack
+  // (first TestFlight open, 2026-11-11).
+  mPodiumColumnFixed: { alignItems: 'center', width: 82, flexShrink: 0 },
   mPodiumAvatar: { backgroundColor: '#332e2a', alignItems: 'center', justifyContent: 'center' },
   mPodiumInitial: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', textAlign: 'center', marginTop: 2 },
   mPodiumHalo: {
     position: 'absolute', left: '50%', top: '50%',
-    ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'radial-gradient(circle, rgba(255,215,0,0.35) 0%, rgba(255,215,0,0.12) 40%, rgba(255,215,0,0) 70%)' } as any)
-      : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(circle, rgba(255,215,0,0.35) 0%, rgba(255,215,0,0.12) 40%, rgba(255,215,0,0) 70%)' })),
   },
   // Floats above the avatar without pushing it down — same technique as the
   // mockup's absolutely-positioned crown (`top` offset set inline per avatar size).
   mPodiumSheenClip: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' },
   mPodiumSheen: {
     position: 'absolute', top: 0, bottom: 0, width: '45%',
-    ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%)' } as any)
-      : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%)' })),
   },
   // flexShrink:0 matters here — a flex child with overflow:hidden (which
   // numberOfLines={1} sets under the hood) defaults to a min-height of 0 in
@@ -4612,10 +4732,10 @@ const styles = StyleSheet.create({
   mStatusRule: { width: 34, height: 1 },
   mStatusRuleLeft: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.5) 100%)' } as any)
-    : { backgroundColor: 'rgba(255,181,158,0.3)' },
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.5) 100%)' } as any)) } as any),
   mStatusRuleRight: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.5) 0%, rgba(255,181,158,0) 100%)' } as any)
-    : { backgroundColor: 'rgba(255,181,158,0.3)' },
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.5) 0%, rgba(255,181,158,0) 100%)' } as any)) } as any),
   // Page dots: all one size (Ricky, 2026-09-27); the current page is lit.
   mLeaderDots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14 },
   mLeaderDot: {
@@ -4639,9 +4759,7 @@ const styles = StyleSheet.create({
   },
   mTicketDays: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 40, lineHeight: 42, fontWeight: '700', color: RivalColors.accentText,
-    ...(Platform.OS === 'web'
-      ? ({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } as any)
-      : null),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' })),
   },
   mTicketDaysLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 4 },
   mTicketToday: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 22, fontWeight: '700', color: RivalColors.accentText },
@@ -4650,7 +4768,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,181,158,0.14)',
     backgroundColor: RivalColors.surfaceHigh,
     // The pop-up's soft warm glow from the top edge, on its grey.
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.12), rgba(232,131,95,0) 70%)' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.12), rgba(232,131,95,0) 70%)' })),
   },
   mNextEventKicker: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },
   mNextEventName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 20, fontWeight: '700', lineHeight: 26, color: RivalColors.textPrimary, marginTop: 6 },
@@ -4685,7 +4803,7 @@ const styles = StyleSheet.create({
     // backgroundImage support, so it keeps a flat (much subtler) tint.
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'radial-gradient(ellipse 90% 65% at 50% 55%, rgba(217,119,87,0.11) 0%, rgba(19,19,19,0) 75%)' } as any
-      : { backgroundColor: 'rgba(217,119,87,0.035)' }),
+      : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 90% 65% at 50% 55%, rgba(217,119,87,0.11) 0%, rgba(19,19,19,0) 75%)' } as any) } as any)),
   },
   // Today's cards in the Add an activity pop-up's grey (Ricky, 2026-10-20),
   // not the old brown.
@@ -4707,7 +4825,7 @@ const styles = StyleSheet.create({
   mEffortTodayValue: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 26, lineHeight: 30, marginTop: 5, marginBottom: -3,
     color: RivalColors.accentGold, fontVariant: ['tabular-nums'],
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffe6b0 0%, #f5b759 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffe6b0 0%, #f5b759 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' })),
   },
   // Literal #FFD700 (same gold as the podium's #1 rank) — NOT accentGold
   // (#F5B759), which is a softer peach-gold used for gradient stops
@@ -4760,7 +4878,7 @@ const styles = StyleSheet.create({
   mTodayPlus: {
     position: 'absolute', right: '100%', top: 5, marginRight: -2,
     fontSize: 21, lineHeight: 28, marginTop: 0, marginBottom: 0,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffe6b0 0%, #f5b759 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffe6b0 0%, #f5b759 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' })),
   },
   mTodayMore: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '600', color: 'rgba(255,255,255,0.55)', marginTop: 1, lineHeight: 13 },
   mLegacyStatValueSerifSm: { fontSize: 14.5, letterSpacing: -0.2 },
@@ -4795,10 +4913,10 @@ const styles = StyleSheet.create({
     // Large on purpose: the lifetime number is the point of Legacy. The side
     // padding keeps the italic's last digit inside the gradient clip.
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 76, lineHeight: 84, paddingHorizontal: 8, fontWeight: '700', color: RivalColors.accentFill,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
-    } as any : {}),
+    })),
   },
   mLegacyHeroLabel: { ...RivalType.labelCaps, fontSize: 11, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText, textAlign: 'center', marginTop: 10 },
   mLegacyDivider: { width: 1, height: 56, alignSelf: 'center', backgroundColor: RivalColors.accentFill, opacity: 0.4, marginTop: 8, marginBottom: 6 },
@@ -4861,7 +4979,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 10, borderTopRightRadius: 10,
     ...(Platform.OS === 'web'
       ? ({ backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.07) 0%, rgba(255,209,190,0) 100%)' } as any)
-      : { backgroundColor: 'rgba(255,209,190,0.04)' }),
+      : ({ ...webFx(({ backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.07) 0%, rgba(255,209,190,0) 100%)' } as any)) } as any)),
   },
   mGhostPillarFirst: { borderColor: 'rgba(236,198,84,0.28)' },
   mGhostMedal: { position: 'absolute', top: -70, backgroundColor: 'rgba(236,198,84,0.06)' },
@@ -4875,7 +4993,7 @@ const styles = StyleSheet.create({
     width: 280, height: 1, marginBottom: 22,
     ...(Platform.OS === 'web'
       ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.45) 50%, rgba(255,181,158,0) 100%)' } as any)
-      : { backgroundColor: 'rgba(255,181,158,0.3)' }),
+      : ({ ...webFx(({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.45) 50%, rgba(255,181,158,0) 100%)' } as any)) } as any)),
   },
 
 });

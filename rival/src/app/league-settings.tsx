@@ -13,6 +13,8 @@ import { BusyText } from '../components/rival/BusyText';
 import { goToTab } from '../lib/tabNav';
 import { useSnapState } from '../lib/snapState';
 import { avatarImage } from '../lib/imageUrl';
+import { webFx } from '../lib/webFx';
+import { GradientText } from '../components/rival/GradientText';
 
 // A crest (and the name baked into it) can change once every 3 months (Ricky, 2026-11-09; was 6) —
 // often enough to fix a bad first attempt or reflect a real team change,
@@ -540,7 +542,7 @@ export default function LeagueSettingsScreen() {
           {inviteCode ? (
             <View style={ms.card}>
               <Text style={ms.cardLabel}>Invite</Text>
-              <Text style={ms.code} selectable>{inviteCode}</Text>
+              <GradientText style={ms.code} selectable>{inviteCode}</GradientText>
               <View style={ms.codeRow}>
                 <TouchableOpacity style={[ms.accentGhost, { flex: 1 }]} onPress={copyCode}>
                   <Text style={ms.accentGhostText}>Copy code</Text>
@@ -1103,7 +1105,7 @@ const ms = StyleSheet.create({
   codeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   code: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 32, fontWeight: '700', letterSpacing: 6, color: '#fff', textAlign: 'center',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' } : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, #ffffff, #D97757 170%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' })),
   } as any,
   accentGhost: { paddingVertical: 10, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)', alignItems: 'center' },
   accentGhostText: { fontSize: 13.5, fontWeight: '700', color: RivalColors.accentText },
@@ -1128,9 +1130,9 @@ const ms = StyleSheet.create({
     alignItems: 'center', gap: 8, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 16,
     // The warm glass card on desktop; plain on phones (Ricky, 2026-11-01).
     borderWidth: 1, borderColor: 'var(--rival-plain-border, rgba(255,181,158,0.16))', backgroundColor: 'var(--rival-plain-fill, #2d241f)',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'var(--rival-plain-image, radial-gradient(circle at 50% -10%, rgba(255,209,190,0.18) 0%, rgba(255,209,190,0) 65%), linear-gradient(160deg, #231e1b 0%, #2d241f 55%, #3b2821 100%))',
-    } as any : {}),
+    })),
   },
   // Bigger crest in the same card: the artwork has clear space around it, so
   // the frame overlaps the card's padding rather than growing the card.

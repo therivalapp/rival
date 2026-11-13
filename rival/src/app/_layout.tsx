@@ -21,11 +21,13 @@ import { revealApp } from '../lib/appReveal';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAppFonts } from '../lib/useAppFonts';
+import { applySimulatorUpdate } from '../lib/simulatorUpdates';
 import { registerForPushNotifications } from '../lib/notifications';
 import { supabase } from '../lib/supabase';
 import { savePendingInvite } from '../lib/pendingInvite';
 import { RivalAlertHost, FeedbackHost, SafetyHost } from '../components/rival';
 import { PreparingMediaHost } from '../components/rival/MediaPicker';
+import { SimUpdateTag } from '../components/rival/SimProbe';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 import { PhotoPrompt } from '../components/rival/PhotoPrompt';
 import { SavedActivityNote } from '../components/rival/SavedActivityNote';
@@ -70,6 +72,7 @@ export default function RootLayout() {
   // Rendering is deliberately not gated on this: a brief native fallback-font
   // flash beats a blank splash.
   useAppFonts();
+  useEffect(() => { applySimulatorUpdate(); }, []);
   // Short pages open on phone as a pop-up over the screen they came from,
   // rather than a whole page with empty space under a few rows.
   // On desktop they open the same way, as a centred dialog that fades in
@@ -233,6 +236,7 @@ export default function RootLayout() {
       <SafetyHost />
       <RivalAlertHost />
       <PreparingMediaHost />
+      <SimUpdateTag />
     </SafeAreaProvider>
   );
 }

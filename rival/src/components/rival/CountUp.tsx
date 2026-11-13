@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { GradientText } from './GradientText';
 import { Platform, Text, type StyleProp, type TextStyle } from 'react-native';
 
 /** A figure counting up from 0 once, easing to a stop, as when Strava is
@@ -24,5 +25,5 @@ export function CountUp({ value, format, duration = 1600, delay = 0, style }: {
     const timer = setTimeout(() => { raf = requestAnimationFrame(tick); }, delay);
     return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
   }, [value, duration, delay]);
-  return <Text style={style}>{format ? format(shown) : Math.round(shown).toLocaleString()}</Text>;
+  return <GradientText style={style}>{format ? format(shown) : Math.round(shown).toLocaleString()}</GradientText>;
 }

@@ -16,6 +16,7 @@ import {
 } from '../../lib/shareStamp';
 import { defaultEventStats, eventRowFigures, eventStatOptions, placeHero, type EventShareFacts } from '../../lib/eventShare';
 import { liveClock } from '../../lib/liveActivity';
+import { webFx } from '../../lib/webFx';
 
 // Sharing a whole event (Ricky, 2026-11-05, design/event-share-mockup.png):
 // the activity share pop-up (ActivityDiaryViewer's cardSheet) with two event
@@ -275,7 +276,7 @@ const e = StyleSheet.create({
   },
   sheet: {
     flex: 1, backgroundColor: RivalGhost.ground,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' } as any : {}),
+    ...(webFx({ backgroundImage: 'radial-gradient(ellipse 80% 260px at 50% 0%, rgba(217,119,87,0.16), rgba(217,119,87,0) 70%)', backgroundRepeat: 'no-repeat' })),
   },
   content: { alignItems: 'center', gap: 14, paddingHorizontal: 20, minHeight: '100%' as any, justifyContent: 'center' },
   cardPreview: { aspectRatio: 9 / 16, borderRadius: 18 },
@@ -302,7 +303,7 @@ const e = StyleSheet.create({
   choiceDark: { backgroundColor: 'rgba(244,234,216,0.82)' },
   fade: {
     position: 'absolute', top: 0, bottom: 0, right: 0, width: 36,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, rgba(46,42,40,0), rgb(46,42,40))' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(90deg, rgba(46,42,40,0), rgb(46,42,40))' })),
   },
   card: { alignSelf: 'stretch', borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, backgroundColor: RivalGhost.fill, padding: 12 },
   shareBtn: {

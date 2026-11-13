@@ -12,6 +12,8 @@ import { buildYearReview, activityDisplayName, formatMinutes, type YearActivity 
 import { monthlyTotals, pbMoments, yearsWithActivity, yearWeeks, type PbMoment } from '../../lib/yearJournal';
 import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { formatDistance, formatDistanceWhole, toDisplayDistance, distanceUnit } from '../../lib/units';
+import { webFx } from '../../lib/webFx';
+import { GradientText } from './GradientText';
 
 // The Activity Journal's Year tab: one year of training at a glance. Drawn from
 // the activities the journal already holds, so it opens instantly and needs no
@@ -25,7 +27,7 @@ const shortDate = (d: Date) => d.toLocaleDateString(undefined, { month: 'short',
 function rankFill(from: string, to: string): object {
   return Platform.OS === 'web'
     ? { backgroundColor: to, backgroundImage: `linear-gradient(90deg, ${from}, ${to})` }
-    : { backgroundColor: to };
+    : ({ ...webFx({ backgroundColor: to, backgroundImage: `linear-gradient(90deg, ${from}, ${to})` }) } as any);
 }
 
 // A total as big digits with small units, the way Today shows "202h 59m":
@@ -63,7 +65,7 @@ function hexAlpha(hex: string, a: number): string {
 
 const GRADIENT: any = Platform.OS === 'web'
   ? { backgroundImage: `linear-gradient(180deg, #f2b39c 0%, ${RivalColors.accentFill} 100%)` }
-  : { backgroundColor: RivalColors.accentFill };
+  : ({ ...webFx({ backgroundImage: `linear-gradient(180deg, #f2b39c 0%, ${RivalColors.accentFill} 100%)` }) } as any);
 
 export function JournalYearView({ activities, header, onOpenActivity }: { activities: YearActivity[]; header?: React.ReactNode; onOpenActivity?: (activityId: string) => void }) {
   const now = new Date();
@@ -160,12 +162,12 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
       <View style={[rm.card, phone && s.cardPhone, s.hero]}>
         {phone && Platform.OS === 'web' ? <View style={[s.heroGlow, { pointerEvents: 'none' }]} /> : null}
         <Text style={rm.label}>{year} Effort</Text>
-        <Text style={s.heroNum}>{review.effort.toLocaleString()}</Text>
+        <GradientText style={s.heroNum}>{review.effort.toLocaleString()}</GradientText>
         {/* The rank as Today and Ranks now show it: the rising chevrons and
             the name in serif with its rank's sheen (Ricky, 2026-10-11). */}
         <View style={s.rankLine}>
           <RivalIcon name={phone ? (`rank${level.name}` as RivalIconName) : 'doubleChevronUp'} size={16} color={rankSheen(level.level).light} />
-          <Text style={[s.rankName, rankTextSheen(level.level)]}>{level.name}</Text>
+          <GradientText style={[s.rankName, rankTextSheen(level.level)]}>{level.name}</GradientText>
         </View>
         {/* Phones: the year's totals in the same tiles as the week and month
             cards (Ricky, 2026-10-20); active days stays as a quiet line. */}
@@ -191,7 +193,7 @@ export function JournalYearView({ activities, header, onOpenActivity }: { activi
                 <Text style={[s.nextToGo, { color: ns.light }]}>{(level.maxXp - review.effort).toLocaleString()} Effort to go</Text>
               </View>
               <View style={s.nextTitleLine}>
-                <Text style={[s.nextTitle, rankTextSheen(nextLevel.level)]} numberOfLines={1}>{nextLevel.name}</Text>
+                <GradientText style={[s.nextTitle, rankTextSheen(nextLevel.level)]} numberOfLines={1}>{nextLevel.name}</GradientText>
                 <RivalIcon name="chevronRight" size={16} color="rgba(255,255,255,0.45)" />
               </View>
               <View style={s.track}>
@@ -410,10 +412,10 @@ const s = StyleSheet.create({
   // side padding keeps the italic's last digit inside the gradient clip.
   heroNum: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 52, lineHeight: 58, paddingHorizontal: 6, fontWeight: '700', color: RivalColors.accentText,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
-    } as any : {}),
+    })),
   },
   rankLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   rankName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.4, fontSize: 18 },
@@ -422,10 +424,10 @@ const s = StyleSheet.create({
   cardPhone: {
     backgroundColor: RivalColors.surfaceHigh, borderRadius: 22, overflow: 'hidden',
     borderWidth: 1, borderTopColor: 'rgba(255,209,190,0.26)', borderLeftColor: 'rgba(255,209,190,0.09)', borderRightColor: 'rgba(255,209,190,0.09)', borderBottomColor: 'rgba(255,209,190,0.03)',
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'radial-gradient(ellipse 70% 55% at 50% 0%, rgba(217,119,87,0.17), rgba(217,119,87,0.035) 60%, rgba(217,119,87,0) 85%)',
       backgroundRepeat: 'no-repeat', backgroundOrigin: 'border-box',
-    } as any : {}),
+    })),
   },
   heroGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 120, backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%)' } as any,
   heroTiles: { alignSelf: 'stretch', gap: 8, marginTop: 6 },

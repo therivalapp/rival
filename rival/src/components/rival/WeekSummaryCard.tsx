@@ -4,6 +4,7 @@ import { RivalIcon, type RivalIconName } from './RivalIcon';
 import { RespectStar } from './RespectStar';
 import { RivalAvatar } from './RivalAvatar';
 import { RESPECT_COLOUR } from '../../constants/reactionColours';
+import { webFx } from '../../lib/webFx';
 
 /** A past week, compact (Ricky, 2026-10-18): stats only, so the journal
  *  scrolls on into the week's activities. The week named, its seven days with
@@ -111,11 +112,11 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, height: 120,
     ...(Platform.OS === 'web'
       ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%)' } as any
-      : { backgroundColor: 'rgba(232,131,95,0.06)' }),
+      : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(232,131,95,0.22), rgba(232,131,95,0) 70%)' } as any) } as any)),
   },
   glowEvent: Platform.OS === 'web'
     ? { backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(244,234,216,0.15), rgba(244,234,216,0) 70%)' } as any
-    : { backgroundColor: 'rgba(244,234,216,0.05)' },
+    : ({ ...webFx({ backgroundImage: 'radial-gradient(ellipse 75% 100% at 50% 0%, rgba(244,234,216,0.15), rgba(244,234,216,0) 70%)' } as any) } as any),
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   kicker: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: '#ffd3c2' },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 26, lineHeight: 30, color: '#fff', marginTop: 3 },

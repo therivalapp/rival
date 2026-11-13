@@ -14,6 +14,7 @@ import { backToOrigin, goToTab } from '../../lib/tabNav';
 import { takePendingScanDays } from '../../lib/scanHandoff';
 import { fitPhoto } from '../../lib/imageResize';
 import { dayKey } from '../../lib/photoDates';
+import { webFx } from '../../lib/webFx';
 
 // Multi-day scan on phone (Ricky, 2026-10-02): a pop-up with one row of days
 // to swipe back through, ending on today, always showing six whole days. Two
@@ -511,7 +512,7 @@ const s = StyleSheet.create({
   },
   dayOn: {
     borderColor: 'rgba(255,181,158,0.55)', backgroundColor: 'rgba(217,119,87,0.22)',
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(217,119,87,0.35), rgba(217,119,87,0.12))' } as any : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, rgba(217,119,87,0.35), rgba(217,119,87,0.12))' })),
   },
   dayToday: { borderColor: 'rgba(255,181,158,0.35)' },
   dayName: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: RivalColors.textSecondary },

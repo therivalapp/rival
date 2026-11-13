@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, RefreshControl, StyleSheet, View } from 'react-native';
+import { reportNavScroll, resetNavShrink } from '../../lib/navShrink';
 import { RivalColors } from '@/constants/rivalTheme';
 
 // react-native-web's RefreshControl is a no-op: it strips onRefresh and
@@ -135,6 +136,33 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>) {
     </View>
   );
 
+  // Leaving a page (say Stats, back to Today) brings the bar back full size.
+  useEffect(() => (Platform.OS === 'web' ? undefined : () => resetNavShrink()), []);
+
+  if (Platform.OS !== 'web') {
+    // The iPhone app has the real pull to refresh (it only did nothing on the
+    // web, see the top of this file), and its scroll drives the bottom bar's
+    // shrink (lib/navShrink.ts). Before this, neither worked on iPhone.
+    const nativeRefresh = async () => {
+      if (refreshingRef.current) return;
+      refreshingRef.current = true;
+      setRefreshing(true);
+      try { await onRefreshRef.current(); } finally {
+        refreshingRef.current = false;
+        setRefreshing(false);
+      }
+    };
+    return {
+      scrollProps: {
+        ref: setScrollRef,
+        refreshControl: <RefreshControl refreshing={refreshing} onRefresh={nativeRefresh} tintColor={RivalColors.accentText} />,
+        scrollEventThrottle: 16,
+        onScroll: (e: any) => reportNavScroll(e?.nativeEvent?.contentOffset?.y ?? 0),
+      } as any,
+      indicator: null,
+      refreshing,
+    };
+  }
   return { scrollProps: { ref: setScrollRef }, indicator, refreshing };
 }
 

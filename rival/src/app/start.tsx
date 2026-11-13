@@ -38,6 +38,7 @@ import { fetchTeammates } from '../lib/sharedActivities';
 import { START_TYPES, speedNow, hyroxPart, hyroxParts, hyroxSplits, hyroxTotals, highestPoint, showsSpeed, skiRuns, statFamily, topSpeed, waves, WOD_LABEL, type ActivityStats, type MatchResult, type Score, type Wod } from '../lib/activityStats';
 import { finishTiles, moreDetailsLine } from '../lib/finishTiles';
 import { AddCard, LiftsCard, MiniBars, ResultCard, ResultEditor, RoundsCard, RoundSplits, ScoreCard, ScoreEditor, SkiChart, SwimDetails, TableCard, WodPicker } from '../components/rival/LiveFinishExtras';
+import { webFx } from '../lib/webFx';
 
 const KG_PER_LB = 0.453592;
 const fromDisplayWeight = (shown: number) => (weightUnit() === 'lb' ? shown * KG_PER_LB : shown);
@@ -1161,7 +1162,7 @@ const s = StyleSheet.create({
   stock: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
   shade: Platform.OS === 'web'
     ? { backgroundImage: 'linear-gradient(180deg, rgba(8,8,8,.35) 0%, rgba(8,8,8,.05) 28%, rgba(8,8,8,.72) 58%, #111 88%)' } as any
-    : { backgroundColor: 'rgba(8,8,8,0.5)' },
+    : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(8,8,8,.35) 0%, rgba(8,8,8,.05) 28%, rgba(8,8,8,.72) 58%, #111 88%)' } as any) } as any),
   titleBlock: { position: 'absolute', left: 0, right: 0, bottom: 412, alignItems: 'center', paddingHorizontal: 16 },
   swipe: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: RivalColors.accentText },
   title: { ...serif, fontWeight: '700', fontSize: 40, lineHeight: 48, color: '#fff', marginTop: 6, textAlign: 'center' },
@@ -1189,10 +1190,10 @@ const s = StyleSheet.create({
 
   liveShade: Platform.OS === 'web'
     ? { backgroundImage: 'linear-gradient(180deg, rgba(8,8,8,.55) 0%, rgba(8,8,8,.25) 26%, rgba(8,8,8,.82) 46%, #111 66%)' } as any
-    : { backgroundColor: 'rgba(8,8,8,0.7)' },
+    : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(8,8,8,.55) 0%, rgba(8,8,8,.25) 26%, rgba(8,8,8,.82) 46%, #111 66%)' } as any) } as any),
   liveShadePaused: Platform.OS === 'web'
     ? { backgroundImage: 'linear-gradient(180deg, rgba(8,8,8,.75), rgba(8,8,8,.8) 55%, #111 82%)' } as any
-    : { backgroundColor: 'rgba(8,8,8,0.8)' },
+    : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(8,8,8,.75), rgba(8,8,8,.8) 55%, #111 82%)' } as any) } as any),
   timerBlock: { alignItems: 'center', paddingHorizontal: 44 },
   kickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#e8835f' },
@@ -1226,7 +1227,7 @@ const s = StyleSheet.create({
   dockName: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.65)', marginTop: 7 },
   sideLit: { borderColor: '#e8835f', borderWidth: 2 },
   dockNameLit: { color: RivalColors.accentText },
-  next: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 20, borderWidth: 1.5, borderColor: '#e8835f', paddingVertical: 15, paddingHorizontal: 16, marginTop: 12, backgroundColor: 'rgba(255,181,158,0.1)', ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(135deg, rgba(255,181,158,.16), rgba(217,119,87,.05))' } as any : {}) },
+  next: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 20, borderWidth: 1.5, borderColor: '#e8835f', paddingVertical: 15, paddingHorizontal: 16, marginTop: 12, backgroundColor: 'rgba(255,181,158,0.1)', ...(webFx({ backgroundImage: 'linear-gradient(135deg, rgba(255,181,158,.16), rgba(217,119,87,.05))' })) },
   nextKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase', color: RivalColors.accentText },
   nextName: { ...serif, fontWeight: '700', fontSize: 29, lineHeight: 35, color: '#fff', marginTop: 3 },
   nextSub: { fontSize: 12.5, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
@@ -1275,7 +1276,7 @@ const s = StyleSheet.create({
   curName: { fontSize: 13.5, fontWeight: '800', color: '#fff' },
   curSub: { fontSize: 12, color: '#a0a0a0' },
   curBar: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 9, overflow: 'hidden' },
-  curFill: { height: '100%', borderRadius: 3, backgroundColor: '#e8835f', ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } as any : {}) },
+  curFill: { height: '100%', borderRadius: 3, backgroundColor: '#e8835f', ...(webFx({ backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' })) },
   splitHead: { flexDirection: 'row', alignSelf: 'stretch', gap: 12, marginHorizontal: 20, marginTop: 14 },
   splitHeadText: { fontSize: 9, fontWeight: '800', letterSpacing: 1.3, color: '#a0a0a0' },
   splitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, paddingHorizontal: 2 },
@@ -1284,10 +1285,10 @@ const s = StyleSheet.create({
   splitT: { ...serif, width: 48, fontWeight: '700', fontSize: 16, color: '#fff' },
   splitBar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' },
   splitFill: { height: '100%', borderRadius: 4, backgroundColor: 'rgba(255,181,158,0.55)' },
-  splitBest: { backgroundColor: '#e8835f', ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' } as any : {}) },
+  splitBest: { backgroundColor: '#e8835f', ...(webFx({ backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' })) },
   splitE: { width: 50, textAlign: 'right', fontSize: 11.5, color: '#a0a0a0' },
   mapPage: { flex: 1, backgroundColor: '#111', justifyContent: 'space-between' },
-  mapFade: { position: 'absolute', left: 0, right: 0, height: 140, ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(17,17,17,0), #111)' } as any : {}) },
+  mapFade: { position: 'absolute', left: 0, right: 0, height: 140, ...(webFx({ backgroundImage: 'linear-gradient(180deg, rgba(17,17,17,0), #111)' })) },
   mapChip: { position: 'absolute', alignSelf: 'center', backgroundColor: 'rgba(14,13,12,0.7)', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
   pageDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: 12 },
   pageDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' },

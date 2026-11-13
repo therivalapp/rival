@@ -1,4 +1,5 @@
 import { useSnapState } from '../lib/snapState';
+import { GradientText } from '../components/rival/GradientText';
 import { GoldStar } from '../components/rival/RespectStar';
 import { distanceNumber, distanceUnit, elevationNumber, elevationUnit } from '../lib/units';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -26,6 +27,7 @@ import { onActivityDataChanged } from '../lib/dataEvents';
 import { RUN_TYPES } from '../lib/bestEfforts';
 import { ProfilePage, type ProfileWelcome, type ProfileRace, type ProfileRow } from '../components/rival/ProfilePage';
 import { formatTeamName } from '../lib/identity';
+import { webFx } from '../lib/webFx';
 
 // Refined Ember rank ramp only has 4 confirmed anchor colors from the Stitch
 // export (see rivalTheme.ts) — the interpolated 10-level ramp is provisional.
@@ -358,7 +360,8 @@ export default function StatsScreen() {
               <Text style={styles.mindsetEmpty}>Share your Mindset →</Text>
             </TouchableOpacity>
           ) : null}
-          <Text
+          <GradientText
+            gradient="linear-gradient(180deg, #FFE48A, #D8A81D)"
             style={[
               styles.rankName,
               { color: '#D8A81D' },
@@ -373,7 +376,7 @@ export default function StatsScreen() {
             ]}
           >
             {lvl.name}
-          </Text>
+          </GradientText>
           <View style={[styles.levelPill, { backgroundColor: rankColor + '22', borderColor: rankColor + '55' }]}>
             <Text style={[styles.levelPillText, { color: rankColor }]}>Level {lvl.level} · {Math.round(seasonPoints)} Effort</Text>
           </View>
@@ -424,7 +427,7 @@ export default function StatsScreen() {
                         <Text style={styles.hlMetaText} numberOfLines={1}>
                           {[(h.distance_meters ?? 0) > 0 ? formatDistance((h.distance_meters ?? 0) / 1000) : null, new Date(h.started_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })].filter(Boolean).join(' · ')}
                         </Text>
-                        <Text style={[styles.hlEffort, effortGoldText]}>{Math.round(Number(h.effort_score) || 0)}</Text>
+                        <GradientText style={[styles.hlEffort, effortGoldText]}>{Math.round(Number(h.effort_score) || 0)}</GradientText>
                       </View>
                     </View>
                   </View>
@@ -686,7 +689,7 @@ const styles = StyleSheet.create({
   hlNoPhoto: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   hlShade: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.78) 100%)' } as any : { backgroundColor: 'rgba(0,0,0,0.3)' }),
+    ...(Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.78) 100%)' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.78) 100%)' } as any) } as any)),
   },
   hlStar: { position: 'absolute', top: 10, right: 10 },
   hlBody: { position: 'absolute', left: 12, right: 12, bottom: 11 },

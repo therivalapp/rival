@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Platform, useWindowDimensions, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useIsFocused, usePathname } from 'expo-router';
 import { supabase, getAuthUser } from '../../lib/supabase';
@@ -19,6 +19,11 @@ import { avatarImage } from '../../lib/imageUrl';
 import { openFeedback } from '../../lib/feedback';
 import { useLive, useTick } from '../../lib/liveActivityStore';
 import { liveClock, liveSeconds } from '../../lib/liveActivity';
+import { webFx } from '../../lib/webFx';
+import { GradientText } from './GradientText';
+import { resetNavShrink, subscribeNavShrink } from '../../lib/navShrink';
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 // Shared persistent top navigation, matching the Stitch mockups. Drop it in at
 // the top of a screen (outside the ScrollView so it stays put) and pass the
@@ -351,7 +356,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
       <View style={[styles.row, narrow && styles.rowNarrow]}>
         <View style={[styles.logoRow, narrow && centerSlot ? styles.logoWrapBalanced : undefined]}>
           <TouchableOpacity onPress={() => goToTab('/home')}>
-            <Text style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</Text>
+            <GradientText style={[styles.logo, narrow && styles.logoNarrow]}>RIVAL</GradientText>
           </TouchableOpacity>
           {/* Team Beta (Ricky, 2026-11-10, Mockup 26 B): one tap from any
               page opens Send feedback. Phones only; remove at launch. */}
@@ -394,7 +399,8 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           {rankName && !narrow && (
             <TouchableOpacity style={styles.rankBadge} onPress={() => router.push('/ranks')}>
               <Text style={styles.rankLabel}>RANK</Text>
-              <Text
+              <GradientText
+                gradient="linear-gradient(180deg, #FFE48A, #D8A81D)"
                 style={[
                   styles.rankValue,
                   { color: '#D8A81D', fontStyle: 'italic' },
@@ -410,7 +416,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
                 ]}
               >
                 {rankName}
-              </Text>
+              </GradientText>
             </TouchableOpacity>
           )}
           {/* The chat icon that used to sit here moved to the bottom nav, where
@@ -507,7 +513,8 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
                   <View>
                     <Text style={styles.avatarMenuHeaderName}>{displayName || 'You'}</Text>
                     {rankName && (
-                      <Text
+                      <GradientText
+                        gradient="linear-gradient(180deg, #FFE48A, #D8A81D)"
                         style={[
                           styles.avatarMenuHeaderRank,
                           { color: '#D8A81D' },
@@ -522,7 +529,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
                         ]}
                       >
                         {rankName.toUpperCase()}
-                      </Text>
+                      </GradientText>
                     )}
                   </View>
                 </View>
@@ -581,6 +588,14 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
  * header stayed up in the header. Here the tab layout draws it once, floating
  * at the bottom of the tab screens. Same look as the web bar.
  */
+// Where the iPhone tab bar's top edge sits on screen, for Today's podium,
+// which grows until the row under Add activity sits just above the bar (the
+// web measures the same thing from the page).
+let nativeNavTop: number | null = null;
+export function getNativeNavTop() {
+  return nativeNavTop;
+}
+
 export function NativeTabBar({ routeName }: { routeName: string }) {
   const insets = useSafeAreaInsets();
   const { live } = useLive();
@@ -592,9 +607,34 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
     return () => { cancelled = true; };
   }, [routeName]);
   const active = LINKS.find((l) => l.route === `/${routeName}`)?.key;
+  // Shrinks while scrolling down and settles toward the bottom edge, as on
+  // the web (bottomNavShrunk / startCircleShrunk). Pages report their scroll
+  // through usePullToRefresh (lib/navShrink.ts).
+  const shrink = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    resetNavShrink();
+    return subscribeNavShrink((on) => {
+      Animated.timing(shrink, { toValue: on ? 1 : 0, duration: 220, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+    });
+  }, [routeName, shrink]);
+  const [barH, setBarH] = useState(0);
+  // scale 0.8 around the bar's bottom edge: scale about the centre, then move
+  // down by the height it lost on the bottom half.
+  const barShrink = {
+    transform: [
+      { translateY: shrink.interpolate({ inputRange: [0, 1], outputRange: [0, barH * 0.1] }) },
+      { scale: shrink.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] }) },
+    ],
+  };
+  const circleShrink = {
+    transform: [
+      { translateY: shrink.interpolate({ inputRange: [0, 1], outputRange: [0, 12] }) },
+      { scale: shrink.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] }) },
+    ],
+  };
   return (
-    <View style={[styles.nativeBarOuter, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 12, 8) : 6 }]} pointerEvents="box-none">
-      <View style={styles.bottomNav}>
+    <View style={[styles.nativeBarOuter, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 12, 8) : 6 }]} pointerEvents="box-none" onLayout={(e) => { nativeNavTop = e.nativeEvent.layout.y; }}>
+      <Animated.View style={[styles.bottomNav, barShrink]} onLayout={(e) => setBarH(e.nativeEvent.layout.height)}>
         {LINKS.map((l, i) => {
           const isActive = active === l.key;
           return (
@@ -610,12 +650,12 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
             </Fragment>
           );
         })}
-      </View>
-      <TouchableOpacity
+      </Animated.View>
+      <AnimatedTouchable
         onPress={() => router.push('/start')}
         accessibilityLabel={live ? 'Return to the activity' : 'Start an activity'}
         activeOpacity={0.85}
-        style={styles.startCircle}
+        style={[styles.startCircle, circleShrink]}
       >
         {live ? (
           <>
@@ -625,7 +665,7 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
         ) : (
           <Text style={styles.startText}>Start</Text>
         )}
-      </TouchableOpacity>
+      </AnimatedTouchable>
     </View>
   );
 }
@@ -639,9 +679,7 @@ const styles = StyleSheet.create({
     // whatever sits behind it (Ricky, 2026-11-01).
     backgroundColor: '#161313',
     borderBottomColor: 'rgba(255,209,190,0.12)',
-    ...(Platform.OS === 'web'
-      ? { backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.10) 0%, rgba(255,209,190,0.03) 100%), linear-gradient(rgba(255,209,190,0.06), rgba(255,209,190,0.06))' } as any
-      : {}),
+    ...(webFx({ backgroundImage: 'linear-gradient(180deg, rgba(255,209,190,0.10) 0%, rgba(255,209,190,0.03) 100%), linear-gradient(rgba(255,209,190,0.06), rgba(255,209,190,0.06))' })),
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 1200, marginHorizontal: 'auto', paddingHorizontal: 20, paddingVertical: 8, position: 'relative' },
   // Mockup's mobile header padding (14px 8px) is narrower than the desktop
@@ -653,10 +691,10 @@ const styles = StyleSheet.create({
   // flat accentText color is untouched, this only applies when narrow.
   logoNarrow: {
     ...rivalWordmark(17), paddingLeft: 0,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backgroundImage: 'linear-gradient(100deg, #D97757 0%, #ffb59e 45%, #F5B759 100%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
-    } as any : {}),
+    })),
   },
   links: { flexDirection: 'row', gap: 32 },
   // The logo (left) and RANK/bell/avatar cluster (right) aren't the same
@@ -672,11 +710,8 @@ const styles = StyleSheet.create({
   // "Total time earned"). minWidth:0 lets its content shrink/truncate
   // instead of pushing the logo/right cluster apart.
   centerSlot: { flex: 1, alignItems: 'center', minWidth: 0 },
-  // With centerSlot active, giving the logo and the (much wider) right
-  // cluster equal flex turns the row into a symmetric 3-column split, so
-  // centerSlot's alignItems:'center' lands on the row's true midpoint
-  // instead of the midpoint of the leftover gap (which skewed toward the
-  // narrower logo side, since the right cluster is visibly wider).
+  // With centerSlot active, the logo and right cluster take equal flex so
+  // the centre slot lands on the row's true midpoint.
   logoWrapBalanced: { flex: 1 },
   logoRow: { flexDirection: 'row', alignItems: 'center' },
   beta: {
@@ -834,11 +869,11 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
     borderWidth: 1, borderTopWidth: 0, borderColor: 'rgba(255,255,255,0.06)',
     paddingTop: 14, paddingBottom: 8, gap: 4,
-    ...(Platform.OS === 'web' ? {
+    ...(webFx({
       backdropFilter: 'blur(20px)',
       boxShadow: '0 10px 20px rgba(0,0,0,0.35)',
       transformOrigin: 'top',
-    } as any : {}),
+    })),
   },
   // Fills the row's bottom-padding strip (avatar bottom → bar bottom) that
   // avatarMenu's top offset opens up, so hovering down through it stays
@@ -860,7 +895,7 @@ const styles = StyleSheet.create({
   avatarMenuItemHovered: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     transform: [{ scale: 1.03 }],
-    ...(Platform.OS === 'web' ? { boxShadow: '0 6px 16px rgba(0,0,0,0.3)' } as any : {}),
+    ...(webFx({ boxShadow: '0 6px 16px rgba(0,0,0,0.3)' })),
   },
   avatarMenuText: { ...RivalType.bodyMd, fontSize: 14, color: RivalColors.textPrimary },
   avatarMenuDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 6 },

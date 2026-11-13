@@ -3,6 +3,7 @@ import { RivalIcon } from './RivalIcon';
 import { RivalColors } from '../../constants/rivalTheme';
 import { RANK_SHEEN } from '../../constants/rankSheen';
 import { DAY_SHORT, exerciseCount, type SavedWorkoutRow } from '../../lib/savedWorkouts';
+import { webFx } from '../../lib/webFx';
 
 // Saved workouts as portrait tiles in one row that swipes sideways, today's
 // first (Ricky, 2026-10-25: "I like the swiping tiles"). Each shows the
@@ -126,14 +127,12 @@ const s = StyleSheet.create({
   // Neutral, so the photo keeps its own colours and the words stay readable.
   shade: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(0deg, rgba(20,19,18,0.96) 22%, rgba(20,19,18,0.45) 60%, rgba(20,19,18,0) 100%)' } as any)
-    : { backgroundColor: 'rgba(20,19,18,0.45)' },
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(0deg, rgba(20,19,18,0.96) 22%, rgba(20,19,18,0.45) 60%, rgba(20,19,18,0) 100%)' } as any)) } as any),
   // Over a material: only along the bottom, for the white words.
   shadeSoft: Platform.OS === 'web'
     ? ({ backgroundImage: 'linear-gradient(0deg, rgba(20,19,18,0.62) 0%, rgba(20,19,18,0.18) 42%, rgba(20,19,18,0) 62%)' } as any)
-    : { backgroundColor: 'rgba(20,19,18,0.2)' },
-  shadeGhost: Platform.OS === 'web'
-    ? ({ backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' } as any)
-    : {},
+    : ({ ...webFx(({ backgroundImage: 'linear-gradient(0deg, rgba(20,19,18,0.62) 0%, rgba(20,19,18,0.18) 42%, rgba(20,19,18,0) 62%)' } as any)) } as any),
+  shadeGhost: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' }),
   day: { position: 'absolute', top: 7, left: 7, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.55)' },
   dayText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: RivalColors.accentText },
   name: { fontSize: 13, fontWeight: '800', lineHeight: 15, color: '#fff' },
@@ -144,5 +143,5 @@ const s = StyleSheet.create({
 function materialFill(m: { light: string; dark: string }): object {
   return Platform.OS === 'web'
     ? { backgroundImage: `linear-gradient(160deg, ${m.light} 0%, ${m.dark} 100%)` }
-    : { backgroundColor: m.dark };
+    : ({ ...webFx({ backgroundImage: `linear-gradient(160deg, ${m.light} 0%, ${m.dark} 100%)` }) } as any);
 }
