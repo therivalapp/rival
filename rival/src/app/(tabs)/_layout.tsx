@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Easing, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { NativeTabBar } from '../../components/rival/RivalTopNav';
 
@@ -9,6 +9,19 @@ import { NativeTabBar } from '../../components/rival/RivalTopNav';
 // which rebuilt the screen each time and piled up hidden copies of it.
 // The bar itself is drawn by each screen (RivalTopNav), so the tab bar here
 // is hidden. Go to a tab with goToTab() from lib/tabNav, not router.push.
+// iPhone: the page you switch to fades in and moves 16px the way you went,
+// over 350ms (Mockup 48 · Moments D, Ricky 2026-11-13). The web keeps its
+// instant switch.
+const TAB_SWITCH = Platform.OS === 'web' ? {} : {
+  transitionSpec: { animation: 'timing' as const, config: { duration: 350, easing: Easing.bezier(0.22, 0.8, 0.24, 1) } },
+  sceneStyleInterpolator: ({ current }: any) => ({
+    sceneStyle: {
+      opacity: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [0, 1, 0] }),
+      transform: [{ translateX: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [-16, 0, 16] }) }],
+    },
+  }),
+};
+
 export default function TabsLayout() {
   // On the live site each screen's code is its own download, fetched on first
   // visit. Once the first screen has settled (after the podium has risen),
@@ -44,7 +57,7 @@ export default function TabsLayout() {
 
   return (
     // Web: each screen draws the bar (RivalTopNav). iPhone app: drawn here.
-    <Tabs tabBar={Platform.OS === 'web' ? () => null : (props) => <NativeTabBar routeName={props.state.routes[props.state.index].name} />} backBehavior="history" screenOptions={{ headerShown: false, lazy: true }}>
+    <Tabs tabBar={Platform.OS === 'web' ? () => null : (props) => <NativeTabBar routeName={props.state.routes[props.state.index].name} />} backBehavior="history" screenOptions={{ headerShown: false, lazy: true, ...TAB_SWITCH }}>
       <Tabs.Screen name="home" />
       <Tabs.Screen name="my-activities" />
       <Tabs.Screen name="team-feed" />

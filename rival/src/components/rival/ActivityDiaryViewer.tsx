@@ -32,6 +32,9 @@ import { StampStage, defaultPlacement } from './StampStage';
 import { MatchCard, usePageMatch } from './MatchResult';
 import { webFx } from '../../lib/webFx';
 import { GradientText } from './GradientText';
+import { coverNav } from '../../lib/navShrink';
+import { simLog } from '../../lib/simLog';
+import * as phoneStore from '../../lib/phoneStore';
 
 /** "38 seconds", "1 min 12 s": how much faster a new best was. */
 function fasterBy(seconds: number): string {
@@ -196,6 +199,8 @@ export function ActivityDiaryViewer({
   const details = useActivityDetails(wide ? null : activity?.id);
   const match = usePageMatch(wide ? '' : activity?.id ?? '', activity?.activity_type ?? '', !!activity?.shared_from_activity_id);
   // Recorded on a phone and a watch: a line to choose the recording shown.
+  // Full screen on the iPhone too: the bottom bar steps aside while it's open.
+  useEffect(() => (Platform.OS === 'web' ? undefined : coverNav()), []);
   useEffect(() => { setDetailsOpen(false); }, [activity?.id]);
 
   // Drag-down-to-dismiss, like a native modal sheet — only claimed from the
@@ -263,7 +268,7 @@ export function ActivityDiaryViewer({
   // Light (white, gold Effort) or Dark (all black, for bright photos),
   // remembered on this phone (Ricky, 2026-10-23).
   const [mode, setMode] = useState<StampMode>(() => {
-    try { return globalThis.localStorage?.getItem('rival.stampMode') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; }
+    try { return phoneStore.getItem('rival.stampMode') === 'dark' ? 'dark' : 'light'; } catch { return 'light'; }
   });
   // Set on the way to add an event, so the share opens again on the way back.
   const reopenForCountdown = useRef(false);
@@ -517,7 +522,7 @@ export function ActivityDiaryViewer({
     const liftKeys = options.filter((o) => o.key === 'lift' || o.key === 'reps').map((o) => o.key);
     let keys: StatKey[] = [...liftKeys, ...defaultStats(activity, options)].slice(0, MAX_STATS);
     try {
-      const saved = JSON.parse(globalThis.localStorage?.getItem(statsStoreKey) || 'null');
+      const saved = JSON.parse(phoneStore.getItem(statsStoreKey) || 'null');
       if (Array.isArray(saved)) {
         const has = new Set(options.map((o) => o.key));
         const kept = saved.filter((k: StatKey) => has.has(k)).slice(0, MAX_STATS);
@@ -567,7 +572,7 @@ export function ActivityDiaryViewer({
   function pickMode(m: StampMode) {
     if (m === mode || makingCard) return;
     setMode(m);
-    try { globalThis.localStorage?.setItem('rival.stampMode', m); } catch {}
+    try { phoneStore.setItem('rival.stampMode', m); } catch {}
     if (statKeys) buildShare(statKeys, m);
     const ev = events?.find((e) => e.id === eventId);
     if (ev) makeCountdown(ev, m);
@@ -607,7 +612,7 @@ export function ActivityDiaryViewer({
     if (!on && statKeys.length >= MAX_STATS) return;
     const next = on ? statKeys.filter((k) => k !== key) : [...statKeys, key];
     setStatKeys(next);
-    try { globalThis.localStorage?.setItem(statsStoreKey, JSON.stringify(next)); } catch {}
+    try { phoneStore.setItem(statsStoreKey, JSON.stringify(next)); } catch {}
     buildShare(next);
   }
 
@@ -666,7 +671,8 @@ export function ActivityDiaryViewer({
       // Swap in the new pictures, then let the old ones go.
       setCard((old) => { if (old) URL.revokeObjectURL(old.url); return { url: URL.createObjectURL(blob), blob }; });
       setStamps((old) => { old.forEach((st) => URL.revokeObjectURL(st.url)); return made; });
-    } catch {
+    } catch (e: any) {
+      simLog(`share failed: ${String(e?.message ?? e).slice(0, 80)}`);
       setCardError('The picture could not be made. Try again.');
     } finally {
       setMakingCard(false);
@@ -1141,7 +1147,7 @@ export function ActivityDiaryViewer({
 
               {/* Share the activity as a picture (Ricky, 2026-10-22: "you
                   could be inspiring someone"). */}
-              {Platform.OS === 'web' && !viewOnly ? (
+              {!viewOnly ? (
                 <View style={styles.shareRow}>
                   <TouchableOpacity style={[styles.sharePill, styles.sharePrimary]} onPress={() => openShareCard()} disabled={makingCard} activeOpacity={0.85}>
                     <RivalIcon name="share" size={16} color={RivalButtonColors.label(RivalColors.onAccentFill)} />

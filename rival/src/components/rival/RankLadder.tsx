@@ -68,12 +68,20 @@ function LetterRise({ text, style, play }: { text: string; style: any; play: boo
   return (
     <View style={{ flexDirection: 'row' }} accessibilityLabel={text}>
       {letters.map((ch, i) => (
-        <Animated.Text
-          key={i}
-          style={[style, { opacity: vals[i], transform: [{ translateY: vals[i].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}
-        >
-          {ch}
-        </Animated.Text>
+        Platform.OS === 'web' ? (
+          <Animated.Text
+            key={i}
+            style={[style, { opacity: vals[i], transform: [{ translateY: vals[i].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}
+          >
+            {ch}
+          </Animated.Text>
+        ) : (
+          // iPhone: each letter keeps the rank's gradient (GradientText), and
+          // rises inside its own animated box.
+          <Animated.View key={i} style={{ opacity: vals[i], transform: [{ translateY: vals[i].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+            <GradientText style={style}>{ch === ' ' ? '\u00a0' : ch}</GradientText>
+          </Animated.View>
+        )
       ))}
     </View>
   );

@@ -245,6 +245,51 @@ export function StampStage({ photoUrl, stampUrl, inkHint, height, placement, onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // iPhone: the same gestures through the responder system. A touch that
+  // starts on the stamp claims it; a second finger joins for pinch and twist.
+  const nat = useRef<{ start: { p: StampPlacement; mid: { x: number; y: number }; dist: number; angle: number } | null; count: number }>({ start: null, count: 0 });
+  const touchList = (e: any) => (e.nativeEvent.touches as { pageX: number; pageY: number }[]).map((t) => ({ x: t.pageX, y: t.pageY }));
+  const natSnapshot = (list: { x: number; y: number }[]) => {
+    const mid = list.reduce((a, b) => ({ x: a.x + b.x / list.length, y: a.y + b.y / list.length }), { x: 0, y: 0 });
+    const dist = list.length > 1 ? Math.hypot(list[0].x - list[1].x, list[0].y - list[1].y) : 0;
+    const angle = list.length > 1 ? Math.atan2(list[1].y - list[0].y, list[1].x - list[0].x) : 0;
+    nat.current = { start: { p: live.current, mid, dist, angle }, count: list.length };
+  };
+  const natOnStamp = (x: number, y: number) => {
+    const { width: W, height: H, aspect: A } = geo.current;
+    const p = live.current;
+    const dx = x - p.cx * W, dy = y - p.cy * H;
+    const r = -(p.r ?? 0);
+    const lx = dx * Math.cos(r) - dy * Math.sin(r);
+    const ly = dx * Math.sin(r) + dy * Math.cos(r);
+    const sw = p.w * W, sh = sw / A;
+    return Math.abs(lx) <= sw / 2 + GRAB && Math.abs(ly) <= sh / 2 + GRAB;
+  };
+  const responder = Platform.OS === 'web' ? {} : {
+    onStartShouldSetResponder: (e: any) => !!photoUrl && natOnStamp(e.nativeEvent.locationX, e.nativeEvent.locationY),
+    onResponderTerminationRequest: () => false,
+    onResponderGrant: (e: any) => natSnapshot(touchList(e)),
+    onResponderMove: (e: any) => {
+      const list = touchList(e);
+      if (!list.length) return;
+      if (list.length !== nat.current.count) { natSnapshot(list); return; }
+      const start = nat.current.start;
+      if (!start) return;
+      const mid = list.reduce((a, b) => ({ x: a.x + b.x / list.length, y: a.y + b.y / list.length }), { x: 0, y: 0 });
+      let w = start.p.w;
+      let r = start.p.r ?? 0;
+      if (list.length > 1 && start.dist > 0) {
+        w = start.p.w * (Math.hypot(list[0].x - list[1].x, list[0].y - list[1].y) / start.dist);
+        r = (start.p.r ?? 0) + Math.atan2(list[1].y - list[0].y, list[1].x - list[0].x) - start.angle;
+        const turns = Math.round(r / (Math.PI / 2)) * (Math.PI / 2);
+        if (Math.abs(r - turns) < 0.05) r = turns;
+      }
+      const { width: W, height: H } = geo.current;
+      change.current(fit({ cx: start.p.cx + (mid.x - start.mid.x) / W, cy: start.p.cy + (mid.y - start.mid.y) / H, w, r }));
+    },
+    onResponderRelease: () => { nat.current = { start: null, count: 0 }; },
+  };
+
   // A new stamp (or a different size of photo) is pulled inside the frame.
   useEffect(() => {
     const p = fit(live.current);
@@ -257,7 +302,7 @@ export function StampStage({ photoUrl, stampUrl, inkHint, height, placement, onC
   const sh = sw / aspect;
   return (
     <View>
-      <View ref={stageRef} style={[st.stage, { width, height }]}>
+      <View ref={stageRef} style={[st.stage, { width, height }]} {...responder}>
         {photoUrl ? <Image source={{ uri: fullPhoto(photoUrl) }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
         <Image
           source={{ uri: stampUrl }}

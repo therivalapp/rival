@@ -7,6 +7,8 @@ import { RivalColors, RivalRadius, RivalType, rivalWordmark } from '../constants
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { PASSWORD_RULES_MESSAGE, passwordOk } from '../lib/passwordRules';
+import { PasswordRules, PasswordsMatch } from '../components/rival/PasswordRules';
 
 export default function ResetPasswordScreen() {
   const { width } = useWindowDimensions();
@@ -14,6 +16,7 @@ export default function ResetPasswordScreen() {
   const [status, setStatus] = useState<'verifying' | 'ready' | 'invalid'>('verifying');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwFocused, setPwFocused] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -51,8 +54,9 @@ export default function ResetPasswordScreen() {
   }, []);
 
   async function handleSetNewPassword() {
-    if (!newPassword || newPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
+    // The same rules as sign-up (Mockup 54 v4).
+    if (!passwordOk(newPassword)) {
+      setError(PASSWORD_RULES_MESSAGE);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -136,24 +140,32 @@ export default function ResetPasswordScreen() {
               <Text style={[styles.label, mob && rm.label]}>New password</Text>
               <TextInput
                 style={[styles.input, mob && ms.input]}
-                placeholder="At least 6 characters"
+                placeholder="New password"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={newPassword}
                 onChangeText={setNewPassword}
+                onFocus={() => setPwFocused(true)}
+                onBlur={() => setPwFocused(false)}
                 secureTextEntry
+                textContentType="newPassword"
+                autoComplete="new-password"
               />
+              <PasswordRules password={newPassword} focused={pwFocused} />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, mob && rm.label]}>Confirm password</Text>
               <TextInput
                 style={[styles.input, mob && ms.input]}
-                placeholder="Re-enter password"
+                placeholder="Confirm password"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
+                textContentType="newPassword"
+                autoComplete="new-password"
               />
+              <PasswordsMatch password={newPassword} confirm={confirmPassword} />
             </View>
 
             <RivalButton

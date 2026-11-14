@@ -13,7 +13,7 @@ import { fetchReactionsOn } from '../../lib/reactions';
 import { useSnapState } from '../../lib/snapState';
 import { distanceUnit, formatActivityDistance, formatElevation, formatSpeedOrPace, formatWeight, toDisplayDistance } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, ImageBackground, useWindowDimensions } from 'react-native';
 import { Modal } from '../../components/rival/RivalModal';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -214,6 +214,24 @@ const cardIn = (i: number): any => (Platform.OS === 'web' ? {
   animationName: 'rivalRowIn', animationDuration: '450ms', animationTimingFunction: 'ease-out',
   animationDelay: `${150 + Math.min(i, 8) * 60}ms`, animationFillMode: 'both',
 } : null);
+
+// iPhone: an activity that wasn't there last time the list showed (one just
+// saved) slides in from the left and fades up in its week row (Mockup 48 ·
+// Moments A, Ricky 2026-11-13). The first load of a visit shows as it is.
+let seenActivityIds: Set<string> | null = null;
+
+function SlideIn({ children }: { children: ReactNode }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(v, { toValue: 1, duration: 420, delay: 250, easing: Easing.bezier(0.22, 1, 0.36, 1), useNativeDriver: true }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View style={{ opacity: v, transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }) }] }}>
+      {children}
+    </Animated.View>
+  );
+}
 
 function computeMonthGroups(activities: Activity[]): MonthGroup[] {
   const keys = new Set<string>();
@@ -946,6 +964,13 @@ export default function MyActivitiesScreen() {
     (!dateFilter || localIsoDate(a.started_at) === dateFilter)
   ), [allActivities, filterType, prOnly, pbs, fastest, starredOnly, dateFilter]);
   const groups = useMemo(() => computeGroups(filteredActivities, sortOrder), [filteredActivities, sortOrder]);
+  const freshIds = useMemo(() => {
+    const fresh = new Set<string>();
+    if (Platform.OS === 'web' || !allActivities.length) return fresh;
+    if (seenActivityIds) for (const a of allActivities) if (!seenActivityIds.has(a.id)) fresh.add(a.id);
+    seenActivityIds = new Set(allActivities.map((a) => a.id));
+    return fresh;
+  }, [allActivities]);
   // Flat, continuously-ordered list matching the rows' own display order —
   // what the diary viewer tap-through navigates across.
   const flatOrdered = groups.flatMap((g) => g.activities);
@@ -1045,7 +1070,7 @@ export default function MyActivitiesScreen() {
     const eventPb = !!raceTag && pbTag;
     const cardDistance = formatDistance(activity.distance_meters, activity.activity_type);
     const cardStat = cardDistance || (activity.duration_seconds > 0 ? formatDurationClock(activity.duration_seconds) : '');
-    return (
+    const card = (
       <TouchableOpacity
         key={activity.id}
         style={[styles.jGridCard, inRow && styles.jRowCard, cardIn(ci)]}
@@ -1122,6 +1147,7 @@ export default function MyActivitiesScreen() {
         {badgeKind && <View style={[styles.jCardRing, eventPb ? styles.jCardRingEventPb : { borderColor: ringColor }, { pointerEvents: 'none' }]} />}
       </TouchableOpacity>
     );
+    return inRow && freshIds.has(activity.id) ? <SlideIn key={activity.id}>{card}</SlideIn> : card;
   }
 
   // Month layout's calendar pages — one per calendar month present in

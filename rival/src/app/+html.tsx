@@ -157,7 +157,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
           /* The glide: set going by appReveal with the move as inline style. */
           #rival-boot.rival-boot-glide {
             animation: none; opacity: 1; transform-origin: 0 0;
-            transition: transform 600ms cubic-bezier(.65,0,.35,1), opacity 150ms linear;
+            transition: transform 600ms cubic-bezier(.65,0,.35,1);
           }
           @keyframes rivalBootPulse {
             0%, 100% { opacity: 0.9; transform: translateY(-50%) scale(1); }

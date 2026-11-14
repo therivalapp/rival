@@ -9,7 +9,18 @@ import { Platform } from 'react-native';
 // Resolves true when the text reached the clipboard.
 export async function copyText(text: string): Promise<boolean> {
   const value = text.trim();
-  if (!value || Platform.OS !== 'web' || typeof navigator === 'undefined') return false;
+  if (!value) return false;
+  if (Platform.OS !== 'web') {
+    // iPhone: React Native's own clipboard, still built into the app.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('react-native/Libraries/Components/Clipboard/Clipboard').default.setString(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (typeof navigator === 'undefined') return false;
   try {
     await navigator.clipboard.writeText(value);
     return true;

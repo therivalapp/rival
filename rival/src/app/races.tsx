@@ -1053,7 +1053,8 @@ export default function RacesScreen() {
                       {formatRaceName(race.name)}
                       {past && isOwn ? <Text style={ms.ticketArrow}>{' '}<RivalIcon name="chevronRight" size={20} color={RivalColors.textSecondary} /></Text> : null}
                     </Text>
-                    <Text style={ms.ticketMeta} numberOfLines={1}>
+                    {/* Wraps to a second line rather than cutting the place off (2026-11-14). */}
+                    <Text style={ms.ticketMeta} numberOfLines={2}>
                       {[formatRaceDate(race.race_date), race.location].filter(Boolean).join(' · ')}
                     </Text>
                     {hero && typeLine ? <Text style={ms.ticketType} numberOfLines={1}>{typeLine}</Text> : null}

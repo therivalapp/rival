@@ -34,6 +34,18 @@ export function arrivedFromTab(self: TabRoute): boolean {
   const from = currentPath === self ? previousPath : currentPath;
   return !from || TAB_ROUTES.has(from);
 }
+/** The page that was open before `self` (a page reading this as it opens,
+ *  before or after the layout records the new path). */
+export function pageBefore(self: string): string {
+  return currentPath === self ? previousPath : currentPath;
+}
+/** Back from a page that has a home tab: to the page it was opened from when
+ *  that was another page above the tabs (a team opened from its chat goes
+ *  back to the chat), otherwise to its tab. */
+export function backFrom(origin: string, tab: TabRoute) {
+  if (origin && !TAB_ROUTES.has(origin) && router.canGoBack()) { router.back(); return; }
+  goToTab(tab);
+}
 export function getCurrentPath() {
   return currentPath;
 }

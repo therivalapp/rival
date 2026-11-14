@@ -27,6 +27,7 @@ import { EventSheet } from './EventSheet';
 import { useBlockedIds, openReport, openBlock, unblockMember, firstName } from '../../lib/safety';
 import { webFx } from '../../lib/webFx';
 import { GradientText } from './GradientText';
+import { makeCanvas } from '../../lib/nativeCanvas';
 
 // A person's profile on phones: what a teammate sees when they tap someone
 // (Ricky, 2026-10-30, the cover). Cover, the year's numbers, Highlights,
@@ -85,12 +86,13 @@ function Row({ children }: { children: ReactNode }) {
 }
 
 // The name stays on one line (Ricky, 2026-10-31): measured in the page's own
-// serif and set smaller to fit. Native goes by about 0.6 of the size per letter.
+// serif and set smaller to fit.
 function nameFit(name: string, screen: number) {
   const room = screen - 40;
   let perSize = Math.max(name.length, 1) * 0.6;
-  if (Platform.OS === 'web' && typeof document !== 'undefined') {
-    const ctx = document.createElement('canvas').getContext('2d');
+  {
+    // A browser canvas on the web, the font files' widths on the iPhone.
+    const ctx = makeCanvas(1, 1).getContext('2d');
     if (ctx) {
       ctx.font = `italic 700 100px ${RivalSerifFamily}`;
       perSize = ctx.measureText(name).width / 100 || perSize;

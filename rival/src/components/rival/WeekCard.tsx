@@ -8,6 +8,7 @@ import { GoldStar } from './RespectStar';
 import { distanceUnit, toDisplayDistance } from '../../lib/units';
 import { activityTypeLabel } from './EffortBreakdownSheet';
 import { webFx } from '../../lib/webFx';
+import { makeCanvas } from '../../lib/nativeCanvas';
 
 // The week card on Activity (phones, Ricky 2026-10-16): the Add an activity
 // grey with its warm glow, a date kicker over the serif title and Effort, the
@@ -76,13 +77,14 @@ export const weekEffortCompactStyle = { ...effortBase, fontSize: 22, lineHeight:
 /** One line set to fill its row exactly (Ricky, 2026-10-19): the font size
  *  is worked out from the row's width and the line's measured width, so a
  *  short line is set larger and a long one smaller. Web measures with a
- *  canvas in the same font; elsewhere it keeps the base size. */
+ *  canvas in the same font; the iPhone from the font files' widths. */
 function FullWidthLine({ text, style }: { text: string; style: any }) {
   const [width, setWidth] = useState(0);
   const base = style.fontSize as number;
   let size = base;
-  if (width > 0 && Platform.OS === 'web' && typeof document !== 'undefined') {
-    const ctx = document.createElement('canvas').getContext('2d');
+  if (width > 0) {
+    // A browser canvas on the web, the font files' widths on the iPhone.
+    const ctx = makeCanvas(1, 1).getContext('2d');
     if (ctx) {
       ctx.font = `${style.fontStyle ?? 'normal'} ${style.fontWeight ?? 400} ${base}px ${style.fontFamily}`;
       const w = ctx.measureText(text).width;

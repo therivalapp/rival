@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useScreenHeight } from '../../lib/keyboard';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import { Modal, useSheetMotion } from './RivalModal';
+import { Animated, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Modal, useSheetMotion, useSheetRise } from './RivalModal';
 import { useSheetDrag } from './useSheetDrag';
 import { RivalIcon, activityIconName } from './RivalIcon';
 import { RivalAvatar } from './RivalAvatar';
@@ -148,6 +148,7 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
   const [menuOpen, setMenuOpen] = useState(false);
   const height = useScreenHeight();
   const motion = useSheetMotion();
+  const rise = useSheetRise();
   const dragRef = useSheetDrag(onClose);
   const legs = useMemo(() => [...unsorted].sort((x, y) => x.started_at.localeCompare(y.started_at)), [unsorted]);
   const [race, setRace] = useState<Race | null>(null);
@@ -356,7 +357,7 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
   }
 
   return (
-    <View ref={dragRef as any} style={[s.sheet, motion, { maxHeight: height * 0.92 }]}>
+    <Animated.View ref={dragRef as any} style={[s.sheet, motion, { maxHeight: height * 0.92 }, Platform.OS !== 'web' && { transform: [{ translateY: rise }] }]}>
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
         <View style={s.hero}>
           {cover?.photo_url ? (
@@ -646,7 +647,7 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
           effort={Math.round(totalEffort * 10) / 10}
         />
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 

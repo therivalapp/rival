@@ -17,6 +17,7 @@ import {
 import { defaultEventStats, eventRowFigures, eventStatOptions, placeHero, type EventShareFacts } from '../../lib/eventShare';
 import { liveClock } from '../../lib/liveActivity';
 import { webFx } from '../../lib/webFx';
+import * as phoneStore from '../../lib/phoneStore';
 
 // Sharing a whole event (Ricky, 2026-11-05, design/event-share-mockup.png):
 // the activity share pop-up (ActivityDiaryViewer's cardSheet) with two event
@@ -48,7 +49,7 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
   const insets = useSafeAreaInsets();
   const { width: ww, height: wh } = useWindowDimensions();
   const [mode, setMode] = useState<StampMode>(() => {
-    try { return (globalThis.localStorage?.getItem('rival.stampMode') as StampMode) || 'light'; } catch { return 'light'; }
+    try { return (phoneStore.getItem('rival.stampMode') as StampMode) || 'light'; } catch { return 'light'; }
   });
   const [keys, setKeys] = useState<StatKey[] | null>(null);
   const [choice, setChoice] = useState<Choice>('finish');
@@ -80,7 +81,6 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
   }, [open]);
 
   async function build(k: StatKey[], m: StampMode) {
-    if (Platform.OS !== 'web') { setError('Sharing an event is not available here yet.'); return; }
     setMaking(true);
     setError(null);
     try {
@@ -98,7 +98,7 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
       const plc = hero && row?.place
         ? () => drawEventStamp('place', { name, place: { n: row.place!, caption }, sub }, eventRowFigures(options, k, hero.key, effort), m)
         : null;
-      const figures = chosenFigures(options, k, effort, true);
+      const figures = chosenFigures(options, k, effort, effort > 0);
       const [cardBlob, finBlob, plcBlob, made] = await Promise.all([
         makeShareCard({ photoUrl: photo?.url ?? null, focalX: photo?.focalX, focalY: photo?.focalY, kicker: tag, name, figures, startedAt, utcOffsetSeconds }),
         time ? stampBlob(fin()) : Promise.resolve(null),
@@ -135,7 +135,7 @@ export function EventShare({ open, onClose, name, tag, sub, photo, startedAt, ut
   function pickMode(m: StampMode) {
     if (m === mode || making || !keys) return;
     setMode(m);
-    try { globalThis.localStorage?.setItem('rival.stampMode', m); } catch {}
+    try { phoneStore.setItem('rival.stampMode', m); } catch {}
     build(keys, m);
   }
 

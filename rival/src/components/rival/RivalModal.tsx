@@ -1,5 +1,5 @@
-import { createContext, useContext, type ReactNode } from 'react';
-import { Modal as RNModal, Platform, View, type ModalProps } from 'react-native';
+import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { Animated, Dimensions, Easing, Modal as RNModal, Platform, View, type ModalProps } from 'react-native';
 import { useKeyboardFitHeight } from '../../lib/keyboard';
 
 // React Native Web's "slide" moves the whole full-screen layer, dark backdrop
@@ -10,7 +10,7 @@ import { useKeyboardFitHeight } from '../../lib/keyboard';
 const SheetOpen = createContext<boolean | null>(null);
 
 export function Modal({ animationType, visible = true, children, ...rest }: ModalProps) {
-  if (Platform.OS !== 'web' || animationType !== 'slide') {
+  if (animationType !== 'slide') {
     return <RNModal {...rest} animationType={animationType} visible={visible}><KeyboardFit>{children}</KeyboardFit></RNModal>;
   }
   return (
@@ -29,6 +29,35 @@ function KeyboardFit({ children }: { children: ReactNode }) {
   const h = useKeyboardFitHeight();
   if (Platform.OS !== 'web') return <>{children}</>;
   return <View style={h != null ? { height: h, overflow: 'hidden' } : { flex: 1 }}>{children}</View>;
+}
+
+// iPhone: the same as the web (Mockup 48 · More motion C, Ricky 2026-11-13).
+// The pop-up's layer fades and the sheet rises on its own with a short
+// settle, overshooting 8px and easing back, then drops on close.
+const RISE_EASE = Easing.bezier(0.22, 1, 0.36, 1);
+
+/** iPhone: the sheet's rise, as a translateY value. `open` null is a page
+ *  shown as a pop-up (a route), which rises once when it opens. */
+export function useSheetRise(given?: boolean | null): Animated.Value {
+  const ctx = useContext(SheetOpen);
+  const open = given === undefined ? ctx : given;
+  const far = Dimensions.get('window').height;
+  const rise = useRef(new Animated.Value(Platform.OS === 'web' ? 0 : far)).current;
+  const shown = open !== false;
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (shown) {
+      rise.setValue(far);
+      Animated.sequence([
+        Animated.timing(rise, { toValue: -8, duration: 300, easing: RISE_EASE, useNativeDriver: false }),
+        Animated.timing(rise, { toValue: 0, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      ]).start();
+    } else {
+      Animated.timing(rise, { toValue: far, duration: 220, easing: Easing.bezier(0.47, 0, 0.745, 0.715), useNativeDriver: false }).start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
+  return rise;
 }
 
 /** For the sheet inside a sliding Modal: rises on open, drops on close. The

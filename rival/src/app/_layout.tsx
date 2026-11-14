@@ -32,6 +32,12 @@ import { BootWordmark } from '../components/rival/BootWordmark';
 import { DailyQuoteSplash } from '../components/rival/DailyQuoteSplash';
 import { PhotoPrompt } from '../components/rival/PhotoPrompt';
 import { SavedActivityNote } from '../components/rival/SavedActivityNote';
+import { NativeCanvasHost } from '../components/rival/NativeCanvasHost';
+import { loadPhoneStore } from '../lib/phoneStore';
+
+// iPhone: small remembered things (recent teams, stamp style, a pending invite)
+// are read into memory as early as possible (lib/phoneStore.ts).
+loadPhoneStore();
 import { requestPromptCheck } from '../lib/photoPrompt';
 // Defines the background location task at load, so iOS can hand it route
 // points after waking the app (Start's GPS, 2026-11-10).
@@ -79,8 +85,11 @@ export default function RootLayout() {
   // On desktop they open the same way, as a centred dialog that fades in
   // (2026-10-03, see SIDE_PAGES_USE_PHONE_DESIGN).
   const phone = useWindowDimensions().width < BREAKPOINT_WIDE_LAYOUT;
+  // On the iPhone the layer fades and the pop-up's own sheet rises with a
+  // short settle (useSheetRise, Mockup 48 · More motion C). Weekly scan has
+  // no sheet of its own, so it keeps the system slide.
   const popUp = phone
-    ? { presentation: 'transparentModal' as const, animation: 'slide_from_bottom' as const }
+    ? { presentation: 'transparentModal' as const, animation: (Platform.OS === 'web' ? 'slide_from_bottom' : 'fade') as 'fade' | 'slide_from_bottom' }
     : SIDE_PAGES_USE_PHONE_DESIGN ? { presentation: 'transparentModal' as const, animation: 'fade' as const } : {};
 
   useEffect(() => {
@@ -222,7 +231,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="inbox" options={popUp} />
           <Stack.Screen name="join-league" options={popUp} />
-          <Stack.Screen name="weekly-scan" options={popUp} />
+          <Stack.Screen name="weekly-scan" options={phone ? { presentation: 'transparentModal', animation: 'slide_from_bottom' } : popUp} />
           <Stack.Screen name="add-workout" options={popUp} />
           <Stack.Screen name="start" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="races" options={({ route }) => (phone && (route.params as { add?: string } | undefined)?.add === 'true' ? { presentation: 'transparentModal', animation: 'none' } : {})} />
@@ -237,6 +246,8 @@ export default function RootLayout() {
       <SafetyHost />
       <RivalAlertHost />
       <PreparingMediaHost />
+      {/* iPhone: makes the share pictures off screen (lib/nativeCanvas.ts). */}
+      {Platform.OS !== 'web' && <NativeCanvasHost />}
       {/* iPhone opening: RIVAL tightens, pulses, glides into the top bar. */}
       {Platform.OS !== 'web' && <BootWordmark />}
       <SimUpdateTag />

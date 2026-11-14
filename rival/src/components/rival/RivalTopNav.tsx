@@ -21,7 +21,7 @@ import { useLive, useTick } from '../../lib/liveActivityStore';
 import { liveClock, liveSeconds } from '../../lib/liveActivity';
 import { webFx } from '../../lib/webFx';
 import { GradientText } from './GradientText';
-import { resetNavShrink, subscribeNavShrink } from '../../lib/navShrink';
+import { resetNavShrink, subscribeNavCover, subscribeNavShrink } from '../../lib/navShrink';
 import { isWordmarkHidden, onWordmarkHidden, setWordmarkNode } from '../../lib/wordmarkSpot';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -663,12 +663,17 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
   // through usePullToRefresh (lib/navShrink.ts).
   const shrink = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    resetNavShrink();
-    return subscribeNavShrink((on) => {
+    // Listen first, then reset: reset before listening left the bar shrunk on
+    // the next tab, since the change back to full size went unheard.
+    const off = subscribeNavShrink((on) => {
       Animated.timing(shrink, { toValue: on ? 1 : 0, duration: 220, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
     });
+    resetNavShrink();
+    return off;
   }, [routeName, shrink]);
   const [barH, setBarH] = useState(0);
+  const [covered, setCovered] = useState(false);
+  useEffect(() => subscribeNavCover(setCovered), []);
   // scale 0.8 around the bar's bottom edge: scale about the centre, then move
   // down by the height it lost on the bottom half.
   const barShrink = {
@@ -683,6 +688,7 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
       { scale: shrink.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] }) },
     ],
   };
+  if (covered) return null;
   return (
     <View style={[styles.nativeBarOuter, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 12, 8) : 6 }]} pointerEvents="box-none" onLayout={(e) => { nativeNavTop = e.nativeEvent.layout.y; }}>
       <Animated.View style={[styles.bottomNav, barShrink]} onLayout={(e) => setBarH(e.nativeEvent.layout.height)}>
@@ -819,7 +825,10 @@ const styles = StyleSheet.create({
       ? { transition: 'transform 0.22s ease, opacity 0.22s ease' } as any
       : {}),
   },
-  bottomNavGap: { flex: 1 },
+  // The Start circle's room: its 66px width and 9px either side, so the lit
+  // tab beside it never touches the ring (Ricky, 2026-11-14: "more premium").
+  // A share of the row instead left "Activity" against the circle.
+  bottomNavGap: { width: 84, flexShrink: 0 },
   nativeBarOuter: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16 },
   // Raised out of the bar's middle, the same circle as the running timer.
   startCircle: {

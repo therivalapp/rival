@@ -13,6 +13,11 @@ export function setWordmarkNode(n: any) {
   if (n) node = n;
 }
 
+/** Web: the top bar wordmark's element, to measure its letters. */
+export function getWordmarkElement(): Element | null {
+  return node && typeof node.getBoundingClientRect === 'function' ? node : null;
+}
+
 export function measureWordmark(cb: (spot: Spot | null) => void) {
   if (!node) { cb(null); return; }
   if (typeof node.measureInWindow === 'function') {

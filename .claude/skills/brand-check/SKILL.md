@@ -53,6 +53,10 @@ Cut every word the screen already makes clear. Read each string and ask what can
 - **No feature callouts.** Don't announce what something also does ("Reads T1 and T2 too");
   it just does it.
 - **Never describe what is already on screen,** and never repeat the title in the body.
+- **Every word on screen counts, including placeholders, hints, empty boxes and link text.**
+  These get the same check as titles. A placeholder is the field's name ("Confirm password")
+  or a format example ("name@example.com", "DD/MM/YYYY"), never a casual instruction
+  ("Type it again", "Pop it in here") (Ricky, 2026-11-14).
 
 ## Quality bar for each line
 

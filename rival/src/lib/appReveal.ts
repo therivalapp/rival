@@ -4,7 +4,7 @@
 // revealApp(); the root layout, the bottom bar and Today's own animations
 // wait for it.
 
-import { measureWordmark, setWordmarkHidden } from './wordmarkSpot';
+import { getWordmarkElement, measureWordmark, setWordmarkHidden } from './wordmarkSpot';
 
 let done = false;
 const listeners = new Set<() => void>();
@@ -96,11 +96,59 @@ function glideBoot() {
     boot.style.textIndent = '0';
     boot.style.transform = 'none';
     boot.classList.add('rival-boot-glide');
-    const k = spot.w / from.width;
+    // Wear the top bar's own colours (its peach-to-gold gradient on phones)
+    // from the start of the glide, so nothing changes colour at the landing.
+    // The registered node is a wrapper; the colours are on the text inside it.
+    const wrap = getWordmarkElement() as HTMLElement | null;
+    const bar = wrap ? ([wrap, ...Array.from(wrap.querySelectorAll('*'))] as HTMLElement[])
+      .find((el) => { const bg = getComputedStyle(el).backgroundImage; return !!bg && bg !== 'none'; })
+      ?? (wrap.querySelector('*') as HTMLElement | null) ?? wrap : null;
+    if (bar) {
+      const cs = getComputedStyle(bar);
+      if (cs.backgroundImage && cs.backgroundImage !== 'none') {
+        boot.style.backgroundImage = cs.backgroundImage;
+        (boot.style as any).webkitBackgroundClip = 'text';
+        boot.style.backgroundClip = 'text';
+        boot.style.color = 'transparent';
+      } else if (cs.color) {
+        boot.style.color = cs.color;
+      }
+    }
+    // Line the letters up with the top bar's letters, not its box: the box
+    // has padding and a taller line, so aiming at it landed RIVAL a little
+    // off and it jumped into place at the hand-over (Ricky, 2026-11-14).
+    // Pinning drops the centring transform, which moves the letters a pixel
+    // or two; put them back exactly where they were before gliding.
+    const p0 = range.getBoundingClientRect();
+    const bx = from.left - (p0.left - from.left), by = from.top - (p0.top - from.top);
+    boot.style.left = `${bx}px`;
+    boot.style.top = `${by}px`;
+    const g = range.getBoundingClientRect(); // the letters, now pinned
+    const target = textRect(spot);
+    const k = target.w / g.width;
+    const tx = target.x - bx - k * (g.left - bx);
+    const ty = target.y - by - k * (g.top - by);
     requestAnimationFrame(() => {
-      boot.style.transform = `translate(${spot.x - from.left}px, ${spot.y + (spot.h - from.height * k) / 2 - from.top}px) scale(${k})`;
+      boot.style.transform = `translate(${tx}px, ${ty}px) scale(${k})`;
     });
-    setTimeout(() => { setWordmarkHidden(false); boot.style.opacity = '0'; }, GLIDE_MS);
-    setTimeout(() => boot.remove(), GLIDE_MS + 200);
+    // At the landing the bar's own RIVAL appears underneath, exactly in
+    // place and fully solid, and only then does the gliding copy go: no
+    // fade, so the word never dims or flashes (Ricky, 2026-11-14).
+    setTimeout(() => {
+      setWordmarkHidden(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => boot.remove()));
+    }, GLIDE_MS + 20);
   });
+}
+
+// The top bar's RIVAL letters on screen (inside its padded box).
+function textRect(spot: { x: number; y: number; w: number; h: number }): { x: number; y: number; w: number } {
+  const el = getWordmarkElement();
+  if (el && typeof document !== 'undefined') {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    const b = r.getBoundingClientRect();
+    if (b.width) return { x: b.left, y: b.top, w: b.width };
+  }
+  return { x: spot.x, y: spot.y, w: spot.w };
 }

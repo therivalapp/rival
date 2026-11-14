@@ -193,7 +193,7 @@ export default function RanksScreen() {
           </View>
 
           {/* Share the rank (Ricky, 2026-10-22): a card or a see-through stamp. */}
-          {Platform.OS === 'web' && totalXp > 0 ? (
+          {totalXp > 0 ? (
             <TouchableOpacity style={ms.shareBtn} onPress={openRankShare} disabled={making} activeOpacity={0.85}>
               <RivalIcon name="share" size={16} color={RivalButtonColors.label(RivalColors.onAccentFill)} />
               <BusyText busy={making} style={ms.shareText}>{making ? 'Making…' : `Share ${currentLevel.name}`}</BusyText>

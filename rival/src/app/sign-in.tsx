@@ -8,15 +8,14 @@ import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../compo
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalGhost, RivalRadius, RivalType, rivalWordmark } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
+import * as phoneStore from '../lib/phoneStore';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
 const REMEMBER_KEY = 'rival_remembered_email';
 
 function loadRemembered(): { email: string; remember: boolean } {
-  if (Platform.OS === 'web') {
-    const saved = localStorage.getItem(REMEMBER_KEY);
-    if (saved) return { email: saved, remember: true };
-  }
+  const saved = phoneStore.getItem(REMEMBER_KEY);
+  if (saved) return { email: saved, remember: true };
   return { email: '', remember: false };
 }
 
@@ -50,9 +49,9 @@ export default function SignInScreen() {
 
     if (Platform.OS === 'web') {
       if (rememberMe) {
-        localStorage.setItem(REMEMBER_KEY, email);
+        phoneStore.setItem(REMEMBER_KEY, email);
       } else {
-        localStorage.removeItem(REMEMBER_KEY);
+        phoneStore.removeItem(REMEMBER_KEY);
       }
     }
 

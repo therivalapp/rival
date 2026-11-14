@@ -253,7 +253,7 @@ export default function FriendsScreen() {
         <View style={styles.searchRow}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by name…"
+            placeholder="Search by name"
             placeholderTextColor={RivalColors.textSecondary}
             value={query}
             onChangeText={search}

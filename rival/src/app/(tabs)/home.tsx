@@ -2,7 +2,8 @@ import { getMyTeamRows } from '../../lib/myTeams';
 import { isAppRevealed, onAppReveal, revealApp } from '../../lib/appReveal';
 import { distanceNumber, distanceUnit, elevationUnit, formatDistanceWhole, toDisplayDistance, toDisplayElevation, fromDisplayDistance, fromDisplayElevation } from '../../lib/units';
 import { useState, useCallback, useRef, useEffect, useId, memo } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated, Dimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Platform, ScrollView, Image, ImageBackground, useWindowDimensions, Animated, Dimensions, Easing, AccessibilityInfo } from 'react-native';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { getNativeNavTop } from '../../components/rival/RivalTopNav';
 import { GradientText } from '../../components/rival/GradientText';
 import { RollingNumber } from '../../components/rival/RollingNumber';
@@ -48,6 +49,7 @@ import { BREAKPOINT_WIDE_LAYOUT } from '../../constants/breakpoints';
 import { arrivedFromTab, getCurrentPath, goToTab, sincePathChange } from '../../lib/tabNav';
 import { avatarImage } from '../../lib/imageUrl';
 import { webFx } from '../../lib/webFx';
+import * as phoneStore from '../../lib/phoneStore';
 
 // Empty podium: a faint wreath round an empty seat over first place.
 // false = the older medal in a ring.
@@ -273,6 +275,121 @@ function AvatarStarBurst({ avatarSize, run = true, quick = false }: { avatarSize
   );
 }
 
+// iPhone: the same stars and band of light as the web podium, on the native
+// driver (Ricky, 2026-11-14: the simulator had neither). The web keeps its
+// CSS keyframes; reduced motion shows the still podium.
+const BURST_DIRS: [number, number, number, number][] = [
+  [-19.7, -3.5, -55.1, -9.7], [-15.3, -12.9, -42.9, -36.0], [-8.5, -18.1, -23.7, -50.8],
+  [0, -20, 0, -56], [8.5, -18.1, 23.7, -50.8], [15.3, -12.9, 42.9, -36.0],
+  [19.7, -3.5, 55.1, -9.7], [19.3, 5.2, 54.1, 14.5], [-19.3, 5.2, -54.1, 14.5],
+];
+
+function useReduceMotion(): boolean {
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((on) => on && setReduce(true)).catch(() => {});
+  }, []);
+  return reduce;
+}
+
+function NativeBurstStar({ size, dur, delay, dir, run }: { size: number; dur: number; delay: number; dir: [number, number, number, number]; run: boolean }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!run) return;
+    let loop: Animated.CompositeAnimation | null = null;
+    const t = setTimeout(() => {
+      v.setValue(0);
+      loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: dur * 1000, easing: Easing.out(Easing.quad), useNativeDriver: true }));
+      loop.start();
+    }, delay * 1000);
+    return () => { clearTimeout(t); loop?.stop(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run]);
+  const [x0, y0, x1, y1] = dir;
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute', left: -size / 2, top: -size / 2, width: size, height: size,
+        shadowColor: '#FFD700', shadowOpacity: 0.9, shadowRadius: 2, shadowOffset: { width: 0, height: 0 },
+        opacity: v.interpolate({ inputRange: [0, 0.18, 1], outputRange: [0, 1, 0] }),
+        transform: [
+          { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [x0, x1] }) },
+          { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [y0, y1] }) },
+          { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) },
+          { rotate: v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '120deg'] }) },
+        ],
+      }}
+    >
+      <Svg width={size} height={size} viewBox="0 0 10 10">
+        <Polygon points="5,0 6,4 10,5 6,6 5,10 4,6 0,5 4,4" fill="#FFF3C4" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+function NativeAvatarStarBurst({ avatarSize, run = true, quick = false }: { avatarSize: number; run?: boolean; quick?: boolean }) {
+  const reduce = useReduceMotion();
+  if (reduce) return null;
+  const start = 3.6 - (RISE_DELAY_MS[0] - riseDelay(0, quick)) / 1000;
+  return (
+    <View style={[{ position: 'absolute', left: avatarSize / 2, top: avatarSize / 2, width: 0, height: 0, zIndex: 0 }, { pointerEvents: 'none' }]}>
+      {AVATAR_BURST.map((b, i) => (
+        <NativeBurstStar key={i} size={b.size} dur={b.dur} delay={start + b.delay} dir={BURST_DIRS[i % BURST_DIRS.length]} run={run} />
+      ))}
+    </View>
+  );
+}
+
+// The band of light across a pillar's front face: crosses in the first 22%
+// of a 7s loop, then rests, as on the web. Masked to the front face.
+function NativePodiumSheen({ front, h, effRank, run = true }: { front: string; h: number; effRank: 0 | 1 | 2; run?: boolean }) {
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(0)).current;
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    if (!run || reduce || !w) return;
+    let loop: Animated.CompositeAnimation | null = null;
+    const t = setTimeout(() => {
+      v.setValue(0);
+      loop = Animated.loop(Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 1540, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+        Animated.delay(5460),
+        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ]));
+      loop.start();
+    }, 3500 + effRank * 700);
+    return () => { clearTimeout(t); loop?.stop(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, reduce, w]);
+  if (reduce) return null;
+  const band = w * 0.45;
+  return (
+    <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      {w > 0 && (
+        <MaskedView
+          style={StyleSheet.absoluteFill}
+          maskElement={
+            <Svg width="100%" height="100%" viewBox={`0 0 100 ${h}`} preserveAspectRatio="none">
+              <Polygon points={front} fill="#000" />
+            </Svg>
+          }
+        >
+          <Animated.View
+            style={{
+              position: 'absolute', top: -10, bottom: -10, left: 0, width: band,
+              experimental_backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%)',
+              transform: [
+                { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [-1.6 * band, 3.6 * band] }) },
+                { skewX: '-18deg' },
+              ],
+            } as any}
+          />
+        </MaskedView>
+      )}
+    </View>
+  );
+}
+
 // `run`: every team's card is mounted at once, so sparkles on the cards
 // swiped out of view are paused. Running on all of them (each with a glow
 // filter) kept the phone busy and made the app lag (Ricky, 2026-10-21).
@@ -459,8 +576,11 @@ function WorkbenchPlatform() {
   return (
     // Sized to the pillar row itself, as the workbench is (the row's own box
     // is exactly the pillars' width), so its percentages match.
-    <View style={[{ position: 'absolute', left: 0, right: 0, bottom: -(H - TOP) - p.centre, height: H }, { pointerEvents: 'none' }]}>
-      <Svg width="100%" height="100%" viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" style={{ overflow: 'visible' } as any}>
+    // The oval is wider than the row (115%), so the box reaches past the row
+    // on both sides to hold all of it: the iPhone clips a drawing to its own
+    // box, which cut the ends off (Ricky, 2026-11-14).
+    <View style={[{ position: 'absolute', left: `${-(rx - 50 + 1)}%`, right: `${-(rx - 50 + 1)}%`, bottom: -(H - TOP) - p.centre, height: H }, { pointerEvents: 'none' }]}>
+      <Svg width="100%" height="100%" viewBox={`${l - 1} 0 ${r - l + 2} ${H}`} preserveAspectRatio="none" style={{ overflow: 'visible' } as any}>
         <Defs>
           <RadialGradient id="wbTread" cx="50%" cy={`${p.tintY}%`} r="60%">
             <Stop offset="0" stopColor={p.rim} stopOpacity={p.tint} />
@@ -1763,6 +1883,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
                                 ]}
                               >
                                 {effRank === 0 && Platform.OS === 'web' && <AvatarStarBurst avatarSize={rankStyle.avatarSize} run={run} quick={immediate} />}
+                                {effRank === 0 && Platform.OS !== 'web' && <NativeAvatarStarBurst avatarSize={rankStyle.avatarSize} run={run} quick={immediate} />}
                                 {effRank === 0 && <LaurelWreath avatarSize={rankStyle.avatarSize} />}
                                 {/* Tapping a picture opens that person's page (Ricky, 2026-10-11). */}
                                 <TouchableOpacity
@@ -1830,6 +1951,7 @@ function WeeklyLeaderCardBody({ leader, visible = true, immediate = false, self,
                                     <View style={[styles.mPodiumSheen, podiumSheen(effRank, run)]} />
                                   </View>
                                 )}
+                                {Platform.OS !== 'web' && <NativePodiumSheen front={faces.front} h={pillarHeight} effRank={effRank} run={run} />}
                                 <View style={{ flex: 1, alignItems: 'center', paddingTop: effPadTop, paddingBottom: effPadBottom, marginRight: `${PILLAR_SIDE}%` }}>
                                   <Text style={[styles.mPodiumName, { color: '#ffffff', fontSize: podiumNameSize(entry.name, rankStyle.nameSize), lineHeight: Math.round(podiumNameSize(entry.name, rankStyle.nameSize) * 1.15), letterSpacing: rankStyle.nameLetterSpacing }]}
                                     numberOfLines={1}
@@ -2269,10 +2391,10 @@ export default function HomeScreen() {
     if (tz) {
       const key = `rival.tz.${uId}`;
       let sent: string | null = null;
-      try { sent = globalThis.localStorage?.getItem(key) ?? null; } catch {}
+      try { sent = phoneStore.getItem(key) ?? null; } catch {}
       if (sent !== tz) {
         supabase.from('users').update({ timezone: tz }).eq('id', uId).then(({ error }) => {
-          if (!error) { try { globalThis.localStorage?.setItem(key, tz); } catch {} }
+          if (!error) { try { phoneStore.setItem(key, tz); } catch {} }
         }, () => {});
       }
     }
@@ -3280,7 +3402,7 @@ export default function HomeScreen() {
                       {/* The heading already says the year, so the label says
                           where it counts from, matching the lifetime page. */}
                       <Text style={styles.mLegacyHeroLabel}>
-                        Effort · since {new Date(seasonYear, 0, 1).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                        Effort · since {new Date(Date.UTC(seasonYear, 0, 1)).toLocaleDateString(undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' })}
                       </Text>
                       {/* The rank in gold, as in the Today row, with the days
                           left beside it in grey: no pill. */}

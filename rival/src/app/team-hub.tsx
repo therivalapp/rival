@@ -20,7 +20,7 @@ import { formatActivityDistance } from '../lib/units';
 // same goal-window activities query (no schema change needed). The Team
 // Challenge total/ring/pace still reflect the whole team regardless of filter
 // — the chips slice the leaderboard view, not the goal itself.
-import { useEffect, useState, useId, useMemo } from 'react';
+import { useEffect, useState, useId, useMemo, useRef } from 'react';
 import { Asset } from 'expo-asset';
 import { router, useLocalSearchParams } from 'expo-router';
 import { setOpenTeam } from '../lib/tabNav';
@@ -56,7 +56,7 @@ import { InspiredBolt } from '../components/rival/InspiredBolt';
 import { CommentThread } from '../components/rival/team/CommentThread';
 import { useBlockedIds, openReport, openBlock, firstName } from '../lib/safety';
 import { titleFit } from '../lib/titleFit';
-import { goToTab } from '../lib/tabNav';
+import { backFrom, goToTab, pageBefore } from '../lib/tabNav';
 import { requestShare } from '../lib/shareRequest';
 import { markTeamOpened } from '../lib/recentTeams';
 import { liftPbChecker, liftsFromEntries } from '../lib/liftPb';
@@ -345,6 +345,9 @@ type SessionRow = {
 const reactionTaps: Record<string, number> = {};
 
 export default function TeamHub() {
+  // Where the team was opened from: back returns there when it was a page
+  // above the tabs, such as the team's chat (Ricky, 2026-11-14).
+  const openedFrom = useRef(pageBefore('/team-hub'));
   const winWidth = useWindowDimensions().width;
   const phone = !sidePageWide(winWidth);
   const wideWindow = winWidth >= BREAKPOINT_WIDE_LAYOUT;
@@ -1089,7 +1092,7 @@ export default function TeamHub() {
             {!heldPhoto && <View style={[styles.heroScrim, phone ? heroScrimPhoneWeb : heroScrimWeb]} />}
 
             <View style={styles.header}>
-              <RivalBackButton onPress={() => goToTab('/team-feed')} color="#fff" style={styles.backBtn} />
+              <RivalBackButton onPress={() => backFrom(openedFrom.current, '/team-feed')} color="#fff" style={styles.backBtn} />
               {isAdmin && (
                 <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push({ pathname: '/league-settings', params: { id } })}>
                   <RivalIcon name="settings" size={18} color="#fff" />
