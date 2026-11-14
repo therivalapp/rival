@@ -1,6 +1,6 @@
-import { Children, Fragment, isValidElement, useRef, type ReactNode } from 'react';
-import { Animated, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps, Pressable } from 'react-native';
-import { useSheetMotion } from './RivalModal';
+import { Children, createContext, Fragment, isValidElement, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { Animated, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps, Pressable } from 'react-native';
+import { useSheetMotion, useSheetRise } from './RivalModal';
 import { useScreenHeight } from '../../lib/keyboard';
 import { RivalButtonColors, RivalColors, RivalGhost, RivalMainGlow, RivalSerifFamily, rivalPhoneVar } from '../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from './RivalIcon';
@@ -66,8 +66,13 @@ export function GreySheet({
   })).current;
   const dragRef = useSheetDrag(onClose);
   const motion = useSheetMotion();
+  const rise = useSheetRise();
+  const lift = useRef(Animated.add(dragY, rise)).current;
+  // Tiles in a sheet that has just opened follow it in, one after another.
+  const stagger = useRef({ at: Date.now(), n: 0 }).current;
   return (
-    <Animated.View ref={dialog ? undefined : dragRef} style={[g.sheet, dialog && g.sheetDialog, !dialog && motion, { maxHeight: height * (dialog ? 0.86 : 0.92), transform: [{ translateY: dragY }] }]}>
+    <SheetStagger.Provider value={stagger}>
+    <Animated.View ref={dialog ? undefined : dragRef} style={[g.sheet, dialog && g.sheetDialog, !dialog && motion, { maxHeight: height * (dialog ? 0.86 : 0.92), transform: [{ translateY: dialog || Platform.OS === 'web' ? dragY : lift }] }]}>
       <View style={[g.glow, { pointerEvents: 'none' }]} />
       <View {...(Platform.OS === 'web' ? {} : pan.panHandlers)} style={g.dragZone}>
         {dialog ? null : <View style={g.grabber} />}
@@ -90,7 +95,34 @@ export function GreySheet({
       <View style={g.foot}>{footer}</View>
       {overlay}
     </Animated.View>
+    </SheetStagger.Provider>
   );
+}
+
+// Mockup 48 · More motion C (Ricky, 2026-11-13): the pop-up rises, then its
+// tiles follow, each 45ms after the one before. Only tiles there as the
+// sheet opens; a tile shown later appears as it is.
+const SheetStagger = createContext<{ at: number; n: number } | null>(null);
+const TILE_EASE = Easing.bezier(0.22, 1, 0.36, 1);
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+function useTileFollow() {
+  const ctx = useContext(SheetStagger);
+  const order = useRef<number>(-1);
+  if (order.current === -1) order.current = ctx && Date.now() - ctx.at < 400 ? ctx.n++ : -2;
+  const y = useRef(new Animated.Value(order.current >= 0 ? 14 : 0)).current;
+  const k = useRef(new Animated.Value(order.current >= 0 ? 0.96 : 1)).current;
+  useEffect(() => {
+    if (order.current < 0) return;
+    const delay = 180 + order.current * 45;
+    const nd = Platform.OS !== 'web';
+    Animated.parallel([
+      Animated.timing(y, { toValue: 0, duration: 320, delay, easing: TILE_EASE, useNativeDriver: nd }),
+      Animated.timing(k, { toValue: 1, duration: 320, delay, easing: TILE_EASE, useNativeDriver: nd }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return [{ translateY: y }, { scale: k }];
 }
 
 export function GreyLabel({ children }: { children: ReactNode }) {
@@ -223,9 +255,10 @@ export function GreyArtTile({
   style?: any;
   onPress: () => void;
 }) {
+  const follow = useTileFollow();
   return (
-    <TouchableOpacity
-      style={[g.artTile, on ? (tone === 'warn' ? g.artTileWarn : g.artTileOn) : all ? g.artTileAll : g.artTileGhost, style]}
+    <AnimatedTouchable
+      style={[g.artTile, on ? (tone === 'warn' ? g.artTileWarn : g.artTileOn) : all ? g.artTileAll : g.artTileGhost, style, { transform: follow }]}
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
@@ -237,7 +270,7 @@ export function GreyArtTile({
       </View>
       {/* One line, never a cut-off ellipsis. */}
       <Text style={[g.artLabel, on && g.artLabelOn, on && tone === 'warn' && g.warnText, all && !on && g.artLabelAll]} {...(Platform.OS === 'web' ? {} : { numberOfLines: 1 })}>{label}</Text>
-    </TouchableOpacity>
+    </AnimatedTouchable>
   );
 }
 

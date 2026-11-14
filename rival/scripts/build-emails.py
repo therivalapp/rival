@@ -1,6 +1,6 @@
 """Builds RIVAL's designed emails (Mockups 18 and 19, 2026-11-10) into
 supabase/templates/. The sign-in ones are pasted into Supabase (Authentication,
-Emails, Templates); Supabase fills {{ .ConfirmationURL }} and {{ .NewEmail }}.
+Emails, Templates); Supabase fills {{ .ConfirmationURL }}, {{ .Token }} and {{ .NewEmail }}.
 The Team Beta confirmation lives in supabase/functions/beta-signup (same layout).
 Run: python3 scripts/build-emails.py"""
 import os
@@ -15,6 +15,12 @@ def button(label, url):
     return (f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:12px auto 4px"><tr>'
             f'<td align="center" bgcolor="#ec9a7f" style="border-radius:999px;background-color:#ec9a7f;background-image:linear-gradient(135deg,#D97757 0%,#ffb59e 100%)">'
             f'<a href="{url}" style="display:inline-block;padding:15px 34px;font-family:{SANS};font-size:15px;font-weight:800;color:#5c1902;text-decoration:none;border-radius:999px">{label}</a></td></tr></table>')
+
+
+def code(token):
+    # Big, spaced and easy to copy; iPhone Mail also offers it above the keyboard.
+    return (f'<span style="display:inline-block;margin:6px 0 4px;padding:14px 26px;border:1px solid #4a3a33;border-radius:14px;'
+            f'background:#2e2a28;font-family:{SANS};font-weight:800;font-size:34px;letter-spacing:9px;padding-left:35px;color:#ffffff">{token}</span>')
 
 
 def email(title, lines, btn=None, note=None, kicker=None, photo=None, footer=None):
@@ -52,8 +58,11 @@ TEMPLATES = {
     # Supabase template name: (subject, html)
     'recovery': ('Reset your RIVAL password', email('Reset your password', ['Choose a new password for your RIVAL account.'],
                  ('Reset password', '{{ .ConfirmationURL }}'), EXPIRES)),
-    'confirmation': ('Confirm your email', email('Confirm your email', ['Confirm this address to finish creating your RIVAL account.'],
-                     ('Confirm email', '{{ .ConfirmationURL }}'), 'If you did not create an account, ignore this email. The account stays inactive.')),
+    # Sign-up asks for this code on its Confirm email page (Mockup 54 v4,
+    # 2026-11-14); the link below still works as a fallback.
+    'confirmation': ('Confirm your email', email('Confirm your email', ['Enter this code in RIVAL to finish creating your account.', code('{{ .Token }}')],
+                     None, 'Or <a href="{{ .ConfirmationURL }}" style="color:#ffb59e;text-decoration:underline">confirm with this link</a>. '
+                           'If you did not create an account, ignore this email. The account stays inactive.')),
     # Sent to both the old and new address, so it names the new one.
     'email_change': ('Confirm your new email', email('Confirm your new email', ['Confirm changing your RIVAL email to {{ .NewEmail }}.'],
                      ('Confirm email', '{{ .ConfirmationURL }}'), 'If you did not ask for this, ignore this email.')),

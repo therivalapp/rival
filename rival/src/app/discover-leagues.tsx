@@ -466,7 +466,7 @@ export default function DiscoverLeaguesScreen() {
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
-              placeholder="Search teams…"
+              placeholder="Search teams"
               placeholderTextColor={RivalColors.textSecondary}
             />
           </View>

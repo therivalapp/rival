@@ -6,6 +6,8 @@ import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { PASSWORD_RULES_MESSAGE, passwordOk } from '../lib/passwordRules';
+import { PasswordRules, PasswordsMatch } from '../components/rival/PasswordRules';
 import { selectAll } from '../lib/selectAll';
 import { notify } from '../lib/notify';
 import { ROUTE_MAPS_ENABLED } from '../lib/features';
@@ -171,6 +173,7 @@ export default function ProfileScreen() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwFocused, setPwFocused] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
   const [exporting, setExporting] = useState<'data' | 'all' | null>(null);
@@ -182,6 +185,13 @@ export default function ProfileScreen() {
   }, []);
 
   const { scrollProps: pullProps, indicator: pullIndicator } = usePullToRefresh(() => loadProfile());
+  // Every hook sits above the "Loading…" return below. This one used to be
+  // further down, so the draw after loading ran one more hook than the one
+  // before, and React closed the app whenever Settings opened (2026-11-14).
+  const garminLine = useGarminLine();
+  // What is connected, for the Settings row (it said None whatever was connected).
+  const healthNow = useHealthStatus();
+  const connectedNames = [healthAvailable && (healthNow.state === 'connected' || healthNow.state === 'syncing') ? 'Apple Health' : null, garminLine.startsWith('Connected') ? 'Garmin' : null].filter(Boolean).join(', ');
 
   async function loadProfile() {
     const { data: { user } } = await getAuthUser();
@@ -289,7 +299,8 @@ export default function ProfileScreen() {
 
   async function changePassword() {
     setPasswordMsg(null);
-    if (newPassword.length < 8) { setPasswordMsg({ ok: false, text: 'Use at least 8 characters.' }); return; }
+    // The same rules as sign-up (Mockup 54 v4).
+    if (!passwordOk(newPassword)) { setPasswordMsg({ ok: false, text: PASSWORD_RULES_MESSAGE }); return; }
     if (newPassword !== confirmPassword) { setPasswordMsg({ ok: false, text: 'The two passwords do not match.' }); return; }
     setSavingPassword(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -601,7 +612,6 @@ export default function ProfileScreen() {
     </RivalCard>
   );
 
-  const garminLine = useGarminLine();
   const appsPanel = (
     <RivalCard glass style={styles.panel}>
       {wide && <Text style={styles.panelTitle}>Connected devices</Text>}
@@ -702,11 +712,14 @@ export default function ProfileScreen() {
           style={[styles.input, styles.inputStacked]}
           value={newPassword}
           onChangeText={(v) => { setNewPassword(v); setPasswordMsg(null); }}
+          onFocus={() => setPwFocused(true)}
+          onBlur={() => setPwFocused(false)}
           placeholder="New password"
           placeholderTextColor={RivalColors.textSecondary}
           secureTextEntry
           autoComplete="new-password"
         />
+        {newPassword && (pwFocused || !passwordOk(newPassword)) ? <View style={{ marginBottom: 10 }}><PasswordRules password={newPassword} focused={pwFocused} /></View> : null}
         <TextInput
           style={[styles.input, styles.inputStacked]}
           value={confirmPassword}
@@ -716,6 +729,7 @@ export default function ProfileScreen() {
           secureTextEntry
           autoComplete="new-password"
         />
+        {confirmPassword && confirmPassword === newPassword ? <View style={{ marginBottom: 10 }}><PasswordsMatch password={newPassword} confirm={confirmPassword} /></View> : null}
         <RivalButton busy={savingPassword} label={savingPassword ? 'Updating…' : 'Update password'} onPress={changePassword} disabled={savingPassword || !newPassword} variant="secondary" style={styles.actionBtn} />
         {passwordMsg && <Text style={passwordMsg.ok ? styles.okText : styles.errorText}>{passwordMsg.text}</Text>}
       </View>
@@ -817,7 +831,7 @@ export default function ProfileScreen() {
       </GreyRows>
       <GreyLabel>Connections</GreyLabel>
       <GreyRows>
-        <GreyRow icon="link" label="Connected devices" value="None" onPress={() => open('apps')} />
+        <GreyRow icon="link" label="Connected devices" value={connectedNames || 'None'} onPress={() => open('apps')} />
         {/* The switch turns every notification on or off at once; the row
             itself opens the full list to choose them one by one. */}
         <GreyRow icon="notifications" label="Notifications" onPress={() => open('notifications')}>

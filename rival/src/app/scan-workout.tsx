@@ -1487,7 +1487,7 @@ export default function ScanWorkoutScreen() {
                                 style={st.liftSearchInput}
                                 value={tagSearch}
                                 onChangeText={setTagSearch}
-                                placeholder="Search lifts…"
+                                placeholder="Search lifts"
                                 placeholderTextColor={RivalColors.textSecondary}
                                 autoFocus
                               />

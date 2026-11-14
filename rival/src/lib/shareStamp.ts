@@ -7,10 +7,11 @@
 //
 // One colour per share: gold Effort; RIVAL and everything else white.
 //
-// Web only: drawn on a canvas.
+// Drawn on a canvas: the browser's on the web, lib/nativeCanvas.ts on the iPhone.
 
 import { distanceUnit, elevationUnit, toDisplayDistance, toDisplayElevation } from './units';
 import { formatDurationClock } from './format';
+import { isNativeCanvas, isNativePicture, makeCanvas, NCanvas } from './nativeCanvas';
 
 export type StampStyle = 'A' | 'A2' | 'E' | 'E2' | 'F' | 'F2' | 'G';
 
@@ -159,6 +160,12 @@ export function inkMargins(draw: () => HTMLCanvasElement): InkMargins {
   let c: HTMLCanvasElement;
   try { c = draw(); } finally { bare = false; }
   const w = c.width, h = c.height;
+  if (c instanceof NCanvas) {
+    // iPhone: no pixels to read back, so from where the lettering was drawn.
+    const box = c.inkBox();
+    if (!box) return { l: 0, t: 0, r: 0, b: 0 };
+    return { l: box.l / w, t: box.t / h, r: (w - box.r) / w, b: (h - box.b) / h };
+  }
   const a = c.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, w, h).data;
   let l = w, t = h, r = -1, b = -1;
   for (let y = 0; y < h; y++) {
@@ -261,9 +268,7 @@ function title(x: Ctx, name: string, y: number, maxWidth: number) {
 }
 
 function canvas(w: number, h: number): [HTMLCanvasElement, Ctx] {
-  const c = document.createElement('canvas');
-  c.width = Math.round(w * S);
-  c.height = Math.round(h * S);
+  const c = makeCanvas(Math.round(w * S), Math.round(h * S));
   const x = c.getContext('2d')!;
   x.shadowColor = P.shadow;
   x.shadowBlur = bare ? 0 : 9 * S;
@@ -328,7 +333,7 @@ export function drawStamp(style: StampStyle, name: string, figs: StampFigure[], 
       const top = style === 'F2';
       const plain = figs.filter((f) => !f.gold);
       const effort = figs.find((f) => f.gold);
-      const probe = document.createElement('canvas').getContext('2d')!;
+      const probe = makeCanvas(1, 1).getContext('2d')!;
       probe.font = `italic 700 ${16 * S}px ${SERIF}`;
       const sep = '  ·  ';
       const text = plain.map((f) => (f.unit ? `${f.value} ${f.unit}` : f.value)).join(sep) + (effort && plain.length ? sep : '');
@@ -533,7 +538,7 @@ export function drawCountdownStamp(ev: CountdownEvent, mode: StampMode = 'light'
   // Noon, so the date never slips a day across time zones.
   const date = new Date(`${ev.race_date.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
   const meta = [ev.race_type?.trim(), date].filter(Boolean).join('  ·  ').toUpperCase();
-  const probe = document.createElement('canvas').getContext('2d')!;
+  const probe = makeCanvas(1, 1).getContext('2d')!;
   probe.font = `italic 700 ${22 * S}px ${SERIF}`;
   const w = Math.min(340, Math.max(240, probe.measureText(ev.name).width / S + 40));
   const [c, x] = canvas(w, 172);
@@ -577,6 +582,7 @@ export function drawCountdownStamp(ev: CountdownEvent, mode: StampMode = 'light'
 
 /** Manrope is a webfont; it has to be loaded before a canvas can draw it. */
 export async function stampFontsReady() {
+  if (isNativeCanvas) return;
   try { await Promise.all([document.fonts.load('800 40px Manrope'), document.fonts.load('600 40px Manrope')]); } catch {}
 }
 
@@ -591,6 +597,18 @@ export function stampBlob(c: HTMLCanvasElement): Promise<Blob> {
  *  2026-11-05). Several stamps are drawn on a wider canvas with room to the
  *  right; saved as drawn, they came out off-centre. */
 export async function centredStamp(blob: Blob): Promise<Blob> {
+  if (isNativePicture(blob)) {
+    // iPhone: trim to where the lettering and its shadow were drawn.
+    const src = blob.canvas;
+    const box = src.inkBox(true);
+    if (!box) return blob;
+    const l = Math.floor(box.l), t = Math.floor(box.t);
+    const cw = Math.ceil(box.r) - l, ch = Math.ceil(box.b) - t;
+    const pad = Math.round(Math.max(24, Math.min(cw, ch) * 0.08));
+    const out = makeCanvas(cw + pad * 2, ch + pad * 2);
+    out.getContext('2d')!.drawImage(src as unknown as HTMLCanvasElement, l, t, cw, ch, pad, pad, cw, ch);
+    return await stampBlob(out);
+  }
   const url = URL.createObjectURL(blob);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {

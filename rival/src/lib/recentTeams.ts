@@ -4,16 +4,18 @@
 // activity, so the rail doesn't shuffle while it's being used (Ricky,
 // 2026-10-23: no See all, no pinning). Remembered on this phone.
 
+import * as phoneStore from './phoneStore';
+
 const KEY = 'rival.recentTeams';
 
 function read(): Record<string, number> {
-  try { return JSON.parse(globalThis.localStorage?.getItem(KEY) || '{}') || {}; } catch { return {}; }
+  try { return JSON.parse(phoneStore.getItem(KEY) || '{}') || {}; } catch { return {}; }
 }
 
 export function markTeamOpened(id: string) {
   const all = read();
   all[id] = Date.now();
-  try { globalThis.localStorage?.setItem(KEY, JSON.stringify(all)); } catch {}
+  try { phoneStore.setItem(KEY, JSON.stringify(all)); } catch {}
 }
 
 /** Teams opened before, latest first, then the rest in their given order. */

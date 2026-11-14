@@ -11,6 +11,7 @@ import { getAuthUser } from '../lib/supabase';
 import { goToTab } from '../lib/tabNav';
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
 import { fetchYearEffort, previewImport, readArchive, runImport, type ImportItem, type ImportProgress, type ImportResult, type ReadArchive } from '../lib/archive';
+import * as phoneStore from '../lib/phoneStore';
 
 // Import an archive (Ricky, 2026-10-17): a Strava archive (Settings, My
 // Account, Request your archive) or a RIVAL archive. The file is read here;
@@ -283,12 +284,12 @@ type Paused = { file: string; done: number; total: number; at: number };
 const PAUSED_KEY = 'rival_import_paused';
 function loadPaused(): Paused | null {
   try {
-    const p = JSON.parse(localStorage.getItem(PAUSED_KEY) || 'null') as Paused | null;
+    const p = JSON.parse(phoneStore.getItem(PAUSED_KEY) || 'null') as Paused | null;
     return p && Date.now() - p.at < 7 * 864e5 && p.done < p.total ? p : null;
   } catch { return null; }
 }
 function savePaused(p: Paused | null) {
-  try { p ? localStorage.setItem(PAUSED_KEY, JSON.stringify(p)) : localStorage.removeItem(PAUSED_KEY); } catch { /* private mode */ }
+  try { p ? phoneStore.setItem(PAUSED_KEY, JSON.stringify(p)) : phoneStore.removeItem(PAUSED_KEY); } catch { /* private mode */ }
 }
 
 const s = StyleSheet.create({

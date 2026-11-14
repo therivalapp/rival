@@ -2,6 +2,8 @@
 // an activity arrived on its own. Never on one logged by hand, only within a
 // day of it, once per activity, and only ever the latest, so they can't stack up.
 
+import * as phoneStore from './phoneStore';
+
 const LOGGED_BY_HAND = new Set(['manual', 'rival_manual', 'rival_scan']);
 const DAY_MS = 86_400_000;
 const SEEN_KEY = 'rival.photoPromptSeen';
@@ -21,13 +23,13 @@ export function activityToPrompt<T extends PromptActivity>(rows: T[], seen: stri
 
 export function seenPrompts(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(SEEN_KEY) ?? '[]');
+    return JSON.parse(phoneStore.getItem(SEEN_KEY) ?? '[]');
   } catch { return []; }
 }
 
 export function markPromptSeen(id: string) {
   try {
-    localStorage.setItem(SEEN_KEY, JSON.stringify([id, ...seenPrompts()].slice(0, 30)));
+    phoneStore.setItem(SEEN_KEY, JSON.stringify([id, ...seenPrompts()].slice(0, 30)));
   } catch { /* it may ask once more */ }
 }
 

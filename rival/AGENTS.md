@@ -68,6 +68,9 @@ Descriptions are short factual sentences ("Details are extracted automatically."
 cute phrasing ("snap it", "in one go", "catch up", "fastest"), no exclamation marks, no emoji.
 Errors say what happened and what to do. Encouragement stays but is understated. Run the
 `brand-check` skill on new copy — the full rules live there.
+This covers every word on screen, not only titles and buttons: placeholders, hints, empty
+boxes and link text too. A placeholder is the field's name ("Confirm password") or a format
+example ("name@example.com"), never a casual instruction such as "Type it again" (Ricky, 2026-11-14).
 
 ## Design parameters (read before building any screen)
 

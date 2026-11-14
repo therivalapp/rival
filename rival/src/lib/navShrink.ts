@@ -42,3 +42,22 @@ export function subscribeNavShrink(l: Listener): () => void {
   listeners.add(l);
   return () => { listeners.delete(l); };
 }
+
+// Full-screen layers (the activity page) cover the bottom bar on the web by
+// sitting above it; on the iPhone the bar is drawn over every tab, so those
+// layers say they're open and NativeTabBar steps aside (2026-11-14).
+let covers = 0;
+const coverListeners = new Set<(covered: boolean) => void>();
+export function coverNav(): () => void {
+  covers += 1;
+  coverListeners.forEach((l) => l(covers > 0));
+  return () => {
+    covers = Math.max(0, covers - 1);
+    coverListeners.forEach((l) => l(covers > 0));
+  };
+}
+export function subscribeNavCover(fn: (covered: boolean) => void): () => void {
+  coverListeners.add(fn);
+  fn(covers > 0);
+  return () => { coverListeners.delete(fn); };
+}

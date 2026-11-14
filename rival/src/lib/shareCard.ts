@@ -4,10 +4,14 @@
 // kicker, name and figures at the bottom (no date), Effort in gold.
 // Design: rival/design/share-to-inspire.html, card 2 (Ricky, 2026-10-22).
 //
-// Web only: drawn on a canvas. Photos come from Supabase storage, which sends
-// Access-Control-Allow-Origin: *, so the canvas stays exportable.
+// Drawn on a canvas: the browser's on the web, lib/nativeCanvas.ts on the
+// iPhone. Photos come from Supabase storage, which sends
+// Access-Control-Allow-Origin: *, so the web canvas stays exportable.
 
+import { Share } from 'react-native';
+import * as Updates from 'expo-updates';
 import { fullPhoto } from './imageUrl';
+import { isNativeCanvas, isNativePicture, loadNativeImage, makeCanvas } from './nativeCanvas';
 import { SKIES, skyFor } from '../components/rival/SkyBackdrop';
 
 export type ShareFigure = { value: string; unit?: string; label: string; gold?: boolean };
@@ -46,6 +50,7 @@ const SERIF = 'Georgia, "Times New Roman", serif';
 const SANS = 'Manrope, -apple-system, system-ui, sans-serif';
 
 export function loadImage(url: string): Promise<HTMLImageElement> {
+  if (isNativeCanvas) return loadNativeImage(url) as unknown as Promise<HTMLImageElement>;
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -102,13 +107,11 @@ function fitName(ctx: CanvasRenderingContext2D, name: string, maxWidth: number):
 }
 
 export async function makeShareCard(input: ShareCardInput): Promise<Blob> {
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  const canvas = makeCanvas(W, H);
   const ctx = canvas.getContext('2d')!;
   // The serif is a system face; Manrope is the app's webfont and has to be
   // loaded before it can be drawn.
-  try { await Promise.all([document.fonts.load(`800 40px Manrope`), document.fonts.load(`600 40px Manrope`)]); } catch {}
+  if (!isNativeCanvas) { try { await Promise.all([document.fonts.load(`800 40px Manrope`), document.fonts.load(`600 40px Manrope`)]); } catch {} }
 
   let drewPhoto = false;
   if (input.photoUrl) {
@@ -253,6 +256,13 @@ export async function makeShareCard(input: ShareCardInput): Promise<Blob> {
  *  asked for it. Where sharing a file isn't possible (most desktops), the
  *  picture is saved instead. */
 export async function shareCardFile(blob: Blob, fileName: string): Promise<'shared' | 'saved' | 'cancelled'> {
+  // iPhone: the system share sheet with the picture file (Save Image is there too).
+  if (isNativePicture(blob)) {
+    // Build 12 (app version 1.0.0) lacks the Photos "add" permission text, and
+    // Save Image would crash it; later builds carry it (app.json).
+    const r = await Share.share({ url: blob.uri }, Updates.runtimeVersion === '1.0.0' ? { excludedActivityTypes: ['com.apple.UIKit.activity.SaveToCameraRoll'] } : undefined);
+    return r.action === Share.dismissedAction ? 'cancelled' : 'shared';
+  }
   const file = new File([blob], fileName, { type: blob.type });
   const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
   if (nav.share && nav.canShare?.({ files: [file] })) {
@@ -294,11 +304,9 @@ export type RankCardInput = {
 };
 
 export async function makeRankCard(input: RankCardInput): Promise<Blob> {
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  const canvas = makeCanvas(W, H);
   const ctx = canvas.getContext('2d')!;
-  try { await Promise.all([document.fonts.load('800 40px Manrope'), document.fonts.load('600 40px Manrope')]); } catch {}
+  if (!isNativeCanvas) { try { await Promise.all([document.fonts.load('800 40px Manrope'), document.fonts.load('600 40px Manrope')]); } catch {} }
 
   let drewPhoto = false;
   if (input.photoUrl) {
@@ -415,9 +423,7 @@ export async function composeStampOnPhoto(input: {
   stampUrl: string;
   placement: StampPlacement;
 }): Promise<Blob> {
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  const canvas = makeCanvas(W, H);
   const ctx = canvas.getContext('2d')!;
   drawCover(ctx, await loadImage(fullPhoto(input.photoUrl)), input.focalX ?? 0.5, input.focalY ?? 0.5);
   const stamp = await loadImage(input.stampUrl);

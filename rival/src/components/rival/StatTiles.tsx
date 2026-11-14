@@ -34,12 +34,13 @@ export function StatTiles({ options, chosen, effort, onToggle, effortOn = true, 
         accessibilityState={{ selected: on }}
         accessibilityLabel={`${o.label}, ${o.figure.value}${o.figure.unit ? ` ${o.figure.unit}` : ''}`}
       >
-        <Text style={[t.value, on && t.valueOn]} numberOfLines={1}>
+        {/* Smaller rather than cut off ("2:30 /100m" on a phone, 2026-11-14). */}
+        <Text style={[t.value, on && t.valueOn]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
           {o.figure.value}
           {o.figure.sup ? <Text style={t.sup}>{o.figure.sup}</Text> : null}
           {o.figure.unit ? <Text style={[t.unit, on && t.unitOn]}>{` ${o.figure.unit}`}</Text> : null}
         </Text>
-        <Text style={[t.label, on && t.labelOn]} numberOfLines={1}>{o.figure.label}</Text>
+        <Text style={[t.label, on && t.labelOn]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{o.figure.label}</Text>
       </TouchableOpacity>
     );
   };
@@ -62,7 +63,7 @@ export function StatTiles({ options, chosen, effort, onToggle, effortOn = true, 
             <Text style={[t.value, effortOn && t.valueGold]} numberOfLines={1}>{String(Math.round(effort * 10) / 10)}</Text>
             <Text style={[t.label, effortOn && t.labelGold]}>Effort</Text>
           </TouchableOpacity>
-        ) : (
+        ) : effort <= 0 ? null : (
           <View style={[t.tile, t.tileGold]} accessibilityLabel={`Effort, ${effort}, always shown`}>
             <Text style={[t.value, t.valueGold]} numberOfLines={1}>{String(Math.round(effort * 10) / 10)}</Text>
             <Text style={[t.label, t.labelGold]}>Effort</Text>

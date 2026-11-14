@@ -13,6 +13,7 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryAddUsageDescription": "RIVAL saves your share pictures to Photos when you choose Save Image.",
         "NSHealthClinicalHealthRecordsShareUsageDescription": "RIVAL does not read health records. It only reads workouts from Apple Health."
       },
       "runtimeVersion": {

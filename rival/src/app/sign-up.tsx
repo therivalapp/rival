@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, TextInput, Image, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { finishSignUp } from '../lib/finishSignUp';
 import { displayToIsoDate, maskDateInput } from '../lib/dateFormat';
+import { passwordOk } from '../lib/passwordRules';
+import { minimumAge } from '../lib/minimumAge';
+import { PasswordRules, PasswordsMatch } from '../components/rival/PasswordRules';
 import { RivalButton, RivalIcon, RivalBackButton, RivalWarm, rm } from '../components/rival';
 import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
-import { RivalColors, RivalGhost, RivalRadius, RivalType, rivalWordmark } from '../constants/rivalTheme';
+import { RivalColors, RivalGhost, RivalRadius, RivalSerifFamily, RivalType, rivalWordmark } from '../constants/rivalTheme';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
+// Supabase's email code length (Authentication, Providers, Email).
+const CODE_LENGTH = 6;
+
 
 export default function SignUpScreen() {
   const { width } = useWindowDimensions();
@@ -23,9 +29,22 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [pwFocused, setPwFocused] = useState(false);
+  // After Create account with email confirmation on, the whole page becomes
+  // Confirm email, with a 6-digit code (Mockup 54 v4, 2026-11-14).
+  const [step, setStep] = useState<'form' | 'code'>('form');
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [codeNote, setCodeNote] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const codeInput = useRef<TextInput>(null);
+
+  const matches = confirm.length > 0 && confirm === password;
+  const ready = passwordOk(password) && matches;
 
   async function handleSignUp() {
+    if (!ready) return;
     if (!firstName.trim() || !lastName.trim() || !dob.trim() || !email || !password) {
       setError('Complete all fields.');
       return;
@@ -46,8 +65,10 @@ export default function SignUpScreen() {
       setError('Enter a date of birth in the past.');
       return;
     }
-    if (age < 13) {
-      setError('RIVAL is for people aged 13 and over.');
+    // 16 in Australia (lib/minimumAge.ts).
+    const minAge = minimumAge();
+    if (age < minAge) {
+      setError(minAge === 16 ? 'RIVAL is for people aged 16 and over in Australia.' : 'RIVAL is for people aged 13 and over.');
       return;
     }
 
@@ -57,7 +78,7 @@ export default function SignUpScreen() {
     const displayName = `${firstName.trim()} ${lastName.trim()}`;
 
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
         // Date of birth and needs_setup ride along with the account, so they
@@ -73,11 +94,14 @@ export default function SignUpScreen() {
       return;
     }
 
-    // With email confirmation switched on there is no session yet, and every
-    // screen past this one needs one — say what to do instead of moving on.
+    // With email confirmation switched on there is no session yet: the page
+    // becomes Confirm email and the code from the email signs them in.
     if (!data.session) {
       setLoading(false);
-      setNotice('Check your email to confirm the account, then sign in.');
+      setCode('');
+      setCodeError('');
+      setCodeNote('');
+      setStep('code');
       return;
     }
 
@@ -85,6 +109,98 @@ export default function SignUpScreen() {
     // A new account picks its activities, then the introduction, not an empty Home.
     await finishSignUp();
     router.replace('/welcome-rival');
+  }
+
+  async function verify(token: string) {
+    if (token.length < CODE_LENGTH || verifying) return;
+    setVerifying(true);
+    setCodeError('');
+    setCodeNote('');
+    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: 'email' });
+    if (error) {
+      setVerifying(false);
+      setCodeError(/expired|invalid/i.test(error.message) ? 'That code is not right or has expired. Check the email or resend the code.' : error.message);
+      return;
+    }
+    await finishSignUp();
+    router.replace('/welcome-rival');
+  }
+
+  async function resend() {
+    setCodeError('');
+    setCodeNote('');
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+    if (error) setCodeError(error.message);
+    else setCodeNote('A new code was sent.');
+  }
+
+  function typeCode(v: string) {
+    // Typing, pasting the whole code, or the iPhone's code suggestion.
+    const digits = v.replace(/\D/g, '').slice(0, CODE_LENGTH);
+    setCode(digits);
+    setCodeError('');
+    if (digits.length === CODE_LENGTH) verify(digits);
+  }
+
+  if (step === 'code') {
+    return (
+      <View style={[styles.bg, mob && ms.bg]}>
+        <Image source={SMOKE_SOURCE} style={styles.smoke} resizeMode="cover" />
+        <Image source={SMOKE_SOURCE} style={styles.smokeTop} resizeMode="cover" />
+        <SafeAreaView style={styles.container}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={cs.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <Text style={styles.logo}>RIVAL</Text>
+            <View style={cs.mail}>
+              <RivalIcon name="mailUnread" size={38} color={RivalColors.accentText} />
+            </View>
+            <Text style={[ms.title, cs.title]}>Confirm email</Text>
+            <Text style={cs.body}>
+              A {CODE_LENGTH}-digit code was sent to{'\n'}<Text style={cs.bodyStrong}>{email.trim()}</Text>.
+            </Text>
+
+            <TouchableOpacity activeOpacity={1} onPress={() => codeInput.current?.focus()} style={cs.boxes}>
+              {Array.from({ length: CODE_LENGTH }, (_, i) => (
+                <View key={i} style={[cs.box, (i === Math.min(code.length, CODE_LENGTH - 1)) && cs.boxOn]}>
+                  <Text style={cs.digit}>{code[i] ?? ''}</Text>
+                </View>
+              ))}
+              {/* One hidden box behind the six: it takes typing, a paste and
+                  the iPhone's "From Mail" code suggestion. */}
+              <TextInput
+                ref={codeInput}
+                value={code}
+                onChangeText={typeCode}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={CODE_LENGTH}
+                autoFocus
+                caretHidden
+                style={cs.hidden}
+              />
+            </TouchableOpacity>
+
+            {codeError ? <Text style={cs.error}>{codeError}</Text> : null}
+            {codeNote ? <Text style={cs.note}>{codeNote}</Text> : null}
+
+            <RivalButton
+              busy={verifying}
+              label={verifying ? 'Confirming…' : 'Confirm'}
+              onPress={() => verify(code)}
+              disabled={verifying || code.length < CODE_LENGTH}
+              style={[ms.primary, cs.confirm, code.length < CODE_LENGTH && cs.off]}
+              labelStyle={rm.primaryText}
+            />
+            <TouchableOpacity onPress={resend} style={cs.linkTap}>
+              <Text style={cs.link}>Resend code</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { setStep('form'); setCode(''); }} style={cs.linkTapTight}>
+              <Text style={cs.link}>Use a different email</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    );
   }
 
   return (
@@ -118,11 +234,6 @@ export default function SignUpScreen() {
             {error ? (
               <View style={[styles.errorBox, mob && ms.errorBox]}>
                 <Text style={[styles.errorText, mob && ms.errorText]}>{error}</Text>
-              </View>
-            ) : null}
-            {notice ? (
-              <View style={[styles.errorBox, ms.noticeBox]}>
-                <Text style={[styles.errorText, ms.noticeText]}>{notice}</Text>
               </View>
             ) : null}
 
@@ -182,24 +293,44 @@ export default function SignUpScreen() {
               <View style={[styles.passwordRow, mob && ms.field]}>
                 <TextInput
                   style={[styles.passwordInput, mob && ms.passwordInput]}
-                  placeholder="At least 6 characters"
+                  placeholder="Password"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
+                  onFocus={() => setPwFocused(true)}
+                  onBlur={() => setPwFocused(false)}
                   secureTextEntry={!showPassword}
+                  textContentType="newPassword"
+                  autoComplete="new-password"
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
                   <RivalIcon name={showPassword ? 'eyeOff' : 'eye'} size={20} color={RivalColors.textSecondary} />
                 </TouchableOpacity>
               </View>
+              <PasswordRules password={password} focused={pwFocused} />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Confirm password</Text>
+              <TextInput
+                style={[styles.input, mob && ms.input]}
+                placeholder="Confirm password"
+                placeholderTextColor={RivalColors.textSecondary}
+                value={confirm}
+                onChangeText={setConfirm}
+                secureTextEntry={!showPassword}
+                textContentType="newPassword"
+                autoComplete="new-password"
+              />
+              <PasswordsMatch password={password} confirm={confirm} />
             </View>
 
             <RivalButton
               busy={loading}
               label={loading ? 'Creating account…' : 'Create account'}
               onPress={handleSignUp}
-              disabled={loading}
-              style={[styles.submitBtn, mob && ms.primary]}
+              disabled={loading || !ready}
+              style={[styles.submitBtn, mob && ms.primary, !ready && cs.off]}
               labelStyle={mob ? rm.primaryText : undefined}
             />
 
@@ -380,10 +511,38 @@ const ms = StyleSheet.create({
   input: { backgroundColor: RivalGhost.fill, borderRadius: 12, borderWidth: 1, borderColor: RivalGhost.border, paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, minWidth: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
   passwordInput: { paddingVertical: 13, paddingHorizontal: 14, fontSize: 15, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}) },
   soft: { color: RivalWarm.soft },
-  noticeBox: { backgroundColor: 'rgba(255,209,190,0.08)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.25)', borderRadius: 12 },
-  noticeText: { color: RivalColors.accentText },
   linkStrong: { color: RivalColors.accentText, fontWeight: '700' },
   primary: { ...rm.primary, borderWidth: 0, marginTop: 6 } as any,
 });
 
 // The birthday choice under Date of birth (Mockup 34, 2026-11-11).
+
+// Password rules and the Confirm email page (Mockup 54 v4, 2026-11-14).
+const cs = StyleSheet.create({
+  off: { opacity: 0.4 },
+  content: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 16, paddingBottom: 24 },
+  mail: {
+    width: 76, height: 76, borderRadius: 22, alignSelf: 'center', marginTop: 4,
+    borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)', backgroundColor: 'rgba(255,209,190,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { marginTop: 22 },
+  body: { fontSize: 13.5, lineHeight: 20, color: 'rgba(255,255,255,0.72)', textAlign: 'center', marginTop: 10 },
+  bodyStrong: { color: '#fff', fontWeight: '700' },
+  boxes: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 24, position: 'relative' },
+  box: {
+    width: 42, height: 52, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)',
+    backgroundColor: 'rgba(255,209,190,0.05)', alignItems: 'center', justifyContent: 'center',
+  },
+  boxOn: { borderColor: RivalColors.accentText },
+  digit: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff' },
+  // Covers the six boxes so a tap or long-press (Paste) lands on it, but
+  // shows nothing of its own.
+  hidden: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.011, color: 'transparent', fontSize: 1 },
+  error: { fontSize: 13, lineHeight: 18, color: '#ff8f8f', textAlign: 'center', marginTop: 14 },
+  note: { fontSize: 13, lineHeight: 18, color: RivalWarm.soft, textAlign: 'center', marginTop: 14 },
+  confirm: { marginTop: 22 },
+  linkTap: { marginTop: 18, alignSelf: 'center', paddingVertical: 4 },
+  linkTapTight: { marginTop: 8, alignSelf: 'center', paddingVertical: 4 },
+  link: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
+});

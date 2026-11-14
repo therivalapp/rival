@@ -103,6 +103,9 @@ const ICONS = {
   tune: 'tune',
   download: 'file-download',
   mail: 'mail-outline',
+  // Sign-up's Confirm email page and password rules (Mockup 54 v4).
+  mailUnread: 'mark-email-unread',
+  radioOff: 'radio-button-unchecked',
   notificationsOff: 'notifications-off',
   logout: 'logout',
   delete: 'delete-outline',

@@ -2,16 +2,18 @@
 // in yet. The sign-in guard sends them to the welcome screen, which would lose
 // the code, so it is kept on the device until they reach the join screen.
 
+import * as phoneStore from './phoneStore';
+
 const KEY = 'rival_pending_invite';
 
 export function savePendingInvite(code: string) {
-  try { globalThis.localStorage?.setItem(KEY, code.trim().toUpperCase()); } catch {}
+  try { phoneStore.setItem(KEY, code.trim().toUpperCase()); } catch {}
 }
 
 export function readPendingInvite(): string | null {
-  try { return globalThis.localStorage?.getItem(KEY) || null; } catch { return null; }
+  try { return phoneStore.getItem(KEY) || null; } catch { return null; }
 }
 
 export function clearPendingInvite() {
-  try { globalThis.localStorage?.removeItem(KEY); } catch {}
+  try { phoneStore.removeItem(KEY); } catch {}
 }

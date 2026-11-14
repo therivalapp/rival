@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+/* Mockup 55 · Confirmation email (2026-11-14). A shows the real template
+   (supabase/templates/confirmation.html) as opened in Mail on an iPhone;
+   B is the sign-up Confirm email page with the code filled in. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:22px 22px 30px}
+.top{font:italic 700 26px Georgia,serif;text-align:center;margin:4px 0 4px}
+.sub{text-align:center;font-size:13px;color:rgba(255,255,255,.55);margin-bottom:20px}
+.row{display:flex;gap:24px;justify-content:center}
+.col{width:375px;flex-shrink:0}
+.tag{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 6px;font-weight:800}
+.desc{font-size:12px;color:rgba(255,255,255,.6);margin:0 4px 12px;line-height:17px;min-height:34px}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle}
+.ph{position:relative;width:375px;height:812px;border-radius:28px;overflow:hidden;background:#1b1a19}
+/* Mail header */
+.mh{background:#1c1c1e;padding:54px 16px 12px;border-bottom:1px solid #2c2c2e}
+.mnav{display:flex;align-items:center;color:#0a84ff;font-size:15px;margin-bottom:12px}.mnav .mi{font-size:26px;margin-left:-6px}
+.from{display:flex;gap:10px;align-items:center}
+.av{width:38px;height:38px;border-radius:19px;background:#3a3a3c;display:flex;align-items:center;justify-content:center;font:italic 700 15px Georgia,serif;color:#ffb59e}
+.fn{font-size:15px;font-weight:700}.fm{font-size:12px;color:rgba(255,255,255,.5)}
+.subj{font-size:17px;font-weight:700;margin-top:10px}
+iframe{border:0;width:375px;height:650px;display:block}
+/* App page */
+.smoke{position:absolute;inset:0;background:radial-gradient(ellipse 90% 40% at 30% 18%,rgba(120,90,70,.35),rgba(0,0,0,0) 70%),radial-gradient(ellipse 80% 45% at 75% 80%,rgba(110,82,64,.28),rgba(0,0,0,0) 70%)}
+.app{background:#282828}
+.in{position:relative;padding:58px 28px 0}
+.wm{font:italic 700 17px Georgia,serif;letter-spacing:3.4px;text-align:center;color:#ffb59e}
+.mail{width:76px;height:76px;border-radius:22px;margin:28px auto 0;border:1px solid rgba(255,181,158,.3);background:rgba(255,209,190,.06);display:flex;align-items:center;justify-content:center}
+.mail .mi{font-size:38px;color:#ffb59e}
+.h{font:italic 700 26px Georgia,serif;text-align:center;margin-top:22px}
+.body{font-size:13.5px;line-height:20px;color:rgba(255,255,255,.72);text-align:center;margin-top:10px}.body b{color:#fff}
+.code{display:flex;gap:8px;justify-content:center;margin-top:24px}.code div{width:42px;height:52px;border-radius:12px;border:1px solid rgba(255,181,158,.3);background:rgba(255,209,190,.05);display:flex;align-items:center;justify-content:center;font:italic 700 24px Georgia,serif}
+.primary{height:48px;border-radius:999px;background:linear-gradient(90deg,#D97757,#ffb59e);color:#2a1710;font-weight:800;font-size:14.5px;display:flex;align-items:center;justify-content:center;margin-top:22px}
+.link{font-size:13px;font-weight:600;color:rgba(255,255,255,.55);text-align:center;margin-top:18px}
+.link+.link{margin-top:12px}
+</style></head><body>
+<div class="top">Mockup 55 · Confirmation email</div>
+<div class="sub">The email with the code, and the Confirm email page once the code is in.</div>
+<div class="row">
+
+<div class="col"><div class="tag">A · THE EMAIL</div><div class="desc">Opened in Mail. The code is large and easy to copy. The link underneath also confirms the account.</div>
+<div class="ph">
+<div class="mh">
+<div class="mnav"><span class="mi">chevron_left</span>Inbox</div>
+<div class="from"><div class="av">R</div><div><div class="fn">RIVAL</div><div class="fm">to name@example.com</div></div></div>
+<div class="subj">Confirm your email address</div>
+</div>
+<iframe src="mockup-55-email-body.html" scrolling="no"></iframe>
+</div></div>
+
+<div class="col"><div class="tag">B · CODE IN</div><div class="desc">Back in RIVAL, the code fills all six boxes. It confirms on its own and opens the welcome pages.</div>
+<div class="ph app"><div class="smoke"></div><div class="in">
+<div class="wm">RIVAL</div>
+<div class="mail"><span class="mi">mark_email_unread</span></div>
+<div class="h">Confirm email</div>
+<div class="body">A 6-digit code was sent to<br><b>name@example.com</b>.</div>
+<div class="code"><div>4</div><div>8</div><div>2</div><div>9</div><div>1</div><div>3</div></div>
+<div class="primary">Confirming…</div>
+<div class="link">Resend code</div>
+<div class="link">Use a different email</div>
+</div></div></div>
+
+</div>
+</body></html>
