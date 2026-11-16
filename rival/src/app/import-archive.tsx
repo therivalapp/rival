@@ -216,12 +216,12 @@ export default function ImportArchiveScreen() {
               <Text style={s.dropSub}>{opening ? 'Keep RIVAL open. Large files and files in iCloud can take a few minutes.' : 'From Files or Downloads. Nothing is added until the next step.'}</Text>
             </TouchableOpacity>
             {notArrived ? (
-              <View style={s.card}>
-                <Text style={s.serif}>The file didn't arrive</Text>
+              // An error, so in the error colour: plain grey blended in and
+              // was easy to miss (Ricky, 2026-11-16). No button of its own:
+              // the drop zone above chooses the file again.
+              <View style={[s.card, s.cardError]}>
+                <Text style={[s.serif, { color: RivalColors.danger }]}>The file didn't arrive</Text>
                 <Text style={s.body}>In Files, wait for the archive to finish downloading (the cloud icon disappears), then choose it again. Very large archives are easier to upload from a computer.</Text>
-                <TouchableOpacity style={[s.ghost, s.ghostAccent]} onPress={choose} activeOpacity={0.85} accessibilityRole="button">
-                  <Text style={[s.ghostText, { color: RivalColors.accentText }]}>Choose again</Text>
-                </TouchableOpacity>
               </View>
             ) : null}
             {error ? <Text style={s.error}>{error}</Text> : null}
@@ -341,6 +341,7 @@ const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
   pageWide: { backgroundColor: RivalColors.surfaceContainer },
   content: { maxWidth: 560, width: '100%', alignSelf: 'center', paddingHorizontal: 16, paddingBottom: 120, gap: 12 },
+  cardError: { borderColor: 'rgba(255,92,92,0.45)' },
   card: { borderRadius: 22, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, padding: 16, gap: 10 },
   label: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 1.7, textTransform: 'uppercase', color: RivalColors.accentText },
   body: { fontFamily: RivalFontFamily, fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.72)' },
@@ -379,7 +380,6 @@ const s = StyleSheet.create({
   primary: { height: 50, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   primaryText: { fontFamily: RivalFontFamily, fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   ghost: { height: 46, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-  ghostAccent: { marginTop: 4, borderColor: 'rgba(255,181,158,0.35)' },
   ghostText: { fontFamily: RivalFontFamily, fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.88)' },
   track: { flexDirection: 'row', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   trackFill: { height: 6, borderRadius: 3, backgroundColor: '#e8835f' },
