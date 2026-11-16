@@ -1614,6 +1614,13 @@ const LeaderCardSlot = memo(function LeaderCardSlot({ leader, first, width, stre
     // Replays only after the card was swiped away sideways. Scrolling the page
     // up and down past the podium leaves it as it is (Ricky, 2026-09-27).
     let swipedAway = false;
+    // The team row that scrolls sideways. A real swipe moves it; a pop-up
+    // opening or closing over Today doesn't, though Safari on the iPhone can
+    // report the card leaving late, as if it had been swiped away (Ricky,
+    // 2026-11-16: the podium replayed after closing Add an activity).
+    let row: HTMLElement | null = el.parentElement;
+    while (row && !(row.scrollWidth > row.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(row).overflowX))) row = row.parentElement;
+    let shownAt = row ? row.scrollLeft : 0;
     // The reset happens as the card leaves, not as it comes back: resetting
     // on return showed the old, risen podium for a moment before it dropped
     // and rose again (Ricky, 2026-10-02). Once fully off screen it goes back
@@ -1628,13 +1635,15 @@ const LeaderCardSlot = memo(function LeaderCardSlot({ leader, first, width, stre
       if (!now && entry.rootBounds) {
         const r = entry.boundingClientRect, root = entry.rootBounds;
         const inRow = r.bottom > root.top && r.top < root.bottom;
-        if (inRow && (r.right <= root.left + r.width * 0.9 || r.left >= root.right - r.width * 0.9)) swipedAway = true;
+        const rowMoved = !row || Math.abs(row.scrollLeft - shownAt) > r.width * 0.5;
+        if (inRow && rowMoved && (r.right <= root.left + r.width * 0.9 || r.left >= root.right - r.width * 0.9)) swipedAway = true;
       }
       if (entry.intersectionRatio === 0 && swipedAway) {
         swipedAway = false;
         setShown(false);
         setVisits((v) => v + 1);
       }
+      if (now && row) shownAt = row.scrollLeft;
       if (now === was) return;
       was = now;
       if (now) setShown(true);

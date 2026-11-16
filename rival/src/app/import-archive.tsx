@@ -42,8 +42,14 @@ export default function ImportArchiveScreen() {
   // Picker open: an iPhone downloads the file from iCloud before handing it
   // over, so the drop zone says so until it arrives (or the picker closes).
   const [opening, setOpening] = useState(false);
+  const waitTimer = useRef<any>(null);
+  useEffect(() => () => clearTimeout(waitTimer.current), []);
   // Reading: the file is unpacked, then each activity is checked against RIVAL.
   const [checked, setChecked] = useState(0);
+  // The file's size and how much of it has been read (Mockup 90 B).
+  const [bytes, setBytes] = useState({ loaded: 0, total: 0 });
+  // Two minutes on "Opening file" with nothing from the phone (Mockup 90 C).
+  const [notArrived, setNotArrived] = useState(false);
   const [total, setTotal] = useState(0);
   // An import cut off last time (the page closed or reloaded part way).
   const [paused, setPaused] = useState<Paused | null>(null);
@@ -55,18 +61,34 @@ export default function ImportArchiveScreen() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.zip,application/zip';
-    input.addEventListener('cancel', () => setOpening(false));
+    // In the page, not loose: Safari added to the Home Screen can drop the
+    // change event of a file box that isn't, leaving "Opening file" for good
+    // (Ricky, 2026-11-16, a Garmin archive).
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    const done = () => { clearTimeout(waitTimer.current); input.remove(); };
+    // No file after two minutes: say so rather than wait forever.
+    clearTimeout(waitTimer.current);
+    waitTimer.current = setTimeout(() => {
+      input.remove();
+      setOpening(false);
+      setNotArrived(true);
+    }, 120_000);
+    input.addEventListener('cancel', () => { done(); setOpening(false); });
     input.onchange = async () => {
+      done();
       setOpening(false);
       const file = input.files?.[0];
       if (!file) return;
       setFileName(file.name);
       setChecked(0);
       setTotal(0);
+      setBytes({ loaded: 0, total: file.size });
+      setNotArrived(false);
       setStep('reading');
       setError(null);
       try {
-        const r = await readArchive(file);
+        const r = await readArchive(file, (loaded, size) => setBytes({ loaded, total: size }));
         setRead(r);
         setSource(r.source === 'rival' ? 'rival' : 'strava');
         setTotal(r.items.length);
@@ -81,6 +103,8 @@ export default function ImportArchiveScreen() {
         setStep('error');
       }
     };
+    setError(null);
+    setNotArrived(false);
     setOpening(true);
     input.click();
   }
@@ -188,9 +212,18 @@ export default function ImportArchiveScreen() {
             </View>
             <TouchableOpacity style={s.drop} onPress={choose} activeOpacity={0.85}>
               <View style={s.dropCoin}><RivalIcon name="upload" size={22} color={RivalColors.accentText} /></View>
-              <Text style={s.dropTitle}>{opening ? 'Opening the file…' : 'Choose the .zip file'}</Text>
-              <Text style={s.dropSub}>{opening ? 'Files stored in iCloud can take a moment.' : 'From Files or Downloads. Nothing is added until the next step.'}</Text>
+              <Text style={s.dropTitle}>{opening ? 'Opening file…' : 'Choose the .zip file'}</Text>
+              <Text style={s.dropSub}>{opening ? 'Keep RIVAL open. Large files and files in iCloud can take a few minutes.' : 'From Files or Downloads. Nothing is added until the next step.'}</Text>
             </TouchableOpacity>
+            {notArrived ? (
+              <View style={s.card}>
+                <Text style={s.serif}>The file didn't arrive</Text>
+                <Text style={s.body}>In Files, wait for the archive to finish downloading (the cloud icon disappears), then choose it again. Very large archives are easier to upload from a computer.</Text>
+                <TouchableOpacity style={[s.ghost, s.ghostAccent]} onPress={choose} activeOpacity={0.85} accessibilityRole="button">
+                  <Text style={[s.ghostText, { color: RivalColors.accentText }]}>Choose again</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
             {error ? <Text style={s.error}>{error}</Text> : null}
             {source === 'strava' ? (
               <View style={s.card}>
@@ -207,7 +240,8 @@ export default function ImportArchiveScreen() {
         ) : step === 'reading' ? (
           <LoaderCard
             fileName={fileName}
-            pct={total ? 10 + Math.round((checked / total) * 90) : 4}
+            pct={total ? 40 + Math.round((checked / total) * 60) : Math.max(2, Math.round(bytes.total ? (bytes.loaded / bytes.total) * 40 : 2))}
+            detail={bytes.total ? (bytes.loaded < bytes.total ? `Reading ${sizeOf(bytes.loaded, bytes.total)} of ${sizeOf(bytes.total)}` : sizeOf(bytes.total)) : undefined}
             rows={[
               { label: 'Activities', value: all.length },
               { label: 'Photos', value: photosIn(all) },
@@ -254,6 +288,8 @@ export default function ImportArchiveScreen() {
             ]}
           />
         )}
+        {/* Closing the app part way stops it (Ricky, 2026-11-16). */}
+        {step === 'reading' || step === 'importing' ? <Text style={s.keepOpen}>Keep RIVAL open until this finishes.</Text> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -292,6 +328,15 @@ function savePaused(p: Paused | null) {
   try { p ? phoneStore.setItem(PAUSED_KEY, JSON.stringify(p)) : phoneStore.removeItem(PAUSED_KEY); } catch { /* private mode */ }
 }
 
+/** A file size as people say it: "850 MB", "2.4 GB". With `like`, in the
+ *  same unit as that size, so "0.9 of 2.4 GB" reads as one. */
+function sizeOf(n: number, like = n): string {
+  const gb = like >= 1e9;
+  const v = n / (gb ? 1e9 : 1e6);
+  const text = gb ? v.toFixed(1) : String(Math.max(1, Math.round(v)));
+  return like === n ? `${text} ${gb ? 'GB' : 'MB'}` : text;
+}
+
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
   pageWide: { backgroundColor: RivalColors.surfaceContainer },
@@ -299,6 +344,7 @@ const s = StyleSheet.create({
   card: { borderRadius: 22, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, padding: 16, gap: 10 },
   label: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 1.7, textTransform: 'uppercase', color: RivalColors.accentText },
   body: { fontFamily: RivalFontFamily, fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.72)' },
+  keepOpen: { fontFamily: RivalFontFamily, fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 12 },
   error: { fontFamily: RivalFontFamily, fontSize: 13, color: RivalColors.danger, textAlign: 'center' },
   tiles: { flexDirection: 'row', gap: 8 },
   tile: { flex: 1, minHeight: 92, borderRadius: 16, padding: 12, justifyContent: 'flex-end', overflow: 'hidden', backgroundColor: 'rgba(255,209,190,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
@@ -333,6 +379,7 @@ const s = StyleSheet.create({
   primary: { height: 50, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   primaryText: { fontFamily: RivalFontFamily, fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   ghost: { height: 46, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  ghostAccent: { marginTop: 4, borderColor: 'rgba(255,181,158,0.35)' },
   ghostText: { fontFamily: RivalFontFamily, fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.88)' },
   track: { flexDirection: 'row', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   trackFill: { height: 6, borderRadius: 3, backgroundColor: '#e8835f' },

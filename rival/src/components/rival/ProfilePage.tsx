@@ -76,7 +76,11 @@ function Label({ children, right, onPress }: { children: string; right?: string;
     <View style={s.lab}>
       <Text style={s.labText}>{children}</Text>
       {right ? (
-        <TouchableOpacity disabled={!onPress} onPress={onPress} activeOpacity={0.7}><Text style={s.labRight}>{right}</Text></TouchableOpacity>
+        // A header that opens a page reads as a link: "See all ›" (Mockup 87 v2 C).
+        <TouchableOpacity disabled={!onPress} onPress={onPress} activeOpacity={0.7} style={s.labLink} accessibilityRole={onPress ? 'link' : undefined}>
+          <Text style={s.labRight}>{right}</Text>
+          {onPress ? <RivalIcon name="chevronRight" size={15} color={RivalColors.accentText} /> : null}
+        </TouchableOpacity>
       ) : null}
     </View>
   );
@@ -621,7 +625,7 @@ export function ProfilePage({
 
           {upcoming.length > 0 || completed.length > 0 || isOwn ? (
             <>
-              <Label right={upcoming.length + past.length > 0 ? `All ${upcoming.length + past.length}` : undefined} onPress={openEvents}>Events</Label>
+              <Label right={upcoming.length + past.length > 0 ? 'See all' : undefined} onPress={openEvents}>Events</Label>
               {upcoming[0] ? (
                 <TouchableOpacity style={s.ticket} activeOpacity={0.85} onPress={openEvents} accessibilityRole="button">
                   <View style={s.ticketMain}>
@@ -973,6 +977,7 @@ const s = StyleSheet.create({
 
   lab: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: -2, marginHorizontal: 4 },
   labText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: '#A0A0A0' },
+  labLink: { flexDirection: 'row', alignItems: 'center', gap: 1 },
   labRight: { fontSize: 12.5, fontWeight: '700', letterSpacing: 0.3, color: RivalColors.accentText },
   rowScroll: { marginRight: -16 },
   row: { gap: 8, paddingRight: 16 },

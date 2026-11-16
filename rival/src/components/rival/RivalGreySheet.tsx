@@ -312,8 +312,9 @@ export function GreyArtTile({
 /** A big action tile in the Add an activity look (Mockup 86 B, Ricky
  *  2026-11-15): the icon large and faint behind a title and a short line,
  *  lit in the button gradient for the main action, warm outline otherwise. */
-export function GreyBigTile({ icon, title, sub, lit, onPress }: {
-  icon: RivalIconName; title: string; sub: string; lit?: boolean; onPress: () => void;
+/** `serif`: the title in the serif italic, for an empty-state tile (Mockup 89 C). */
+export function GreyBigTile({ icon, title, sub, lit, serif, onPress }: {
+  icon: RivalIconName; title: string; sub: string; lit?: boolean; serif?: boolean; onPress: () => void;
 }) {
   const ink = lit ? RivalButtonColors.label(RivalColors.onAccentFill) : undefined;
   return (
@@ -322,7 +323,7 @@ export function GreyBigTile({ icon, title, sub, lit, onPress }: {
         <RivalIcon name={icon} size={118} color={lit ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.24)'} />
       </View>
       <View style={[g.bigTileArt, lit ? g.bigTileFadeLit : g.bigTileFadeGhost, { pointerEvents: 'none' }]} />
-      <Text style={[g.bigTileTitle, ink ? { color: ink } : null]}>{title}</Text>
+      <Text style={[g.bigTileTitle, serif && g.bigTileSerif, ink ? { color: ink } : null]}>{title}</Text>
       <Text style={[g.bigTileSub, ink ? { color: ink, opacity: 0.75 } : null]}>{sub}</Text>
     </TouchableOpacity>
   );
@@ -554,6 +555,7 @@ const g = StyleSheet.create({
   bigTileFadeLit: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' }),
   bigTileFadeGhost: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' }),
   bigTileTitle: { fontSize: 17, fontWeight: '800', color: RivalColors.textPrimary },
+  bigTileSerif: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22 },
   bigTileSub: { fontSize: 12, fontWeight: '500', color: RivalColors.textSecondary },
   artTile: { height: 78, borderRadius: 16, paddingHorizontal: 10, paddingBottom: 9, justifyContent: 'flex-end', overflow: 'hidden' },
   artTileGhost: { borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)', backgroundColor: RivalGhost.fill },
