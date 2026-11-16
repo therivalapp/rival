@@ -7,8 +7,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
-import { notify } from '../lib/notify';
-import { formatDisplayName } from '../lib/identity';
+import { confirmAction, notify } from '../lib/notify';
+import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { invalidateUnreadChats } from '../lib/unreadChats';
 import { copyText } from '../lib/clipboard';
 import { RivalIcon, RivalBackButton, PlanSessionSheet, RivalWarm } from '../components/rival';
@@ -221,7 +221,7 @@ export default function ChatScreen() {
       loadMessages(),
     ]);
 
-    setTeamName(teamRes.data?.name ?? 'Team');
+    setTeamName(formatTeamName(teamRes.data?.name) || 'Team');
     setTeamLogo(teamRes.data?.logo_url ?? null);
     setMembers((memberRes.data as any) ?? []);
 
@@ -313,6 +313,27 @@ export default function ChatScreen() {
       if (lastSeen) (map[lastSeen.id] ??= []).push(r.user_id);
     });
     setSeenBy(map);
+  }
+
+  // Unsend (Mockup 72, Messenger-style): the author blanks their own message.
+  // The row stays, so replies keep their place, and every reader shows a short
+  // note instead. A text message with no body is only ever an unsent one.
+  async function unsend(msg: Msg) {
+    setMenuFor(null);
+    const ok = await confirmAction({ title: 'Unsend this message?', message: 'It will be removed for everyone in the team.', confirmLabel: 'Unsend', destructive: true });
+    if (!ok) return;
+    const before = messages;
+    setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, body: null } : m)));
+    if (replyTo?.id === msg.id) setReplyTo(null);
+    const { data, error: unsendError } = await supabase
+      .from('league_messages')
+      .update({ body: null, pinned: false })
+      .eq('id', msg.id).eq('user_id', currentUserId)
+      .select('id');
+    if (unsendError || !data?.length) {
+      setMessages(before);
+      notify("Couldn't unsend that message", unsendError?.message ?? 'Try again.');
+    }
   }
 
   async function toggleReaction(messageId: string, emoji: string) {
@@ -417,12 +438,13 @@ export default function ChatScreen() {
     closeChatCard(id);
     if (chip.kind === 'send') await send(chip.text);
     else if (chip.kind === 'rsvp') { if (!(rsvpMap[chip.messageId] ?? []).includes(currentUserId)) await toggleRsvp(chip.messageId); }
-    else if (chip.kind === 'respect') {
+    else if (chip.kind === 'respect' || chip.kind === 'inspired') {
+      // A reaction on their activity, as on the team feed. Nothing is sent.
       const { error: rErr } = await supabase.from('feed_reactions').upsert(
-        { league_id: id, target_type: 'activity', target_id: chip.activityId, user_id: currentUserId, emoji: 'respect' },
+        { league_id: id, target_type: 'activity', target_id: chip.activityId, user_id: currentUserId, emoji: chip.kind },
         { onConflict: 'target_type,target_id,user_id' },
       );
-      if (rErr) notify("Couldn't give Respect", rErr.message);
+      if (rErr) notify(chip.kind === 'respect' ? "Couldn't give Respect" : "Couldn't send Inspired", rErr.message);
     } else if (chip.kind === 'open') router.push(chip.route as any);
   }
 
@@ -685,7 +707,7 @@ export default function ChatScreen() {
                               </View>
                               {src ? (
                                 <View style={[styles.quoteBubble, isMe && styles.quoteBubbleMe]}>
-                                  <Text style={styles.quoteText}>{src.kind === 'session' ? 'Planned activity' : src.body}</Text>
+                                  <Text style={[styles.quoteText, isUnsent(src) && styles.unsentText]}>{src.kind === 'session' ? 'Planned activity' : isUnsent(src) ? 'Message unsent' : src.body}</Text>
                                 </View>
                               ) : null}
                             </View>
@@ -693,6 +715,11 @@ export default function ChatScreen() {
                         })()}
 
                         {/* A tap or a long press opens the press menu; double-tap hearts it. */}
+                        {isUnsent(msg) ? (
+                          <View style={[styles.bubble, styles.unsentBubble]}>
+                            <Text style={[styles.msgText, styles.unsentText]}>{isMe ? 'You unsent a message' : `${firstName(nameFor(msg.user_id))} unsent a message`}</Text>
+                          </View>
+                        ) : (
                         <TouchableOpacity
                           activeOpacity={0.85}
                           onPress={() => onBubblePress(msg)}
@@ -710,15 +737,16 @@ export default function ChatScreen() {
                             {renderBody(msg.body, isMe)}
                           </View>
                         </TouchableOpacity>
+                        )}
 
-                        {!isMe && msg.id === lastOtherId && Object.keys(reactions[msg.id] ?? {}).length === 0 && (
+                        {!isMe && !isUnsent(msg) && msg.id === lastOtherId && Object.keys(reactions[msg.id] ?? {}).length === 0 && (
                           <View style={styles.reactionRow}>
                             <TouchableOpacity style={styles.addReaction} onPress={() => setMenuFor(msg)} accessibilityRole="button" accessibilityLabel="React">
                               <RivalIcon name="addReaction" size={14} color={RivalColors.textSecondary} />
                             </TouchableOpacity>
                           </View>
                         )}
-                        {Object.keys(reactions[msg.id] ?? {}).length > 0 && (
+                        {!isUnsent(msg) && Object.keys(reactions[msg.id] ?? {}).length > 0 && (
                           <View style={[styles.reactionRow, isMe && styles.reactionRowMe]}>
                             {Object.entries(reactions[msg.id]).map(([emoji, users]) => (
                               <TouchableOpacity
@@ -872,6 +900,7 @@ export default function ChatScreen() {
           onCopy={async () => { await copyText(menuFor.body ?? ''); setMenuFor(null); }}
           onReport={() => { const m = menuFor; setMenuFor(null); openReport({ kind: 'message', targetId: m.id, userId: m.user_id, name: nameFor(m.user_id) }); }}
           onBlock={() => { const m = menuFor; setMenuFor(null); openBlock({ userId: m.user_id, name: nameFor(m.user_id) }); }}
+          onUnsend={() => unsend(menuFor)}
         />
       ) : null}
 
@@ -936,10 +965,15 @@ function MessageArrive({ play, mine, onLayout, children }: { play: boolean; mine
   );
 }
 
-function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, onReport, onBlock }: {
+/** A text message with no body was unsent by its author (Mockup 72). */
+function isUnsent(m: { kind: string; body: string | null }): boolean {
+  return m.kind === 'text' && !m.body;
+}
+
+function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, onReport, onBlock, onUnsend }: {
   msg: Msg; isMe: boolean; name: string; mine: string | null;
   onClose: () => void; onReact: (emoji: string) => void; onReply: () => void; onCopy: () => void;
-  onReport: () => void; onBlock: () => void;
+  onReport: () => void; onBlock: () => void; onUnsend: () => void;
 }) {
   return (
     <View style={pm.fill}>
@@ -959,7 +993,13 @@ function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, o
         </View>
         <View style={[pm.menu, isMe && pm.menuMe]} onStartShouldSetResponder={() => true}>
           <MenuRow label="Reply" icon="reply" onPress={onReply} />
-          <MenuRow label="Copy" icon="copy" onPress={onCopy} last={isMe} />
+          <MenuRow label="Copy" icon="copy" onPress={onCopy} last={isMe && msg.kind !== 'text'} />
+          {isMe && msg.kind === 'text' ? (
+            <>
+              <View style={pm.gap} />
+              <MenuRow label="Unsend" icon="delete" color="#ff8f8f" onPress={onUnsend} last />
+            </>
+          ) : null}
           {!isMe ? (
             <>
               <View style={pm.gap} />
@@ -973,7 +1013,7 @@ function PressMenu({ msg, isMe, name, mine, onClose, onReact, onReply, onCopy, o
   );
 }
 
-function MenuRow({ label, icon, color, onPress, last }: { label: string; icon: 'reply' | 'copy' | 'flag' | 'block'; color?: string; onPress: () => void; last?: boolean }) {
+function MenuRow({ label, icon, color, onPress, last }: { label: string; icon: 'reply' | 'copy' | 'flag' | 'block' | 'delete'; color?: string; onPress: () => void; last?: boolean }) {
   return (
     <TouchableOpacity style={[pm.row, !last && pm.rowLine]} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
       <Text style={[pm.rowText, color ? { color } : null]}>{label}</Text>
@@ -1125,6 +1165,9 @@ const styles = StyleSheet.create({
   },
   quoteBubbleMe: {},
   quoteText: { fontSize: 13, lineHeight: 17, color: RivalColors.textSecondary },
+  // Unsent (Mockup 72): a faint outline and an italic note where the text was.
+  unsentBubble: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
+  unsentText: { fontStyle: 'italic', color: 'rgba(255,255,255,0.5)' },
   quote: {
     borderLeftWidth: 2, borderLeftColor: RivalColors.surfaceContainerHigh,
     paddingLeft: 8, marginLeft: 12, marginBottom: 4, opacity: 0.75, maxWidth: '100%',

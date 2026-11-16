@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RivalColors, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalRowLink, RivalTopNav, rm, GreySheet, GreyNote, GreyLabel, GreyField, GreyRows, GreyRow, GreyPrimary } from '../components/rival';
+import { RoutePopUp } from '../components/rival/RivalModal';
 import { sidePageWide } from '../constants/breakpoints';
 import { Image, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -99,6 +100,7 @@ export default function JoinLeagueScreen() {
     const shown = team.members.filter((m) => m.name.toLowerCase().includes(q));
     const inviter = team.members.find((m) => m.name === waitingFor);
     return (
+      <RoutePopUp>
       <View style={ms.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
         {step === 'who' ? (
@@ -177,6 +179,7 @@ export default function JoinLeagueScreen() {
           </GreySheet>
         )}
       </View>
+      </RoutePopUp>
     );
   }
 
@@ -185,6 +188,7 @@ export default function JoinLeagueScreen() {
     // route is a transparent modal on phone, see _layout.tsx).
     const close = () => (router.canGoBack() ? router.back() : router.replace('/discover-leagues'));
     return (
+      <RoutePopUp>
       <View style={ms.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
         <GreySheet
@@ -216,6 +220,7 @@ export default function JoinLeagueScreen() {
           </GreyRows>
         </GreySheet>
       </View>
+      </RoutePopUp>
     );
   }
 

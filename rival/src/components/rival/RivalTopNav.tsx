@@ -6,7 +6,7 @@ import { router, useIsFocused, usePathname } from 'expo-router';
 import { supabase, getAuthUser } from '../../lib/supabase';
 import { getLevel } from '../../lib/xp';
 import { getSeasonStartISO } from '../../lib/season';
-import { fetchInboxBadgeCount, onInboxChanged } from '../../lib/inbox';
+import { fetchInboxBadgeCount, onInboxChanged, bellSeenAt, markBellSeen } from '../../lib/inbox';
 import { NotificationsMenu, prefetchNotifications } from './NotificationsMenu';
 import { stravaSharingNeedsAnswer } from '../../lib/stravaSharing';
 import { getUnreadChats } from '../../lib/unreadChats';
@@ -110,7 +110,8 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
       Promise.all([fetchInboxBadgeCount(), stravaSharingNeedsAnswer().catch(() => false)])
         .then(([n, strava]) => {
           if (cancelled) return;
-          setInboxCount(n + (strava ? 1 : 0));
+          // Strava sharing still unanswered counts until the bell is opened once.
+          setInboxCount(n + (strava && !bellSeenAt() ? 1 : 0));
           // Phones open the bell's list in place; have it ready.
           if (narrowRef.current) prefetchNotifications(n);
         })
@@ -290,6 +291,7 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
     >
       <View nativeID="rival-bottom-nav" style={[styles.bottomNav, navShrunk && styles.bottomNavShrunk]}>
         {tabHl.highlight}
+        <View pointerEvents="none" style={styles.startNotch} />
         {LINKS.map((l, i) => {
           const isActive = active === l.key;
           return (
@@ -451,6 +453,9 @@ export function RivalTopNav({ active, centerSlot, hideBar, action }: {
           <TouchableOpacity
             ref={bellRef as any}
             onPress={() => {
+              // Opening the bell clears its number; unread items keep their dots.
+              markBellSeen();
+              setInboxCount(0);
               if (!narrow) { router.push('/inbox'); return; }
               // The dropdown grows out of the bell itself, so it needs to know
               // exactly where the bell and the bottom of the bar are.
@@ -693,6 +698,7 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
     <View style={[styles.nativeBarOuter, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 12, 8) : 6 }]} pointerEvents="box-none" onLayout={(e) => { nativeNavTop = e.nativeEvent.layout.y; }}>
       <Animated.View style={[styles.bottomNav, barShrink]} onLayout={(e) => setBarH(e.nativeEvent.layout.height)}>
         {tabHl.highlight}
+        <View pointerEvents="none" style={styles.startNotch} />
         {LINKS.map((l, i) => {
           const isActive = active === l.key;
           return (
@@ -825,10 +831,15 @@ const styles = StyleSheet.create({
       ? { transition: 'transform 0.22s ease, opacity 0.22s ease' } as any
       : {}),
   },
-  // The Start circle's room: its 66px width and 9px either side, so the lit
-  // tab beside it never touches the ring (Ricky, 2026-11-14: "more premium").
-  // A share of the row instead left "Activity" against the circle.
-  bottomNavGap: { width: 84, flexShrink: 0 },
+  bottomNavGap: { flex: 1 },
+  // A ring of the bar's own colour just outside the Start circle, drawn over
+  // the lit tab: the highlight keeps its size but curves around the circle
+  // with a small even space, never touching it (Ricky, 2026-11-14). Centred
+  // on the circle (66px, top -12 on the bar), 6px wider all round.
+  startNotch: {
+    position: 'absolute', left: '50%', marginLeft: -39, top: -19,
+    width: 78, height: 78, borderRadius: 39, backgroundColor: '#1c1c1c',
+  },
   nativeBarOuter: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16 },
   // Raised out of the bar's middle, the same circle as the running timer.
   startCircle: {

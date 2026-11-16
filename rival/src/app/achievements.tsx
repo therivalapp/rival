@@ -16,6 +16,7 @@ import { ActivityDiaryViewer, type DiaryActivity } from '../components/rival/Act
 import { onActivityDeleted } from '../lib/activityEvents';
 import { yearAchievements, type EarnedAchievement, type YearActivity } from '../lib/yearAchievements';
 import { RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, GREY_PAGE_BG, type RivalIconName } from '../components/rival';
+import { GlassPill } from '../components/rival/GlassPill';
 import { webFx } from '../lib/webFx';
 
 // Real icons on phones instead of the achievement's emoji: one per category.
@@ -403,7 +404,7 @@ function EarnedTile({ e, onPress }: { e: EarnedAchievement; onPress: () => void 
         </View>
       )}
       <View style={[StyleSheet.absoluteFill, ms.tileShade, { pointerEvents: 'none' }]} />
-      <View style={ms.pill}><Text style={ms.pillText}>{date}</Text></View>
+      <GlassPill tone="dark" style={ms.pill}><Text style={ms.pillText}>{date}</Text></GlassPill>
       <View style={ms.tileFoot}>
         <Text style={ms.tileValue} numberOfLines={1} adjustsFontSizeToFit>{e.value}{e.unit ? <Text style={ms.unit}> {e.unit}</Text> : null}</Text>
         <Text style={ms.tileLabel}>{e.label}</Text>

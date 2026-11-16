@@ -113,7 +113,7 @@ export function PhotoPrompt() {
   const stats = [
     (activity.distance_meters ?? 0) > 0 ? formatDistance((activity.distance_meters ?? 0) / 1000) : null,
     activity.duration_seconds ? liveClock(activity.duration_seconds) : null,
-    activity.effort_score ? `Effort ${Math.round(activity.effort_score)}` : null,
+    activity.effort_score ? `Effort ${Math.round(activity.effort_score * 10) / 10}` : null,
   ].filter(Boolean).join(' · ');
 
   const picker = picked ? (

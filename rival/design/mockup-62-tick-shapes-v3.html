@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mockup 62 v3 · Dry brush tick, tip redrawn (2026-11-15). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:760px;padding-bottom:24px}
+.top{font:italic 700 22px Georgia,serif;text-align:center;padding:18px 0 4px}
+.sub{text-align:center;font-size:12px;color:rgba(255,255,255,.6);padding:0 40px 14px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:0 20px}
+.c{background:#1c1c1c;border-radius:20px;padding:16px 10px 16px;text-align:center}
+.tag{font-size:12px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.nm{font:italic 700 16px Georgia,serif;margin:2px 0 8px}
+.d{font-size:11px;color:rgba(255,255,255,.6);margin-top:8px;line-height:1.4}
+svg{display:block;margin:0 auto}
+.row{display:flex;justify-content:center;align-items:center;gap:18px}
+.small{display:flex;flex-direction:column;gap:10px;align-items:center}
+.small span{font-size:10px;color:rgba(255,255,255,.45)}
+</style></head><body>
+<div class="top">Mockup 62 v3 · Dry brush tip</div>
+<div class="sub">The long stroke now thins all the way out instead of stopping square. Two ways to finish it.</div>
+<div class="grid" id="g"></div>
+<script>
+const G='#FFD700',BG='#1c1c1c';
+// The long stroke runs along a spine from the corner C to the tip T.
+const C=[94,140],T=[170,36];
+const L=Math.hypot(T[0]-C[0],T[1]-C[1]),dv=[(T[0]-C[0])/L,(T[1]-C[1])/L],nv=[-dv[1],dv[0]];
+const at=(t,o)=>[C[0]+dv[0]*L*t+nv[0]*o,C[1]+dv[1]*L*t+nv[1]*o];
+const P=(pts)=>'M'+pts.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' L')+' Z';
+const width=(t)=>13-6*Math.pow(Math.max(t,0),1.4); // half width: heavy at the corner, thinning
+const shortArm=`<path d="M44,104 Q55,93 68,86 Q86,108 100,124 L105,147 Q96,157 86,149 Q64,126 44,104 Z" fill="${G}"/>`;
+// A: the body splits into bristles, each tapering to its own point.
+function bristles(){
+  let s='';const N=40;const up=[],dn=[];
+  for(let i=0;i<=N;i++){const t=-0.04+0.66*i/N;up.push(at(t,width(t)));dn.unshift(at(t,-width(t)));}
+  s+=`<path d="${P(up.concat(dn))}" fill="${G}"/>`;
+  const w0=width(0.62);
+  // offset across the stroke, where it ends, base half width
+  [[-w0+1.6,0.93,1.8],[-w0*0.45,1.0,2.4],[0.4,0.97,2.2],[w0*0.5,1.04,2.0],[w0-1.4,0.86,1.6],[w0*0.05-1,0.8,1.2]].forEach(([o,e,b])=>{
+    const pts=[];const M=24;
+    for(let i=0;i<=M;i++){const t=0.6+(e-0.6)*i/M;const k=1-i/M;pts.push(at(t,o+b*Math.pow(k,0.8)));}
+    for(let i=M;i>=0;i--){const t=0.6+(e-0.6)*i/M;const k=1-i/M;pts.push(at(t,o-b*Math.pow(k,0.8)));}
+    s+=`<path d="${P(pts)}" fill="${G}"/>`;
+  });
+  return s;
+}
+// B: one stroke that tapers to a single sharp point, broken by dry gaps.
+function taper(){
+  const N=60,up=[],dn=[];
+  for(let i=0;i<=N;i++){const t=-0.04+1.04*i/N;const w=width(t)*Math.pow(1-Math.max(0,(t-0.55)/0.45),1.1);up.push(at(t,w));dn.unshift(at(t,-w));}
+  let s=`<path d="${P(up.concat(dn))}" fill="${G}"/>`;
+  [[3,0.5,0.86,1.1],[-4,0.58,0.8,0.9],[-0.5,0.66,0.92,0.7],[6,0.45,0.7,0.8]].forEach(([o,a,b,w])=>{
+    s+=`<path d="M${at(a,o).join(',')} L${at(b,o*(1-b)/(1-a)*0.9).join(',')}" stroke="${BG}" stroke-width="${w}" stroke-linecap="round"/>`;
+  });
+  return s;
+}
+const opts=[['G1','Splits into bristles','The stroke thins, then breaks into strands that each end in their own point.',bristles()],
+            ['G2','One sharp point','The stroke thins to a single point, with dry gaps running through the end.',taper()]];
+const ring=(id,inner,s)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><defs><filter id="f${id}${s}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="2.5"/></filter></defs><circle cx="100" cy="100" r="86" fill="none" stroke="${G}" stroke-width="14"/><g transform="translate(100 100) scale(.8) translate(-106 -92)" filter="url(#f${id}${s})">${shortArm}${inner}</g></svg>`;
+document.getElementById('g').innerHTML=opts.map(([t,n,d,p])=>`<div class="c"><div class="tag">${t}</div><div class="nm">${n}</div><div class="row">${ring(t,p,220)}<div class="small">${ring(t,p,48)}${ring(t,p,30)}<span>trophy size</span></div></div><div class="d">${d}</div></div>`).join('');
+</script></body></html>

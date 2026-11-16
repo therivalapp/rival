@@ -3,6 +3,7 @@ import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, ImageBackg
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { RivalButton, RivalCard, RivalIcon, RivalIconName, RivalTopNav, RivalBackButton, rb, GreyPageHead, GreyRows, GreyRow, GreySheet } from '../components/rival';
+import { RoutePopUp } from '../components/rival/RivalModal';
 import { goToTab } from '../lib/tabNav';
 import { pickScanFiles, setPendingScanDays, setPendingScanFiles } from '../lib/scanHandoff';
 import { groupByDay, takenAt } from '../lib/photoDates';
@@ -127,6 +128,7 @@ export default function AddWorkoutScreen() {
       }, true);
     };
     return (
+      <RoutePopUp>
       <View style={ms.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
         {view === 'days' ? (
@@ -264,6 +266,7 @@ export default function AddWorkoutScreen() {
         </GreySheet>
         )}
       </View>
+      </RoutePopUp>
     );
   }
 

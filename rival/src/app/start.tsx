@@ -207,7 +207,7 @@ function ReadyScreen() {
           const stats = last ? [
             { value: liveClock(last.duration_seconds ?? 0), name: 'LAST TIME' },
             ...(logsLifts(t) ? (sets ? [{ value: String(sets), name: 'SETS' }] : []) : (distance ? [{ value: distance, name: 'DISTANCE' }] : [])),
-            ...(last.effort_score ? [{ value: String(Math.round(last.effort_score)), name: 'EFFORT' }] : []),
+            ...(last.effort_score ? [{ value: String(Math.round(last.effort_score * 10) / 10), name: 'EFFORT' }] : []),
           ] : [];
           return (
             <View key={t} style={{ width, height: '100%' as any }}>

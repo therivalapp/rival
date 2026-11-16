@@ -1,3 +1,4 @@
+import { formatTeamName } from './identity';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { getLevel } from './xp';
@@ -25,6 +26,8 @@ import type { RivalIconName } from '../components/rival/RivalIcon';
 export type ChatCardChip =
   | { kind: 'send'; label: string; text: string }
   | { kind: 'respect'; label: string; activityId: string }
+  // Inspired, as on the team feed: a reaction on the activity, never a message.
+  | { kind: 'inspired'; label: string; activityId: string }
   | { kind: 'rsvp'; label: string; messageId: string }
   | { kind: 'open'; label: string; route: string }
   | { kind: 'dismiss'; label: string };
@@ -138,7 +141,7 @@ export async function buildChatCards(args: {
   for (const r of races.filter((r) => r.race_date === today && r.user_id !== me && celebrate(r.user_id))) {
     const n = byId.get(r.user_id)!.name;
     cards.push({
-      key: `raceday:${r.id}`, icon: 'run', tone: 'event', text: `${n} races the ${r.name} today.`,
+      key: `raceday:${r.id}`, icon: 'run', tone: 'event', text: `${n} takes on the ${r.name} today.`,
       chips: [{ kind: 'send', label: `Good luck today, ${n}`, text: `Good luck today, @${n}` }, { kind: 'send', label: 'Go get it 💪', text: `Go get it, @${n} 💪` }],
     });
   }
@@ -150,8 +153,8 @@ export async function buildChatCards(args: {
     cards.push({
       key: `result:${r.id}`, icon: 'trophy', tone: 'event', text: `${n} finished the ${r.name} in ${showFinish(r.actual_finish_time)}.`,
       chips: [
-        ...(act ? [{ kind: 'respect' as const, label: 'Respect', activityId: act.id }] : []),
-        { kind: 'send', label: `Great race, ${n}`, text: `Great race, @${n}` },
+        ...(act ? [{ kind: 'respect' as const, label: 'Respect', activityId: act.id }, { kind: 'inspired' as const, label: 'Inspired', activityId: act.id }] : []),
+        { kind: 'send', label: `Nice work, ${n}`, text: `Nice work, @${n}` },
       ],
     });
   }
@@ -172,7 +175,8 @@ export async function buildChatCards(args: {
     } else if (key === soonMd) {
       cards.push({
         key: `birthday-soon:${b.user_id}:${now.getFullYear()}`, icon: 'cake', tone: 'accent', text: `${n}'s birthday is in 2 days.`,
-        chips: [{ kind: 'send', label: `Happy early birthday, ${n} 🎉`, text: `Happy early birthday, @${n} 🎉` }, { kind: 'send', label: 'Have a great one', text: `Have a great one, @${n}` }],
+        // A reminder only: no message before the day (Ricky, 2026-11-15).
+        chips: [],
       });
     }
   }
@@ -203,10 +207,10 @@ export async function buildChatCards(args: {
     (interestRows ?? []).filter((i: any) => i.race_id === r.id).forEach((i: any) => racers.add(i.user_id));
     if (racers.size === 0 || (racers.size === 1 && racers.has(me))) continue;
     const day = weekday(r.race_date);
-    const who = racers.size === 1 ? `${byId.get([...racers][0])!.name} is racing.` : `${racers.size} from the team are racing.`;
+    const who = racers.size === 1 ? `${byId.get([...racers][0])!.name} is participating.` : `${racers.size} from the team are participating.`;
     cards.push({
       key: `event:${r.id}`, icon: 'flag', tone: 'event', text: `${r.name} is on ${day}. ${who}`,
-      chips: [{ kind: 'send', label: `Good luck on ${day}`, text: `Good luck on ${day}, everyone racing` }, { kind: 'send', label: 'Who is coming to watch?', text: `Who is coming to watch the ${r.name}?` }],
+      chips: [{ kind: 'send', label: `Good luck on ${day}`, text: `Good luck on ${day}, everyone 💪` }, { kind: 'send', label: 'Who is coming to watch?', text: `Who is coming to watch the ${r.name}?` }],
     });
   }
 
@@ -230,12 +234,12 @@ export async function buildChatCards(args: {
     const base = `challenge:${league.goal_metric}:${target}:${league.goal_target_date}`;
     const view = { kind: 'open' as const, label: 'View challenge', route: hubRoute };
     if (pct >= 100) {
-      cards.push({ key: `${base}:done`, icon: 'groups', tone: 'accent', text: `${name} is complete.`, chips: [{ kind: 'send', label: 'Done, team', text: 'Done, team 🎉' }, view] });
+      cards.push({ key: `${base}:done`, icon: 'groups', tone: 'accent', text: `${name} is complete.`, chips: [{ kind: 'send', label: 'Well done, team', text: 'Well done, team 🎉' }, view] });
     } else if (daysLeft >= 0 && daysLeft <= 3) {
-      cards.push({ key: `${base}:last`, icon: 'groups', tone: 'accent', text: `${name} has ${daysLeft === 0 ? 'its last day today' : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`}. ${pct}% done.`, chips: [{ kind: 'send', label: 'Last push', text: 'Last push, team' }, view] });
+      cards.push({ key: `${base}:last`, icon: 'groups', tone: 'accent', text: `${name} has ${daysLeft === 0 ? 'its last day today' : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`}. ${pct}% done.`, chips: [view] });
     } else if (daysLeft > 0 && (pct >= 75 || pct >= 50)) {
       const mark = pct >= 75 ? 75 : 50;
-      cards.push({ key: `${base}:${mark}`, icon: 'groups', tone: 'accent', text: `${name} is ${mark}% done. ${daysLeft} days left.`, chips: [{ kind: 'send', label: mark === 75 ? 'Nearly there' : 'Halfway there', text: mark === 75 ? 'Nearly there, team' : 'Halfway there, team' }, view] });
+      cards.push({ key: `${base}:${mark}`, icon: 'groups', tone: 'accent', text: `${name} is ${mark}% done. ${daysLeft} days left.`, chips: [view] });
     }
   }
 
@@ -262,7 +266,7 @@ export async function buildChatCards(args: {
       rankCards.push({
         key: `rank:${m.user_id}:${now.getFullYear()}:${lvl.level}`, icon: `rank${lvl.name}` as RivalIconName, tone: 'accent',
         text: `${m.name} reached ${lvl.name}.`,
-        chips: [{ kind: 'respect', label: 'Respect', activityId: latest.id }, { kind: 'send', label: 'Well earned', text: `Well earned, @${m.name}` }],
+        chips: [{ kind: 'respect', label: 'Respect', activityId: latest.id }, { kind: 'inspired', label: 'Inspired', activityId: latest.id }, { kind: 'send', label: 'Well earned', text: `Well earned, @${m.name}` }],
       });
     }
     const hours = list.reduce((s, a) => s + (a.duration_seconds || 0), 0) / 3600;
@@ -272,7 +276,7 @@ export async function buildChatCards(args: {
       hourCards.push({
         key: `hours:${m.user_id}:${now.getFullYear()}:${mark}`, icon: 'hourglass', tone: 'accent',
         text: `${m.name} passed ${mark.toLocaleString()} hours of activity this year.`,
-        chips: [{ kind: 'respect', label: 'Respect', activityId: latest.id }, { kind: 'send', label: 'That is dedication', text: `That is dedication, @${m.name}` }],
+        chips: [{ kind: 'respect', label: 'Respect', activityId: latest.id }, { kind: 'inspired', label: 'Inspired', activityId: latest.id }],
       });
     }
     // 11. Welcome back: the first activity after three weeks or more without one.
@@ -283,7 +287,7 @@ export async function buildChatCards(args: {
       const what = `${dist ? `${dist} ` : ''}${tileLabel(first.activity_type).toLowerCase()}`;
       backCards.push({
         key: `back:${first.id}`, icon: 'wavingHand', tone: 'accent', text: `${m.name} is back with ${withArticle(what)}.`,
-        chips: [{ kind: 'send', label: `Welcome back, ${m.name}`, text: `Welcome back, @${m.name}` }, { kind: 'respect', label: 'Respect', activityId: first.id }],
+        chips: [{ kind: 'respect', label: 'Respect', activityId: first.id }],
       });
     }
   }
@@ -295,8 +299,8 @@ export async function buildChatCards(args: {
   if (years >= 1 && started.getMonth() === now.getMonth() && started.getDate() === now.getDate()) {
     const span = years === 1 ? 'one year' : `${years} years`;
     cards.push({
-      key: `anniversary:${now.getFullYear()}`, icon: 'celebration', tone: 'accent', text: `${league.name} started ${span} ago today.`,
-      chips: [{ kind: 'send', label: `Happy ${span}, team 🎉`, text: `Happy ${span}, team 🎉` }, { kind: 'send', label: `Here is to year ${years + 1}`, text: `Here is to year ${years + 1}` }],
+      key: `anniversary:${now.getFullYear()}`, icon: 'celebration', tone: 'accent', text: `${formatTeamName(league.name)} started ${span} ago today.`,
+      chips: [{ kind: 'send', label: `Happy ${span}, team 🎉`, text: `Happy ${span}, team 🎉` }],
     });
   }
 
@@ -311,7 +315,7 @@ export async function buildChatCards(args: {
       cards.push({
         key: `week:${ymd(start)}`, icon: 'barChart', tone: 'accent',
         text: `Last week the team logged ${hrs} ${hrs === 1 ? 'hour' : 'hours'}${km >= 1 ? ` and ${formatDistanceWhole(km)}` : ''}.`,
-        chips: [{ kind: 'send', label: 'Strong week, team', text: 'Strong week, team' }, { kind: 'open', label: 'View the week', route: hubRoute }],
+        chips: [{ kind: 'open', label: 'View the week', route: hubRoute }],
       });
     }
   }

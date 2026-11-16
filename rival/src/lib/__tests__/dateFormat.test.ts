@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isoToDisplayDate, displayToIsoDate, maskDateInput } from '../dateFormat';
+import { isoToDisplayDate, displayToIsoDate, maskDateInput, maskDateInputStrict } from '../dateFormat';
 
 describe('displayToIsoDate', () => {
   it('accepts DD/MM/YYYY', () => {
@@ -72,5 +72,24 @@ describe('maskDateInput', () => {
 
   it('produces something displayToIsoDate accepts', () => {
     expect(displayToIsoDate(maskDateInput('25122026'))).toBe('2026-12-25');
+  });
+});
+
+describe('maskDateInputStrict', () => {
+  it('refuses a day above 31 or a month above 12', () => {
+    expect(maskDateInputStrict('4', '')).toBe('');
+    expect(maskDateInputStrict('32', '3')).toBe('3');
+    expect(maskDateInputStrict('22/2', '22')).toBe('22');
+    expect(maskDateInputStrict('22/13', '22/1')).toBe('22/1');
+    expect(maskDateInputStrict('00', '0')).toBe('0');
+  });
+  it('takes real dates', () => {
+    expect(maskDateInputStrict('31/12/1990', '31/12/199')).toBe('31/12/1990');
+    expect(maskDateInputStrict('0', '')).toBe('0');
+    expect(maskDateInputStrict('15/06/2', '15/06/')).toBe('15/06/2');
+  });
+  it('refuses years before 1900', () => {
+    expect(maskDateInputStrict('15/06/3', '15/06/')).toBe('15/06/');
+    expect(maskDateInputStrict('15/06/18', '15/06/1')).toBe('15/06/1');
   });
 });

@@ -8,6 +8,7 @@ import { teamSharingAgreed } from '../../lib/stravaSharing';
 import { formatTeamName } from '../../lib/identity';
 import { GreyNote, GreyPrimary, GreySheet } from './RivalGreySheet';
 import { RivalIcon } from './RivalIcon';
+import { GlassPill } from './GlassPill';
 
 // Teams on a profile (Ricky, 2026-11-02, B: design/teams-tiles-vs-dropdown.jpg):
 // one short row that opens into the list, so the page stays short. On a
@@ -79,7 +80,7 @@ export function ProfileTeams({ userId, isOwn, name, label }: {
   const right = (t: ProfileTeam) => {
     if (isOwn) return <Text style={s.quiet}>{t.role === 'admin' ? 'Admin' : 'Member'}</Text>;
     if (t.viewer_status === 'active') return <Text style={s.quiet}>Your team</Text>;
-    if (t.viewer_status === 'pending') return <View style={[s.pill, s.pillAsked]}><Text style={s.pillAskedText}>Asked</Text></View>;
+    if (t.viewer_status === 'pending') return <GlassPill tone="grey" style={s.pill}><Text style={s.pillAskedText}>Asked</Text></GlassPill>;
     if (t.viewer_status === 'declined' || t.is_private) return null;
     return (
       <TouchableOpacity style={s.pill} onPress={() => { setError(null); setAsking(t); }} accessibilityRole="button" accessibilityLabel={`Ask to join ${formatTeamName(t.name)}`}>

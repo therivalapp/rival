@@ -28,6 +28,14 @@ import { GradientText } from '../components/rival/GradientText';
 const EVENT_NAME_MAX = 20;
 
 const RACE_TYPES = ['Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Custom', 'Other'];
+// Events that can be ranked by laps or a set time; the rest by finish time.
+type EventFormat = 'finish' | 'laps' | 'timed';
+const FORMAT_TYPES = new Set(['Run', 'Ride', 'Swim', 'Other']);
+const EVENT_FORMATS: { value: EventFormat; label: string }[] = [
+  { value: 'finish', label: 'Finish time' },
+  { value: 'laps', label: 'Laps' },
+  { value: 'timed', label: 'Set time' },
+];
 const EVENT_TYPE_ICONS: Record<string, RivalIconName> = {
   Run: 'run', Ride: 'ride', Swim: 'swim', Triathlon: 'eventTriathlon',
   HYROX: 'eventHyrox', CrossFit: 'crossfit', Other: 'moreHoriz', Custom: 'eventCustom',
@@ -100,6 +108,7 @@ type Race = {
   location: string | null;
   registration_url: string | null;
   is_public: boolean;
+  format?: string | null;
   disciplines: Discipline[] | null;
   goal_finish_time: string | null;
   actual_finish_time: string | null;
@@ -196,6 +205,8 @@ export default function RacesScreen() {
 
   const [raceName, setRaceName] = useState('');
   const [raceType, setRaceType] = useState('Run');
+  // How the event is ranked for a team (Mockup 85 v2): a time, laps or km.
+  const [raceFormat, setRaceFormat] = useState<EventFormat>('finish');
   const [distanceKm, setDistanceKm] = useState('');
   const [raceDate, setRaceDate] = useState('');
   const [location, setLocation] = useState('');
@@ -221,6 +232,7 @@ export default function RacesScreen() {
     if (raceType === 'HYROX') return 8;
     if (raceType === 'CrossFit') return 0;
     if (raceType === 'Custom') return customDisciplines.reduce((s, d) => s + (parseFloat(d.distance) || 0), 0);
+    if (FORMAT_TYPES.has(raceType) && raceFormat === 'timed') return 0;
     return parseFloat(distanceKm) || 0;
   }
 
@@ -247,6 +259,7 @@ export default function RacesScreen() {
     if (raceType === 'Triathlon') return !!(triSwim || triBike || triRun);
     if (raceType === 'HYROX' || raceType === 'CrossFit') return true;
     if (raceType === 'Custom') return customDisciplines.some((d) => d.name.trim());
+    if (FORMAT_TYPES.has(raceType) && raceFormat === 'timed') return true;
     return !!distanceKm;
   }
 
@@ -344,6 +357,7 @@ export default function RacesScreen() {
       race_date: isoDate, location: location.trim() || null,
       registration_url: regUrl.trim() || null, disciplines: buildDisciplines(),
       goal_finish_time: goalFinishTime.trim() || null,
+      format: FORMAT_TYPES.has(raceType) ? raceFormat : 'finish',
     };
     if (editingRace) {
       const { error: updErr } = await supabase.from('races').update(payload).eq('id', editingRace.id);
@@ -395,6 +409,7 @@ export default function RacesScreen() {
   function openEdit(race: Race) {
     setEditingRace(race);
     setRaceName(race.name); setRaceType(race.race_type); setRaceDate(isoToDisplayDate(race.race_date));
+    setRaceFormat((race.format as EventFormat) || 'finish');
     setLocation(race.location || ''); setRegUrl(race.registration_url || '');
     setGoalFinishTime(formatTime(parseTime(race.goal_finish_time, 'hours'), 'field'));
     setShowDetails(!!(race.registration_url || race.goal_finish_time));
@@ -423,7 +438,7 @@ export default function RacesScreen() {
   function closeModal() {
     setShowAdd(false); setEditingRace(null);
     setRaceName(''); setDistanceKm(''); setRaceDate('');
-    setLocation(''); setRegUrl(''); setRaceType('Run');
+    setLocation(''); setRegUrl(''); setRaceType('Run'); setRaceFormat('finish');
     setTriSwim(''); setTriBike(''); setTriRun('');
     setHyroxCategory('Women'); setCrossfitFormat('Open');
     setGoalFinishTime(''); setShowDetails(false);
@@ -671,6 +686,18 @@ export default function RacesScreen() {
         onChange={setRaceType}
       />
 
+      {FORMAT_TYPES.has(raceType) && (
+        <>
+          <GreyLabel>Format</GreyLabel>
+          <GreyTiles options={EVENT_FORMATS} value={raceFormat} onChange={setRaceFormat} />
+          {raceFormat === 'finish' ? (
+            <GreyNote>The same distance for everyone. Fastest time first.</GreyNote>
+          ) : (
+            <GreyNote>{raceFormat === 'laps' ? 'A loop of a set distance, like a backyard ultra or track laps. Results show laps and km.' : 'As far as you can in a set time, like 6 or 24 hours. Results show km, so no distance is needed.'}</GreyNote>
+          )}
+        </>
+      )}
+
       {raceType === 'HYROX' && (
         <>
           <GreyLabel>Category</GreyLabel>
@@ -727,8 +754,8 @@ export default function RacesScreen() {
       <GreyRows>
         <GreyRow icon="calendar" label="Date" value={raceDate && displayToIsoDate(raceDate) ? friendlyDate(raceDate) : ''} placeholder="Choose a date" onPress={() => setEventCalOpen(true)} />
         <GreyRow icon="location" label="Location"><GreyRowInput placeholder="Optional" value={location} onChangeText={setLocation} /></GreyRow>
-        {raceType !== 'Triathlon' && raceType !== 'HYROX' && raceType !== 'CrossFit' && raceType !== 'Custom' ? (
-          <GreyRow icon="distance" label="Distance (km)"><GreyRowInput placeholder="21.1" value={distanceKm} onChangeText={setDistanceKm} keyboardType="decimal-pad" /></GreyRow>
+        {raceType !== 'Triathlon' && raceType !== 'HYROX' && raceType !== 'CrossFit' && raceType !== 'Custom' && !(FORMAT_TYPES.has(raceType) && raceFormat === 'timed') ? (
+          <GreyRow icon="distance" label={FORMAT_TYPES.has(raceType) && raceFormat === 'laps' ? 'Lap distance (km)' : 'Distance (km)'}><GreyRowInput placeholder={FORMAT_TYPES.has(raceType) && raceFormat === 'laps' ? '6.7' : '21.1'} value={distanceKm} onChangeText={setDistanceKm} keyboardType="decimal-pad" /></GreyRow>
         ) : null}
         <GreyRow icon="link" label="Registration"><GreyRowInput placeholder="Optional" value={regUrl} onChangeText={setRegUrl} autoCapitalize="none" keyboardType="url" /></GreyRow>
         <GreyRow icon="timer" label="Goal time"><GreyRowInput {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)} placeholder="Optional" /></GreyRow>

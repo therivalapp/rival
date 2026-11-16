@@ -4,6 +4,7 @@ import { Animated, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, use
 import { Modal, useSheetMotion, useSheetRise } from './RivalModal';
 import { useSheetDrag } from './useSheetDrag';
 import { RivalIcon, activityIconName } from './RivalIcon';
+import { GlassPill, GLASS_TEXT } from './GlassPill';
 import { RivalAvatar } from './RivalAvatar';
 import { CoverImage } from './CoverImage';
 import { SkyBackdrop } from './SkyBackdrop';
@@ -412,20 +413,20 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
           ) : null}
           <View style={s.heroText}>
             <View style={s.pills}>
-              <View style={[s.pill, { backgroundColor: RivalColors.event }]}>
-                <RivalIcon name="flag" size={11} color="#2a2116" />
-                <Text style={s.pillText}>{tag}</Text>
-              </View>
+              <GlassPill tone="ivory" style={s.pill}>
+                <RivalIcon name="flag" size={11} color={GLASS_TEXT.ivory} />
+                <Text style={[s.pillText, { color: GLASS_TEXT.ivory }]}>{tag}</Text>
+              </GlassPill>
               {division ? (
-                <View style={[s.pill, s.pillSoft]}>
-                  <Text style={[s.pillText, { color: RivalColors.event }]}>{division}</Text>
-                </View>
+                <GlassPill tone="ivory" style={s.pill}>
+                  <Text style={[s.pillText, { color: GLASS_TEXT.ivory }]}>{division}</Text>
+                </GlassPill>
               ) : null}
               {beat ? (
-                <View style={[s.pill, { backgroundColor: PB_GOLD }]}>
-                  <RivalIcon name="trophy" size={11} color="#2a2116" />
-                  <Text style={s.pillText}>PB</Text>
-                </View>
+                <GlassPill tone="gold" style={s.pill}>
+                  <RivalIcon name="trophy" size={11} color={GLASS_TEXT.gold} />
+                  <Text style={[s.pillText, { color: GLASS_TEXT.gold }]}>PB</Text>
+                </GlassPill>
               ) : null}
             </View>
             <Text style={s.title} numberOfLines={2}>{race ? formatRaceName(race.name) : ''}</Text>
@@ -553,10 +554,10 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
                       <View style={s.kickRow}>
                         <Text style={s.kick}>{legName(race, a, i).toUpperCase()}</Text>
                         {pb ? (
-                          <View style={s.miniPb}>
-                            <RivalIcon name="trophy" size={10} color="#2a2116" />
-                            <Text style={s.miniPbText}>PB</Text>
-                          </View>
+                          <GlassPill tone="gold" style={s.miniPb}>
+                            <RivalIcon name="trophy" size={10} color={GLASS_TEXT.gold} />
+                            <Text style={[s.miniPbText, { color: GLASS_TEXT.gold }]}>PB</Text>
+                          </GlassPill>
                         ) : null}
                       </View>
                       {d ? <Text style={s.dist}>{d.num}<Text style={s.distUnit}>{` ${d.unit}`}</Text></Text> : null}
@@ -743,10 +744,10 @@ function RaceDetail({ leg, d, ownerId }: { leg: EventLeg; d: Detail | undefined;
                 <View style={s.tileKRow}>
                   <Text style={s.tileK}>{e.label.toUpperCase()}</Text>
                   {effortPbs.has(effortDistance(e.distance)?.meters ?? -1) ? (
-                    <View style={s.miniPb}>
-                      <RivalIcon name="trophy" size={10} color="#2a2116" />
-                      <Text style={s.miniPbText}>PB</Text>
-                    </View>
+                    <GlassPill tone="gold" style={s.miniPb}>
+                      <RivalIcon name="trophy" size={10} color={GLASS_TEXT.gold} />
+                      <Text style={[s.miniPbText, { color: GLASS_TEXT.gold }]}>PB</Text>
+                    </GlassPill>
                   ) : null}
                 </View>
                 <Text style={s.tileNum}>{liveClock(e.seconds)}</Text>

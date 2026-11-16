@@ -95,10 +95,8 @@ export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose
     let cancelled = false;
     fetchInbox(SHOWN).then((rows) => {
       if (cancelled) return;
+      // Items stay unread, with their dot, until tapped (Ricky, 2026-11-15).
       setItems(menuOrder(rows));
-      // Seeing an informational item here counts as reading it.
-      const seen = rows.filter((r) => !r.read_at && !isActionable(r)).map((r) => r.id);
-      if (seen.length) markRead(seen);
     });
     return () => { cancelled = true; };
   }, []);
@@ -111,6 +109,7 @@ export function NotificationsMenu({ anchor, onClose }: { anchor: Anchor; onClose
   }, [onClose]);
 
   const open = (item: InboxItem) => {
+    if (!item.read_at && !isActionable(item)) markRead([item.id]);
     onClose();
     if (isActionable(item)) router.push('/inbox');
     else goToInboxSubject(item);

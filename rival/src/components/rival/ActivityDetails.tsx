@@ -8,6 +8,7 @@ import { EFFORT_DISTANCES, RUN_TYPES, effortDistance, type BestEffort, type Fast
 import { RivalColors, RivalFontFamily } from '../../constants/rivalTheme';
 import { GreyLabel, GreyNote, GreyRow, GreyRows, GreySheet } from './RivalGreySheet';
 import { RivalIcon } from './RivalIcon';
+import { GlassPill, GLASS_TEXT } from './GlassPill';
 
 // The finer details of an activity (add_activity_details.sql): pace, heart
 // rate, cadence, power, calories, shoes or bike, best efforts and splits.
@@ -136,10 +137,10 @@ export function DetailsBody({ details, bests }: { details: ActivityDetailRow; be
                 <View key={e.meters} style={s.effortRow}>
                   <Text style={s.effortLabel}>{e.label.charAt(0).toUpperCase() + e.label.slice(1)}</Text>
                   {best ? (
-                    <View style={s.bestTag}>
-                      <RivalIcon name="trophy" size={11} color="#ffd27a" />
-                      <Text style={s.bestTagText}>Best</Text>
-                    </View>
+                    <GlassPill tone="gold" style={s.bestTag}>
+                      <RivalIcon name="trophy" size={11} color={GLASS_TEXT.gold} />
+                      <Text style={[s.bestTagText, { color: GLASS_TEXT.gold }]}>Best</Text>
+                    </GlassPill>
                   ) : null}
                   <Text style={[s.effortTime, best && s.effortTimeBest]}>{formatDurationClock(e.seconds)}</Text>
                 </View>

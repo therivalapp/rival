@@ -9,6 +9,7 @@ import type { TrackPoint } from '../../lib/liveTrack';
 import { toDisplayElevation, toDisplayWeight, weightUnit, elevationUnit } from '../../lib/units';
 import { FinishTiles } from './LiveFinishParts';
 import { RivalIcon } from './RivalIcon';
+import { GlassPill, GLASS_TEXT } from './GlassPill';
 import { webFx } from '../../lib/webFx';
 
 // The Finish cards that only some activities have (Ricky, 2026-11-02:
@@ -35,7 +36,7 @@ export function LiftsCard({ lifts, pbs }: { lifts: { name: string; sets?: number
         <View key={`${l.name}-${i}`} style={[s.row, i > 0 && s.line]}>
           <View style={s.liftName}>
             <Text style={s.name} numberOfLines={1}>{l.name}</Text>
-            {pbs[i] ? <Text style={s.pb}>PB</Text> : null}
+            {pbs[i] ? <GlassPill tone="gold" style={s.pb}><Text style={s.pbText}>PB</Text></GlassPill> : null}
           </View>
           <Text style={[s.dim, { width: 74 }]}>{l.sets && l.reps ? `${l.sets} × ${l.reps}${isHoldLift(l.name) ? ' sec' : ''}` : l.sets ? `${l.sets} sets` : l.reps ? `${l.reps} reps` : '-'}</Text>
           <Text style={[s.num, { width: 70 }]}>{l.weight ? kgText(l.weight) : '-'}</Text>
@@ -495,7 +496,8 @@ const s = StyleSheet.create({
   name: { fontSize: 13.5, fontWeight: '800', color: '#fff', flexShrink: 1 },
   dim: { fontSize: 12.5, color: '#a0a0a0' },
   num: { ...serif, fontSize: 16, color: '#fff', textAlign: 'right' },
-  pb: { marginLeft: 6, fontSize: 9, fontWeight: '800', color: '#1a1408', backgroundColor: RivalColors.rankAnchors.unrivaled, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 7, overflow: 'hidden' },
+  pb: { marginLeft: 6, paddingVertical: 2, paddingHorizontal: 7 },
+  pbText: { fontSize: 9, fontWeight: '800', color: GLASS_TEXT.gold },
   moreLink: { alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
   moreLinkText: { fontSize: 11.5, fontWeight: '700', color: RivalColors.accentText },
   legend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },

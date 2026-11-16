@@ -26,7 +26,7 @@ export const healthAvailable = Platform.OS === 'ios';
 
 // Health's workout types (HKWorkoutActivityType) to RIVAL's.
 const TYPES: Record<number, string> = {
-  1: 'Football', 3: 'Football', 4: 'Badminton', 5: 'Workout', 6: 'Basketball', 8: 'MartialArts',
+  1: 'Football', 3: 'Football', 4: 'Badminton', 5: 'Workout', 6: 'Basketball', 8: 'Boxing',
   9: 'RockClimbing', 10: 'Cricket', 11: 'CrossFit', 13: 'Ride', 14: 'Workout', 15: 'Workout',
   16: 'Elliptical', 18: 'Fencing', 20: 'WeightTraining', 21: 'Golf', 22: 'Gymnastics', 23: 'Handball',
   24: 'Hike', 25: 'FieldHockey', 27: 'Lacrosse', 28: 'MartialArts', 29: 'Yoga', 30: 'HIIT',
@@ -34,7 +34,7 @@ const TYPES: Record<number, string> = {
   39: 'IceSkate', 40: 'AlpineSki', 41: 'Soccer', 43: 'Squash', 44: 'StairStepper', 45: 'Surfing',
   46: 'Swim', 47: 'TableTennis', 48: 'Tennis', 49: 'TrackAndField', 50: 'WeightTraining',
   51: 'Volleyball', 52: 'Walk', 56: 'MartialArts', 57: 'Yoga', 58: 'Pilates', 59: 'Workout',
-  60: 'NordicSki', 61: 'AlpineSki', 62: 'Yoga', 63: 'HIIT', 64: 'Workout', 65: 'MartialArts',
+  60: 'NordicSki', 61: 'AlpineSki', 62: 'Yoga', 63: 'HIIT', 64: 'Workout', 65: 'Boxing',
   66: 'Pilates', 67: 'Snowboard', 68: 'StairStepper', 69: 'Workout', 70: 'Wheelchair', 71: 'Wheelchair',
   72: 'Yoga', 73: 'Workout', 74: 'Handcycle', 75: 'Frisbee', 77: 'Workout', 79: 'Pickleball',
 };
@@ -139,6 +139,8 @@ export async function askHealth(): Promise<boolean> {
         'HKQuantityTypeIdentifierDistanceWalkingRunning',
         'HKQuantityTypeIdentifierDistanceCycling',
         'HKQuantityTypeIdentifierDistanceSwimming',
+        // Daily steps for a Steps goal (Mockup 52). Steps never add Effort.
+        'HKQuantityTypeIdentifierStepCount',
       ],
     });
     return true;
@@ -295,4 +297,33 @@ if (healthAvailable) {
   autoSync();
   AppState.addEventListener('change', (s) => { if (s === 'active') autoSync(); });
   supabase.auth.onAuthStateChange(() => { loadStatus(); });
+}
+
+// ---- Daily steps (Steps goal, Mockup 52, 2026-11-14) -------------------------------
+
+/** Steps per local day for the last `days` days (today included), keyed
+ *  YYYY-MM-DD. Apple Health merges iPhone and Watch so steps aren't counted
+ *  twice. Empty when Health is off or steps weren't allowed. */
+export async function readDailySteps(days: number): Promise<Record<string, number>> {
+  if (!healthAvailable) return {};
+  try {
+    const HK = await healthKit();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (days - 1));
+    const rows = await HK.queryStatisticsCollectionForQuantity(
+      'HKQuantityTypeIdentifierStepCount', ['cumulativeSum'], start, { day: 1 },
+      { filter: { date: { startDate: start, endDate: new Date() } }, unit: 'count' },
+    );
+    const out: Record<string, number> = {};
+    for (const r of rows) {
+      if (!r.startDate) continue;
+      const d = r.startDate;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      out[key] = Math.round(r.sumQuantity?.quantity ?? 0);
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }

@@ -7,7 +7,7 @@ import { formatWeight, toDisplayWeight, weightUnit } from '../lib/units';
 import { distanceUnit, elevationUnit, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
 import { Fragment, useState, useCallback, useEffect, useRef } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, useWindowDimensions } from 'react-native';
-import { Modal } from '../components/rival/RivalModal';
+import { Modal, RoutePopUp } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { fetchAllActivities } from '../lib/fetchAllActivities';
@@ -16,13 +16,16 @@ import { displayToIsoDate, isoToDisplayDate, friendlyDate } from '../lib/dateFor
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { ALL_ACTIVITIES, computeGoalProgress, goalActivityLabel, goalContributions, goalToGoLine, GOAL_ACTIVITY_TYPES } from '../lib/goalProgress';
 import { confirmAction, notify } from '../lib/notify';
-import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyArtTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
+import { RivalChallengeRing, RivalTopNav, RivalIcon, RivalPageHeader, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, activityIconName, type RivalIconName, RivalSheet, RivalTiles, rb, GreyPageHead, GreySheet, GreyLabel, GreyTiles, GreyArtTiles, GreyRows, GreyRow, GreyRowInput, GreyField, GreyNote, GreyPrimary, GreyCalendar, GreyFollow } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalFontFamily, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
 import { GoalCardGestures } from '../components/rival/GoalCardGestures';
 import { goToTab } from '../lib/tabNav';
 import { webFx } from '../lib/webFx';
+import { inkNudge } from '../lib/inkCentre';
+import { askHealth, readDailySteps } from '../lib/appleHealth';
+import { averageSteps, stepsProgress } from '../lib/steps';
 
 const GESTURE_HINT_KEY = 'rival.goals.gestureHintSeen';
 
@@ -36,14 +39,16 @@ type Goal = {
   storedTarget?: number;
   perf?: { title: string; kind: string; current: string; target: string; toGo: string | null; gained: string | null; startedAt: string | null };
   id: string;
-  goal_type: 'distance' | 'elevation' | 'gym_sessions' | 'fastest_time' | 'pace' | 'lift';
+  goal_type: 'distance' | 'elevation' | 'gym_sessions' | 'fastest_time' | 'pace' | 'lift' | 'steps';
   target_value: number;
-  period_type: 'week' | 'month' | 'year' | 'custom';
+  period_type: 'day' | 'week' | 'month' | 'year' | 'custom';
   start_date: string;
   end_date: string;
   activity_filter: string | null;
   progress: number;
   pinned: boolean;
+  /** When it was reached: the activity that took it over the target (ISO). */
+  doneAt?: string | null;
   // The latest activities that counted toward it, in shown units (mobile).
   recent?: { startedAt: string; amount: number }[];
 };
@@ -52,12 +57,14 @@ const GOAL_LABELS: Record<string, string> = {
   distance: 'Distance',
   elevation: 'Elevation',
   gym_sessions: 'Activities',
+  steps: 'Steps',
 };
 
 const GOAL_UNITS_METRIC: Record<string, string> = {
   distance: 'km',
   elevation: 'm',
   gym_sessions: 'activities',
+  steps: 'steps',
 };
 // Read at render time, so a change of units in Profile shows straight away.
 const GOAL_UNITS = new Proxy(GOAL_UNITS_METRIC, {
@@ -75,18 +82,21 @@ const GOAL_ABBR: Record<string, string> = {
   distance: 'DIST',
   elevation: 'ELEV',
   gym_sessions: 'GYM',
+  steps: 'STEPS',
 };
 
 const GOAL_ICON: Record<string, RivalIconName> = {
   distance: 'distance',
   elevation: 'elevation',
   gym_sessions: 'weights',
+  steps: 'walk',
 };
 
 const GOAL_BAR_COLOR: Record<string, string> = {
   distance: RivalColors.accentText,
   elevation: RivalColors.accentFill,
   gym_sessions: RivalColors.accentFill,
+  steps: RivalColors.accentText,
 };
 
 // The quick picks shown for each goal type; every other activity is under
@@ -190,6 +200,7 @@ function daysLeft(goal: Goal): number {
 }
 
 function periodLabel(goal: Goal) {
+  if (goal.goal_type === 'steps') return goal.period_type === 'week' ? 'This week' : 'Today';
   const past = isGoalEnded(goal);
   if (goal.period_type === 'week') return past ? 'Last week' : 'This week';
   if (goal.period_type === 'month') return past ? 'Last month' : 'This month';
@@ -205,6 +216,7 @@ function goalKind(goal: Goal): string {
   return `${GOAL_LABELS[goal.goal_type]} · ${periodLabel(goal)}`;
 }
 function goalTitle(goal: Goal): string {
+  if (goal.goal_type === 'steps') return `${Math.round(goal.storedTarget ?? goal.target_value).toLocaleString()} steps a ${goal.period_type === 'week' ? 'week' : 'day'}`;
   return goal.perf ? goal.perf.title : goalActivityLabel(goal);
 }
 
@@ -352,6 +364,9 @@ export default function GoalsScreen() {
   const [goalType, setGoalType] = useState<Goal['goal_type']>('distance');
   const [targetValue, setTargetValue] = useState('');
   const [periodType, setPeriodType] = useState<'week' | 'month' | 'year' | 'custom'>('month');
+  // Steps goal (Mockup 52): a daily or weekly target; the last 30 days as a guide.
+  const [stepsPeriod, setStepsPeriod] = useState<'day' | 'week'>('day');
+  const [stepsAvg, setStepsAvg] = useState<number | null>(null);
   // The full activity list under "More", and the custom activity being typed.
   const [moreOpen, setMoreOpen] = useState(false);
   const [customActivity, setCustomActivity] = useState('');
@@ -407,7 +422,13 @@ export default function GoalsScreen() {
 
     // Shown in the units chosen in Profile. Stored targets stay metric;
     // storedTarget keeps the original for anything written back.
+    const dailySteps = Platform.OS === 'ios' && goalsData.some((g: any) => g.goal_type === 'steps') ? await readDailySteps(8) : {};
     const goalsWithProgress = goalsData.map((goal: any) => {
+      if (goal.goal_type === 'steps') {
+        const sp = stepsProgress(dailySteps, Number(goal.target_value), goal.period_type === 'week' ? 'week' : 'day');
+        // Steps goals run with no end date, like an open Performance goal.
+        return { ...goal, storedTarget: goal.target_value, progress: sp.current, recent: [], open_ended: true };
+      }
       if (isPerformance(goal.goal_type)) {
         const state = performanceState(goal, perfData.activities, perfData.entries);
         return {
@@ -421,10 +442,19 @@ export default function GoalsScreen() {
         };
       }
       const progress = computeGoalProgress(goal, activities || []);
+      // The day it was reached, for the Completed tiles (Mockup 81 B).
+      let doneAt: string | null = null;
+      if (goal.target_value > 0 && progress >= goal.target_value) {
+        const start = new Date(`${goal.start_date}T00:00:00`).getTime();
+        const sorted = (activities || []).filter((a: any) => new Date(a.started_at).getTime() >= start).sort((a: any, b: any) => a.started_at.localeCompare(b.started_at));
+        for (let i = 0; i < sorted.length; i++) {
+          if (computeGoalProgress(goal, sorted.slice(0, i + 1)) >= goal.target_value) { doneAt = sorted[i].started_at; break; }
+        }
+      }
       const conv = (v: number) => Math.round(toShownGoal(goal.goal_type, v) * 10) / 10;
       const recent = goalContributions(goal, activities || []).slice(0, 3)
         .map((c) => ({ startedAt: c.startedAt, amount: conv(c.amount) }));
-      return { ...goal, storedTarget: goal.target_value, target_value: conv(goal.target_value), progress: conv(progress), recent };
+      return { ...goal, storedTarget: goal.target_value, target_value: conv(goal.target_value), progress: conv(progress), recent, doneAt };
     });
 
     setGoals(goalsWithProgress);
@@ -483,7 +513,10 @@ export default function GoalsScreen() {
       setLiftReps(String(goal.lift_reps ?? 1));
       setOpenEnded(!!goal.open_ended);
     }
-    setPeriodType(goal.period_type);
+    if (goal.goal_type === 'steps') {
+      setStepsPeriod(goal.period_type === 'week' ? 'week' : 'day');
+      setPeriodType('week');
+    } else setPeriodType(goal.period_type as any);
     // An Activities goal saved before "All" existed has no filter and counts gym activities.
     const f = goal.goal_type === 'gym_sessions' ? (goal.activity_filter ?? 'Gym') : goal.activity_filter;
     setActivityFilter(f);
@@ -517,6 +550,17 @@ export default function GoalsScreen() {
     ? (parseFloat(targetValue) > 0 ? (weightUnit() === 'lb' ? parseFloat(targetValue) / LB_PER_KG : parseFloat(targetValue)) : null)
     : parseTime(targetValue, goalType === 'pace' ? 'minutes' : 'hours');
 
+  // Steps: ask Apple Health for steps (the sheet shows once), then start
+  // from the last 30 days' average, rounded to 500, or 10,000.
+  async function chooseSteps() {
+    setStepsPeriod('day');
+    setTargetValue((v) => v || '10000');
+    await askHealth();
+    const avg = averageSteps(await readDailySteps(31));
+    setStepsAvg(avg || null);
+    if (avg) setTargetValue(String(Math.max(1000, Math.round(avg / 500) * 500)));
+  }
+
   async function saveGoal() {
     if (goalWriting.current) return;
     goalWriting.current = true;
@@ -543,6 +587,19 @@ export default function GoalsScreen() {
     }
 
     setSaving(true);
+
+    if (goalType === 'steps') {
+      const target = Math.round(parseFloat(targetValue));
+      const stepFields = { goal_type: 'steps', target_value: target, period_type: stepsPeriod, activity_filter: null };
+      const { error: stepsErr } = editingGoal
+        ? await supabase.from('goals').update(stepFields).eq('id', editingGoal.id)
+        : await (async () => { await keepFocus(); return supabase.from('goals').insert({ user_id: userId, ...stepFields, start_date: dateToLocalStr(new Date()), end_date: OPEN_END_DATE }); })();
+      setSaving(false);
+      if (stepsErr) { notify("Couldn't save that Goal", stepsErr.message); return; }
+      closeForm();
+      load();
+      return;
+    }
 
     const fields: Record<string, unknown> = performance ? {
       goal_type: goalType,
@@ -602,7 +659,7 @@ export default function GoalsScreen() {
     if (addErr) {
       // Keep the form open with the values still in it rather than closing on
       // a goal that was never created.
-      notify("Couldn't create that goal", addErr.message);
+      notify("Couldn't create that Goal", addErr.message);
       setSaving(false);
       return;
     }
@@ -614,10 +671,10 @@ export default function GoalsScreen() {
 
   // A swipe's Delete button is already the second step, so it skips the confirm.
   async function deleteGoal(id: string, ask = true) {
-    if (ask && !(await confirmAction({ title: 'Delete this goal?', confirmLabel: 'Delete', destructive: true }))) return;
+    if (ask && !(await confirmAction({ title: 'Delete this Goal?', confirmLabel: 'Delete', destructive: true }))) return;
     const { error } = await supabase.from('goals').delete().eq('id', id);
     if (error) {
-      notify("Couldn't delete that goal", error.message);
+      notify("Couldn't delete that Goal", error.message);
       return;
     }
     setGoals((prev) => prev.filter((g) => g.id !== id));
@@ -628,15 +685,20 @@ export default function GoalsScreen() {
 
   // The goal Today shows, chosen the same way home.tsx does: the pinned goal,
   // otherwise the active goal nearest its deadline, then the most complete.
-  const volumeFull = goals.filter((g) => !isPerformance(g.goal_type)).length >= GOAL_GROUP_LIMIT;
-  const performanceFull = goals.filter((g) => isPerformance(g.goal_type)).length >= GOAL_GROUP_LIMIT;
-  const activeGoals = goals.filter((g) => new Date(g.end_date + 'T23:59:59').getTime() >= Date.now());
+  // Reached goals move to Completed (Mockup 81 B) and stop counting toward
+  // the three-per-group limit. Steps goals restart each day, so never move.
+  const isDone = (g: Goal) => g.goal_type !== 'steps' && g.target_value > 0 && g.progress >= g.target_value;
+  const completedGoals = goals.filter(isDone).sort((a, b) => (b.doneAt ?? b.end_date).localeCompare(a.doneAt ?? a.end_date));
+  const runningGoals = goals.filter((g) => !isDone(g));
+  const volumeFull = runningGoals.filter((g) => !isPerformance(g.goal_type)).length >= GOAL_GROUP_LIMIT;
+  const performanceFull = runningGoals.filter((g) => isPerformance(g.goal_type)).length >= GOAL_GROUP_LIMIT;
+  const activeGoals = runningGoals.filter((g) => new Date(g.end_date + 'T23:59:59').getTime() >= Date.now());
   const focusGoal = [...activeGoals].sort((a, b) =>
     (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
     || a.end_date.localeCompare(b.end_date)
     || (b.progress / (b.target_value || 1)) - (a.progress / (a.target_value || 1)),
   )[0] ?? null;
-  const otherGoals = goals.filter((g) => g.id !== focusGoal?.id);
+  const otherGoals = runningGoals.filter((g) => g.id !== focusGoal?.id);
   // Main focus is the drop slot for a held goal card; it lights while one is over it.
   const focusRef = useRef<View>(null);
   const [focusHover, setFocusHover] = useState(false);
@@ -665,7 +727,7 @@ export default function GoalsScreen() {
     const { error: pinError } = unpinError ? { error: null } : await supabase.from('goals').update({ pinned: true }).eq('id', focusGoal.id);
     if (unpinError || pinError) {
       setGoals((prev) => prev.map((g) => (g.id === focusGoal.id ? { ...g, pinned: false } : g)));
-      notify('The main focus could not be kept', (unpinError || pinError)!.message);
+      notify('The main Goal could not be kept', (unpinError || pinError)!.message);
     }
   }
 
@@ -721,13 +783,13 @@ export default function GoalsScreen() {
       start_value: goal.start_value ?? null,
     });
     if (insErr) {
-      notify("Couldn't start that goal again", insErr.message);
+      notify("Couldn't start that Goal again", insErr.message);
       return;
     }
     const { error: delErr } = await supabase.from('goals').delete().eq('id', goal.id);
     if (delErr) {
       // The new goal exists, so nothing is lost; the old one just lingers.
-      notify('Started a fresh goal', 'The completed goal could not be removed and may still appear.');
+      notify('Started a fresh Goal', 'The completed Goal could not be removed and may still appear.');
     }
     load();
   }
@@ -882,7 +944,42 @@ export default function GoalsScreen() {
     { value: 'distance' as const, label: GOAL_LABELS.distance, icon: 'distance' as const },
     { value: 'elevation' as const, label: GOAL_LABELS.elevation, icon: 'elevation' as const },
     { value: 'gym_sessions' as const, label: GOAL_LABELS.gym_sessions, icon: 'calendar' as const },
+    // Steps come from Apple Health, so only on iPhone (Mockup 52).
+    ...(Platform.OS === 'ios' ? [{ value: 'steps' as const, label: GOAL_LABELS.steps, icon: 'walk' as const }] : []),
   ];
+  const stepsTarget = Math.max(0, Math.round(parseFloat(targetValue) || 0));
+  const nudgeSteps = (d: number) => setTargetValue(String(Math.max(1000, stepsTarget + d)));
+  const stepsFields = (
+    <>
+      <GreyLabel>Target</GreyLabel>
+      <View style={ms.stepper}>
+        <TouchableOpacity style={ms.stepBtn} onPress={() => nudgeSteps(stepsPeriod === 'day' ? -500 : -5000)} accessibilityLabel="Fewer steps">
+          <RivalIcon name="remove" size={22} color={RivalColors.accentText} />
+        </TouchableOpacity>
+        <Text style={ms.stepNum} numberOfLines={1} adjustsFontSizeToFit>{stepsTarget.toLocaleString()}<Text style={ms.stepUnit}> steps</Text></Text>
+        <TouchableOpacity style={ms.stepBtn} onPress={() => nudgeSteps(stepsPeriod === 'day' ? 500 : 5000)} accessibilityLabel="More steps">
+          <RivalIcon name="add" size={22} color={RivalColors.accentText} />
+        </TouchableOpacity>
+      </View>
+      {stepsAvg ? <GreyNote>Last 30 days: {stepsAvg.toLocaleString()} a day on average.</GreyNote> : null}
+      <GreyLabel>Every</GreyLabel>
+      <GreyTiles
+        columns={2}
+        options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]}
+        value={stepsPeriod}
+        onChange={(v: any) => {
+          setStepsPeriod(v);
+          // Keep the same daily pace when switching.
+          setTargetValue(String(v === 'week' ? stepsTarget * 7 : Math.round(stepsTarget / 7 / 500) * 500 || 1000));
+        }}
+      />
+      <GreyLabel>Source</GreyLabel>
+      <GreyRows>
+        <GreyRow icon="health" label="Apple Health" value={stepsAvg ? 'Connected' : 'Allow steps'} onPress={stepsAvg ? undefined : chooseSteps} />
+      </GreyRows>
+      <GreyNote>Steps do not count toward Effort.</GreyNote>
+    </>
+  );
   const activityOptions: { value: string; label: string }[] = [
     { value: String(allValue(goalType)), label: 'All' },
     ...quick.map((v) => ({ value: String(v), label: typeLabel(v) })),
@@ -1032,8 +1129,9 @@ export default function GoalsScreen() {
       <GreyLabel>Volume</GreyLabel>
       <GreyArtTiles
         options={typeOptions}
+        columns={typeOptions.length > 3 ? 4 : 3}
         value={goalType as any}
-        onChange={(t: any) => { setGoalType(t); setTargetValue(''); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); }}
+        onChange={(t: any) => { setGoalType(t); setTargetValue(''); setActivityFilter(allValue(t)); setCustomActivity(''); setMoreOpen(false); if (t === 'steps') chooseSteps(); }}
       />
       <GreyLabel>Performance</GreyLabel>
       <GreyArtTiles
@@ -1045,7 +1143,7 @@ export default function GoalsScreen() {
         value={goalType as any}
         onChange={(t: any) => { setGoalType(t); setTargetValue(''); setDistanceM((t === 'pace' ? PACE_DISTANCES : TIME_DISTANCES)[sport][1]); }}
       />
-      {performance ? performanceFields : volumeFields}
+      {performance ? performanceFields : goalType === 'steps' ? stepsFields : volumeFields}
     </>
   );
 
@@ -1055,14 +1153,16 @@ export default function GoalsScreen() {
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeForm} accessibilityLabel="Close" />
         <GreySheet
           kicker="GOALS"
-          title={editingGoal ? 'Edit goal' : 'New goal'}
+          title={editingGoal ? 'Edit Goal' : 'New Goal'}
           onClose={closeForm}
+          // Opened from a Goal in the Goals pop-up: back to it (Mockup 83).
+          onBack={editingGoal ? closeForm : undefined}
           footer={<>
             <GreyPrimary label={saving ? 'Saving…' : 'Save'} busy={saving} disabled={(performance ? !perfTarget : !targetValue) || saving} onPress={saveGoal} />
             {editingGoal && (
               <TouchableOpacity style={ms.deleteLink} onPress={() => deleteGoal(editingGoal.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <RivalIcon name="delete" size={15} color={RivalColors.danger} />
-                <Text style={ms.deleteLinkText}>Delete goal</Text>
+                <Text style={ms.deleteLinkText}>Delete Goal</Text>
               </TouchableOpacity>
             )}
           </>}
@@ -1114,16 +1214,23 @@ export default function GoalsScreen() {
 
   if (!wide) {
     const addGoal = () => { setEditingGoal(null); setShowAdd(true); };
+    const closeGoals = () => (router.canGoBack() ? router.back() : goToTab('/home'));
     return (
-      <SafeAreaView style={rb.page} edges={['top', 'left', 'right']}>
-        <RivalTopNav active="today" />
-        <ScrollView contentContainerStyle={[rb.content, ms.content]}>
-          <GreyPageHead kicker="SHOWN ON TODAY" title="Goals" onBack={() => (router.canGoBack() ? router.back() : goToTab('/home'))} />
+      // A pop-up over the page it came from, as tall as what it holds, up to
+      // the usual pop-up height, then it scrolls (Mockup 83, Ricky 2026-11-15).
+      <RoutePopUp>
+      <View style={ms.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeGoals} accessibilityLabel="Close" />
+        {/* Held back until the Goals are in, so it rises once at its full
+            height instead of opening short and jumping taller. */}
+        {loading ? null : (
+        <GreySheet kicker="SHOWN ON TODAY" title="Goals" onClose={closeGoals} footer={null}>
+        <View style={ms.content}>
 
           {!loading && goals.length === 0 ? (
             <View style={[rb.card, ms.emptyRow]}>
               <View style={rb.badge}><RivalIcon name="target" size={16} color={RivalColors.accentText} /></View>
-              <Text style={ms.emptyText}>Set a distance, elevation or activities goal for a week, a month, a year or your own dates. Up to three at a time.</Text>
+              <Text style={ms.emptyText}>Set a distance, elevation or activities Goal for a week, a month, a year or your own dates. Up to three at a time.</Text>
             </View>
           ) : null}
 
@@ -1137,15 +1244,16 @@ export default function GoalsScreen() {
             const left = daysLeft(goal);
             const toGo = goalToGoLine(goal.progress, goal.target_value, goal.goal_type === 'gym_sessions' ? 'activities' : unit, left);
             return (
-              <GoalCardGestures key={goal.id} radius={22} onDelete={() => deleteGoal(goal.id, false)} onUsed={gestureUsed}>
+              <GreyFollow key={goal.id}>
+              <GoalCardGestures radius={22} onDelete={() => deleteGoal(goal.id, false)} onUsed={gestureUsed}>
               {(guard) => (
               <TouchableOpacity ref={focusRef} activeOpacity={0.85} onPress={guard(() => openEdit(goal))} style={[ms.hero, focusHover && ms.focusDropOn]}>
                 {/* Layout B (Ricky, 2026-10-28, design/focus-mockups.png): the
                     Today focus card in small, so the goal reads the same on both. */}
-                <Text style={[rb.label, { alignSelf: 'flex-start' }]}>Main focus</Text>
+                <Text style={[rb.label, { alignSelf: 'flex-start' }]}>Main Goal</Text>
                 <Text style={ms.focusTitle} numberOfLines={2}>{goalTitle(goal)}</Text>
                 <MiniRing pct={pct} size={150} thickness={11}>
-                  <Text style={ms.heroNum}>{goal.perf ? goal.perf.current : goal.progress.toLocaleString()}</Text>
+                  <Text style={[ms.heroNum, { transform: [{ translateY: inkNudge(String(goal.perf ? goal.perf.current : goal.progress.toLocaleString()), 38) }] }]}>{goal.perf ? goal.perf.current : goal.progress.toLocaleString()}</Text>
                   <Text style={ms.heroOf}>/ {goal.perf ? goal.perf.target : `${goal.target_value.toLocaleString()}${goal.goal_type === 'gym_sessions' ? '' : ` ${unit}`}`}</Text>
                 </MiniRing>
                 <View style={ms.heroMeta}>
@@ -1174,6 +1282,7 @@ export default function GoalsScreen() {
               </TouchableOpacity>
               )}
               </GoalCardGestures>
+              </GreyFollow>
             );
           })()}
 
@@ -1193,8 +1302,8 @@ export default function GoalsScreen() {
             const left = daysLeft(goal);
             const canFocus = !done && !ended;
             return (
+              <GreyFollow key={goal.id}>
               <GoalCardGestures
-                key={goal.id}
                 onDelete={() => deleteGoal(goal.id, false)}
                 focusTarget={canFocus ? () => focusRef.current as unknown as HTMLElement | null : undefined}
                 onHoverFocus={setFocusHover}
@@ -1227,23 +1336,60 @@ export default function GoalsScreen() {
               </TouchableOpacity>
               )}
               </GoalCardGestures>
+              </GreyFollow>
             );
             })}
             </Fragment>
             );
           })}
 
+          {/* Completed (Mockup 81 B): the same sliding tiles as Personal
+              bests on Profile, with a soft gold edge. Tap one to open it. */}
+          {completedGoals.length > 0 ? (
+            <GreyFollow style={{ gap: 14 }}>
+              <View style={ms.doneHead}>
+                <Text style={rb.section}>Completed</Text>
+                <Text style={ms.doneCount}>{completedGoals.length} total</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.doneScroll} contentContainerStyle={ms.doneRow}>
+                {completedGoals.map((goal) => {
+                  const unit = goal.goal_type === 'gym_sessions' ? '' : GOAL_UNITS[goal.goal_type];
+                  const when = new Date(goal.doneAt ?? `${goal.end_date}T12:00:00`);
+                  const end = new Date(`${goal.end_date}T00:00:00`);
+                  const day = new Date(when); day.setHours(0, 0, 0, 0);
+                  const early = goal.doneAt ? Math.round((end.getTime() - day.getTime()) / 86400000) : 0;
+                  const month = when.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                  return (
+                    <TouchableOpacity key={goal.id} style={ms.doneTile} activeOpacity={0.85} onPress={() => openEdit(goal)} accessibilityRole="button">
+                      <Text style={ms.doneTitle} numberOfLines={1}>{goalTitle(goal)}</Text>
+                      <Text style={ms.doneValue} numberOfLines={1}>
+                        {goal.perf ? goal.perf.target : goal.target_value.toLocaleString()}
+                        {unit ? <Text style={ms.doneUnit}> {unit}</Text> : null}
+                      </Text>
+                      <Text style={ms.doneDate} numberOfLines={1}>{early > 0 ? `${month} · ${early} ${early === 1 ? 'day' : 'days'} early` : month}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </GreyFollow>
+          ) : null}
+
           {!loading && !(volumeFull && performanceFull) && (
+            <GreyFollow>
             <TouchableOpacity style={ms.addBtn} onPress={addGoal} activeOpacity={0.85} accessibilityRole="button">
-              <Text style={ms.addBtnText}>{goals.length === 0 ? 'Set a goal' : 'Add goal'}</Text>
+              <Text style={ms.addBtnText}>{goals.length === 0 ? 'Set a Goal' : 'Add Goal'}</Text>
             </TouchableOpacity>
+            </GreyFollow>
           )}
           {(volumeFull || performanceFull) && (
-            <Text style={ms.note}>{volumeFull && performanceFull ? 'Up to three Volume and three Performance goals. Delete one to add another.' : `Up to three ${volumeFull ? 'Volume' : 'Performance'} goals. Delete one to add another.`}</Text>
+            <Text style={ms.note}>{volumeFull && performanceFull ? 'Up to three Volume and three Performance Goals. Delete one to add another.' : `Up to three ${volumeFull ? 'Volume' : 'Performance'} Goals. Delete one to add another.`}</Text>
           )}
-        </ScrollView>
+        </View>
+        </GreySheet>
+        )}
         {sheet}
-      </SafeAreaView>
+      </View>
+      </RoutePopUp>
     );
   }
 
@@ -1261,7 +1407,7 @@ export default function GoalsScreen() {
         {loading && <Text style={styles.emptyText}>Loading…</Text>}
 
         {!loading && goals.length === 0 && (
-          <Text style={styles.emptyText}>No goals yet. Set one below.</Text>
+          <Text style={styles.emptyText}>No Goals yet. Set one below.</Text>
         )}
 
         {goals.map((goal) => {
@@ -1311,7 +1457,7 @@ export default function GoalsScreen() {
               {done && (
                 <View style={styles.celebrationBanner}>
                   <Text style={styles.celebrationText}>Goal complete</Text>
-                  <Text style={styles.celebrationSub}>Set a new goal to keep the momentum going.</Text>
+                  <Text style={styles.celebrationSub}>Set a new Goal to keep the momentum going.</Text>
                 </View>
               )}
 
@@ -1351,7 +1497,7 @@ export default function GoalsScreen() {
         )}
 
         {volumeFull && (
-          <Text style={styles.maxText}>Maximum 3 goals. Delete one to add another.</Text>
+          <Text style={styles.maxText}>Maximum 3 Goals. Delete one to add another.</Text>
         )}
 
       </ScrollView>
@@ -1574,6 +1720,11 @@ const styles = StyleSheet.create({
 
 // Mobile only — the RIVAL look (see RivalMobile.tsx).
 const ms = StyleSheet.create({
+  // Steps target stepper (Mockup 52).
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 14, paddingVertical: 16, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, backgroundColor: RivalGhost.fill },
+  stepBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,181,158,0.4)', alignItems: 'center', justifyContent: 'center' },
+  stepNum: { flex: 1, textAlign: 'center', fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 34, color: '#fff' },
+  stepUnit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontWeight: '600', fontSize: 15, color: 'rgba(255,255,255,0.6)' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   targetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
   targetInput: { width: 110, alignSelf: 'auto' } as any,
@@ -1620,8 +1771,20 @@ const ms = StyleSheet.create({
   addBtn: { paddingVertical: 14, borderRadius: 999, alignItems: 'center', backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient, marginTop: 4 },
   addBtnText: { fontSize: 15, fontWeight: '800', color: RivalButtonColors.label(RivalColors.onAccentFill) },
   note: { fontSize: 12, color: RivalColors.textSecondary, textAlign: 'center' },
+  // Completed tiles: Profile's Personal bests tile (ProfilePage pb*) with a soft gold edge.
+  doneHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  doneCount: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: RivalColors.accentText, marginRight: 4 },
+  doneScroll: { marginHorizontal: -18 },
+  doneRow: { gap: 10, paddingHorizontal: 18 },
+  doneTile: { width: 142, backgroundColor: '#232120', borderWidth: 1, borderColor: 'rgba(243,215,122,0.6)', borderRadius: 14, paddingVertical: 11, paddingHorizontal: 12 },
+  doneTitle: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: '#f3d77a' },
+  doneValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, lineHeight: 30, color: '#fff', paddingRight: 4 },
+  doneUnit: { fontFamily: RivalFontFamily, fontStyle: 'normal', fontWeight: '600', fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+  doneDate: { fontSize: 11.5, color: '#A0A0A0' },
   // Clears the floating bottom nav, as the desktop content style does.
-  content: { paddingBottom: 120 },
+  // Inside the pop-up. No bottom padding: the pop-up's own foot already
+  // leaves the same room under Add Goal as under Save on other pop-ups.
+  content: { gap: 14, paddingTop: 12 },
   sectionHead: { marginTop: 6, marginBottom: -2, paddingHorizontal: 4, gap: 3 },
   sectionTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 19, fontWeight: '700', color: '#fff' },
   sectionSub: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText },

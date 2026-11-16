@@ -552,7 +552,7 @@ export default function LeagueSettingsScreen() {
                 </TouchableOpacity>
               </View>
               <View style={ms.descFoot}>
-                <Text style={ms.cardHint}>{codeNote || 'Anyone with the code or link can ask to join. Someone in the team confirms it.'}</Text>
+                <Text style={[ms.cardHint, { flex: 1 }]}>{codeNote || 'Anyone with the code or link can ask to join. Someone in the team confirms it.'}</Text>
                 <TouchableOpacity onPress={resetCode} disabled={resettingCode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <BusyText busy={!!(resettingCode)} style={ms.resetLink}>{resettingCode ? 'Resetting…' : 'Reset code'}</BusyText>
                 </TouchableOpacity>
@@ -1113,7 +1113,7 @@ const ms = StyleSheet.create({
   sect: { fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: RivalColors.textSecondary },
   rowsCard: { backgroundColor: PHONE_CARD_BG, borderRadius: 16, borderWidth: 1, borderColor: RivalGhost.border, paddingHorizontal: 13 },
   wideBtn: { paddingVertical: 12 },
-  resetLink: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textDecorationLine: 'underline' },
+  resetLink: { flexShrink: 0, fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textDecorationLine: 'underline' },
   dangerCard: { borderColor: 'rgba(255,143,143,0.18)' },
   dangerLabel: { color: '#ff8f8f' },
   dangerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },

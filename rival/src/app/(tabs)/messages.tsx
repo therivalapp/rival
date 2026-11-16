@@ -181,7 +181,7 @@ export default function MessagesScreen() {
                           the app, and a long unbroken word breaks instead of
                           running out of the card. */}
                       <Text style={[styles.rowPreview, t.unread && styles.rowPreviewUnread]}>
-                        {t.lastBody ? `${t.lastIsMine ? 'You: ' : ''}${t.lastBody}` : 'No messages yet.'}
+                        {t.lastBody ? `${t.lastIsMine ? 'You: ' : ''}${t.lastBody}` : t.lastAt ? (t.lastIsMine ? 'You unsent a message' : 'Message unsent') : 'No messages yet.'}
                       </Text>
                     </View>
                     {t.unread && <View style={[styles.unreadDot, mob && ms.unreadDot]} />}

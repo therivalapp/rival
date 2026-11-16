@@ -15,6 +15,7 @@ import { RivalColors, RivalRadius, RivalSerifFamily, RivalButtonColors, RivalGho
 import { RespectStar } from './RespectStar';
 import { activityDisplayName } from '../../lib/yearReview';
 import { RivalIcon, activityIconName } from './RivalIcon';
+import { GlassPill } from './GlassPill';
 import { CoverImage, preloadCover } from './CoverImage';
 import { RivalBackButton } from './RivalBackButton';
 import { WebVideo } from './MediaPicker';
@@ -122,11 +123,10 @@ function dayKey(dateStr: string): string {
 // equivalent without adding expo-linear-gradient, so it falls back to a
 // flat color. Acceptable — this app runs primarily on web (see AGENTS.md).
 function scrimStyle(direction: 'toTop' | 'toBottom', strength = 0.45): any {
-  if (Platform.OS === 'web') {
-    const angle = direction === 'toTop' ? '0deg' : '180deg';
-    return { backgroundImage: `linear-gradient(${angle}, rgba(0,0,0,0) 0%, rgba(0,0,0,${strength}) 100%)` };
-  }
-  return { backgroundColor: `rgba(0,0,0,${strength * 0.6})` };
+  const angle = direction === 'toTop' ? '0deg' : '180deg';
+  // iPhone draws the same gradient (webFx); the old flat colour showed as a
+  // dark box across the top of an activity with no photo (Ricky, 2026-11-14).
+  return webFx({ backgroundImage: `linear-gradient(${angle}, rgba(0,0,0,0) 0%, rgba(0,0,0,${strength}) 100%)` });
 }
 
 export function ActivityDiaryViewer({
@@ -980,9 +980,9 @@ export function ActivityDiaryViewer({
               box-none leaves the rest of the strip to the tap zones. */}
           {wide ? <View style={[styles.photoStats, { zIndex: 3 }, { pointerEvents: 'box-none' }]}>
             <View style={[styles.photoChips, { pointerEvents: 'none' }]}>
-              {duration && <View style={styles.photoChip}><Text style={styles.photoChipText}>{duration}</Text></View>}
-              {distance && <View style={styles.photoChip}><Text style={styles.photoChipText}>{distance}</Text></View>}
-              {elevation && <View style={styles.photoChip}><Text style={styles.photoChipText}>{elevation}</Text></View>}
+              {duration && <GlassPill tone="dark" style={styles.photoChip}><Text style={styles.photoChipText}>{duration}</Text></GlassPill>}
+              {distance && <GlassPill tone="dark" style={styles.photoChip}><Text style={styles.photoChipText}>{distance}</Text></GlassPill>}
+              {elevation && <GlassPill tone="dark" style={styles.photoChip}><Text style={styles.photoChipText}>{elevation}</Text></GlassPill>}
             </View>
             <TouchableOpacity
               style={styles.photoEffort}

@@ -22,6 +22,7 @@ import { updatePrefs, usePrefs } from '../../lib/prefs';
 import { notify } from '../../lib/notify';
 import { PROFILE_STAT_KEYS, readProfileStats, type ProfileStatKey } from '../../lib/profileStats';
 import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
+import { GlassPill, GLASS_TEXT } from './GlassPill';
 import { SkyBackdrop } from './SkyBackdrop';
 import { EventSheet } from './EventSheet';
 import { useBlockedIds, openReport, openBlock, unblockMember, firstName } from '../../lib/safety';
@@ -114,7 +115,7 @@ function PhotoTile({ a, stamp, title, value, gold, big, onPress, width, height }
         <View style={[s.fill, s.tileArt]}><SkyBackdrop startedAt={a.started_at} /><RivalIcon name={activityIconName(a.activity_type)} size={64} color="rgba(255,255,255,0.16)" /></View>
       )}
       <View style={[s.fill, s.tileShade, { pointerEvents: 'none' }]} />
-      <View style={s.stampWrap}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></View>
+      <View style={s.stampWrap}><GlassPill tone="dark" style={s.stampPill}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></GlassPill></View>
       <View style={s.tileFoot}>
         {big ? null : <Text style={s.tileTitle} numberOfLines={1}>{title}</Text>}
         <Text style={[s.tileValue, big && s.nextValue]} numberOfLines={1}>{value}</Text>
@@ -262,7 +263,7 @@ function GhostTile({ icon, stamp, title, value, width, height, gold, big }: {
   return (
     <View style={[s.tile, s.ghostTile, gold && s.ghostGold, { width, height }]}>
       <View style={[s.fill, s.tileArt, { pointerEvents: 'none' }]}><RivalIcon name={icon} size={64} color="rgba(255,255,255,0.16)" /></View>
-      <View style={s.stampWrap}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></View>
+      <View style={s.stampWrap}><GlassPill tone="dark" style={s.stampPill}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></GlassPill></View>
       <View style={s.tileFoot}>
         {big ? null : <Text style={s.tileTitle}>{title}</Text>}
         <Text style={[s.tileValue, big && s.nextValue, gold && s.ghostValue]}>{value}</Text>
@@ -657,8 +658,8 @@ export function ProfilePage({
                         <View style={s.eventPanel}>
                           <View style={s.eventTop}>
                             <View style={s.eventTags}>
-                              <View style={s.tag}><RivalIcon name="flag" size={10} color="#2a2116" /><Text style={s.tagText}>{tag}</Text></View>
-                              {pb ? <View style={[s.tag, { backgroundColor: PB_COLOR }]}><RivalIcon name="trophy" size={10} color="#2a2116" /><Text style={s.tagText}>PB</Text></View> : null}
+                              <GlassPill tone="ivory" style={s.tag}><RivalIcon name="flag" size={10} color={GLASS_TEXT.ivory} /><Text style={[s.tagText, { color: GLASS_TEXT.ivory }]}>{tag}</Text></GlassPill>
+                              {pb ? <GlassPill tone="gold" style={s.tag}><RivalIcon name="trophy" size={10} color={GLASS_TEXT.gold} /><Text style={[s.tagText, { color: GLASS_TEXT.gold }]}>PB</Text></GlassPill> : null}
                             </View>
                             <Text style={s.eventWhen}>{monthYear(race.race_date!)}</Text>
                           </View>
@@ -981,7 +982,8 @@ const s = StyleSheet.create({
   tileArt: { alignItems: 'center', justifyContent: 'center' },
   tileShade: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 40%, rgba(10,9,8,0.85))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 40%, rgba(10,9,8,0.85))' } as any) } as any),
   stampWrap: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center' },
-  stamp: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: '#fff', paddingHorizontal: 9, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(14,13,12,0.55)', overflow: 'hidden' },
+  stampPill: { paddingHorizontal: 9, paddingVertical: 2 },
+  stamp: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: '#fff' },
   tileFoot: { position: 'absolute', left: 12, right: 12, bottom: 10 },
   tileTitle: { fontSize: 13, fontWeight: '700', color: '#fff' },
   tileValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, lineHeight: 25, color: '#fff' },

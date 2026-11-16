@@ -2,6 +2,7 @@ import { supabase, getAuthUser } from './supabase';
 import { getPrefs, onPrefsChanged } from './prefs';
 import { calculateEffortScore, loadScoringConfig } from './effort';
 import { groupJoinNotices } from './teamInvite';
+import { getItem as getPhoneItem, setItem as setPhoneItem } from './phoneStore';
 
 // The in-app inbox. Items are created by database triggers, never by the app —
 // see supabase/add_inbox_triggers.sql — so everything here reads, marks read,
@@ -113,6 +114,22 @@ export function fetchInboxBadgeCount(): Promise<number> {
   return p;
 }
 
+// The bell's number counts what arrived since the bell was last opened, so
+// opening it clears the number; each item keeps its own dot until it is
+// tapped (Ricky, 2026-11-15, like Facebook).
+const BELL_SEEN = 'rival_bell_seen_at';
+
+/** When the bell was last opened on this device, or null if never. */
+export function bellSeenAt(): string | null {
+  return getPhoneItem(BELL_SEEN);
+}
+
+/** Opening the bell: the number goes, the dots stay. */
+export function markBellSeen() {
+  setPhoneItem(BELL_SEEN, new Date().toISOString());
+  inboxChanged();
+}
+
 async function readInboxBadgeCount(): Promise<number> {
   const { data: { user } } = await getAuthUser();
   if (!user) return 0;
@@ -121,12 +138,14 @@ async function readInboxBadgeCount(): Promise<number> {
   // Profile → Notifications can be applied. Outstanding items are few.
   const { data, error } = await supabase
     .from('inbox_items')
-    .select('kind, league_id, resolved_at')
+    .select('kind, league_id, resolved_at, created_at')
     .eq('user_id', user.id)
     .or(`read_at.is.null,and(kind.in.(${ACTIONABLE.join(',')}),resolved_at.is.null)`)
     .limit(500);
   if (error) return 0;
-  const count = (data ?? []).filter((r: any) => wanted(r)).length;
+  const seen = bellSeenAt();
+  const seenMs = seen ? Date.parse(seen) : 0;
+  const count = (data ?? []).filter((r: any) => wanted(r) && Date.parse(r.created_at) > seenMs).length;
   badgeCache = { at: Date.now(), userId: user.id, count };
   return count;
 }

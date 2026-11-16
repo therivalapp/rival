@@ -28,7 +28,7 @@ const FAMILIES: [StatFamily, string[]][] = [
   ['wheels', ['InlineSkate', 'Skateboard', 'IceSkate', 'Wheelchair']],
   ['golf', ['Golf']],
   ['climb', ['RockClimbing']],
-  ['combat', ['MartialArts', 'Fencing']],
+  ['combat', ['Boxing', 'MartialArts', 'Fencing']],
 ];
 const FAMILY_OF = new Map(FAMILIES.flatMap(([f, types]) => types.map((t) => [t, f] as const)));
 
@@ -49,6 +49,7 @@ export const START_TYPES = new Set([
   // route (Ricky, 2026-11-10).
   'Kayaking', 'StandUpPaddling', 'Sail', 'InlineSkate', 'Wheelchair', 'Golf',
   'WeightTraining', 'Calisthenics', 'Workout', 'HIIT', 'Bootcamp', 'CrossFit', 'Hyrox',
+  // Boxing stays off until Start has a round timer (Ricky, 2026-11-16).
 ]);
 
 /** Speed in km/h rather than pace (Ricky: "speed, never pace" on a ride). */

@@ -31,6 +31,7 @@ import { computeActivityInsight, InsightTone } from '../../lib/activityInsights'
 import { loadScoringConfig, DEFAULT_MULTIPLIER, ScoringConfig } from '../../lib/effort';
 import { rm } from '../../components/rival/RivalMobile';
 import { RivalTopNav, RivalIcon, activityIconName, RivalFixedBackground, ActivityDiaryViewer, DiaryActivity, PhotoPositioner, CoverImage, RivalStartTiles, GreyArtTile } from '../../components/rival';
+import { GlassPill, GLASS_TEXT } from '../../components/rival/GlassPill';
 import { MediaPicker, pickMediaFiles, type MediaItem } from '../../components/rival/MediaPicker';
 import { RUN_TYPES, fastestBests, fastestTitle, pbStoodText, type FastestBest } from '../../lib/bestEfforts';
 import { activityDisplayName } from '../../lib/yearReview';
@@ -836,7 +837,7 @@ export default function MyActivitiesScreen() {
     const steps = [
       { key: 'first', title: 'Add the first activity', sub: 'Scan it or type it in', done: false, onPress: () => router.push('/add-workout') },
       { key: 'team', title: 'Join a team', sub: 'Train alongside friends', done: hasTeam, onPress: () => router.push('/discover-leagues') },
-      { key: 'focus', title: 'Set a focus', sub: 'One goal for the next 4 weeks', done: hasFocus, onPress: () => router.push({ pathname: '/goals', params: { add: 'true' } }) },
+      { key: 'focus', title: 'Set a Goal', sub: 'One Goal for the next 4 weeks', done: hasFocus, onPress: () => router.push({ pathname: '/goals', params: { add: 'true' } }) },
     ];
     const doneCount = steps.filter((st) => st.done).length;
     return (
@@ -1102,16 +1103,16 @@ export default function MyActivitiesScreen() {
         {cornerTag ? (
           <View style={[styles.jCardTags, { pointerEvents: 'none' }]}>
             {raceTag ? (
-              <View style={styles.jCardEventTag}>
-                <RivalIcon name="flag" size={10} color="#2a2116" />
-                <Text style={styles.jCardEventTagText}>{raceTag}</Text>
-              </View>
+              <GlassPill tone="ivory" style={styles.jCardEventTag}>
+                <RivalIcon name="flag" size={10} color={GLASS_TEXT.ivory} />
+                <Text style={[styles.jCardEventTagText, { color: GLASS_TEXT.ivory }]}>{raceTag}</Text>
+              </GlassPill>
             ) : null}
             {pbTag ? (
-              <View style={[styles.jCardEventTag, styles.jCardPbTag, !currentPb && styles.jCardPbTagFaded]}>
-                <RivalIcon name="trophy" size={10} color={currentPb ? '#2a2116' : RivalColors.rankAnchors.unrivaled} />
-                <Text style={[styles.jCardEventTagText, !currentPb && { color: RivalColors.rankAnchors.unrivaled }]}>PB</Text>
-              </View>
+              <GlassPill tone="gold" faded={!currentPb} style={styles.jCardEventTag}>
+                <RivalIcon name="trophy" size={10} color={GLASS_TEXT.gold} />
+                <Text style={[styles.jCardEventTagText, { color: GLASS_TEXT.gold }]}>PB</Text>
+              </GlassPill>
             ) : null}
           </View>
         ) : null}
@@ -1674,18 +1675,18 @@ export default function MyActivitiesScreen() {
                 still stands (Ricky, 2026-10-27). */}
             {!wide && (ev || weekHasPb(acts)) ? <View style={styles.pwTitleRow}>
               {ev ? (
-                <View style={styles.pwEventTag}>
-                  <RivalIcon name="flag" size={10} color="#2a2116" />
-                  <Text style={styles.jCardEventTagText}>{ev.tag}</Text>
-                </View>
+                <GlassPill tone="ivory" style={styles.pwEventTag}>
+                  <RivalIcon name="flag" size={10} color={GLASS_TEXT.ivory} />
+                  <Text style={[styles.jCardEventTagText, { color: GLASS_TEXT.ivory }]}>{ev.tag}</Text>
+                </GlassPill>
               ) : null}
               {weekHasPb(acts) ? (() => {
                 const standing = acts.some((a) => currentPbIds.has(a.id));
                 return (
-                  <View style={[styles.pwPbTag, !standing && styles.jCardPbTagFaded]}>
-                    <RivalIcon name="trophy" size={10} color={standing ? '#2a2116' : RivalColors.rankAnchors.unrivaled} />
-                    <Text style={[styles.jCardEventTagText, !standing && { color: RivalColors.rankAnchors.unrivaled }]}>PB</Text>
-                  </View>
+                  <GlassPill tone="gold" faded={!standing} style={styles.pwPbTag}>
+                    <RivalIcon name="trophy" size={10} color={GLASS_TEXT.gold} />
+                    <Text style={[styles.jCardEventTagText, { color: GLASS_TEXT.gold }]}>PB</Text>
+                  </GlassPill>
                 );
               })() : null}
             </View> : null}

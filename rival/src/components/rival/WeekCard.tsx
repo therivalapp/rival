@@ -3,6 +3,7 @@ import { Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View 
 import { Modal } from './RivalModal';
 import { RivalButtonColors, RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
+import { GlassPill, GLASS_TEXT } from './GlassPill';
 import { GreyCalendar, GreyLabel, GreyRows, GreySheet } from './RivalGreySheet';
 import { GoldStar } from './RespectStar';
 import { distanceUnit, toDisplayDistance } from '../../lib/units';
@@ -235,22 +236,22 @@ export function WeekEarned({ upPct, done, best }: { upPct: number | null; done: 
   return (
     <View style={s.earned}>
       {upPct ? (
-        <View style={[s.pill, s.pillUp]}>
-          <RivalIcon name="trendUp" size={13} color="#7fe0a4" />
-          <Text style={[s.pillText, { color: '#7fe0a4' }]}>{upPct}% on the week before</Text>
-        </View>
+        <GlassPill tone="green" style={s.pill}>
+          <RivalIcon name="trendUp" size={13} color={GLASS_TEXT.green} />
+          <Text style={[s.pillText, { color: GLASS_TEXT.green }]}>{upPct}% on the week before</Text>
+        </GlassPill>
       ) : null}
       {done ? (
-        <View style={[s.pill, s.pillDone]}>
-          <RivalIcon name="check" size={13} color="#ffd3c2" />
-          <Text style={[s.pillText, { color: '#ffd3c2' }]}>{done}</Text>
-        </View>
+        <GlassPill tone="peach" style={s.pill}>
+          <RivalIcon name="check" size={13} color={GLASS_TEXT.peach} />
+          <Text style={[s.pillText, { color: GLASS_TEXT.peach }]}>{done}</Text>
+        </GlassPill>
       ) : null}
       {best ? (
-        <View style={[s.pill, s.pillBest]}>
-          <RivalIcon name="trophy" size={13} color="#ffe6a8" />
-          <Text style={[s.pillText, { color: '#ffe6a8' }]}>{best}</Text>
-        </View>
+        <GlassPill tone="gold" style={s.pill}>
+          <RivalIcon name="trophy" size={13} color={GLASS_TEXT.gold} />
+          <Text style={[s.pillText, { color: GLASS_TEXT.gold }]}>{best}</Text>
+        </GlassPill>
       ) : null}
     </View>
   );

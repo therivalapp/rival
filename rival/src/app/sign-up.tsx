@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { finishSignUp } from '../lib/finishSignUp';
-import { displayToIsoDate, maskDateInput } from '../lib/dateFormat';
+import { displayToIsoDate, maskDateInputStrict } from '../lib/dateFormat';
 import { passwordOk } from '../lib/passwordRules';
 import { minimumAge } from '../lib/minimumAge';
 import { PasswordRules, PasswordsMatch } from '../components/rival/PasswordRules';
@@ -13,6 +13,10 @@ import { BREAKPOINT_WIDE_LAYOUT } from '../constants/breakpoints';
 import { RivalColors, RivalGhost, RivalRadius, RivalSerifFamily, RivalType, rivalWordmark } from '../constants/rivalTheme';
 
 const SMOKE_SOURCE = require('../../assets/images/backgrounds/optimized/podium-smoke.jpg');
+function FieldError({ text }: { text?: string }) {
+  return text ? <Text style={cs.errorText}>{text}</Text> : null;
+}
+
 // Supabase's email code length (Authentication, Providers, Email).
 const CODE_LENGTH = 6;
 
@@ -28,7 +32,11 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Each error sits under the box it belongs to; `form` is for the rest,
+  // shown above Create account (Ricky, 2026-11-14: no banner at the top).
+  type Field = 'firstName' | 'lastName' | 'dob' | 'email' | 'form';
+  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const clear = (f: Field) => setErrors((e) => (e[f] || e.form ? { ...e, [f]: undefined, form: undefined } : e));
   const [confirm, setConfirm] = useState('');
   const [pwFocused, setPwFocused] = useState(false);
   // After Create account with email confirmation on, the whole page becomes
@@ -45,14 +53,19 @@ export default function SignUpScreen() {
 
   async function handleSignUp() {
     if (!ready) return;
-    if (!firstName.trim() || !lastName.trim() || !dob.trim() || !email || !password) {
-      setError('Complete all fields.');
+    const missing: Partial<Record<Field, string>> = {};
+    if (!firstName.trim()) missing.firstName = 'Required';
+    if (!lastName.trim()) missing.lastName = 'Required';
+    if (!dob.trim()) missing.dob = 'Required';
+    if (!email.trim()) missing.email = 'Required';
+    if (Object.keys(missing).length) {
+      setErrors(missing);
       return;
     }
 
     const dobIso = displayToIsoDate(dob.trim());
     if (!dobIso) {
-      setError('Enter a date of birth as DD/MM/YYYY.');
+      setErrors({ dob: 'Enter a real date as DD/MM/YYYY.' });
       return;
     }
     // The terms and privacy policy say RIVAL is for people aged 13 and over,
@@ -62,18 +75,18 @@ export default function SignUpScreen() {
     const age = today.getFullYear() - by
       - (today.getMonth() + 1 < bm || (today.getMonth() + 1 === bm && today.getDate() < bd) ? 1 : 0);
     if (age < 0) {
-      setError('Enter a date of birth in the past.');
+      setErrors({ dob: 'Enter a date in the past.' });
       return;
     }
     // 16 in Australia (lib/minimumAge.ts).
     const minAge = minimumAge();
     if (age < minAge) {
-      setError(minAge === 16 ? 'RIVAL is for people aged 16 and over in Australia.' : 'RIVAL is for people aged 13 and over.');
+      setErrors({ dob: minAge === 16 ? 'RIVAL is for people aged 16 and over in Australia.' : 'RIVAL is for people aged 13 and over.' });
       return;
     }
 
     setLoading(true);
-    setError('');
+    setErrors({});
 
     const displayName = `${firstName.trim()} ${lastName.trim()}`;
 
@@ -89,7 +102,9 @@ export default function SignUpScreen() {
     });
 
     if (error) {
-      setError(error.message);
+      // Supabase's email problems (already used, not valid) go under Email.
+      setErrors(/registered/i.test(error.message) ? { email: 'An account with this email already exists. Sign in instead.' }
+        : /email/i.test(error.message) ? { email: error.message } : { form: error.message });
       setLoading(false);
       return;
     }
@@ -231,61 +246,59 @@ export default function SignUpScreen() {
               </View>
             )}
 
-            {error ? (
-              <View style={[styles.errorBox, mob && ms.errorBox]}>
-                <Text style={[styles.errorText, mob && ms.errorText]}>{error}</Text>
-              </View>
-            ) : null}
-
             <View style={styles.nameRow}>
               <View style={[styles.inputGroup, styles.nameField]}>
                 <Text style={[styles.label, mob && rm.label, mob && ms.label]}>First name</Text>
                 <TextInput
-                  style={[styles.input, mob && ms.input]}
+                  style={[styles.input, mob && ms.input, errors.firstName && cs.fieldError]}
                   placeholder="First name"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={firstName}
-                  onChangeText={setFirstName}
+                  onChangeText={(v) => { setFirstName(v); clear('firstName'); }}
                   autoCapitalize="words"
                 />
+                <FieldError text={errors.firstName} />
               </View>
               <View style={[styles.inputGroup, styles.nameField]}>
                 <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Last name</Text>
                 <TextInput
-                  style={[styles.input, mob && ms.input]}
+                  style={[styles.input, mob && ms.input, errors.lastName && cs.fieldError]}
                   placeholder="Last name"
                   placeholderTextColor={RivalColors.textSecondary}
                   value={lastName}
-                  onChangeText={setLastName}
+                  onChangeText={(v) => { setLastName(v); clear('lastName'); }}
                   autoCapitalize="words"
                 />
+                <FieldError text={errors.lastName} />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Date of birth</Text>
               <TextInput
-                style={[styles.input, mob && ms.input]}
+                style={[styles.input, mob && ms.input, errors.dob && cs.fieldError]}
                 placeholder="DD/MM/YYYY"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={dob}
-                onChangeText={(v) => setDob(maskDateInput(v))}
+                onChangeText={(v) => { setDob((prev) => maskDateInputStrict(v, prev)); clear('dob'); }}
                 keyboardType="number-pad"
                 maxLength={10}
               />
+              <FieldError text={errors.dob} />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, mob && rm.label, mob && ms.label]}>Email</Text>
               <TextInput
-                style={[styles.input, mob && ms.input]}
+                style={[styles.input, mob && ms.input, errors.email && cs.fieldError]}
                 placeholder="name@example.com"
                 placeholderTextColor={RivalColors.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(v) => { setEmail(v); clear('email'); }}
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
+              <FieldError text={errors.email} />
             </View>
 
             <View style={styles.inputGroup}>
@@ -325,6 +338,7 @@ export default function SignUpScreen() {
               <PasswordsMatch password={password} confirm={confirm} />
             </View>
 
+            <FieldError text={errors.form} />
             <RivalButton
               busy={loading}
               label={loading ? 'Creating account…' : 'Create account'}
@@ -520,6 +534,8 @@ const ms = StyleSheet.create({
 // Password rules and the Confirm email page (Mockup 54 v4, 2026-11-14).
 const cs = StyleSheet.create({
   off: { opacity: 0.4 },
+  fieldError: { borderColor: 'rgba(255,143,143,0.6)' },
+  errorText: { fontSize: 12, lineHeight: 16, color: '#ff8f8f', marginTop: 2 },
   content: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 16, paddingBottom: 24 },
   mail: {
     width: 76, height: 76, borderRadius: 22, alignSelf: 'center', marginTop: 4,

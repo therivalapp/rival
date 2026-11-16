@@ -20,6 +20,13 @@ export function Modal({ animationType, visible = true, children, ...rest }: Moda
   );
 }
 
+/** A page shown as a pop-up (a route over the page before): its sheet rises
+ *  on its own on the web too, as in a Modal, while the layer only fades
+ *  (Goals, Mockup 83, Ricky 2026-11-15). */
+export function RoutePopUp({ children }: { children: ReactNode }) {
+  return <SheetOpen.Provider value={true}>{children}</SheetOpen.Provider>;
+}
+
 // A pop-up's layer covers the whole screen and doesn't shrink with the
 // keyboard the way the app does (_layout.tsx), so a bottom sheet stayed
 // behind the keyboard and typing happened out of sight (Ricky, 2026-11-05).
