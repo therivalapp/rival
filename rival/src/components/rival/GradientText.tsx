@@ -33,17 +33,9 @@ export function bleedStyle(base: Record<string, any>, h: number, v: number): Rec
   };
 }
 
-const isItalic = (flat: Record<string, any>) => flat.fontStyle === 'italic';
-const bleedOf = (flat: Record<string, any>) => Math.round((flat.fontSize ?? 16) * 0.2);
 
 export function GradientText({ gradient: given, style, children, ...rest }: TextProps & { gradient?: string; style?: StyleProp<TextStyle>; children?: ReactNode }) {
-  if (Platform.OS === 'web') {
-    const f: Record<string, any> = StyleSheet.flatten(style) ?? {};
-    const painted = f.backgroundImage || f.backgroundClip || f.WebkitBackgroundClip;
-    if (!painted || !isItalic(f)) return <Text {...rest} style={style}>{children}</Text>;
-    const b = bleedOf(f);
-    return <Text {...rest} style={[style, bleedStyle(f, b, b)]}>{children}</Text>;
-  }
+  if (Platform.OS === 'web') return <Text {...rest} style={style}>{children}</Text>;
   const flat: Record<string, any> = { ...(StyleSheet.flatten(style) ?? {}) };
   const gradient = given ?? flat.__gradientText;
   delete flat.__gradientText;
