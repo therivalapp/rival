@@ -51,13 +51,6 @@ export function GradientText({ gradient: given, style, children, ...rest }: Text
   const wrap: Record<string, any> = {};
   for (const k of LAYOUT_KEYS) if (flat[k] !== undefined) { wrap[k] = flat[k]; delete flat[k]; }
   const text: Record<string, any> = { ...flat, color: '#000' };
-  if (isItalic(flat)) {
-    // The mask stops at the text's box: pad it so the tails show.
-    const b = bleedOf(flat);
-    Object.assign(wrap, bleedStyle(wrap, b, b));
-    delete wrap.paddingLeft; delete wrap.paddingRight; delete wrap.paddingBottom;
-    Object.assign(text, { paddingLeft: (text.paddingLeft ?? text.paddingHorizontal ?? text.padding ?? 0) + b, paddingRight: (text.paddingRight ?? text.paddingHorizontal ?? text.padding ?? 0) + b, paddingBottom: (text.paddingBottom ?? text.paddingVertical ?? text.padding ?? 0) + b });
-  }
   return (
     <MaskedView style={wrap} maskElement={<Text {...rest} style={text}>{children}</Text>}>
       <View style={{ experimental_backgroundImage: gradient } as any}>
