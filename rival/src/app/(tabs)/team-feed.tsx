@@ -305,7 +305,7 @@ function activityRowToPost(ctx: FeedContext, a: any): FeedPost | null {
     durationSeconds: a.duration_seconds,
     distanceMeters: a.distance_meters,
     elevationMeters: a.elevation_meters || 0,
-    xp: Math.round((a.effort_score || 0) * 10) / 10,
+    xp: Math.round((a.effort_score || 0)),
     ts: a.started_at,
     utcOffset: a.utc_offset_seconds ?? null,
     notes: a.notes,
@@ -863,7 +863,7 @@ function WalksSheet({ post, onClose, onPick }: {
                   key={w.id}
                   icon="walk"
                   label={time}
-                  value={[dist, formatDurationClock(w.seconds), `${Math.round(w.xp * 10) / 10} Effort`].filter(Boolean).join(' · ')}
+                  value={[dist, formatDurationClock(w.seconds), `${Math.round(w.xp)} Effort`].filter(Boolean).join(' · ')}
                   onPress={() => onPick({ id: w.id, title: w.name || 'Walk' })}
                 />
               );
@@ -1030,17 +1030,13 @@ function PostCard({
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
           <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
         </>
-      ) : ({ ...((
+      ) : (
+        // Fading ends like the website, not flat-cut bars (Ricky, 2026-11-16).
         <>
-          <View style={[styles.postAccentBarNative, styles.postAccentBarLeft, { backgroundColor: accentColor }]} />
-          <View style={[styles.postAccentBarNative, styles.postAccentBarRight, { backgroundColor: accentColor }]} />
+          <View style={[styles.postAccentBar, styles.postAccentBarLeft, { experimental_backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
+          <View style={[styles.postAccentBar, styles.postAccentBarRight, { experimental_backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
         </>
-      )), ...webFx((
-        <>
-          <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
-          <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
-        </>
-      )) } as any)}
+      )}
 
       <View style={styles.postHeader}>
         <TouchableOpacity onPress={() => router.push(`/stats?userId=${post.userId}` as any)} style={[styles.postAvatar, { backgroundColor: tint.bg, borderColor: tint.color }]}>
@@ -1510,7 +1506,6 @@ const styles = StyleSheet.create({
     })),
   },
   postAccentBar: { position: 'absolute', top: 6, bottom: 6, width: 3 },
-  postAccentBarNative: { position: 'absolute', top: 6, bottom: 6, width: 3, opacity: 0.7 },
   postAccentBarLeft: { left: -1, borderTopLeftRadius: 3, borderBottomLeftRadius: 3 },
   postAccentBarRight: { right: -1, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
 

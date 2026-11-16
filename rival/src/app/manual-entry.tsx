@@ -975,7 +975,7 @@ export default function ManualEntryScreen() {
       {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
       {durationSeconds > 0 && (
         <Text style={styles.effortPreview}>
-          ≈ {Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm) * 10) / 10} Effort · {formatDuration(durationSeconds)}
+          ≈ {Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))} Effort · {formatDuration(durationSeconds)}
         </Text>
       )}
       {CLASS_BASED_TYPES.has(workoutType) && durationSeconds > 0 && durationSeconds < 30 * 60 && (
@@ -1220,7 +1220,7 @@ export default function ManualEntryScreen() {
     return b.capped && !unchanged;
   })();
   const effortNow = durationSeconds > 0
-    ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm) * 10) / 10
+    ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))
     : null;
 
   // An activity can be a type this list doesn't offer (a Walk from Strava);

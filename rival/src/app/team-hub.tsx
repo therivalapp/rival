@@ -1108,7 +1108,7 @@ export default function TeamHub() {
     </View>
   );
 
-  const noGoalTeamEffort = Math.round(noGoalSource.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10;
+  const noGoalTeamEffort = Math.round(noGoalSource.reduce((s, a) => s + (a.effort_score || 0), 0));
   const noGoalTeamDistanceKm = Math.round((noGoalSource.reduce((s, a) => s + (a.distance_meters || 0), 0) / 1000) * 10) / 10;
   const noGoalTeamDuration = formatDuration(noGoalSource.reduce((s, a) => s + (a.duration_seconds || 0), 0)) || '0 min';
 
@@ -2161,17 +2161,13 @@ function ActivityPostCard({
           <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
           <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
         </>
-      ) : ({ ...((
+      ) : (
+        // Fading ends like the website, not flat-cut bars (Ricky, 2026-11-16).
         <>
-          <View style={[styles.postAccentBarNative, styles.postAccentBarLeft, { backgroundColor: accentColor }]} />
-          <View style={[styles.postAccentBarNative, styles.postAccentBarRight, { backgroundColor: accentColor }]} />
+          <View style={[styles.postAccentBar, styles.postAccentBarLeft, { experimental_backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
+          <View style={[styles.postAccentBar, styles.postAccentBarRight, { experimental_backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
         </>
-      )), ...webFx((
-        <>
-          <View style={[styles.postAccentBar, styles.postAccentBarLeft, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
-          <View style={[styles.postAccentBar, styles.postAccentBarRight, { backgroundImage: `linear-gradient(180deg, transparent 0%, ${accentColor} 25%, ${accentColor} 75%, transparent 100%)` } as any]} />
-        </>
-      )) } as any)}
+      )}
 
       <View style={styles.postHeader}>
         <TouchableOpacity onPress={() => router.push(`/stats?userId=${a.user_id}` as any)} style={[styles.postAvatar, { backgroundColor: tint.bg, borderColor: tint.color }]}>
@@ -2254,7 +2250,7 @@ function ActivityPostCard({
           </View>
           {a.effort_score ? (
             <View style={styles.effortLine}>
-              <GradientText style={[styles.effortNum, styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</GradientText>
+              <GradientText style={[styles.effortNum, styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : effortGoldText]}>{Math.round(a.effort_score)}</GradientText>
               <Text style={styles.effortUnit}>Effort</Text>
             </View>
           ) : null}
@@ -2302,7 +2298,7 @@ function ActivityPostCard({
         )}
         {a.effort_score ? (
           <View style={styles.effortLine}>
-            <GradientText style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{Math.round(a.effort_score * 10) / 10}</GradientText>
+            <GradientText style={[styles.effortNum, reactPhone && styles.effortNumSerif, isPb ? { color: RivalColors.rankAnchors.unrivaled } : reactPhone && effortGoldText]}>{Math.round(a.effort_score)}</GradientText>
             <Text style={styles.effortUnit}>Effort</Text>
           </View>
         ) : null}
@@ -2665,7 +2661,6 @@ function makeHubStyles(cardBg: string, cardBorder: string, insetBg: string, inse
     })),
   },
   postAccentBar: { position: 'absolute', top: 6, bottom: 6, width: 3 },
-  postAccentBarNative: { position: 'absolute', top: 6, bottom: 6, width: 3, opacity: 0.7 },
   postAccentBarLeft: { left: -1, borderTopLeftRadius: 3, borderBottomLeftRadius: 3 },
   postAccentBarRight: { right: -1, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
 

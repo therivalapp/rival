@@ -83,7 +83,7 @@ export function defaultEventStats(options: StatOption[], facts?: Pick<EventShare
 export function eventRowFigures(options: StatOption[], keys: StatKey[], hero: StatKey | null, effort: number): StampFigure[] {
   const chosen = options.filter((o) => keys.includes(o.key) && o.key !== hero).map((o) => o.figure);
   // No Effort without a linked activity: "0 Effort" read as a failure (2026-11-14).
-  return effort > 0 ? [...chosen, { value: String(Math.round(effort * 10) / 10), label: 'Effort', gold: true }] : chosen;
+  return effort > 0 ? [...chosen, { value: String(Math.round(effort)), label: 'Effort', gold: true }] : chosen;
 }
 
 /** The place stamp's hero: the first placing chosen, else the first placing. */

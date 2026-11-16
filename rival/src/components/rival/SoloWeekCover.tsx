@@ -59,7 +59,7 @@ export function WeekCover({ kicker, event, effort, photo, sky, line, lineEvent, 
       <View style={s.top}>
         <Text style={[s.kicker, event && { color: RivalColors.event }]} numberOfLines={1}>{kicker}</Text>
         <View style={s.effort}>
-          <Text style={s.effortNum}>{Math.round(effort * 10) / 10}</Text>
+          <Text style={s.effortNum}>{Math.round(effort)}</Text>
           <Text style={s.effortLabel}>Effort</Text>
         </View>
       </View>

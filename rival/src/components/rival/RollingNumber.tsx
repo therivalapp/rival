@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { webFx } from '../../lib/webFx';
+import { bleedStyle } from './GradientText';
 
 // Rolling digits (Mockup 48 · More motion A, Ricky 2026-11-13): every count
 // in the app rolls, each digit a column of 0-9 spinning to its place, the
@@ -64,6 +65,13 @@ export function RollingNumber({
   const grad = gradient ?? flat.__gradientText;
   const fontSize = flat.fontSize ?? 16;
   const rowH = flat.lineHeight ?? Math.round(fontSize * 1.15);
+  // Each digit on the strip sits in a taller cell, so the bottom of the digit
+  // above can't show over the top of the one shown (Ricky, 2026-11-16: a
+  // mark above the 6 of 21.6 on iPhone).
+  const cellH = rowH + Math.round(fontSize * 0.55);
+  // Room above and below the shown digit, so a serif tail (the 5, 7 and 9
+  // drop below the line) isn't clipped; cancelled by a negative margin.
+  const vPad = Math.round(fontSize * 0.18);
   const chars = useMemo(() => text.split(''), [text]);
   const [remembered] = useState(() => (memory ? lastShown.get(memory) ?? null : null));
   const rollOn = remembered && remembered !== text && remembered.length === text.length ? remembered : null;
@@ -91,7 +99,7 @@ export function RollingNumber({
     pos.current = chars.map((ch, i) => {
       // From another figure: one turn earlier, so each digit rolls forward.
       const start = fromChars && /\d/.test(fromChars[i]) ? 10 + Number(fromChars[i]) : 0;
-      return new Animated.Value(/\d/.test(ch) ? -start * rowH : 0);
+      return new Animated.Value(/\d/.test(ch) ? -start * cellH : 0);
     });
   }
 
@@ -116,7 +124,7 @@ export function RollingNumber({
     const anims = digitIdx.map((i, k) => {
       const d = Number(chars[i]);
       // Whole turns, then the digit: lands on the last loop of the strip.
-      const target = -(LOOPS * 10 + d) * rowH;
+      const target = -(LOOPS * 10 + d) * cellH;
       return Animated.timing(pos.current[i], {
         toValue: target,
         duration: duration + (digitIdx.length - 1 - k) * 60,
@@ -145,7 +153,11 @@ export function RollingNumber({
   for (const k of ['position', 'top', 'left', 'right', 'bottom', 'alignSelf', 'padding', 'paddingHorizontal', 'paddingLeft', 'paddingRight', 'marginHorizontal', 'marginVertical']) delete (textStyle as any)[k];
   // An italic glyph leans past its own box: each column gets room either
   // side (cancelled by a negative margin) so its clip doesn't shave it.
-  const lean = flat.fontStyle === 'italic' ? Math.round(fontSize * 0.12) : 0;
+  const lean = flat.fontStyle === 'italic' ? Math.round(fontSize * 0.22) : 0;
+  // On iPhone the gradient is a mask that stops at its own box: pad it so the
+  // lean and tails show (Ricky, 2026-11-16).
+  const maskBleed = Math.max(lean, Math.round(fontSize * 0.2));
+  const maskPad = { paddingHorizontal: maskBleed, paddingVertical: vPad };
   const layout: any = {};
   for (const k of ['padding', 'paddingHorizontal', 'paddingLeft', 'paddingRight', 'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginHorizontal', 'marginVertical', 'alignSelf', 'position', 'top', 'left', 'right', 'bottom'] as const) {
     if ((flat as any)[k] !== undefined) layout[k] = (flat as any)[k];
@@ -155,8 +167,8 @@ export function RollingNumber({
   if (reduce || !/\d/.test(text)) {
     if (grad && Platform.OS !== 'web') {
       return (
-        <MaskedView style={layout} maskElement={<Text style={[textStyle, { color: '#000' }]}>{text}</Text>}>
-          <View style={{ experimental_backgroundImage: grad } as any}><Text style={[textStyle, { opacity: 0 }]}>{text}</Text></View>
+        <MaskedView style={[layout, bleedStyle(layout, maskBleed, vPad)]} maskElement={<View style={maskPad}><Text style={[textStyle, { color: '#000' }]}>{text}</Text></View>}>
+          <View style={[{ experimental_backgroundImage: grad } as any, maskPad]}><Text style={[textStyle, { opacity: 0 }]}>{text}</Text></View>
         </MaskedView>
       );
     }
@@ -166,9 +178,17 @@ export function RollingNumber({
   // On the web each glyph carries the gradient itself (background-clip:text);
   // the gradients used for rolling figures run top to bottom, so per-glyph
   // reads the same as across the whole number.
-  const glyph: TextStyle = Platform.OS === 'web' && grad
+  // The gradient only paints inside each glyph's own box, so the 5's tail,
+  // which curls below the line and out to the left, came out blank (Ricky,
+  // 2026-11-16). Padding widens the painted box; negative margins cancel it.
+  const webPaint = Platform.OS === 'web' && !!grad;
+  const paint = webPaint ? Math.round(fontSize * 0.2) : 0;
+  const glyph: TextStyle = webPaint
     ? ({ ...textStyle, ...webFx({ backgroundImage: grad, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' }) } as any)
     : textStyle;
+  // The moving strip is widened by `paint` instead of each digit, so the
+  // number doesn't spread out (Ricky, 2026-11-16).
+  const cellPad: TextStyle = webPaint ? { paddingBottom: vPad } : {};
 
   const row = (ink?: string) => (
     <Animated.View style={[s.row, { height: rowH, opacity: fade }]}>
@@ -176,10 +196,10 @@ export function RollingNumber({
         const g = ink ? { ...glyph, color: ink } : glyph;
         if (!/\d/.test(ch)) return <Text key={i} style={g}>{ch}</Text>;
         return (
-          <View key={i} style={{ height: rowH, overflow: 'hidden', paddingHorizontal: lean, marginHorizontal: -lean }}>
+          <View key={i} style={{ height: rowH + vPad * 2, overflow: 'hidden', paddingHorizontal: lean, marginHorizontal: -lean, paddingVertical: vPad, marginVertical: -vPad }}>
             <Text style={[g, { opacity: 0 }]}>{ch}</Text>
-            <Animated.View style={[s.strip, { left: lean, right: lean, transform: [{ translateY: pos.current[i] }] }]}>
-              {DIGITS.map((d, j) => <Text key={j} style={[g, s.cell, { height: rowH }]}>{d}</Text>)}
+            <Animated.View style={[s.strip, { top: vPad, left: lean - paint, right: lean - paint, transform: [{ translateY: pos.current[i] }] }]}>
+              {DIGITS.map((d, j) => <View key={j} style={{ height: cellH }}><Text style={[g, s.cell, cellPad, { height: rowH + (webPaint ? vPad : 0) }]}>{d}</Text></View>)}
             </Animated.View>
           </View>
         );
@@ -192,8 +212,8 @@ export function RollingNumber({
   ) : null;
   if (grad && Platform.OS !== 'web') {
     return (
-      <View style={layout}>{gainTag}<MaskedView maskElement={row('#000')}>
-        <View style={{ experimental_backgroundImage: grad } as any}>
+      <View style={layout}>{gainTag}<MaskedView style={{ marginHorizontal: -maskBleed, marginVertical: -vPad }} maskElement={<View style={maskPad}>{row('#000')}</View>}>
+        <View style={[{ experimental_backgroundImage: grad } as any, maskPad]}>
           <Text style={[textStyle, { opacity: 0 }]}>{text}</Text>
         </View>
       </MaskedView></View>

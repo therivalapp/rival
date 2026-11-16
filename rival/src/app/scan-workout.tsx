@@ -881,7 +881,7 @@ export default function ScanWorkoutScreen() {
         catch (e) { setGeneralError(`Activity saved, but it could not be saved as a workout: ${savedWorkoutError(e)}`); }
       }
 
-      setSuccessMsg(`${name} saved with ${Math.round(effortScore * 10) / 10} Effort.`);
+      setSuccessMsg(`${name} saved with ${Math.round(effortScore)} Effort.`);
       setSaved({
         name,
         effort: Math.round(effortScore),

@@ -3255,7 +3255,7 @@ export default function HomeScreen() {
                       {/* Serif and larger, like the rank beside it (Ricky, 2026-10-03). */}
                       {/* The figure is centred on its own; the plus hangs to its left. */}
                       <View>
-                        <GradientText style={[styles.mLegacyStatValue, styles.mEffortTodayValue, styles.mTodayBig]} numberOfLines={1}>{Math.round(todayEffort * 10) / 10}</GradientText>
+                        <GradientText style={[styles.mLegacyStatValue, styles.mEffortTodayValue, styles.mTodayBig]} numberOfLines={1}>{Math.round(todayEffort)}</GradientText>
                         <GradientText style={[styles.mEffortTodayValue, styles.mTodayPlus]}>+</GradientText>
                       </View>
                       <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg, styles.mTodayLabel]}>Effort today</Text>

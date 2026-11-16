@@ -21,8 +21,8 @@ import { todaysWorkout, updateSavedWorkout, type SavedWorkoutRow } from '../lib/
 import { loadStartData, startDataNow, type PastRow } from '../lib/startData';
 import { liftsFromSaved, liftsToSave, liveClock, liveSeconds, logsLifts, togglePause, totalSets, type LiveActivity, type LiveLift } from '../lib/liveActivity';
 import { addLivePhotos, clearLive, setLivePhotos, startLive, updateLive, useLive, useTick } from '../lib/liveActivityStore';
-import { distanceUnit, elevationUnit, formatDistance, toDisplayDistance, toDisplayElevation, toDisplayWeight, weightUnit } from '../lib/units';
-import { currentPace, elevationGain, paceClock, splits, trackDistance } from '../lib/liveTrack';
+import { distanceUnit, elevChange, elevationUnit, formatDistance, toDisplayDistance, toDisplayElevation, toDisplayWeight, weightUnit } from '../lib/units';
+import { currentPace, elevationGain, movingSeconds, paceClock, splits, trackDistance } from '../lib/liveTrack';
 import { saveLiveActivity } from '../lib/saveLiveActivity';
 import { getLivePhotos } from '../lib/liveActivityStore';
 import { backToOrigin } from '../lib/tabNav';
@@ -212,7 +212,7 @@ function ReadyScreen() {
           const stats = last ? [
             { value: liveClock(last.duration_seconds ?? 0), name: 'LAST TIME' },
             ...(logsLifts(t) ? (sets ? [{ value: String(sets), name: 'SETS' }] : []) : (distance ? [{ value: distance, name: 'DISTANCE' }] : [])),
-            ...(last.effort_score ? [{ value: String(Math.round(last.effort_score * 10) / 10), name: 'EFFORT' }] : []),
+            ...(last.effort_score ? [{ value: String(Math.round(last.effort_score)), name: 'EFFORT' }] : []),
           ] : [];
           return (
             <View key={t} style={{ width, height: '100%' as any }}>
@@ -355,7 +355,15 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
   function openFinish(at?: number) {
     wasRunning.current = !paused;
     if (!paused) updateLive(togglePause(live));
-    setFinishing(at ?? liveSeconds(live));
+    setFinishing(movingOf(at ?? liveSeconds(live)));
+  }
+  // With a GPS route, moving time is the time actually spent moving, not the
+  // clock: stops and standing still are left out (Ricky, 2026-11-16). Not
+  // one point at all (no signal, indoors): the clock, as before.
+  function movingOf(clock: number): number {
+    const track = live.track ?? [];
+    if (!ROUTE_TYPES.has(live.activityType) || track.length === 0) return clock;
+    return Math.min(clock, movingSeconds(track));
   }
   function keepGoing() {
     setFinishing(null);
@@ -479,7 +487,9 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
   const distName = distanceUnit() === 'mi' ? 'MILES' : 'KILOMETRES';
   const perUnit = ` /${distanceUnit()}`;
   const recorded = liveSeconds(live, now);
-  const pace = hasRoute ? currentPace(track) : null;
+  // Current pace: none while paused, or once no new point has come for 15
+  // seconds (standing still), so it never shows a pace you aren't moving at.
+  const pace = hasRoute && !paused && recorded - track[track.length - 1].s <= 15 ? currentPace(track) : null;
   const avgPace = metres > 50 ? (recorded / metres) * 1000 : null;
   const gain = hasRoute ? Math.round(toDisplayElevation(elevationGain(track))) : 0;
   const split = hasRoute ? splits(track, unitKm * 1000) : { done: [], into: 0, intoSeconds: 0 };
@@ -562,6 +572,9 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
     return { every: g * 100, seconds, labels };
   }, [stats.laps100]);
   const hasDetails = hasRoute || swimDetails || !!live.zoneSeconds?.some((z) => z > 0);
+  // Runs, rides and walks with a route: details as a swipe page on Finish.
+  const detailPages = hasRoute && !skiDay && !raceLaps?.length && family !== 'golf';
+  const [finishPage, setFinishPage] = useState(0);
 
   // CrossFit and HYROX, live (design/crossfit-live-mockup.png): one tap a
   // round, the clock counting down an AMRAP or EMOM, Finish when time is up.
@@ -738,6 +751,10 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
       </ScrollView>
     </>
   ) : null;
+  // A route activity shows its pages and dots from the moment it starts, not
+  // only once the route has points: before that it was one page, and a
+  // sideways swipe on the iPhone closed Start (Ricky, 2026-11-16).
+  const routeLive = !gym && ROUTE_TYPES.has(type) && gpsState !== 'denied' && gpsState !== 'unavailable';
   const dots = (
     <View style={s.pageDots}>{[0, 1, 2].map((i) => <View key={i} style={[s.pageDot, page === i && s.pageDotOn]} />)}</View>
   );
@@ -753,6 +770,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
           {kicker()}
           <Text style={s.liveHero}>{skiLive ? elev(skiLive.descent) : dist}</Text>
           <Text style={s.liveHeroUnit}>{skiLive ? skiedName : distName}</Text>
+          {!hasRoute && !paused && gpsNote ? <Text style={s.gpsNote}>{gpsNote}</Text> : null}
           {skiLive?.lift ? (
             <View style={[s.wodPill, { marginTop: 10 }]}><Text style={s.wodPillText}>ON THE LIFT · <Text style={{ color: RivalColors.accentText }}>{liveClock(skiLive.legSeconds)}</Text></Text></View>
           ) : null}
@@ -787,7 +805,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
                 <Text style={s.splitN}>{d.n}</Text>
                 <Text style={s.splitT}>{liveClock(d.seconds)}</Text>
                 <View style={s.splitBar}><View style={[s.splitFill, d.seconds === fastest && s.splitBest, { width: `${45 + quick(d.seconds) * 51}%` }]} /></View>
-                <Text style={s.splitE}>{`+${Math.round(toDisplayElevation(d.gain))} ${elevationUnit()}`}</Text>
+                <Text style={s.splitE}>{elevChange(d.net)}</Text>
               </View>
             ))}
           </ScrollView>
@@ -795,6 +813,11 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
         </View>
         <View style={[s.mapPage, { width: screenW }]}>
           <LiveRoute track={track} width={screenW} height={mapH} end="now" />
+          {hasRoute ? null : (
+            <View style={[s.mapWait, { height: mapH }]}>
+              <Text style={s.mapWaitText}>{gpsState === 'searching' ? 'Finding location…' : 'The route starts when you move.'}</Text>
+            </View>
+          )}
           <View style={[s.mapFade, { top: mapH - 140 }]} />
           <View style={[s.mapChip, { top: Math.max(58, insets.top + 8) }]}>{kicker()}</View>
           <View style={{ paddingBottom: 6 }}>{mainThree}</View>
@@ -811,7 +834,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
 
       {listing ? timer : null}
 
-      {wodMode && !hasRoute ? wodBody : hasRoute ? pager : listing ? (
+      {wodMode && !hasRoute ? wodBody : hasRoute || routeLive ? pager : listing ? (
       <ScrollView style={s.liveList} contentContainerStyle={s.liveListIn} keyboardShouldPersistTaps="handled">
         {gym && live.lifts.length ? (
           <>
@@ -1016,17 +1039,20 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
               : heroKind === 'distance' ? (hasRoute ? dist : Math.round(swimM).toLocaleString())
               : liveClock(finishing ?? 0)}
             heroCaption={heroKind === 'descent' ? skiedName : heroKind === 'distance' ? (hasRoute ? distName : 'METRES') : 'TIME'}
+            heroLarge
             onClose={keepGoing}
             footer={(
               <>
                 {saveError ? <Text style={s.saveError}>{saveError}</Text> : null}
                 <View style={s.finishBtns}>
-                  <TouchableOpacity style={s.resume} onPress={keepGoing} accessibilityLabel="Resume" disabled={saving}>
-                    <RivalIcon name="play" size={30} color="#fff" />
+                  {/* Back to the activity, as it was: a back arrow, not
+                      "Resume", which read as if it would start again by
+                      itself (Ricky, 2026-11-16). */}
+                  <TouchableOpacity style={s.resume} onPress={keepGoing} accessibilityLabel="Back to the activity" disabled={saving}>
+                    <RivalIcon name="back" size={20} color={RivalColors.accentText} />
                   </TouchableOpacity>
                   <View style={{ flex: 1 }}><GreyPrimary label="Save activity" busy={saving} onPress={save} /></View>
                 </View>
-                <Text style={s.resumeName}>Resume</Text>
                 <View style={s.finishSep} />
                 {/* Clear of the iPhone's home bar, so it isn't tapped by accident. */}
                 <TouchableOpacity style={[s.textBtn, { paddingBottom: 6, marginBottom: Math.max(14, insets.bottom) }]} onPress={discard} disabled={saving}><Text style={s.discardRed}>Discard activity</Text></TouchableOpacity>
@@ -1055,7 +1081,29 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
               ? <ScoreCard score={score} wod={wod} onEdit={() => { setScoreDraft(score); setEditor('score'); }} />
               : <AddCard label="Add score" onPress={() => { setScoreDraft({ kind: 'rounds', rounds: 0, reps: 0, rx: true }); setEditor('score'); }} />) : null}
             <View style={wantsResult || wantsScore ? { marginTop: 10 } : null}><FinishTiles tiles={finishTileList} /></View>
-            {hasRoute ? (
+            {detailPages ? (
+              // More details as a second page, swiped to, with dots (Mockup
+              // 92 v2, Ricky 2026-11-16). Splits live on that page.
+              <View style={{ marginTop: 10 }} onLayout={(e) => setMapW(e.nativeEvent.layout.width)}>
+                {mapW ? (
+                  <ScrollView
+                    horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+                    onScroll={(e) => setFinishPage(Math.round(e.nativeEvent.contentOffset.x / mapW))} scrollEventThrottle={32}
+                  >
+                    <View style={{ width: mapW }}>
+                      <View style={[s.finishMap, { height: 200, marginTop: 0 }]}><LiveRoute track={track} width={mapW} height={200} end="finish" /></View>
+                    </View>
+                    <View style={{ width: mapW }}>
+                      <MoreDetails
+                        track={track} unitKm={unitKm} moving={finishSeconds} elapsed={elapsedSeconds}
+                        avgBpm={live.avgBpm} maxBpm={live.maxBpm} cadence={live.cadence} zoneSeconds={live.zoneSeconds} hrMax={live.hrMax}
+                      />
+                    </View>
+                  </ScrollView>
+                ) : null}
+                <View style={s.pageDots}>{[0, 1].map((i) => <View key={i} style={[s.pageDot, finishPage === i && s.pageDotOn]} />)}</View>
+              </View>
+            ) : hasRoute ? (
               <View style={s.finishMap} onLayout={(e) => setMapW(e.nativeEvent.layout.width)}>
                 {mapW ? <LiveRoute track={track} width={mapW} height={84} end="finish" /> : null}
               </View>
@@ -1070,7 +1118,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
                   hi={skiDay.runs.reduce((b, r, i) => (r.descent > skiDay.runs[b].descent ? i : b), 0)} show={4} moreNoun="more runs"
                 />
               </>
-            ) : hasRoute && family !== 'golf' ? <FinishSplits track={track} unitKm={unitKm} speed={showsSpeed(family) || family === 'row'} /> : null}
+            ) : hasRoute && family !== 'golf' && !detailPages ? <FinishSplits track={track} unitKm={unitKm} speed={showsSpeed(family) || family === 'row'} /> : null}
             {raceLaps?.length ? (
               <TableCard
                 title="STATIONS" cols={[{ label: 'STATION' }, { label: 'RUN', width: 52 }, { label: 'TIME', width: 56 }]}
@@ -1081,7 +1129,7 @@ function LiveScreen({ live, photos }: { live: LiveActivity; photos: MediaItem[] 
               <MiniBars title={`SPLITS · EVERY ${swimBars.every} M`} seconds={swimBars.seconds} labels={swimBars.labels} />
             ) : null}
             {logsLifts(type) && toSave.length ? <LiftsCard lifts={toSave} pbs={pbs} /> : null}
-            {hasDetails ? <MoreDetailsRow onPress={() => setDetails(true)} sub={moreDetailsLine(family)} /> : null}
+            {hasDetails && !detailPages ? <MoreDetailsRow onPress={() => setDetails(true)} sub={moreDetailsLine(family)} /> : null}
             {logsLifts(type) && !live.savedId && toSave.length ? (
               <TouchableOpacity style={s.keepRow} onPress={() => setKeep((v) => !v)} activeOpacity={0.8}>
                 <RivalIcon name="replay" size={22} color={RivalColors.accentText} />
@@ -1261,7 +1309,7 @@ const s = StyleSheet.create({
   switchOn: { backgroundColor: '#e8835f' },
   knob: { width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff' },
   knobOn: { alignSelf: 'flex-end' },
-  finishPhoto: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 46, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.35)', marginTop: 10 },
+  finishPhoto: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 46, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.6)', marginTop: 10 },
   textBtn: { alignItems: 'center', paddingTop: 12 },
   keepGoing: { fontSize: 14, fontWeight: '800', color: RivalColors.accentText },
   discard: { fontSize: 13, fontWeight: '600', color: RivalColors.textSecondary },
@@ -1292,6 +1340,8 @@ const s = StyleSheet.create({
   splitFill: { height: '100%', borderRadius: 4, backgroundColor: 'rgba(255,181,158,0.55)' },
   splitBest: { backgroundColor: '#e8835f', ...(webFx({ backgroundImage: 'linear-gradient(90deg, #D97757, #ffb59e)' })) },
   splitE: { width: 50, textAlign: 'right', fontSize: 11.5, color: '#a0a0a0' },
+  mapWait: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
+  mapWaitText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.55)' },
   mapPage: { flex: 1, backgroundColor: '#111', justifyContent: 'space-between' },
   mapFade: { position: 'absolute', left: 0, right: 0, height: 140, ...(webFx({ backgroundImage: 'linear-gradient(180deg, rgba(17,17,17,0), #111)' })) },
   mapChip: { position: 'absolute', alignSelf: 'center', backgroundColor: 'rgba(14,13,12,0.7)', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
@@ -1306,15 +1356,14 @@ const s = StyleSheet.create({
   thumbMoreText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   addThumb: { width: 58, height: 58, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.4)', alignItems: 'center', justifyContent: 'center', gap: 2 },
   addThumbText: { fontSize: 10.5, fontWeight: '800', color: RivalColors.accentText },
-  finishBtns: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  resume: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: '#e8835f', alignItems: 'center', justifyContent: 'center' },
-  resumeName: { width: 56, textAlign: 'center', fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.6)', marginTop: -1 },
+  finishBtns: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  resume: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: '#e8835f', backgroundColor: '#232221', alignItems: 'center', justifyContent: 'center' },
   finishSep: { height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginTop: 12 },
   discardRed: { fontSize: 13.5, fontWeight: '700', color: '#ff8f8f' },
   saveError: { fontSize: 12.5, color: RivalColors.accentText, textAlign: 'center' },
   timesRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 4, marginBottom: 12 },
   timesCell: { alignItems: 'center', paddingHorizontal: 16 },
-  timesValue: { ...serif, fontWeight: '700', fontSize: 19, lineHeight: 23, color: '#fff' },
+  timesValue: { ...serif, fontWeight: '700', fontSize: 28, lineHeight: 33, color: '#fff' },
   // CrossFit and HYROX, live (design/crossfit-live-mockup.png).
   wodPill: { alignSelf: 'center', marginTop: 2, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12, backgroundColor: 'rgba(14,13,12,0.6)' },
   wodPillText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.3, color: '#a0a0a0' },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentPace, elevationGain, fastestEfforts, metresBetween, paceClock, splitBars, splits, trackDistance, type TrackPoint } from '../liveTrack';
+import { currentPace, elevationGain, fastestEfforts, metresBetween, movingSeconds, paceClock, splitBars, splits, trackDistance, type TrackPoint } from '../liveTrack';
 
 // Due north along a meridian: 0.001 degrees of latitude is about 111.2 m.
 const DEG = 1 / 111195;
@@ -19,8 +19,8 @@ describe('liveTrack', () => {
   });
 
   it('counts climbs past the noise and ignores small wobbles', () => {
-    expect(elevationGain(line([0, 1, 2, 3, 4], 300, [10, 12, 11, 13, 20]))).toBe(10);
-    expect(elevationGain(line([0, 1, 2], 300, [10, 12, 10]))).toBe(0);
+    expect(elevationGain(line([0, 100, 200, 300, 400], 300, [10, 12, 11, 13, 20]))).toBe(10);
+    expect(elevationGain(line([0, 100, 200], 300, [10, 12, 10]))).toBe(0);
   });
 
   it('splits each kilometre with its time and climb', () => {
@@ -39,7 +39,8 @@ describe('liveTrack', () => {
   it('gives pace over the last stretch only', () => {
     const pts = [...line([0, 500], 360), ...line([1000], 360).map((p) => ({ ...p, s: 180 + 120 }))];
     expect(currentPace(pts)).toBeCloseTo(240, 0);
-    expect(currentPace(line([0, 100]))).toBeNull();
+    expect(currentPace(line([0, 100]))).toBeCloseTo(300, 0);
+    expect(currentPace(line([0, 10]))).toBeNull();
   });
 
   it('prints pace as a clock', () => {
@@ -74,5 +75,43 @@ describe('liveTrack', () => {
     expect(k1).toBe(240);
     expect(k2).toBe(540);
     expect(k5).toBeNull();
+  });
+});
+
+describe('movingSeconds', () => {
+  it('counts a steady run in full', () => {
+    expect(movingSeconds(line([0, 100, 200, 300], 300))).toBe(90);
+  });
+  it('leaves out a long stop between points', () => {
+    const pts: TrackPoint[] = [{ lat: 0, lon: 0, s: 0 }, { lat: 100 * DEG, lon: 0, s: 30 }, { lat: 104 * DEG, lon: 0, s: 330 }, { lat: 204 * DEG, lon: 0, s: 360 }];
+    expect(movingSeconds(pts)).toBe(60);
+  });
+  it('is nothing for a single point', () => {
+    expect(movingSeconds([{ lat: 0, lon: 0, s: 21 }])).toBe(0);
+  });
+});
+
+describe('elevation from phone heights', () => {
+  // About 1 km east along the equator, one point every 10 s, 10 m apart.
+  const run = (alts: (number | null)[]) => alts.map((alt, i) => ({ lat: 0, lon: (i * 10) / 111_320, s: i * 10, alt }));
+
+  it('ignores a sudden jump in the phone height', async () => {
+    const { elevationGain } = await import('../liveTrack');
+    const alts = Array.from({ length: 60 }, (_, i) => (i < 5 ? -600 : 100));
+    expect(elevationGain(run(alts))).toBe(0);
+  });
+
+  it('does not turn wobble on a downhill into a climb', async () => {
+    const { elevationGain } = await import('../liveTrack');
+    const alts = Array.from({ length: 120 }, (_, i) => 100 - i * 0.4 + (i % 2 ? 2.5 : -2.5));
+    expect(elevationGain(run(alts))).toBeLessThan(3);
+  });
+
+  it('shows a downhill kilometre as a drop', async () => {
+    const { splits } = await import('../liveTrack');
+    const alts = Array.from({ length: 120 }, (_, i) => 100 - i * 0.3);
+    const { done } = splits(run(alts));
+    expect(done[0].net).toBeLessThan(-20);
+    expect(done[0].gain).toBe(0);
   });
 });

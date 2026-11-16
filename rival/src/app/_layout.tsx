@@ -238,7 +238,10 @@ export default function RootLayout() {
           {/* Goals rises over Today as a pop-up sized to what it holds (Mockup 83,
               Ricky 2026-11-15). Phone only; desktop keeps its page. */}
           <Stack.Screen name="goals" options={phone ? popUp : {}} />
-          <Stack.Screen name="start" options={{ animation: 'slide_from_bottom' }} />
+          {/* No swipe to close: Start swipes sideways between activities and,
+              while recording, between its pages, and a stray swipe dropped
+              you out mid-run (Ricky, 2026-11-16). The X and the arrow close it. */}
+          <Stack.Screen name="start" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
           <Stack.Screen name="races" options={({ route }) => (phone && (route.params as { add?: string } | undefined)?.add === 'true' ? { presentation: 'transparentModal', animation: 'none' } : {})} />
         </Stack>
         </ThemeProvider>

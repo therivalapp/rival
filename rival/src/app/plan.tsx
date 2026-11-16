@@ -99,7 +99,7 @@ export default function PlanScreen() {
 
     // Current week XP
     const weekTotal = (activitiesRes.data || []).reduce((s, a) => s + (a.effort_score || 0), 0);
-    setCurrentWeekXp(Math.round(weekTotal * 10) / 10);
+    setCurrentWeekXp(Math.round(weekTotal));
 
     // League standings
     const leagueMemberships = (membershipsRes.data || []).map((m: any) => m.leagues).filter(Boolean);
@@ -137,7 +137,7 @@ export default function PlanScreen() {
         const members = (membersByLeague[league.id] || []).map((m: any) => ({
           user_id: m.user_id,
           name: formatDisplayName(m.users),
-          score: Math.round((scoreByUser[m.user_id] || 0) * 10) / 10,
+          score: Math.round((scoreByUser[m.user_id] || 0)),
         }));
 
         const sorted = [...members].sort((a, b) => b.score - a.score);
@@ -206,12 +206,12 @@ export default function PlanScreen() {
         m.user_id === userId ? { ...m, score: myProjected } : m
       ).sort((a, b) => b.score - a.score);
       const projectedRank = projected.findIndex((m) => m.user_id === userId) + 1;
-      return { ...league, myProjectedScore: Math.round(myProjected * 10) / 10, projectedRank };
+      return { ...league, myProjectedScore: Math.round(myProjected), projectedRank };
     }));
   }
 
   const totalPlannedXp = plannedActivities.reduce((s, a) => s + a.projected_xp, 0);
-  const projectedTotal = Math.round((currentWeekXp + totalPlannedXp) * 10) / 10;
+  const projectedTotal = Math.round((currentWeekXp + totalPlannedXp));
 
   if (!wide) {
     const fmt = (n: number) => Math.round(n * 10) / 10;
@@ -459,7 +459,7 @@ export default function PlanScreen() {
           <View style={styles.xpDivider} />
           <View style={styles.xpBlock}>
             <Text style={styles.xpBlockLabel}>Planned</Text>
-            <Text style={[styles.xpBlockValue, { color: RivalColors.accentText }]}>+{Math.round(totalPlannedXp * 10) / 10}</Text>
+            <Text style={[styles.xpBlockValue, { color: RivalColors.accentText }]}>+{Math.round(totalPlannedXp)}</Text>
             <Text style={styles.xpBlockUnit}>Effort</Text>
           </View>
           <View style={styles.xpDivider} />
@@ -540,10 +540,10 @@ export default function PlanScreen() {
                           </Text>
                           <View style={styles.miniScoreBlock}>
                             <Text style={[styles.miniScore, isMe && { color: RivalColors.accentFill }]}>
-                              {Math.round(projScore * 10) / 10} Effort
+                              {Math.round(projScore)} Effort
                             </Text>
                             {isMe && totalPlannedXp > 0 && (
-                              <Text style={styles.miniBonus}>+{Math.round(totalPlannedXp * 10) / 10}</Text>
+                              <Text style={styles.miniBonus}>+{Math.round(totalPlannedXp)}</Text>
                             )}
                           </View>
                         </View>
@@ -674,7 +674,7 @@ export default function PlanScreen() {
                 ))}
                 <View style={styles.modalTotalRow}>
                   <Text style={styles.modalTotalLabel}>Total planned</Text>
-                  <Text style={styles.modalTotalXp}>+{Math.round(totalPlannedXp * 10) / 10} Effort</Text>
+                  <Text style={styles.modalTotalXp}>+{Math.round(totalPlannedXp)} Effort</Text>
                 </View>
               </>
             )}
