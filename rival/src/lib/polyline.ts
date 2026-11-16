@@ -16,14 +16,19 @@ export function decodePolyline(encoded: string): [number, number][] {
 
 /** Projects a route into a width × height box with padding, keeping its shape
  *  (longitude is scaled by cos(latitude) so routes aren't stretched sideways). */
-export function projectRoute(points: [number, number][], width: number, height: number, pad = 16): [number, number][] {
+/** `minSpanMetres`: the least ground the box shows, so a few metres of GPS
+ *  drift stay a dot instead of stretching corner to corner (Ricky, 2026-11-16). */
+export function projectRoute(points: [number, number][], width: number, height: number, pad = 16, minSpanMetres = 0): [number, number][] {
   if (points.length < 2) return [];
   const midLat = (points.reduce((s, p) => s + p[0], 0) / points.length) * (Math.PI / 180);
   const kx = Math.cos(midLat);
   const xs = points.map((p) => p[1] * kx);
   const ys = points.map((p) => -p[0]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  let minX = Math.min(...xs), maxX = Math.max(...xs);
+  let minY = Math.min(...ys), maxY = Math.max(...ys);
+  const least = minSpanMetres / 111_320;
+  if (maxX - minX < least) { const c = (minX + maxX) / 2; minX = c - least / 2; maxX = c + least / 2; }
+  if (maxY - minY < least) { const c = (minY + maxY) / 2; minY = c - least / 2; maxY = c + least / 2; }
   const spanX = maxX - minX || 1e-9;
   const spanY = maxY - minY || 1e-9;
   const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY);

@@ -17,7 +17,7 @@ import { webFx } from '../../lib/webFx';
 // these pieces so they stay the same.
 
 export function GreySheet({
-  kicker, kickerColor, badge, title, sub, onClose, onBack, children, footer, overlay, heroCaption,
+  kicker, kickerColor, badge, title, sub, onClose, onBack, children, footer, overlay, heroCaption, heroLarge,
 }: {
   kicker?: string;
   /** The kicker in another colour: amber on Report, red on Block. */
@@ -28,6 +28,8 @@ export function GreySheet({
   /** Shows the title as one big number with this caption under it, such as
    *  "KILOMETRES" on the Finish pop-up (Ricky, 2026-11-02). */
   heroCaption?: string;
+  /** A bigger hero number (Finish, Mockup 92 v2). */
+  heroLarge?: boolean;
   /** A short line under the title, such as the date an activity is for. */
   sub?: string;
   onClose: () => void;
@@ -47,7 +49,7 @@ export function GreySheet({
   const dialog = width >= BREAKPOINT_WIDE_LAYOUT;
   // No close button: a pop-up closes by tapping outside it (the caller's
   // backdrop) or by dragging it down: from anywhere on web (useSheetDrag),
-  // from the top on native.
+  // from the top or by pulling the list past its top on native.
   const dragY = useRef(new Animated.Value(0)).current;
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -84,12 +86,20 @@ export function GreySheet({
             </View>
           ) : null}
           {kicker ? <Text style={[g.kicker, kickerColor ? { color: kickerColor } : null]}>{kicker}</Text> : null}
-          <Text style={[g.title, !kicker && { marginTop: 0 }, heroCaption != null && g.hero]}>{title}</Text>
+          <Text style={[g.title, !kicker && { marginTop: 0 }, heroCaption != null && g.hero, heroLarge && g.heroLarge]}>{title}</Text>
           {heroCaption ? <Text style={g.heroCaption}>{heroCaption}</Text> : null}
           {sub ? <Text style={g.sub}>{sub}</Text> : null}
         </View>
       </View>
-      <ScrollView style={g.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={g.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        // On iPhone the list takes a downward pull, so the drag above only
+        // worked on the title. Pulling the list down past its top closes the
+        // pop-up, as dragging anywhere does on the website (Ricky, 2026-11-16).
+        onScrollEndDrag={Platform.OS === 'ios' ? (e) => { if (e.nativeEvent.contentOffset.y < -70) closeRef.current(); } : undefined}
+      >
         {children}
       </ScrollView>
       <View style={g.foot}>{footer}</View>
@@ -501,6 +511,7 @@ const g = StyleSheet.create({
   head: { alignItems: 'center', marginBottom: 2, paddingHorizontal: 36 },
   kicker: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.3, color: RivalColors.accentText, textAlign: 'center' },
   title: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 24, color: '#fff', textAlign: 'center', marginTop: 3 },
+  heroLarge: { fontSize: 76, lineHeight: 82 },
   hero: { fontSize: 56, lineHeight: 62, marginTop: 2, ...(Platform.OS === 'web' ? { fontVariantNumeric: 'tabular-nums' } as any : {}) },
   // Clear of Georgia's numerals that hang below the line (3, 4, 5, 7, 9).
   heroCaption: { fontSize: 9, fontWeight: '800', letterSpacing: 1.3, color: '#a0a0a0', textAlign: 'center', marginTop: 8 },

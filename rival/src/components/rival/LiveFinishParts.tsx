@@ -3,8 +3,8 @@ import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import Svg, { Line, Path } from 'react-native-svg';
 import { RivalColors, RivalSerifFamily } from '../../constants/rivalTheme';
 import { liveClock } from '../../lib/liveActivity';
-import { elevationGain, fastestEfforts, metresBetween, paceClock, splitBars, splits, type TrackPoint } from '../../lib/liveTrack';
-import { distanceUnit, elevationUnit, toDisplayElevation } from '../../lib/units';
+import { elevationGain, fastestEfforts, metresBetween, paceClock, smoothAltitudes, splitBars, splits, type TrackPoint } from '../../lib/liveTrack';
+import { distanceUnit, elevChange, elevationUnit, toDisplayElevation } from '../../lib/units';
 import { RivalIcon } from './RivalIcon';
 import { webFx } from '../../lib/webFx';
 
@@ -18,10 +18,17 @@ export type Tile = { value: string; unit?: string | null; name: string; effort?:
 
 /** Three across; Effort has a solid tile with a peach edge (option B,
  *  design/effort-tile-mockup.png) and opens its breakdown. */
-export function FinishTiles({ tiles }: { tiles: Tile[] }) {
-  if (!tiles.length) return null;
+export function FinishTiles({ tiles: given }: { tiles: Tile[] }) {
+  if (!given.length) return null;
+  // Effort in the middle of a row of three (Ricky, 2026-11-16).
+  const e = given.findIndex((t) => t.effort);
+  const tiles = given.length >= 3 && e >= 0 && e !== 1
+    ? (() => { const rest = given.filter((_, i) => i !== e); return [rest[0], given[e], ...rest.slice(1)]; })()
+    : given;
   return (
-    <View style={s.grid}>
+    // Effort on its own: a smaller tile in the middle, not the full width
+    // (Mockup 92 v2, Ricky 2026-11-16).
+    <View style={[s.grid, tiles.length === 1 && s.gridOne]}>
       {tiles.map((t) => {
         const body = (
           <>
@@ -202,7 +209,7 @@ export function MoreDetails({ track, unitKm, moving, elapsed, avgBpm, maxBpm, ca
                 <Text style={s.splitN}>{d.n}</Text>
                 <Text style={s.splitPace}>{liveClock(d.seconds)}</Text>
                 <View style={s.track}><View style={[s.splitFill, d.seconds === quickest && s.barBest, { width: `${45 + (slowest > quickest ? (slowest - d.seconds) / (slowest - quickest) : 1) * 51}%` }]} /></View>
-                <Text style={s.splitElev}>{`+${Math.round(toDisplayElevation(d.gain))} ${elevationUnit()}`}</Text>
+                <Text style={s.splitElev}>{elevChange(d.net)}</Text>
               </View>
             ))}
             {sp.into >= 10 ? (
@@ -230,6 +237,8 @@ function PaceChart({ track, width }: { track: TrackPoint[]; width: number }) {
     const N = 40;
     const pts: { x: number; pace: number | null; alt: number | null }[] = [];
     let j = 0;
+    // Heights with the phone's corrections and wobble taken out, as Elevation counts them.
+    const smooth = smoothAltitudes(track);
     for (let k = 0; k <= N; k++) {
       const at = (total * k) / N;
       while (j < along.length - 1 && along[j + 1] < at) j++;
@@ -238,7 +247,7 @@ function PaceChart({ track, width }: { track: TrackPoint[]; width: number }) {
       while (a > 0 && at - along[a] < 100) a--;
       while (b < along.length - 1 && along[b] - at < 100) b++;
       const d = along[b] - along[a];
-      pts.push({ x: (width * k) / N, pace: d > 50 ? ((track[b].s - track[a].s) / d) * 1000 : null, alt: track[j].alt ?? null });
+      pts.push({ x: (width * k) / N, pace: d > 50 ? ((track[b].s - track[a].s) / d) * 1000 : null, alt: smooth[j] });
     }
     const paces = pts.map((p) => p.pace).filter((p): p is number => p != null);
     const lo = Math.min(...paces), hi = Math.max(...paces);
@@ -265,10 +274,11 @@ function PaceChart({ track, width }: { track: TrackPoint[]; width: number }) {
 
 const s = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tile: { width: '31.5%', flexGrow: 1, alignItems: 'center', borderRadius: 14, paddingTop: 11, paddingBottom: 10, paddingHorizontal: 4, backgroundColor: 'rgba(255,255,255,0.05)' },
+  gridOne: { alignSelf: 'center', width: 150 },
+  tile: { width: '31.5%', flexGrow: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingTop: 11, paddingBottom: 10, paddingHorizontal: 4, backgroundColor: 'rgba(255,255,255,0.05)' },
   effortTile: { backgroundColor: '#2f2d2c', borderWidth: 1.5, borderColor: '#e8835f', paddingTop: 9.5, paddingBottom: 8.5 },
   tileValue: { ...serif, fontSize: 21, lineHeight: 22, color: '#fff' },
-  effortValue: { color: RivalColors.accentText },
+  effortValue: { color: RivalColors.accentText, fontSize: 30, lineHeight: 34 },
   unit: { fontSize: 12, color: 'rgba(255,255,255,0.6)' },
   tileName: { fontSize: 8.5, lineHeight: 11, letterSpacing: 1.2, fontWeight: '800', color: '#a0a0a0', marginTop: 6 },
   effortName: { color: RivalColors.accentText },

@@ -1,0 +1,70 @@
+<!doctype html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:1250px;padding:0 30px 30px}
+.ttl{font:italic 700 28px Georgia,serif;text-align:center;padding:22px 0 4px}.sb{text-align:center;font-size:13px;color:rgba(255,255,255,.6);padding-bottom:16px}
+.row{display:flex;gap:30px;justify-content:center}.col{width:375px}
+.tag{font-size:12px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}.desc{font-size:12.5px;color:rgba(255,255,255,.65);margin:4px 0 10px;line-height:1.45;min-height:54px}
+.ph{position:relative;width:375px;height:812px;border-radius:34px;overflow:hidden;background:#111}
+.map{position:absolute;left:0;right:0;top:0;height:560px;background:#1e1f1e}
+.warm .leaflet-tile-pane{filter:sepia(.35) saturate(.8) brightness(.95)}
+.fade{position:absolute;left:0;right:0;top:420px;height:140px;background:linear-gradient(180deg,rgba(17,17,17,0),#111);z-index:500;pointer-events:none}
+.top{position:absolute;top:0;left:0;right:0;height:120px;background:linear-gradient(180deg,rgba(17,17,17,.7),rgba(17,17,17,0));z-index:500}
+.chev{position:absolute;left:16px;top:60px;width:44px;height:44px;border-radius:50%;background:rgba(14,13,12,.75);z-index:600;display:flex;align-items:center;justify-content:center}
+.chip{position:absolute;top:66px;left:50%;transform:translateX(-50%);background:rgba(14,13,12,.75);border-radius:999px;padding:7px 14px;font-size:10.5px;font-weight:800;letter-spacing:1.6px;color:#ff9d7e;z-index:600;display:flex;gap:6px;align-items:center}
+.chip i{width:6px;height:6px;border-radius:50%;background:#ff9d7e}
+.lab{background:rgba(14,13,12,.8);border-radius:11px;padding:3px 10px;font-size:10.5px;font-weight:800;white-space:nowrap}
+.stats{position:absolute;left:0;right:0;top:575px;display:flex}.st{flex:1;text-align:center}.st+.st{border-left:1px solid rgba(255,255,255,.12)}
+.sv{font:italic 700 30px Georgia,serif}.sv span{font-size:15px;color:rgba(255,255,255,.6);margin-left:3px}.sn{font-size:10px;font-weight:800;letter-spacing:1.8px;color:#ffb59e;margin-top:2px}
+.dots{position:absolute;top:648px;left:0;right:0;display:flex;justify-content:center;gap:6px}.dots i{width:5px;height:5px;border-radius:3px;background:rgba(255,255,255,.3)}.dots i.on{width:18px;background:#ffb59e}
+.btns{position:absolute;top:672px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:30px}
+.b{width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}.b.c{border-color:#e8835f}
+.big{width:96px;height:96px;border-radius:50%;border:2.5px solid #e8835f;background:#232221;display:flex;align-items:center;justify-content:center}
+.big b{display:block;width:8px;height:30px;background:#fff;border-radius:2px;margin:0 4px}
+.attr{position:absolute;right:8px;top:540px;font-size:8px;color:rgba(255,255,255,.35);z-index:600}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:40px;display:flex;flex-direction:column;background:#282828;border-radius:22px 22px 0 0;padding:12px 16px}
+.grab{width:38px;height:4px;border-radius:2px;background:#3a3a3a;margin:0 auto 14px}
+.k{text-align:center;font-size:10px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}.hero{text-align:center;font:italic 700 84px Georgia,serif;line-height:90px;margin-top:4px}.hu{text-align:center;font-size:10.5px;font-weight:800;letter-spacing:2px;color:#A0A0A0}
+.times{display:flex;justify-content:center;margin-top:10px}.times div{width:150px;text-align:center}.times div+div{border-left:1px solid rgba(255,255,255,.12)}.times b{display:block;font:italic 700 34px Georgia,serif}.times span{font-size:10px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}
+.eff{margin:14px auto 0;width:150px;border:1.5px solid #e8835f;border-radius:16px;text-align:center;padding:8px 0}.eff b{display:block;font:italic 700 34px Georgia,serif;color:#ffb59e}.eff span{font-size:10px;font-weight:800;letter-spacing:1.6px}
+.mcard{position:relative;margin-top:14px;height:170px;border-radius:16px;overflow:hidden}
+.more{margin-top:10px;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px 14px}.more b{display:block;font-size:14px}.more span{font-size:11.5px;color:#A0A0A0}
+.cap{margin-top:10px;border:1.5px dashed rgba(255,181,158,.6);border-radius:16px;padding:11px;text-align:center;font-size:14px;font-weight:800;color:#ffb59e}
+.fb{display:flex;gap:12px;align-items:center;margin-top:12px}.bk2{width:50px;height:50px;box-sizing:border-box;flex:none;border-radius:50%;border:2px solid rgba(255,255,255,.18);background:#232221;display:flex;align-items:center;justify-content:center}.sv2{flex:1;height:50px;border-radius:999px;background:linear-gradient(135deg,#D97757,#ffb59e);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#2a1710}
+.disc{margin-top:auto;margin-bottom:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);text-align:center;font-size:14px;font-weight:800;color:#ff7a7a}
+.mcard .map{height:170px}
+.leaflet-container{background:#1e1f1e}</style></head><body><div class="ttl">Mockup 91 v3 · Street map under the route</div><div class="sb">The run screen's map page and Finish, with roads, paths and water under the line. On iPhone this would be Apple Maps.</div><div class="row"><div class="col"><div class="tag">A · DARK MAP</div><div class="desc">Streets, paths and water in dark grey. The circle shows where you are, with no Now label.</div><div class="ph"><div class="map" id="m1"></div><div class="top"></div><div class="fade"></div>
+<div class="chev"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="#fff" d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></div>
+<div class="chip"><i></i>RUN</div><div class="attr">Esri, HERE, OpenStreetMap</div>
+<div class="stats"><div class="st"><div class="sv">2.84<span>km</span></div><div class="sn">DISTANCE</div></div><div class="st"><div class="sv">16:12</div><div class="sn">TIME</div></div><div class="st"><div class="sv">5:41<span>/km</span></div><div class="sn">PACE</div></div></div>
+<div class="dots"><i></i><i></i><i class="on"></i></div>
+<div class="btns"><div class="b"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="#ffb59e" d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg></div><div class="big"><b></b><b></b></div><div class="b c"><svg viewBox="0 0 24 24" width="24" height="24"><path fill="#ffb59e" d="M3 4V1h2v3h3v2H5v3H3V6H0V4h3zm3 6V7h3V4h7l1.83 2H21c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V10h3zm7 9c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-3.2-5c0 1.77 1.43 3.2 3.2 3.2s3.2-1.43 3.2-3.2-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2z"/></svg></div></div></div></div><div class="col"><div class="tag">B · LIGHT MAP, FOR DAYTIME</div><div class="desc">What a light map would look like if it followed the phone’s light setting in the day.</div><div class="ph"><div class="map" id="m2"></div><div class="top"></div><div class="fade"></div>
+<div class="chev"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="#fff" d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></div>
+<div class="chip"><i></i>RUN</div><div class="attr">Esri, HERE, OpenStreetMap</div>
+<div class="stats"><div class="st"><div class="sv">2.84<span>km</span></div><div class="sn">DISTANCE</div></div><div class="st"><div class="sv">16:12</div><div class="sn">TIME</div></div><div class="st"><div class="sv">5:41<span>/km</span></div><div class="sn">PACE</div></div></div>
+<div class="dots"><i></i><i></i><i class="on"></i></div>
+<div class="btns"><div class="b"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="#ffb59e" d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg></div><div class="big"><b></b><b></b></div><div class="b c"><svg viewBox="0 0 24 24" width="24" height="24"><path fill="#ffb59e" d="M3 4V1h2v3h3v2H5v3H3V6H0V4h3zm3 6V7h3V4h7l1.83 2H21c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V10h3zm7 9c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-3.2-5c0 1.77 1.43 3.2 3.2 3.2s3.2-1.43 3.2-3.2-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2z"/></svg></div></div></div></div><div class="col"><div class="tag">C · ON FINISH</div><div class="desc">Bigger numbers, the back button the height of Save and in the look of Finish and Capture, an orange dashed line around Capture The Moment.</div><div class="ph"><div class="sheet"><div class="grab"></div><div class="k">RUN</div><div class="hero">2.84</div><div class="hu">KILOMETRES</div>
+<div class="times"><div><b>16:12</b><span>MOVING TIME</span></div><div><b>16:40</b><span>ELAPSED TIME</span></div></div>
+<div class="eff"><b>38</b><span>EFFORT</span></div><div class="mcard"><div class="map warm" id="m3"></div></div>
+<div class="more"><b>More details</b><span>Heart rate, fastest efforts, every split, pace and elevation</span></div>
+<div class="cap">Capture The Moment</div>
+<div class="fb"><div class="bk2"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="#ffb59e" d="M17.51 3.87 15.73 2.1 5.84 12l9.9 9.9 1.77-1.77L9.38 12z"/></svg></div><div class="sv2">Save activity</div></div>
+<div class="disc">Discard activity</div></div></div></div></div><script>
+const R=[[49.2888, -123.1166], [49.2892, -123.1182], [49.2895, -123.1197], [49.2899, -123.1214], [49.2903, -123.123], [49.2907, -123.1247], [49.291, -123.1262], [49.2914, -123.1277], [49.2918, -123.129], [49.2923, -123.1306], [49.2928, -123.132], [49.2933, -123.1334], [49.2937, -123.1345]];
+function mk(id, live, light){
+  const m=L.map(id,{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false});
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/'+(light?'World_Light_Gray_Base':'World_Dark_Gray_Base')+'/MapServer/tile/{z}/{y}/{x}',{maxZoom:16}).addTo(m);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/'+(light?'World_Light_Gray_Reference':'World_Dark_Gray_Reference')+'/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,opacity:.7}).addTo(m);
+  L.polyline(R,{color:'#e8835f',weight:live?6:4,lineCap:'round',lineJoin:'round'}).addTo(m);
+  const s=R[0], e=R[R.length-1];
+  const r=live?11:8; L.marker(s,{icon:L.divIcon({className:'',iconSize:[r*2,r*2],iconAnchor:[r,r],html:'<svg width="'+(r*2)+'" height="'+(r*2)+'" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10" fill="#fff" stroke="#111" stroke-width="2"/><path d="M8.5 6.5 L15 11 L8.5 15.5Z" fill="#111"/></svg>'})}).addTo(m);
+  if(live){
+    L.circleMarker(e,{radius:13,stroke:false,fillColor:'#ffb59e',fillOpacity:.25}).addTo(m);
+    L.circleMarker(e,{radius:7,color:'#fff',weight:2.5,fillColor:'#ffb59e',fillOpacity:1}).addTo(m);
+    L.marker(s,{icon:L.divIcon({className:'',html:'<span class="lab">Start</span>',iconAnchor:[-16,10]})}).addTo(m);
+  } else {
+    L.circleMarker(e,{radius:7,color:'#fff',weight:1.5,fillColor:'#e8835f',fillOpacity:1}).addTo(m);
+  }
+  m.fitBounds(L.latLngBounds(R),{paddingTopLeft:[40,live?110:20],paddingBottomRight:[40,live?60:20]});
+}
+mk('m1',true,false);mk('m2',true,true);mk('m3',false,false);
+</script></body></html>

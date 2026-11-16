@@ -60,12 +60,12 @@ export function StatTiles({ options, chosen, effort, onToggle, effortOn = true, 
             accessibilityState={{ selected: effortOn }}
             accessibilityLabel={`Effort, ${effort}`}
           >
-            <Text style={[t.value, effortOn && t.valueGold]} numberOfLines={1}>{String(Math.round(effort * 10) / 10)}</Text>
+            <Text style={[t.value, effortOn && t.valueGold]} numberOfLines={1}>{String(Math.round(effort))}</Text>
             <Text style={[t.label, effortOn && t.labelGold]}>Effort</Text>
           </TouchableOpacity>
         ) : effort <= 0 ? null : (
           <View style={[t.tile, t.tileGold]} accessibilityLabel={`Effort, ${effort}, always shown`}>
-            <Text style={[t.value, t.valueGold]} numberOfLines={1}>{String(Math.round(effort * 10) / 10)}</Text>
+            <Text style={[t.value, t.valueGold]} numberOfLines={1}>{String(Math.round(effort))}</Text>
             <Text style={[t.label, t.labelGold]}>Effort</Text>
           </View>
         )}

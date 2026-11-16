@@ -534,7 +534,7 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
                 const d = legDistance(a);
                 const pb = pbLegIds.has(a.id);
                 const pace = a.distance_meters && a.duration_seconds ? formatSpeedOrPace(a.distance_meters, a.duration_seconds, a.activity_type) : null;
-                const effort = Math.round((Number(a.effort_score) || 0) * 10) / 10;
+                const effort = Math.round((Number(a.effort_score) || 0));
                 const gap = trans.list[i]?.seconds;
                 const gapNode = gap ? (
                   <View key={`t${i}`} style={[s.node, s.nodeT]}>
@@ -645,7 +645,7 @@ function Sheet({ raceId, legs: given, pbLegIds, onClose, onOpenLeg, startShare, 
           startedAt={legs[0]?.started_at ?? new Date().toISOString()}
           utcOffsetSeconds={legs[0]?.utc_offset_seconds}
           facts={shareFacts}
-          effort={Math.round(totalEffort * 10) / 10}
+          effort={Math.round(totalEffort)}
         />
       ) : null}
     </Animated.View>
@@ -903,7 +903,7 @@ function Days({ days, detail, parts, onOpenLeg }: {
               : (det?.exercises ?? []).map((x) => x.name).filter(Boolean).join(' · ');
             const score = eventScore(st, a.duration_seconds);
             const place = parts[a.id];
-            const eff = Math.round((Number(a.effort_score) || 0) * 10) / 10;
+            const eff = Math.round((Number(a.effort_score) || 0));
             return (
               <TouchableOpacity key={a.id} style={s.evc} activeOpacity={0.85} disabled={!onOpenLeg} onPress={() => onOpenLeg?.(a.id)} accessibilityRole="button">
                 <View style={[s.evStrip, { backgroundColor: colour(di) }]} />

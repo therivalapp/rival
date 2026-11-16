@@ -95,3 +95,10 @@ export function distanceNumber(km: number, s?: UnitSystem): string {
 export function elevationNumber(m: number, s?: UnitSystem): string {
   return Math.round(toDisplayElevation(m, s)).toLocaleString();
 }
+
+/** A height change for a split, "+12 m", "−8 m" or "0 m", in the units chosen
+ *  in Profile. */
+export function elevChange(m: number, s?: UnitSystem): string {
+  const v = Math.round(toDisplayElevation(m, s));
+  return `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)} ${elevationUnit(s)}`;
+}

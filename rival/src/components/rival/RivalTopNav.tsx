@@ -698,7 +698,7 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
     <View style={[styles.nativeBarOuter, { paddingBottom: insets.bottom > 0 ? Math.max(insets.bottom - 12, 8) : 6 }]} pointerEvents="box-none" onLayout={(e) => { nativeNavTop = e.nativeEvent.layout.y; }}>
       <Animated.View style={[styles.bottomNav, barShrink]} onLayout={(e) => setBarH(e.nativeEvent.layout.height)}>
         {tabHl.highlight}
-        <View pointerEvents="none" style={styles.startNotch} />
+        <View pointerEvents="none" style={styles.centreRowNotch}><View style={[styles.startNotch, styles.inCentreRow]} /></View>
         {LINKS.map((l, i) => {
           const isActive = active === l.key;
           return (
@@ -715,21 +715,25 @@ export function NativeTabBar({ routeName }: { routeName: string }) {
           );
         })}
       </Animated.View>
-      <AnimatedTouchable
-        onPress={() => router.push('/start')}
-        accessibilityLabel={live ? 'Return to the activity' : 'Start an activity'}
-        activeOpacity={0.85}
-        style={[styles.startCircle, circleShrink]}
-      >
-        {live ? (
-          <>
-            <Text style={styles.startTime}>{liveClock(liveSeconds(live, now))}</Text>
-            <Text style={styles.startLive}>{live.pausedAt != null ? 'PAUSED' : 'LIVE'}</Text>
-          </>
-        ) : (
-          <Text style={styles.startText}>Start</Text>
-        )}
-      </AnimatedTouchable>
+      {/* Centred by a full-width row: a 50% left on iPhone was measured inside
+          the side padding and sat the circle to the left (Ricky, 2026-11-16). */}
+      <View pointerEvents="box-none" style={styles.centreRowCircle}>
+        <AnimatedTouchable
+          onPress={() => router.push('/start')}
+          accessibilityLabel={live ? 'Return to the activity' : 'Start an activity'}
+          activeOpacity={0.85}
+          style={[styles.startCircle, styles.inCentreRow, circleShrink]}
+        >
+          {live ? (
+            <>
+              <Text style={styles.startTime}>{liveClock(liveSeconds(live, now))}</Text>
+              <Text style={styles.startLive}>{live.pausedAt != null ? 'PAUSED' : 'LIVE'}</Text>
+            </>
+          ) : (
+            <Text style={styles.startText}>Start</Text>
+          )}
+        </AnimatedTouchable>
+      </View>
     </View>
   );
 }
@@ -842,6 +846,10 @@ const styles = StyleSheet.create({
   },
   nativeBarOuter: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16 },
   // Raised out of the bar's middle, the same circle as the running timer.
+  // The iPhone bar centres the notch and circle in full-width rows.
+  centreRowNotch: { position: 'absolute', left: 0, right: 0, top: -19, alignItems: 'center' },
+  centreRowCircle: { position: 'absolute', left: 0, right: 0, top: -12, alignItems: 'center' },
+  inCentreRow: { position: 'relative', top: 0, left: 0, marginLeft: 0 },
   startCircle: {
     position: 'absolute', top: -12, left: '50%', marginLeft: -33,
     width: 66, height: 66, borderRadius: 33,

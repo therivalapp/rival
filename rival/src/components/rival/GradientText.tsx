@@ -16,15 +16,48 @@ const LAYOUT_KEYS = [
   'position', 'top', 'left', 'right', 'bottom', 'alignSelf', 'zIndex',
 ] as const;
 
+/** Room around gradient text so an italic serif's lean and tails (the 5
+ *  curls below the line and out to the left) get the gradient too: the
+ *  gradient, and on iPhone the mask, stop at the text's own box (Ricky,
+ *  2026-11-16). Adds `h` either side and `v` below as padding, and takes the
+ *  same off the margins, so the layout doesn't move. */
+export function bleedStyle(base: Record<string, any>, h: number, v: number): Record<string, number> {
+  const side = (one: string, axis: string, kind: 'margin' | 'padding') => (base[`${kind}${one}`] ?? base[`${kind}${axis}`] ?? base[kind] ?? 0) as number;
+  return {
+    paddingLeft: side('Left', 'Horizontal', 'padding') + h,
+    paddingRight: side('Right', 'Horizontal', 'padding') + h,
+    paddingBottom: side('Bottom', 'Vertical', 'padding') + v,
+    marginLeft: side('Left', 'Horizontal', 'margin') - h,
+    marginRight: side('Right', 'Horizontal', 'margin') - h,
+    marginBottom: side('Bottom', 'Vertical', 'margin') - v,
+  };
+}
+
+const isItalic = (flat: Record<string, any>) => flat.fontStyle === 'italic';
+const bleedOf = (flat: Record<string, any>) => Math.round((flat.fontSize ?? 16) * 0.2);
+
 export function GradientText({ gradient: given, style, children, ...rest }: TextProps & { gradient?: string; style?: StyleProp<TextStyle>; children?: ReactNode }) {
-  if (Platform.OS === 'web') return <Text {...rest} style={style}>{children}</Text>;
+  if (Platform.OS === 'web') {
+    const f: Record<string, any> = StyleSheet.flatten(style) ?? {};
+    const painted = f.backgroundImage || f.backgroundClip || f.WebkitBackgroundClip;
+    if (!painted || !isItalic(f)) return <Text {...rest} style={style}>{children}</Text>;
+    const b = bleedOf(f);
+    return <Text {...rest} style={[style, bleedStyle(f, b, b)]}>{children}</Text>;
+  }
   const flat: Record<string, any> = { ...(StyleSheet.flatten(style) ?? {}) };
   const gradient = given ?? flat.__gradientText;
   delete flat.__gradientText;
   if (!gradient) return <Text {...rest} style={flat}>{children}</Text>;
   const wrap: Record<string, any> = {};
   for (const k of LAYOUT_KEYS) if (flat[k] !== undefined) { wrap[k] = flat[k]; delete flat[k]; }
-  const text = { ...flat, color: '#000' };
+  const text: Record<string, any> = { ...flat, color: '#000' };
+  if (isItalic(flat)) {
+    // The mask stops at the text's box: pad it so the tails show.
+    const b = bleedOf(flat);
+    Object.assign(wrap, bleedStyle(wrap, b, b));
+    delete wrap.paddingLeft; delete wrap.paddingRight; delete wrap.paddingBottom;
+    Object.assign(text, { paddingLeft: (text.paddingLeft ?? text.paddingHorizontal ?? text.padding ?? 0) + b, paddingRight: (text.paddingRight ?? text.paddingHorizontal ?? text.padding ?? 0) + b, paddingBottom: (text.paddingBottom ?? text.paddingVertical ?? text.padding ?? 0) + b });
+  }
   return (
     <MaskedView style={wrap} maskElement={<Text {...rest} style={text}>{children}</Text>}>
       <View style={{ experimental_backgroundImage: gradient } as any}>

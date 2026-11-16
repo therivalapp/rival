@@ -117,7 +117,7 @@ export function chosenFigures(options: StatOption[], keys: StatKey[], effortScor
   const on = new Set(keys);
   return [
     ...options.filter((o) => on.has(o.key)).slice(0, MAX_STATS).map((o) => o.figure),
-    ...(withEffort ? [{ value: String(Math.round(effortScore * 10) / 10), label: 'Effort', gold: true }] : []),
+    ...(withEffort ? [{ value: String(Math.round(effortScore)), label: 'Effort', gold: true }] : []),
   ];
 }
 

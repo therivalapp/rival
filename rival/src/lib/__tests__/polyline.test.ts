@@ -28,3 +28,12 @@ describe('encodePolyline', () => {
     expect(decodePolyline(encodePolyline(pts))).toEqual(pts);
   });
 });
+
+describe('projectRoute minimum span', () => {
+  it('keeps a few metres of drift small in the box', () => {
+    const d = 4 / 111_320;
+    const pts = projectRoute([[49, -123], [49 + d, -123 + d]], 400, 300, 20, 200);
+    const w = Math.abs(pts[1][0] - pts[0][0]);
+    expect(w).toBeLessThan(20);
+  });
+});

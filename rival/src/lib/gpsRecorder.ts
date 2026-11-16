@@ -33,8 +33,13 @@ const TASK = 'rival-live-route';
 const MAX_ACCURACY = 30;
 // Closer than this to the last point is standing still, not moving.
 const MIN_STEP = 3;
+// The most a step waits for: a weak but usable fix still records a run.
+const MAX_STEP = 15;
 
-type Fix = { latitude: number; longitude: number; altitude?: number | null; accuracy?: number | null; timestamp: number };
+type Fix = { latitude: number; longitude: number; altitude?: number | null; accuracy?: number | null; altitudeAccuracy?: number | null; timestamp: number };
+// A height the phone is less sure of than this is left out: the first fixes
+// of a run can be hundreds of metres off (Ricky, 2026-11-16).
+const MAX_ALT_ACCURACY = 12;
 
 export type GpsState = 'off' | 'searching' | 'on' | 'denied' | 'unavailable';
 let state: GpsState = 'off';
@@ -59,9 +64,12 @@ function addFixes(fixes: Fix[]) {
   for (const f of fixes) {
     if (f.accuracy != null && f.accuracy > MAX_ACCURACY) continue;
     if (f.timestamp < live.startedAt) continue;
-    const p: TrackPoint = { lat: f.latitude, lon: f.longitude, s: liveSeconds(live, f.timestamp), alt: f.altitude ?? null, seg };
+    const p: TrackPoint = { lat: f.latitude, lon: f.longitude, s: liveSeconds(live, f.timestamp), alt: f.altitude != null && (f.altitudeAccuracy == null || f.altitudeAccuracy <= MAX_ALT_ACCURACY) ? f.altitude : null, seg };
     const prev = added[added.length - 1] ?? track[track.length - 1];
-    if (prev && (prev.seg ?? 0) === seg && metresBetween(prev, p) < MIN_STEP) continue;
+    // Within the fix's own margin is drift, not movement: sitting still
+    // indoors wanders several metres (Ricky, 2026-11-16, on the couch).
+    const step = Math.max(MIN_STEP, Math.min(f.accuracy ?? 0, MAX_STEP));
+    if (prev && (prev.seg ?? 0) === seg && metresBetween(prev, p) < step) continue;
     added.push(p);
   }
   if (state === 'searching' && added.length) setState('on');

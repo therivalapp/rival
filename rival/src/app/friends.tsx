@@ -92,7 +92,7 @@ export default function FriendsScreen() {
 
     const friendsWithScores = usersData.map((u: any) => ({
       ...u,
-      weekly_score: Math.round((weeklyByUser[u.id] || 0) * 10) / 10,
+      weekly_score: Math.round((weeklyByUser[u.id] || 0)),
     }));
 
     friendsWithScores.sort((a, b) => b.weekly_score - a.weekly_score);

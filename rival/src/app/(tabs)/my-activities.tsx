@@ -307,7 +307,7 @@ function WeekStatPill({ title, dateRange, activities, prevEffort, bestDays, best
   event: { name: string; legs: { key: string; type: string; text: string }[]; days: Set<number> } | null;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const total = Math.round(activities.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10;
+  const total = Math.round(activities.reduce((s, a) => s + (a.effort_score || 0), 0));
   const count = activities.length;
   const seconds = activities.reduce((s, a) => s + (a.duration_seconds || 0), 0);
   const km = activities.reduce((s, a) => s + (a.distance_meters || 0), 0) / 1000;
@@ -649,7 +649,7 @@ export default function MyActivitiesScreen() {
         .then((runs) => setFastest(fastestBests(runs, getPrefs().units === 'imperial')));
 
       const thisWeek = data.filter(a => getMondayStart(new Date(a.started_at)) === currentWeekStart);
-      setThisWeekTotal(Math.round(thisWeek.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10);
+      setThisWeekTotal(Math.round(thisWeek.reduce((s, a) => s + (a.effort_score || 0), 0)));
 
       // The journal can show now; photos fill in when they arrive.
       setLoading(false);
@@ -949,7 +949,7 @@ export default function MyActivitiesScreen() {
         const dy = new Date(y.started_at).getTime();
         return order === 'latest' ? dy - dx : dx - dy;
       });
-      const total = Math.round(acts.reduce((s, a) => s + (a.effort_score || 0), 0) * 10) / 10;
+      const total = Math.round(acts.reduce((s, a) => s + (a.effort_score || 0), 0));
       weekGroups.push({ label: weekLabel(ws, currentWeekStart), weekStart: ws, activities: acts, total });
     }
     return weekGroups;
@@ -1269,8 +1269,9 @@ export default function MyActivitiesScreen() {
     const candidates: Array<{ highlight: string; rest: string }> = [];
 
     if (lastWk.effort > 0) {
-      const gap = Math.round((lastWk.effort - thisWk.effort) * 10) / 10;
-      if (gap > 0) candidates.push({ highlight: `${gap} Effort`, rest: ' until you match last week.' });
+      // Whole Effort, rounded up so a small gap never reads as 0 (Ricky, 2026-11-16).
+      const gap = Math.ceil(lastWk.effort - thisWk.effort);
+      if (lastWk.effort - thisWk.effort > 0) candidates.push({ highlight: `${gap} Effort`, rest: ' until you match last week.' });
       else candidates.push({ highlight: `You've already beaten last week's Effort`, rest: ' — keep it up.' });
     }
 
@@ -1283,7 +1284,7 @@ export default function MyActivitiesScreen() {
     });
     const bestWeekEver = Math.max(0, ...weeklyEffort.values());
     if (bestWeekEver > 0 && thisWk.effort < bestWeekEver) {
-      const gap = Math.round((bestWeekEver - thisWk.effort) * 10) / 10;
+      const gap = Math.ceil(bestWeekEver - thisWk.effort);
       candidates.push({ highlight: `${gap} Effort`, rest: ' until your strongest week.' });
     }
 
@@ -1296,7 +1297,7 @@ export default function MyActivitiesScreen() {
     if (monthWeeks.length > 0) {
       const monthlyAvg = monthWeeks.reduce((s, [, e]) => s + e, 0) / monthWeeks.length;
       if (monthlyAvg > 0 && thisWk.effort >= monthlyAvg) {
-        const ahead = Math.round((thisWk.effort - monthlyAvg) * 10) / 10;
+        const ahead = Math.max(1, Math.round(thisWk.effort - monthlyAvg));
         candidates.push({ highlight: `${ahead} Effort`, rest: ' ahead of your monthly average.' });
       }
     }
@@ -1842,7 +1843,7 @@ export default function MyActivitiesScreen() {
     const days = [...new Set(legs.map(dayIdx))];
     const multiDay = days.length > 1;
     const dayName = (i: number) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i];
-    const effort = Math.round(legs.reduce((t, a) => t + (Number(a.effort_score) || 0), 0) * 10) / 10;
+    const effort = Math.round(legs.reduce((t, a) => t + (Number(a.effort_score) || 0), 0));
     const seconds = legs.reduce((t, a) => t + (a.duration_seconds || 0), 0);
     const result = !multiDay && race.actual_finish_time ? showFinish(race.actual_finish_time)
       : multiDay ? `${legs.length} ${legs.length === 1 ? 'activity' : 'activities'}`

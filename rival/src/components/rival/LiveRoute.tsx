@@ -23,7 +23,7 @@ export function LiveRoute({ track, width, height, end, style }: {
 }) {
   const small = height < 140;
   const pad = small ? 18 : 48;
-  const pts = useMemo(() => projectRoute(track.map((p) => [p.lat, p.lon]), width, height, pad), [track, width, height, pad]);
+  const pts = useMemo(() => projectRoute(track.map((p) => [p.lat, p.lon]), width, height, pad, 200), [track, width, height, pad]);
   if (pts.length < 2) return null;
   const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   const [sx, sy] = pts[0];
