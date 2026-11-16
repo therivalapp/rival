@@ -1,0 +1,102 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mockup 61 · Team challenge completed, motion (2026-11-14). Frames are drawn
+   by render(t) from ?t= so headless Chrome can capture them for the GIF. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:415px}
+.top{font:italic 700 18px Georgia,serif;text-align:center;padding:10px 0 2px}
+.cap{font-size:11px;text-align:center;color:#ffb59e;letter-spacing:1.4px;font-weight:800;height:16px}
+.ph{position:relative;width:375px;height:760px;margin:6px auto 12px;border-radius:26px;overflow:hidden;background:#131313}
+.photo{position:absolute;inset:0;background:url(../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg) center/cover;opacity:.5}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(19,19,19,.15) 0%,rgba(19,19,19,.4) 40%,#131313 80%)}
+.in{position:absolute;left:0;right:0;top:0;text-align:center}
+.name{padding-top:40px;font:italic 700 22px Georgia,serif}
+.tabs{margin:10px auto 0;width:max-content;display:flex;gap:4px;background:rgba(0,0,0,.45);border-radius:999px;padding:3px}
+.tabs div{font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;color:rgba(255,255,255,.65)}.tabs .on{background:rgba(255,255,255,.12);color:#fff}
+.ringw{position:absolute;top:150px;left:50%;width:200px;height:200px;margin-left:-100px}
+.ringw svg{position:absolute;inset:0}
+.rv{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rv b{font:italic 700 46px Georgia,serif}.rv span{font-size:10.5px;font-weight:800;letter-spacing:1.6px;color:#ffb59e;margin-top:2px}
+.badge{margin:20px auto 0;width:max-content;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(255,215,0,.14);border:1px solid rgba(255,215,0,.6);font-size:11px;font-weight:800;letter-spacing:1.4px;color:#FFD700;white-space:nowrap}
+.res{margin-top:12px}
+.kick{font-size:11px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}
+.hero{font:italic 700 50px Georgia,serif;color:#ffe27a;margin-top:4px}.hero small{font:700 20px Manrope;color:rgba(255,255,255,.7)}
+.tbar{height:6px;border-radius:3px;background:rgba(255,255,255,.12);margin:10px 50px 0;overflow:hidden}.tbar i{display:block;height:6px;background:linear-gradient(90deg,#f5b759,#FFD700)}
+.tline{font-size:12.5px;margin-top:6px}.tline b{color:#FFD700}
+.pod{margin:20px 16px 0;display:flex;gap:8px;align-items:flex-end;height:190px;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.12)}
+.gt{box-sizing:border-box;flex:1;border-radius:16px;text-align:center;padding:10px 4px 12px;position:relative}
+.gt .pl{font-size:10px;font-weight:800;letter-spacing:1.5px}
+.gt .av{width:44px;height:44px;border-radius:50%;background:#5b4a3e;margin:0 auto}
+.gt .nm{font-size:13px;font-weight:800;margin-top:5px}.gt .vl{font:italic 700 19px Georgia,serif}
+.g1{height:190px;background:linear-gradient(180deg,rgba(255,215,0,.30),rgba(255,215,0,.05));border:1px solid rgba(255,215,0,.6);border-top-color:#fff4b8}.g1 .pl{color:#FFD700}.g1 .av{border:2px solid #FFD700}
+.g2{height:158px;background:linear-gradient(180deg,rgba(255,181,158,.30),rgba(255,181,158,.05));border:1px solid rgba(255,181,158,.55)}.g2 .pl{color:#ffb59e}.g2 .av{border:2px solid #ffb59e}
+.g3{height:136px;background:linear-gradient(180deg,rgba(94,218,199,.28),rgba(94,218,199,.05));border:1px solid rgba(94,218,199,.5)}.g3 .pl{color:#5edac7}.g3 .av{border:2px solid #5edac7}
+.gt .inner{display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.conf{position:absolute;left:0;right:0;top:0;height:760px;z-index:5;pointer-events:none;overflow:hidden}
+.conf i{position:absolute;width:7px;height:11px;border-radius:2px}
+.facts{display:grid;grid-template-columns:1fr 1fr 1fr;width:300px;margin:12px auto 0}.fact{padding:0}.fact+.fact{border-left:1px solid rgba(255,255,255,.15)}.fact b{display:block;font:italic 700 20px Georgia,serif}.fact span{font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:#ffb59e}
+.also{margin:18px 16px 0;text-align:left}.also .lab{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}.also .row{display:flex;gap:12px;margin-top:8px;overflow:hidden}.also .p{width:46px;flex-shrink:0;text-align:center;font-size:11px}.also .a{width:38px;height:38px;border-radius:50%;background:#3f4450;margin:0 auto 3px}
+.sec{margin:22px 16px 8px;text-align:left;font-size:10px;font-weight:800;letter-spacing:1.5px;color:#A0A0A0}
+.tiles{display:flex;gap:8px;margin:0 16px}.tl{flex:1;height:88px;border-radius:14px;border:1px solid rgba(255,181,158,.2);background:rgba(255,209,190,.05);text-align:left;padding:8px;font-size:11.5px;font-weight:700;display:flex;align-items:flex-end}.tl.lit{background:linear-gradient(135deg,#D97757,#ffb59e);color:#2a1710;border:0}
+.card{margin:0 16px;border-radius:14px;border:1px solid rgba(255,181,158,.18);background:rgba(255,209,190,.05);text-align:left}.cr{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13px}.cr+.cr{border-top:1px solid rgba(255,209,190,.07)}.cr .a{width:28px;height:28px;border-radius:50%;background:#4a4f5b}.cr .t{flex:1}.cr b{font:italic 700 16px Georgia,serif}
+.flow{transition:none}
+</style></head><body>
+<div class="top">Mockup 61 v5 · Challenge complete, motion</div>
+<div class="cap" id="cap"></div>
+<div class="ph"><div class="photo" id="photo"></div><div class="shade"></div><div class="in flow" id="flow">
+<div class="name">Mountain Marmots</div>
+<div class="tabs"><div class="on">Overview</div><div>Posts</div><div>Challenges</div><div>Members</div></div>
+<div class="ringw" id="ring"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="14"/><circle id="arc" cx="100" cy="100" r="86" fill="none" stroke="#ffb59e" stroke-width="14" stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="540.4 540.4"/></svg>
+<div class="rv" id="rv"><b id="rnum">0%</b><span id="rsub">COMPLETE</span></div><svg id="tick" viewBox="0 0 200 200" style="position:absolute;inset:0"><defs><mask id="tm" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200"><path id="tp" d="M44,86 L92,140 L174,28" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="butt" stroke-linejoin="miter"/></mask></defs><g transform="translate(100 100) scale(.8) translate(-104 -92)"><path mask="url(#tm)" d="M46,104 L68,86 Q82,100 92,116 Q124,76 166,38 Q132,86 100,142 Q92,148 86,146 Q66,124 46,104 Z" fill="#f4ead8"/></g></svg></div>
+<div class="badge" id="badge">CHALLENGE COMPLETE</div>
+<div class="res" id="res"><div class="kick">ELEVATION · COMPLETED 9 OCT</div><div class="hero" id="hnum">12,480<small>m</small></div><div class="tbar"><i id="bar"></i></div><div class="tline"><b>104%</b> of the 12,000m goal</div><div class="facts"><div class="fact"><b>10</b><span>CONTRIBUTED</span></div><div class="fact"><b>48</b><span>ACTIVITIES</span></div><div class="fact"><b>79</b><span>DAYS</span></div></div></div>
+<div class="pod">
+<div class="gt g2" id="p2"><div class="inner"><div class="pl">2ND</div><div style="margin-top:auto"><div class="av"></div><div class="nm">Sam</div><div class="vl">988<span style="font:700 11px Manrope;color:rgba(255,255,255,.7)">m</span></div></div></div></div>
+<div class="gt g1" id="p1"><div class="inner"><div class="pl">1ST</div><div style="margin-top:auto"><div class="av" id="wav" style="position:relative"></div><div class="nm">Ricky</div><div class="vl">1,240<span style="font:700 11px Manrope;color:rgba(255,255,255,.7)">m</span></div></div></div></div>
+<div class="gt g3" id="p3"><div class="inner"><div class="pl">3RD</div><div style="margin-top:auto"><div class="av"></div><div class="nm">Tess</div><div class="vl">871<span style="font:700 11px Manrope;color:rgba(255,255,255,.7)">m</span></div></div></div></div>
+</div>
+<div class="also" id="also"><div class="lab">ALSO CONTRIBUTED · <span style="color:#fff">7</span></div><div class="row"><div class="p"><div class="a"></div><b>702</b><span style="font-size:9px;color:rgba(255,255,255,.7)">m</span><br>Mia</div><div class="p"><div class="a"></div><b>611</b><span style="font-size:9px;color:rgba(255,255,255,.7)">m</span><br>Jon</div><div class="p"><div class="a"></div><b>540</b><span style="font-size:9px;color:rgba(255,255,255,.7)">m</span><br>Aroha</div><div class="p"><div class="a"></div><b>402</b><span style="font-size:9px;color:rgba(255,255,255,.7)">m</span><br>Liam</div><div class="p"><div class="a"></div><b>319</b><span style="font-size:9px;color:rgba(255,255,255,.7)">m</span><br>Kate</div><div class="p"><div class="a"></div><b>150</b><span style="font-size:9px;color:rgba(255,255,255,.7)">m</span><br>Ben</div><div class="p"><div class="a"></div><b>107</b><span style="font-size:9px;color:rgba(255,255,255,.7)">m</span><br>Zoe</div></div></div>
+<div class="sec">START</div><div class="tiles"><div class="tl lit">Team challenge</div><div class="tl">Team note</div><div class="tl">Invite</div></div>
+<div class="sec">THIS WEEK'S STANDINGS</div><div class="card"><div class="cr"><span>1</span><div class="a"></div><span class="t">Ricky</span><b>248</b></div><div class="cr"><span>2</span><div class="a"></div><span class="t">Sam</span><b>163</b></div><div class="cr"><span>3</span><div class="a"></div><span class="t">Tess</span><b>136</b></div></div>
+<div class="sec">RECENT ACTIVITY</div><div class="card"><div class="cr"><div class="a"></div><span class="t">Ricky · Lunch Swim</span><b>54.5</b></div><div class="cr"><div class="a"></div><span class="t">Sam · Morning Run</span><b>61.2</b></div></div><div style="height:120px"></div></div>
+<div class="conf" id="conf"></div>
+</div>
+<script>
+const C=2*Math.PI*86;
+const ease=x=>1-Math.pow(1-Math.max(0,Math.min(1,x)),3);
+const cl=x=>Math.max(0,Math.min(1,x));
+const pieces=[];const cols=['#FFD700','#ffb59e','#5edac7','#fff4b8','#D97757','#ffffff'];
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+for(let i=0;i<110;i++)pieces.push({x:rnd()*375,d:rnd()*0.9,sp:0.75+rnd()*0.6,rot:rnd()*360,vr:(rnd()-.5)*720,sw:(rnd()-.5)*40,c:cols[i%cols.length]});
+const conf=document.getElementById('conf');pieces.forEach(p=>{const e=document.createElement('i');e.style.background=p.c;conf.appendChild(e);p.el=e});
+const q=new URLSearchParams(location.search);
+function render(t){
+  const e3=x=>1-Math.pow(1-cl(x),3);const io=x=>{x=cl(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+  // 0-3.2s: ring fills 0 to 100%, the number follows it smoothly.
+  const f=e3(t/3.2);const arc=document.getElementById('arc');arc.setAttribute('stroke-dasharray',`${C*f} ${C}`);
+  const gold=cl((t-3.0)/0.4);arc.setAttribute('stroke',gold>0.5?'#FFD700':'#ffb59e');
+  document.getElementById('rnum').textContent=Math.floor(100*f+0.0001)+'%';
+  // 3.3-3.6s: the % fades out; 3.45-4.05s: the tick draws in.
+  document.getElementById('rv').style.opacity=1-io((t-3.3)/0.3);
+  const tp=document.getElementById('tp');const L=tp.getTotalLength();const d=io((t-3.45)/0.6);
+  tp.style.strokeDasharray=L;tp.style.strokeDashoffset=L*(1-d);
+  // One pop, ring and tick together, as the tick lands. Then the ring settles away.
+  const ring=document.getElementById('ring');const pop=Math.sin(cl((t-3.95)/0.45)*Math.PI)*0.05;
+  const k=io((t-4.9)/0.6);ring.style.transform=`scale(${(1+pop)*(1-0.3*k)})`;ring.style.opacity=1-k;
+  const b=io((t-5.15)/0.5);const bad=document.getElementById('badge');bad.style.opacity=b;bad.style.transform=`scale(${0.85+0.15*b})`;
+  // Result fades up; the total counts over 2.8s.
+  const r=io((t-5.3)/0.7);const res=document.getElementById('res');res.style.opacity=r;res.style.transform=`translateY(${12*(1-r)}px)`;
+  document.getElementById('hnum').firstChild.textContent=Math.floor(12480*e3((t-5.3)/2.8)).toLocaleString();
+  document.getElementById('bar').style.width=`${100*e3((t-5.4)/2.7)}%`;
+  // Podium rises 3rd, 2nd, 1st.
+  [['p3',6.4],['p2',6.75],['p1',7.1]].forEach(([id,s0])=>{const q=io((s0<0?0:t-s0)/0.9);document.getElementById(id).style.transform=`translateY(${(1-q)*100}%)`});
+  document.querySelector('.pod').style.borderBottomColor=`rgba(255,255,255,${0.12*cl((t-6.2)/0.3)})`;
+  // Confetti from the top of the page to the bottom.
+  pieces.forEach(p=>{const u=(t-4.0-p.d*3)/(5.2/p.sp);const y=-20+u*800;p.el.style.left=(p.x+Math.sin(u*6)*p.sw)+'px';p.el.style.top=y+'px';p.el.style.transform=`rotate(${p.rot+p.vr*u}deg)`;p.el.style.opacity=u<0||u>1?0:1});
+  const lw=io((t-8.0)/0.7);document.querySelectorAll('#also,.sec,.tiles,.card').forEach(e=>e.style.opacity=lw);
+  const sc=io((t-11.2)/1.8)*430;document.getElementById('flow').style.transform=`translateY(${-sc}px)`;document.getElementById('photo').style.transform=`translateY(${-sc*0.4}px)`;
+  if(q.get('noconf'))conf.style.display='none';
+  document.getElementById('cap').textContent=q.get('cap')??(t<3.3?'THE RING FILLS TO 100%':t<4.9?'THE TICK':t<6.4?'THE RESULT':t<8.0?'THE PODIUM RISES':t<11.2?'CONFETTI':'THE REST OF THE PAGE');
+}
+render(parseFloat(q.get('t')||'5'));
+</script></body></html>

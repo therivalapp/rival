@@ -1,5 +1,5 @@
 import { getMyTeamIds } from '../lib/myTeams';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, View, Text, ScrollView, TextInput, Linking, useWindowDimensions } from 'react-native';
 import { Modal } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import { confirmAction, notify } from '../lib/notify';
 import { formatDisplayName, formatRaceName } from '../lib/identity';
 import { isoToDisplayDate, displayToIsoDate, friendlyDate } from '../lib/dateFormat';
 import { formatTime, parseTime, showFinish, timeFieldProps } from '../lib/time';
-import { RivalTopNav, RivalPageHeader, RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, GreySegment, RivalSheet, RivalSheetCard, RivalTiles, RivalMoreRow, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyNote, GreyPrimary, GreyCalendar } from '../components/rival';
+import { RivalTopNav, RivalPageHeader, RivalIcon, RivalBackButton, RivalDateField, RivalMobileHeader, RivalWarm, rm, rb, GreyPageHead, GreySegment, RivalSheet, RivalSheetCard, RivalTiles, RivalMoreRow, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyNote, GreyPrimary, GreyCalendar, GreyBigTile } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
 import type { RivalIconName } from '../components/rival';
 import { RivalColors, RivalSerifFamily, RivalButtonColors } from '../constants/rivalTheme';
@@ -28,6 +28,14 @@ import { GradientText } from '../components/rival/GradientText';
 const EVENT_NAME_MAX = 20;
 
 const RACE_TYPES = ['Run', 'Ride', 'Swim', 'Triathlon', 'HYROX', 'CrossFit', 'Custom', 'Other'];
+// Events that can be ranked by laps or a set time; the rest by finish time.
+type EventFormat = 'finish' | 'laps' | 'timed';
+const FORMAT_TYPES = new Set(['Run', 'Ride', 'Swim', 'Other']);
+const EVENT_FORMATS: { value: EventFormat; label: string }[] = [
+  { value: 'finish', label: 'Finish time' },
+  { value: 'laps', label: 'Laps' },
+  { value: 'timed', label: 'Set time' },
+];
 const EVENT_TYPE_ICONS: Record<string, RivalIconName> = {
   Run: 'run', Ride: 'ride', Swim: 'swim', Triathlon: 'eventTriathlon',
   HYROX: 'eventHyrox', CrossFit: 'crossfit', Other: 'moreHoriz', Custom: 'eventCustom',
@@ -100,6 +108,7 @@ type Race = {
   location: string | null;
   registration_url: string | null;
   is_public: boolean;
+  format?: string | null;
   disciplines: Discipline[] | null;
   goal_finish_time: string | null;
   actual_finish_time: string | null;
@@ -184,6 +193,7 @@ export default function RacesScreen() {
   const [completedRaces, setCompletedRaces] = useState<Race[]>([]);
   const [leagueMateIds, setLeagueMateIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const tabPicked = useRef(false);
   const [userId, setUserId] = useState('');
   const [showAdd, setShowAdd] = useState(add === 'true');
   // The optional fields (link, goal time) wait behind "Add details" on mobile.
@@ -196,6 +206,8 @@ export default function RacesScreen() {
 
   const [raceName, setRaceName] = useState('');
   const [raceType, setRaceType] = useState('Run');
+  // How the event is ranked for a team (Mockup 85 v2): a time, laps or km.
+  const [raceFormat, setRaceFormat] = useState<EventFormat>('finish');
   const [distanceKm, setDistanceKm] = useState('');
   const [raceDate, setRaceDate] = useState('');
   const [location, setLocation] = useState('');
@@ -221,6 +233,7 @@ export default function RacesScreen() {
     if (raceType === 'HYROX') return 8;
     if (raceType === 'CrossFit') return 0;
     if (raceType === 'Custom') return customDisciplines.reduce((s, d) => s + (parseFloat(d.distance) || 0), 0);
+    if (FORMAT_TYPES.has(raceType) && raceFormat === 'timed') return 0;
     return parseFloat(distanceKm) || 0;
   }
 
@@ -247,6 +260,7 @@ export default function RacesScreen() {
     if (raceType === 'Triathlon') return !!(triSwim || triBike || triRun);
     if (raceType === 'HYROX' || raceType === 'CrossFit') return true;
     if (raceType === 'Custom') return customDisciplines.some((d) => d.name.trim());
+    if (FORMAT_TYPES.has(raceType) && raceFormat === 'timed') return true;
     return !!distanceKm;
   }
 
@@ -344,6 +358,7 @@ export default function RacesScreen() {
       race_date: isoDate, location: location.trim() || null,
       registration_url: regUrl.trim() || null, disciplines: buildDisciplines(),
       goal_finish_time: goalFinishTime.trim() || null,
+      format: FORMAT_TYPES.has(raceType) ? raceFormat : 'finish',
     };
     if (editingRace) {
       const { error: updErr } = await supabase.from('races').update(payload).eq('id', editingRace.id);
@@ -395,6 +410,7 @@ export default function RacesScreen() {
   function openEdit(race: Race) {
     setEditingRace(race);
     setRaceName(race.name); setRaceType(race.race_type); setRaceDate(isoToDisplayDate(race.race_date));
+    setRaceFormat((race.format as EventFormat) || 'finish');
     setLocation(race.location || ''); setRegUrl(race.registration_url || '');
     setGoalFinishTime(formatTime(parseTime(race.goal_finish_time, 'hours'), 'field'));
     setShowDetails(!!(race.registration_url || race.goal_finish_time));
@@ -423,7 +439,7 @@ export default function RacesScreen() {
   function closeModal() {
     setShowAdd(false); setEditingRace(null);
     setRaceName(''); setDistanceKm(''); setRaceDate('');
-    setLocation(''); setRegUrl(''); setRaceType('Run');
+    setLocation(''); setRegUrl(''); setRaceType('Run'); setRaceFormat('finish');
     setTriSwim(''); setTriBike(''); setTriRun('');
     setHyroxCategory('Women'); setCrossfitFormat('Open');
     setGoalFinishTime(''); setShowDetails(false);
@@ -671,6 +687,18 @@ export default function RacesScreen() {
         onChange={setRaceType}
       />
 
+      {FORMAT_TYPES.has(raceType) && (
+        <>
+          <GreyLabel>Format</GreyLabel>
+          <GreyTiles options={EVENT_FORMATS} value={raceFormat} onChange={setRaceFormat} />
+          {raceFormat === 'finish' ? (
+            <GreyNote>The same distance for everyone. Fastest time first.</GreyNote>
+          ) : (
+            <GreyNote>{raceFormat === 'laps' ? 'Laps of a set distance, such as a backyard ultra. Results show laps and km.' : 'The furthest distance in a fixed time, such as 6 or 24 hours. Results show km.'}</GreyNote>
+          )}
+        </>
+      )}
+
       {raceType === 'HYROX' && (
         <>
           <GreyLabel>Category</GreyLabel>
@@ -727,8 +755,8 @@ export default function RacesScreen() {
       <GreyRows>
         <GreyRow icon="calendar" label="Date" value={raceDate && displayToIsoDate(raceDate) ? friendlyDate(raceDate) : ''} placeholder="Choose a date" onPress={() => setEventCalOpen(true)} />
         <GreyRow icon="location" label="Location"><GreyRowInput placeholder="Optional" value={location} onChangeText={setLocation} /></GreyRow>
-        {raceType !== 'Triathlon' && raceType !== 'HYROX' && raceType !== 'CrossFit' && raceType !== 'Custom' ? (
-          <GreyRow icon="distance" label="Distance (km)"><GreyRowInput placeholder="21.1" value={distanceKm} onChangeText={setDistanceKm} keyboardType="decimal-pad" /></GreyRow>
+        {raceType !== 'Triathlon' && raceType !== 'HYROX' && raceType !== 'CrossFit' && raceType !== 'Custom' && !(FORMAT_TYPES.has(raceType) && raceFormat === 'timed') ? (
+          <GreyRow icon="distance" label={FORMAT_TYPES.has(raceType) && raceFormat === 'laps' ? 'Lap distance (km)' : 'Distance (km)'}><GreyRowInput placeholder={FORMAT_TYPES.has(raceType) && raceFormat === 'laps' ? '6.7' : '21.1'} value={distanceKm} onChangeText={setDistanceKm} keyboardType="decimal-pad" /></GreyRow>
         ) : null}
         <GreyRow icon="link" label="Registration"><GreyRowInput placeholder="Optional" value={regUrl} onChangeText={setRegUrl} autoCapitalize="none" keyboardType="url" /></GreyRow>
         <GreyRow icon="timer" label="Goal time"><GreyRowInput {...timeFieldProps('hms', goalFinishTime, setGoalFinishTime)} placeholder="Optional" /></GreyRow>
@@ -767,7 +795,11 @@ export default function RacesScreen() {
         <Modal visible={showAdd} transparent animationType={addOnly ? 'fade' : 'slide'}>
           <View style={styles.modalOverlay}>
             {m ? (
-              eventSheet
+              <>
+                {/* Tap above the pop-up to close it, as on every other pop-up. */}
+                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { setEventCalOpen(false); closeModal(); if (addOnly) leaveAddOnly(); }} accessibilityLabel="Close" />
+                {eventSheet}
+              </>
             ) : (
               <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalCard}>
                 {addEventForm}
@@ -979,6 +1011,15 @@ export default function RacesScreen() {
       { key: 'friends', label: 'Teammates', count: friendRaces.length },
       { key: 'completed', label: 'Completed', count: completedRaces.length },
     ];
+    // Opens on the first tab that has events (Mockup 89 B, Ricky
+    // 2026-11-16), once, until the tabs are tapped.
+    if (!loading && !tabPicked.current) {
+      tabPicked.current = true;
+      if (activeTab === 'mine' && myRaces.length === 0) {
+        const first = friendRaces.length > 0 ? 'friends' : completedRaces.length > 0 ? 'completed' : null;
+        if (first) setTimeout(() => setActiveTab(first), 0);
+      }
+    }
     const emptyText = activeTab === 'mine'
       ? 'No events added yet.'
       : activeTab === 'completed'
@@ -1007,12 +1048,45 @@ export default function RacesScreen() {
           <GreySegment
             options={tabs.map((t) => ({ value: t.key, label: t.count > 0 ? `${t.label} ${t.count}` : t.label }))}
             value={activeTab}
-            onChange={setActiveTab}
+            onChange={(t) => { tabPicked.current = true; setActiveTab(t); }}
           />
 
           {loading && <Text style={ms.loadingText}>Loading…</Text>}
 
-          {!loading && displayed.length === 0 && (
+          {/* Mine with nothing in it (Mockup 89 C): the empty tile, then
+              teammates' upcoming events, so the page never sits empty. */}
+          {!loading && activeTab === 'mine' && myRaces.length === 0 ? (
+            <>
+              <GreyBigTile icon="flag" serif title="No events yet" sub="Add a race or competition to count down to it." onPress={() => setShowAdd(true)} />
+              {friendRaces.length > 0 ? (
+                <>
+                  <GreyLabel>Teammates' events</GreyLabel>
+                  {friendRaces.map((race) => {
+                    const d = daysUntil(race.race_date);
+                    const who = race.users ? formatDisplayName(race.users) : '';
+                    return (
+                      <TouchableOpacity key={race.id} style={[rb.card, ms.mini]} activeOpacity={0.85} onPress={() => setActiveTab('friends')} accessibilityRole="button" accessibilityLabel={formatRaceName(race.name)}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={ms.miniName} numberOfLines={2}>{formatRaceName(race.name)}</Text>
+                          <Text style={ms.miniMeta} numberOfLines={1}>{[new Date(`${race.race_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), who].filter(Boolean).join(' · ')}</Text>
+                        </View>
+                        <View style={ms.miniDays}>
+                          {d === 0 ? <Text style={ms.miniToday}>Today</Text> : (
+                            <>
+                              <Text style={ms.miniNum}>{d}</Text>
+                              <Text style={ms.miniLabel}>{d === 1 ? 'DAY' : 'DAYS'}</Text>
+                            </>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </>
+              ) : null}
+            </>
+          ) : null}
+
+          {!loading && displayed.length === 0 && !(activeTab === 'mine' && myRaces.length === 0) && (
             <View style={[rb.card, ms.emptyRow]}>
               <View style={rb.badge}>
                 <RivalIcon name="flag" size={16} color={RivalColors.accentText} />
@@ -1549,6 +1623,13 @@ const ms = StyleSheet.create({
   finishRace: { fontSize: 13, color: RivalColors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 12 },
   loadingText: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 24 },
   emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mini: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  miniName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 16, color: '#fff' },
+  miniMeta: { fontSize: 12, color: RivalColors.textSecondary, marginTop: 2 },
+  miniDays: { alignItems: 'center', minWidth: 44 },
+  miniNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22, color: RivalColors.event },
+  miniLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1.2, color: RivalColors.textSecondary },
+  miniToday: { fontSize: 13, fontWeight: '800', color: RivalColors.event },
   emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },
   ticket: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   ticketName: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 19, lineHeight: 24, color: '#fff' },

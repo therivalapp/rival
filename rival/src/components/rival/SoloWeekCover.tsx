@@ -1,6 +1,7 @@
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RivalColors, RivalFontFamily, RivalSerifFamily } from '../../constants/rivalTheme';
 import { RivalIcon, activityIconName } from './RivalIcon';
+import { GlassPill, GLASS_TEXT } from './GlassPill';
 import { CoverImage } from './CoverImage';
 import { SkyBackdrop } from './SkyBackdrop';
 import { activityTypeLabel } from './EffortBreakdownSheet';
@@ -70,10 +71,10 @@ export function WeekCover({ kicker, event, effort, photo, sky, line, lineEvent, 
           ))}
         </Text>
         {chip ? (
-          <View style={[s.chip, chip.best && s.chipBest, chip.up && s.chipUp]}>
-            <RivalIcon name={chip.best ? 'trophy' : 'trendUp'} size={13} color={chip.best ? '#ffe6a8' : chip.up ? '#7fe0a4' : '#ffd3c2'} />
-            <Text style={[s.chipText, chip.best && { color: '#ffe6a8' }, chip.up && { color: '#7fe0a4' }]}>{chip.text}</Text>
-          </View>
+          <GlassPill tone={chip.best ? 'gold' : chip.up ? 'green' : 'peach'} style={s.chip}>
+            <RivalIcon name={chip.best ? 'trophy' : 'trendUp'} size={13} color={GLASS_TEXT[chip.best ? 'gold' : chip.up ? 'green' : 'peach']} />
+            <Text style={[s.chipText, { color: GLASS_TEXT[chip.best ? 'gold' : chip.up ? 'green' : 'peach'] }]}>{chip.text}</Text>
+          </GlassPill>
         ) : null}
         {stats.length ? (
           <View style={s.stats}>

@@ -7,7 +7,7 @@ import { RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily, rivalWordma
 
 // Loading (Ricky, 2026-11-08, option C): the opening screen's pulsing RIVAL
 // over a bar that fills, and what the archive holds counting up beneath.
-export function LoaderCard({ fileName, pct, rows }: { fileName: string; pct: number; rows: { label: string; value: number; of?: number }[] }) {
+export function LoaderCard({ fileName, pct, rows, detail }: { fileName: string; pct: number; rows: { label: string; value: number; of?: number }[]; detail?: string }) {
   const web = Platform.OS === 'web';
   return (
     <View style={[s.card, s.loader]}>
@@ -15,6 +15,7 @@ export function LoaderCard({ fileName, pct, rows }: { fileName: string; pct: num
       <View style={s.loaderTrack}>
         <View style={[s.loaderFill, { width: `${pct}%` as any }, web && ({ transition: 'width 0.5s ease-out' } as any)]} />
       </View>
+      {detail ? <Text style={s.loaderDetail}>{detail}</Text> : null}
       <Text style={s.loaderFile} numberOfLines={1}>{fileName}</Text>
       <View style={[s.facts, s.loaderFacts]}>
         {rows.map((r, k) => (
@@ -77,6 +78,7 @@ const s = StyleSheet.create({
   word: { ...rivalWordmark(22), color: RivalColors.accentText, opacity: 0.9 },
   loaderTrack: { width: 180, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   loaderFill: { height: 4, borderRadius: 2, backgroundColor: RivalColors.accentText },
+  loaderDetail: { fontFamily: RivalFontFamily, fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.8)', marginBottom: -8 },
   loaderFile: { fontFamily: RivalFontFamily, fontSize: 12, color: 'rgba(255,255,255,0.5)', maxWidth: '90%' },
   loaderFacts: { alignSelf: 'stretch', marginTop: 14 },
 });

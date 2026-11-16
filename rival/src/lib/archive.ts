@@ -285,8 +285,21 @@ function garminItem(a: any): ImportItem | null {
   };
 }
 
-export async function readArchive(file: Blob): Promise<ReadArchive> {
-  const buf = new Uint8Array(await file.arrayBuffer());
+/** Reads a file's bytes, reporting how much has arrived so a large archive
+ *  shows real progress (Mockup 90 B, Ricky 2026-11-16). */
+function readBytes(file: Blob, onRead?: (loaded: number, total: number) => void): Promise<Uint8Array> {
+  if (!onRead || typeof FileReader === 'undefined') return file.arrayBuffer().then((b) => new Uint8Array(b));
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onprogress = (e) => onRead(e.loaded, e.lengthComputable ? e.total : file.size);
+    r.onload = () => { onRead(file.size, file.size); resolve(new Uint8Array(r.result as ArrayBuffer)); };
+    r.onerror = () => reject(r.error ?? new Error('read_failed'));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+export async function readArchive(file: Blob, onRead?: (loaded: number, total: number) => void): Promise<ReadArchive> {
+  const buf = await readBytes(file, onRead);
   const entries = unzipSync(buf, {
     // Only what is needed: the activity list, routes and photos.
     filter: (f) => /(^|\/)(activities\.csv|data\.json|routes\.json|media\.json)$/.test(f.name)

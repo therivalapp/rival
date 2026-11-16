@@ -174,7 +174,7 @@ export function GoalCardGestures({
   return (
     <View style={[g.wrap, { borderRadius: radius }]}>
       <View style={[g.behind, { borderRadius: radius }]}>
-        <TouchableOpacity style={g.deleteBtn} onPress={() => { closeRef.current(); onDelete(); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Delete goal">
+        <TouchableOpacity style={g.deleteBtn} onPress={() => { closeRef.current(); onDelete(); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Delete Goal">
           <RivalIcon name="delete" size={20} color="#fff" />
           <Text style={g.deleteText}>Delete</Text>
         </TouchableOpacity>

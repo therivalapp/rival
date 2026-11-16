@@ -1,4 +1,5 @@
 import { GradientText } from './GradientText';
+import { inkNudge } from '../../lib/inkCentre';
 import { RollingNumber } from './RollingNumber';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Platform, View, Text, StyleSheet, ViewStyle } from 'react-native';
@@ -15,7 +16,10 @@ import { webFx } from '../../lib/webFx';
 // alone already reads as "full". Keyed off the TARGET, not the progress
 // value, so a goal that's barely started (0.4 / 10) still gets the decimal
 // it needs rather than one keyed off however far in you happen to be.
-function formatRingValue(value: number, target: number): string {
+// Counts (activities, times) are always whole: "4 / 12 activities", never
+// "4.0", and the count-up steps 1, 2, 3 (Ricky, 2026-11-15).
+function formatRingValue(value: number, target: number, whole = false): string {
+  if (whole) return Math.floor(value + 1e-6).toLocaleString();
   return target < 100 ? value.toFixed(1) : Math.round(value).toLocaleString();
 }
 
@@ -83,9 +87,12 @@ export function RivalChallengeRing({
   const ringId = `ringGrad${useId().replace(/[^a-zA-Z0-9]/g, '')}`; // unique per ring on the page
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
-  const formatted = valueText ?? formatRingValue(value * f, target);
+  const whole = /activit|times?\b/i.test(unit);
+  const formatted = valueText ?? formatRingValue(value * f, target, whole);
   // Sized for the final number, so the digits don't change size as they count.
-  const valueSize = ringValueFontSize(valueText ?? formatRingValue(value, target), size);
+  const valueSize = ringValueFontSize(valueText ?? formatRingValue(value, target, whole), size);
+  // Georgia's 6 and 8 sit high, its 3 4 5 7 9 low: centre the final number's ink.
+  const nudge = inkNudge(valueText ?? formatRingValue(value, target, whole), valueSize);
   return (
     <View style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }, style]}>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
@@ -122,9 +129,9 @@ export function RivalChallengeRing({
       {animate ? (
         // Rolls to its value as the ring draws (Mockup 48 · More motion E).
         <RollingNumber
-          text={valueText ?? formatRingValue(value, target)}
+          text={valueText ?? formatRingValue(value, target, whole)}
           gradient="linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)"
-          style={[styles.ringValue, { fontSize: valueSize, lineHeight: Math.round(valueSize * 1.06), marginTop: -Math.round(valueSize * 0.12) }]}
+          style={[styles.ringValue, { fontSize: valueSize, lineHeight: Math.round(valueSize * 1.06), marginTop: -Math.round(valueSize * 0.12), transform: [{ translateY: nudge }] }]}
           run={animate.run}
           duration={Math.max(600, animate.ms - 300)}
           waitForView={false}
@@ -134,7 +141,7 @@ export function RivalChallengeRing({
         gradient="linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)"
         style={[
           styles.ringValue,
-          { fontSize: valueSize, lineHeight: Math.round(valueSize * 1.06), marginTop: -Math.round(valueSize * 0.12) },
+          { fontSize: valueSize, lineHeight: Math.round(valueSize * 1.06), marginTop: -Math.round(valueSize * 0.12), transform: [{ translateY: nudge }] },
         ]}
       >
         {formatted}
@@ -239,6 +246,9 @@ const styles = StyleSheet.create({
   ringValue: {
     fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', color: RivalColors.accentFill,
     textAlign: 'center',
+    // Room for the italic overhang: the web clips the gradient text to the
+    // box, which cut the ball off the 5 (Ricky, 2026-11-15).
+    paddingHorizontal: 8,
     ...(webFx({
       backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',

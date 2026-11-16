@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mockup 63 · Tick colours, tick I (2026-11-15). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:760px;padding-bottom:24px}
+.top{font:italic 700 22px Georgia,serif;text-align:center;padding:18px 0 4px}
+.sub{text-align:center;font-size:12px;color:rgba(255,255,255,.6);padding:0 40px 14px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:0 20px}
+.c{background:#1c1c1c;border-radius:20px;padding:16px 10px 16px;text-align:center}
+.tag{font-size:12px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.nm{font:italic 700 16px Georgia,serif;margin:2px 0 8px}
+.lab{font-size:10px;font-weight:800;letter-spacing:1.4px;margin-top:6px}
+.d{font-size:11px;color:rgba(255,255,255,.6);margin-top:8px;line-height:1.4;min-height:30px}
+svg{display:block;margin:0 auto}
+.small{display:flex;justify-content:center;gap:12px;margin-top:10px;align-items:center}
+</style></head><body>
+<div class="top">Mockup 63 · Tick colours</div>
+<div class="sub">Tick I in six colour pairs. The label underneath takes the ring colour.</div>
+<div class="grid" id="g"></div>
+<script>
+const tick=(c)=>`<path d="M46,104 L68,86 Q82,100 92,116 Q124,76 166,38 Q132,86 100,142 Q92,148 86,146 Q66,124 46,104 Z" fill="${c}"/>`;
+const ring=(r,t,s)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="${r}" stroke-width="14"/><g transform="translate(100 100) scale(.8) translate(-104 -92)">${tick(t)}</g></svg>`;
+const GOLD='#FFD700',GREEN='#4ade80',SOFT='#8fdca4',IVORY='#f4ead8',SALMON='#ffb59e';
+const o=[
+ ['A','All gold','PB gold, as in the motion now.',GOLD,GOLD],
+ ['B','Gold and green','Gold ring, green tick (the green the app uses for upward trends).',GOLD,GREEN],
+ ['C','All green','Green ring and tick. Reads as done straight away.',GREEN,GREEN],
+ ['D','Gold and ivory','Gold ring, ivory tick. Calm, still feels like an award.',GOLD,IVORY],
+ ['E','Gold and soft green','Gold ring, a softer green tick. New colour for the app.',GOLD,SOFT],
+ ['F','Salmon and ivory','The app\'s data colours. Keeps gold just for PBs.',SALMON,IVORY],
+];
+document.getElementById('g').innerHTML=o.map(([t,n,d,r,k])=>`<div class="c"><div class="tag">${t}</div><div class="nm">${n}</div>${ring(r,k,150)}<div class="lab" style="color:${r}">CHALLENGE COMPLETE</div><div class="small">${ring(r,k,44)}${ring(r,k,28)}</div><div class="d">${d}</div></div>`).join('');
+</script></body></html>

@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mockup 62 v4 · Clean brush (I) with a couple of bristles at the tip (2026-11-15). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:760px;padding-bottom:24px}
+.top{font:italic 700 22px Georgia,serif;text-align:center;padding:18px 0 4px}
+.sub{text-align:center;font-size:12px;color:rgba(255,255,255,.6);padding:0 40px 14px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:0 20px}
+.c{background:#1c1c1c;border-radius:20px;padding:16px 10px 16px;text-align:center}
+.tag{font-size:12px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.nm{font:italic 700 16px Georgia,serif;margin:2px 0 8px}
+.d{font-size:11px;color:rgba(255,255,255,.6);margin-top:8px;line-height:1.4}
+svg{display:block;margin:0 auto}
+.row{display:flex;justify-content:center;align-items:center;gap:18px}
+.small{display:flex;flex-direction:column;gap:10px;align-items:center}
+.small span{font-size:10px;color:rgba(255,255,255,.45)}
+</style></head><body>
+<div class="top">Mockup 62 v4 · Clean brush with bristles</div>
+<div class="sub">I, unchanged, with two fine bristles breaking away at the tip.</div>
+<div class="grid" id="g"></div>
+<script>
+const G='#FFD700';
+const tick=`<path d="M46,104 L68,86 Q82,100 92,116 Q124,76 166,38 Q132,86 100,142 Q92,148 86,146 Q66,124 46,104 Z" fill="${G}"/>`;
+// A fine bristle: a thin sliver from a to b, widest at a, sharp at b, slightly bowed.
+function sliver(a,b,w,bow){
+  const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy),n=[-dy/L,dx/L],pts=[],N=20;
+  for(let i=0;i<=N;i++){const t=i/N,k=Math.pow(1-t,.9)*w,c=Math.sin(t*Math.PI)*bow;pts.push([a[0]+dx*t+n[0]*(c+k),a[1]+dy*t+n[1]*(c+k)]);}
+  for(let i=N;i>=0;i--){const t=i/N,k=Math.pow(1-t,.9)*w,c=Math.sin(t*Math.PI)*bow;pts.push([a[0]+dx*t+n[0]*(c-k),a[1]+dy*t+n[1]*(c-k)]);}
+  return `<path d="M${pts.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' L')} Z" fill="${G}"/>`;
+}
+const bristles=sliver([138,78],[169,41],1.5,0.5)+sliver([131,91],[156,61],1.1,0.6);
+const ring=(inner,s)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="${G}" stroke-width="14"/><g transform="translate(100 100) scale(.8) translate(-104 -92)">${inner}</g></svg>`;
+const opts=[['I','Before','As it was.',tick],['I2','With bristles','Two fine strands separate from the tip edge. Everything else stays the same.',tick+bristles]];
+document.getElementById('g').innerHTML=opts.map(([t,n,d,p])=>`<div class="c"><div class="tag">${t}</div><div class="nm">${n}</div><div class="row">${ring(p,220)}<div class="small">${ring(p,48)}${ring(p,30)}<span>trophy size</span></div></div><div class="d">${d}</div></div>`).join('');
+</script></body></html>

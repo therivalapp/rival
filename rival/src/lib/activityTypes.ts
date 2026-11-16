@@ -10,7 +10,7 @@ export const TYPE_GROUPS: [string, string[]][] = [
   ['Racket sports', ['Tennis', 'Squash', 'Pickleball', 'Badminton', 'TableTennis', 'Racquetball']],
   ['Team sports', ['Basketball', 'Football', 'Soccer', 'Rugby', 'Cricket', 'Volleyball', 'Handball', 'FieldHockey', 'IceHockey', 'Lacrosse', 'Frisbee']],
   ['Winter', ['AlpineSki', 'BackcountrySki', 'NordicSki', 'Snowboard', 'Snowshoe', 'IceSkate']],
-  ['Other', ['Golf', 'MartialArts', 'Fencing', 'RockClimbing', 'InlineSkate', 'RollerSki', 'Skateboard', 'Wheelchair']],
+  ['Other', ['Golf', 'Boxing', 'MartialArts', 'Fencing', 'RockClimbing', 'InlineSkate', 'RollerSki', 'Skateboard', 'Wheelchair']],
 ];
 
 const TILE_NAMES: Record<string, string> = {

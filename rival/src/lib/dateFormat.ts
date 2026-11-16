@@ -17,6 +17,22 @@ export function maskDateInput(value: string): string {
   return [day, month, year].filter(Boolean).join('/');
 }
 
+// Like maskDateInput, but a digit that can't start a real date is not taken:
+// no day above 31, no month above 12, years from 1900 (sign-up's date of
+// birth, Ricky 2026-11-14). Returns `prev` when the new digit is refused.
+export function maskDateInputStrict(value: string, prev: string): string {
+  const next = maskDateInput(value);
+  const d = next.replace(/\D/g, '');
+  const ok =
+    (d.length < 1 || d[0] <= '3') &&
+    (d.length < 2 || (Number(d.slice(0, 2)) >= 1 && Number(d.slice(0, 2)) <= 31)) &&
+    (d.length < 3 || d[2] <= '1') &&
+    (d.length < 4 || (Number(d.slice(2, 4)) >= 1 && Number(d.slice(2, 4)) <= 12)) &&
+    (d.length < 5 || d[4] === '1' || d[4] === '2') &&
+    (d.length < 6 || Number(d.slice(4, 6)) >= 19);
+  return ok ? next : prev;
+}
+
 export function isoToDisplayDate(iso: string): string {
   const [y, m, d] = iso.split('-');
   if (!y || !m || !d) return '';

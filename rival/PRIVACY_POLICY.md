@@ -57,7 +57,7 @@ RIVAL does not collect contacts or advertising identifiers.
 On iPhone, you can let RIVAL read your activities from Apple Health, including
 activities saved there by your watch and other apps. RIVAL reads activity type,
 time, duration, distance, elevation, heart rate, energy and route, and only
-after you allow it in the Health permission screen. RIVAL does not read any
+after you allow it in the Health permission screen. If you set a Steps goal, RIVAL also reads your daily step count. Steps stay on your iPhone to fill that goal: they are not sent to RIVAL's servers, not shown to your teams and do not count toward Effort. RIVAL does not read any
 other health data. Health data is used only to
 record your activities, score Effort and show them to your teams. It is never
 used for advertising or marketing, never sold, never given to data brokers, and

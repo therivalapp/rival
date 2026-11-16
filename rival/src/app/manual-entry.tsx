@@ -2,7 +2,7 @@ import { TYPE_GROUPS, tileLabel } from '../lib/activityTypes';
 import { distanceUnit, elevationUnit, formatSpeedOrPace, fromDisplayDistance, fromDisplayElevation, toDisplayDistance, toDisplayElevation } from '../lib/units';
 import { defaultActivityName } from '../lib/activityName';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, TouchableOpacity, View, Text, TextInput, ScrollView, Image, Platform, useWindowDimensions } from 'react-native';
 import { Modal } from '../components/rival/RivalModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -383,6 +383,9 @@ export default function ManualEntryScreen() {
   // time entered (10 min logged at 7:31 starts at 7:21), until the start
   // time is set by hand (Ricky, 2026-10-24). Editing never moves it.
   const startTouched = useRef(false);
+  // The big Time and Distance tiles focus their box on a tap anywhere.
+  const minutesRef = useRef<TextInput>(null);
+  const distanceRef = useRef<TextInput>(null);
   const enteredSeconds = (Number(durationMin) || 0) * 60 + (Number(durationSec) || 0);
   useEffect(() => {
     if (isEditMode || startTouched.current) return;
@@ -972,7 +975,7 @@ export default function ManualEntryScreen() {
       {fieldError?.field === 'duration' && <Text style={styles.fieldError}>{fieldError.message}</Text>}
       {durationSeconds > 0 && (
         <Text style={styles.effortPreview}>
-          ≈ {Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))} Effort · {formatDuration(durationSeconds)}
+          ≈ {Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm) * 10) / 10} Effort · {formatDuration(durationSeconds)}
         </Text>
       )}
       {CLASS_BASED_TYPES.has(workoutType) && durationSeconds > 0 && durationSeconds < 30 * 60 && (
@@ -1217,7 +1220,7 @@ export default function ManualEntryScreen() {
     return b.capped && !unchanged;
   })();
   const effortNow = durationSeconds > 0
-    ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm))
+    ? Math.round(calculateEffortScorePreview(workoutType, durationSeconds, elevationM, scoringConfig, distanceKm) * 10) / 10
     : null;
 
   // An activity can be a type this list doesn't offer (a Walk from Strava);
@@ -1796,11 +1799,14 @@ export default function ManualEntryScreen() {
   const lastWeightsTime = lastTimeByType.current[workoutType];
   // Whole minutes in the big tiles: typing clears seconds a last time brought in.
   const typeMinutes = (v: string) => { setDurationMin(v.replace(/\D/g, '')); setDurationSec(''); if (fieldError?.field === 'duration') setFieldError(null); };
+  // The whole tile opens the keyboard, not just the narrow number (Ricky,
+  // 2026-11-14: tapping the tile did nothing).
   const halfTimeTile = (
-    <View style={[w.big, w.bigTime]}>
+    <Pressable style={[w.big, w.bigTime]} onPress={() => minutesRef.current?.focus()} accessibilityLabel="Time">
       <Text style={m.cardLabel}>Time</Text>
       <View style={w.timeLine}>
         <TextInput
+          ref={minutesRef}
           style={w.timeInput}
           value={durationMin}
           onChangeText={typeMinutes}
@@ -1813,7 +1819,7 @@ export default function ManualEntryScreen() {
         {durationSec ? <Text style={w.timeUnit}>{`${durationSec.padStart(2, '0')} sec`}</Text> : null}
       </View>
       {lastWeightsTime ? <Text style={w.bigSub} numberOfLines={1}>{`Last time ${minutesClock(lastWeightsTime)}`}</Text> : null}
-    </View>
+    </Pressable>
   );
 
   const openCard = openEx ? (() => {
@@ -2087,10 +2093,11 @@ export default function ManualEntryScreen() {
     <View style={w.stack}>
       <View style={w.half}>
         {halfTimeTile}
-        <View style={[w.big, w.bigTime]}>
+        <Pressable style={[w.big, w.bigTime]} onPress={() => distanceRef.current?.focus()} accessibilityLabel="Distance">
           <Text style={m.cardLabel}>Distance</Text>
           <View style={w.timeLine}>
             <TextInput
+              ref={distanceRef}
               style={[w.timeInput, w.distanceInput]}
               value={distanceKm}
               onChangeText={(v) => setDistanceKm(v.replace(/[^\d.]/g, ''))}
@@ -2102,7 +2109,7 @@ export default function ManualEntryScreen() {
             <Text style={w.timeUnit}>{distanceUnit()}</Text>
           </View>
           {lastDistance ? <Text style={w.bigSub} numberOfLines={1}>{`Last time ${shownDistance(lastDistance.meters)} ${distanceUnit()}`}</Text> : null}
-        </View>
+        </Pressable>
       </View>
       {pace ? (
         <View style={w.pace}>

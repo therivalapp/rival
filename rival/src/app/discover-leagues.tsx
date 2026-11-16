@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { teamSharingAgreed } from '../lib/stravaSharing';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { notify } from '../lib/notify';
-import { RivalTopNav, RivalIcon, RivalFixedBackground, RivalWarm, RivalMiniTile, rb, GreyPageHead } from '../components/rival';
+import { RivalTopNav, RivalIcon, RivalFixedBackground, RivalWarm, RivalMiniTile, rb, GreyPageHead, GreyBigTile } from '../components/rival';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import type { RivalIconName } from '../components/rival/RivalIcon';
 import { RivalColors, RivalRadius, RivalType, RivalButtonColors, RivalSerifFamily } from '../constants/rivalTheme';
@@ -371,9 +371,11 @@ export default function DiscoverLeaguesScreen() {
             <RivalIcon name="search" size={17} color={RivalColors.textSecondary} />
             <TextInput style={pm.searchInput} value={search} onChangeText={setSearch} placeholder="Search teams" placeholderTextColor={RivalColors.textSecondary} />
           </View>
+          {/* Mockup 86 B (Ricky 2026-11-15): the Add an activity tiles,
+              Create team lit as the main action. */}
           <View style={pm.tiles}>
-            <RivalMiniTile icon="add" label="Create team" onPress={() => router.push('/create-league')} />
-            <RivalMiniTile icon="key" label="Invite code" onPress={() => router.push('/join-league')} />
+            <GreyBigTile icon="groups" title="Create team" sub="Start your own" lit onPress={() => router.push('/create-league')} />
+            <GreyBigTile icon="key" title="Invite code" sub="Join with a code" onPress={() => router.push('/join-league')} />
           </View>
 
           {loading && <Text style={pm.muted}>Loading…</Text>}
@@ -392,7 +394,7 @@ export default function DiscoverLeaguesScreen() {
                     <TouchableOpacity key={team.id} style={[pm.row, i > 0 && rb.rule]} onPress={() => router.push({ pathname: '/team-hub', params: { id: team.id } })} activeOpacity={0.8}>
                       {crest(team)}
                       <View style={pm.rowText}>
-                        <Text style={pm.name} numberOfLines={1}>{team.name}</Text>
+                        <Text style={pm.name} numberOfLines={1}>{formatTeamName(team.name)}</Text>
                         <Text style={pm.meta} numberOfLines={1}>
                           {team.unreadFrom ? `${team.unreadFrom} messaged` : memberLabel(team.member_count)}
                         </Text>
@@ -418,7 +420,7 @@ export default function DiscoverLeaguesScreen() {
                       <TouchableOpacity style={pm.rowMain} onPress={() => router.push({ pathname: '/team-preview', params: { id: team.id } })} activeOpacity={0.8}>
                         {crest(team)}
                         <View style={pm.rowText}>
-                          <Text style={pm.name} numberOfLines={1}>{team.name}</Text>
+                          <Text style={pm.name} numberOfLines={1}>{formatTeamName(team.name)}</Text>
                           <Text style={pm.meta} numberOfLines={1}>
                             {memberLabel(team.member_count)}
                             {team.sessions_last_7d > 0 ? ` · ${team.sessions_last_7d} this week` : ' · Quiet this week'}
@@ -557,7 +559,7 @@ export default function DiscoverLeaguesScreen() {
                         </View>
                       )}
                       <View style={styles.discoverInfo}>
-                        <Text style={[styles.discoverName, mob && ms.discoverName]} numberOfLines={1}>{team.name}</Text>
+                        <Text style={[styles.discoverName, mob && ms.discoverName]} numberOfLines={1}>{formatTeamName(team.name)}</Text>
                         {/* Headcount alone can't tell a living team from an
                             abandoned one — the week's activity can. */}
                         <Text style={styles.discoverMeta}>
@@ -813,7 +815,7 @@ const pm = StyleSheet.create({
     flex: 1, minWidth: 0, padding: 0, color: '#fff', fontSize: 15,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
   },
-  tiles: { flexDirection: 'row', gap: 8 },
+  tiles: { flexDirection: 'row', gap: 10 },
   muted: { fontSize: 12.5, color: RivalColors.textSecondary, textAlign: 'center', paddingVertical: 20 },
   emptyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyText: { flex: 1, fontSize: 13, lineHeight: 18, color: RivalColors.textSecondary },

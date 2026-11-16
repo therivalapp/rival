@@ -56,6 +56,8 @@ RIVAL is a social fitness app: friends form **Teams**, log workouts (manual entr
 
 User-facing copy says **Team, Effort, Respect, Inspired, Impact, Unrivaled**. The code/DB deliberately still says `leagues`, `league_members`, `xp`, `effort_score`, route paths `/league`, `/create-league`, etc. **Never rename DB columns, internal identifiers, or route paths to match display copy** — display strings only. Reactions are stored as the strings `'respect'` and `'inspired'` (old emoji rows were migrated to `'respect'`); only `'inspired'` feeds the Impact stat.
 
+**Goal, never Focus (Ricky, 2026-11-15).** A personal goal is always a **Goal**, with a capital G, as RIVAL's own name: "Set a Goal", "Main Goal", "Next Goal", "Add Goal", "GOAL" kicker on Today. The word Focus is retired from copy (iPhones have their own Focus modes); internal names (`featuredGoal`, `FocusComplete`, `focus` keys) stay. Race finish-time goals ("Goal time") and team challenge goals are separate and keep their own wording.
+
 **Activity first: think twice before "session" or "workout".** "Activity"/"activities" covers everything (a run, a lift, a class). Before writing session, workout or training in any copy, mockup, quote or chat text, use activity instead; keep another word only when activity genuinely does not make sense in that sentence (Ricky, 2026-11-11). Internal names (`gym_sessions`, `team_sessions`, `add-workout.tsx`) stay.
 
 **Elevation, never climb.** Height gained is always "Elevation" in user-facing copy: labels, tiles, sentences, mockups ("212 m elevation", not "Climb" or "m climbed"). Code names like `climb` stay. Exercise names (Rope climb, Mountain climber) and the Climbing sport are not affected (Ricky, 2026-11-04).

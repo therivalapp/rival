@@ -38,6 +38,11 @@ import { formatDisplayName, formatTeamName, formatRaceName } from '../lib/identi
 import { formatDuration } from '../lib/format';
 import { computeActivityInsight, ActivityInsight, InsightActivity, InsightTone } from '../lib/activityInsights';
 import { RivalAvatar } from '../components/rival/RivalAvatar';
+import { Confetti, EndedChallenge } from '../components/rival/team/ChallengeResults';
+import { TeamEvent } from '../components/rival/team/TeamEvent';
+import { getItem as getPhoneItem, setItem as setPhoneItem } from '../lib/phoneStore';
+import { archiveChallenge, challengeStart } from '../lib/teamChallengeArchive';
+import { challengeResult, daysSinceEnd, ENDED_SHOWN_DAYS, inWindow, teamRecords, type ChallengeResult } from '../lib/teamChallengeResults';
 import { RivalIcon, RivalIconName, activityIconName } from '../components/rival/RivalIcon';
 import { RivalBackButton } from '../components/rival/RivalBackButton';
 import { RivalTopNav } from '../components/rival/RivalTopNav';
@@ -150,7 +155,9 @@ function goalValue(a: { effort_score: number | null; distance_meters: number | n
 type League = {
   id: string; name: string; created_at: string; logo_url: string | null; invite_code: string | null;
   goal_metric: GoalMetric | null; goal_target: number | null; goal_target_date: string | null;
+  goal_start_date?: string | null;
   created_by?: string;
+  race_id?: string | null;
 };
 type Member = { user_id: string; role: string; users: { display_name: string | null; avatar_url: string | null } };
 type ActivityRow = {
@@ -159,7 +166,7 @@ type ActivityRow = {
   exercises: any[] | null; notes: string | null; photo_url: string | null;
   pbLift: string | null; insight: ActivityInsight | null;
 };
-type GoalActivityRow = { user_id: string; activity_type: string; effort_score: number | null; distance_meters: number | null; elevation_meters: number | null; duration_seconds: number | null };
+type GoalActivityRow = { user_id: string; activity_type: string; started_at: string; effort_score: number | null; distance_meters: number | null; elevation_meters: number | null; duration_seconds: number | null };
 type BoardPost = { id: string; user_id: string; title: string | null; body: string; pinned: boolean; created_at: string; expires_at?: string | null };
 
 // "Show until" (board_note_expiry.sql): a date, and a time if one is set;
@@ -358,6 +365,9 @@ export default function TeamHub() {
   // The data below is remembered per team (lib/snapState.ts), so returning to
   // a team draws its last state at once and refreshes behind it.
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
+  // The completed-challenge motion plays once per member per challenge.
+  const [confettiRun, setConfettiRun] = useState(0);
+  const introKeyRef = useRef<string | null>(null);
   const [league, setLeague] = useSnapState<League | null>(`hub.${id}.league`, null);
   const [members, setMembers] = useSnapState<Member[]>(`hub.${id}.members`, []);
   const [currentUserId, setCurrentUserId] = useSnapState(`hub.${id}.currentUserId`, '');
@@ -365,6 +375,8 @@ export default function TeamHub() {
   const [loading, setLoading] = useSnapState(`hub.${id}.loading`, true);
   const [goalProgress, setGoalProgress] = useSnapState(`hub.${id}.goalProgress`, 0);
   const [goalActivitiesRaw, setGoalActivitiesRaw] = useSnapState<GoalActivityRow[]>(`hub.${id}.goalActivitiesRaw`, []);
+  // Finished team challenges (team_challenge_history.sql): the trophy case.
+  const [challengeHistory, setChallengeHistory] = useSnapState<{ id: string; metric: GoalMetric; target: number; start_date: string; end_date: string }[]>(`hub.${id}.challengeHistory`, []);
   const [weeklyActivitiesRaw, setWeeklyActivitiesRaw] = useSnapState<GoalActivityRow[]>(`hub.${id}.weeklyActivitiesRaw`, []);
   const [standingsFilter, setStandingsFilter] = useState<StandingsFilter>('all');
   const [noGoalPeriod, setNoGoalPeriod] = useState<'week' | 'alltime'>('week');
@@ -522,9 +534,10 @@ export default function TeamHub() {
       destructive: true,
     });
     if (!ok) return;
+    await archiveChallenge(league);
     const { data, error } = await supabase
       .from('leagues')
-      .update({ goal_metric: null, goal_target: null, goal_target_date: null })
+      .update({ goal_metric: null, goal_target: null, goal_target_date: null, goal_start_date: null })
       .eq('id', league.id)
       .select('id');
     if (error || !data?.length) { notify("Couldn't end the challenge", error?.message ?? 'Only team admins can do this.'); return; }
@@ -647,7 +660,7 @@ export default function TeamHub() {
         // can double as the "All Time" standings source when there isn't one.
         inChunks(memberIds, (slice) => selectAll((from, to) => supabase
           .from('activities')
-          .select('user_id, activity_type, effort_score, distance_meters, elevation_meters, duration_seconds')
+          .select('user_id, activity_type, started_at, effort_score, distance_meters, elevation_meters, duration_seconds')
           .in('user_id', slice)
           .gte('started_at', leagueData.created_at)
           .order('started_at')
@@ -688,9 +701,13 @@ export default function TeamHub() {
 
       const rows = (sinceCreationActivities || []) as GoalActivityRow[];
       setGoalActivitiesRaw(rows);
+      supabase.from('team_challenge_history').select('id, metric, target, start_date, end_date').eq('league_id', id).order('end_date', { ascending: false })
+        .then(({ data }) => setChallengeHistory((data ?? []) as any));
       if (leagueData.goal_metric) {
+        // Only the challenge's own dates count (2026-11-14): from its start to its due date.
+        const start = challengeStart(leagueData as League);
         let total = 0;
-        rows.forEach((a) => { total += goalValue(a, leagueData.goal_metric as GoalMetric); });
+        rows.filter((a) => inWindow(a as any, start, leagueData.goal_target_date || '9999-12-31')).forEach((a) => { total += goalValue(a, leagueData.goal_metric as GoalMetric); });
         setGoalProgress(Math.round(total * 10) / 10);
       } else {
         setGoalProgress(0);
@@ -995,7 +1012,28 @@ export default function TeamHub() {
     );
   }
 
-  const hasGoal = !!(league.goal_metric && league.goal_target && league.goal_target_date);
+  // A challenge past its due date has ended (2026-11-14): Overview shows its
+  // result for 14 days, then the team is back to no challenge; Challenges
+  // offers a new one straight away and keeps it in the trophy case.
+  const goalSet = !!(league.goal_metric && league.goal_target && league.goal_target_date);
+  const endedDays = goalSet ? daysSinceEnd(league.goal_target_date!) : -1;
+  const hasGoal = goalSet && endedDays <= 0;
+  const memberSet = new Set(members.map((m) => m.user_id));
+  const challengeRows = goalSet ? goalActivitiesRaw.filter((a) => inWindow(a as any, challengeStart(league), league.goal_target_date!)) : [];
+  const endedResult: ChallengeResult | null = goalSet && endedDays > 0
+    ? challengeResult({ key: 'current', metric: league.goal_metric as any, target: league.goal_target!, start: challengeStart(league), end: league.goal_target_date! }, goalActivitiesRaw as any, memberSet)
+    : null;
+  const showEnded = !!endedResult && endedDays <= ENDED_SHOWN_DAYS;
+  const doneKey = endedResult ? `challengeDone:${league.id}:${endedResult.metric}:${endedResult.end}` : '';
+  const completedNow = !!endedResult && endedResult.target > 0 && endedResult.total >= endedResult.target && showEnded && !loading;
+  if (completedNow && introKeyRef.current == null && !getPhoneItem(doneKey)) introKeyRef.current = doneKey;
+  const playIntro = completedNow && introKeyRef.current === doneKey;
+  const pastResults: ChallengeResult[] = [
+    ...(endedResult && !challengeHistory.some((h) => h.start_date === endedResult.start && h.end_date === endedResult.end && h.metric === endedResult.metric) ? [endedResult] : []),
+    ...challengeHistory.map((h) => challengeResult({ key: h.id, metric: h.metric as any, target: Number(h.target), start: h.start_date, end: h.end_date }, goalActivitiesRaw as any, memberSet)),
+  ].sort((a, b) => b.end.localeCompare(a.end));
+  const recordsAll = teamRecords(pastResults);
+  const recordsYear = teamRecords(pastResults, new Date().getFullYear());
   const target = league.goal_target || 0;
   const unit = league.goal_metric ? GOAL_METRIC_UNIT[league.goal_metric] : '';
   const pct = hasGoal && target ? goalProgress / target : 0;
@@ -1015,7 +1053,7 @@ export default function TeamHub() {
   // Effort/Distance/Time stat row below, so "no team goal" isn't a state
   // this tile itself has to handle).
   const myContribution = hasGoal
-    ? Math.round(goalActivitiesRaw.filter((a) => a.user_id === currentUserId).reduce((sum, a) => sum + goalValue(a, league.goal_metric as GoalMetric), 0) * 10) / 10
+    ? Math.round(challengeRows.filter((a) => a.user_id === currentUserId).reduce((sum, a) => sum + goalValue(a, league.goal_metric as GoalMetric), 0) * 10) / 10
     : 0;
 
   // Standings show even without an active Team Challenge — ranked by Effort
@@ -1023,7 +1061,7 @@ export default function TeamHub() {
   // created) instead of the (nonexistent) goal metric.
   const noGoalSource = noGoalPeriod === 'week' ? weeklyActivitiesRaw : goalActivitiesRaw;
   const standingsMetric: GoalMetric = hasGoal ? (league.goal_metric as GoalMetric) : 'xp';
-  const standingsSource = hasGoal ? goalActivitiesRaw : noGoalSource;
+  const standingsSource = hasGoal ? challengeRows : noGoalSource;
   const standingsUnit = hasGoal ? unit : 'Effort';
   const goalContributors = (() => {
     const byUser: Record<string, number> = {};
@@ -1040,7 +1078,7 @@ export default function TeamHub() {
   // challenge is set (Ricky, 2026-11-09).
   const challengeShares = hasGoal ? (() => {
     const byUser: Record<string, number> = {};
-    goalActivitiesRaw.filter((a) => matchesStandingsFilter(a.activity_type, standingsFilter)).forEach((a) => { byUser[a.user_id] = (byUser[a.user_id] || 0) + goalValue(a, league.goal_metric as GoalMetric); });
+    challengeRows.filter((a) => matchesStandingsFilter(a.activity_type, standingsFilter)).forEach((a) => { byUser[a.user_id] = (byUser[a.user_id] || 0) + goalValue(a, league.goal_metric as GoalMetric); });
     return Object.entries(byUser)
       .map(([userId, value]) => ({ userId, value: Math.round(value * 10) / 10 }))
       .filter((c) => c.value > 0)
@@ -1124,12 +1162,31 @@ export default function TeamHub() {
                 this falls through to the Team Board below — which teams WITH a
                 challenge never saw before, because the ring took this slot on
                 every tab. */}
-            {activeTab !== 'Posts' && hasGoal ? (
+            {activeTab === 'Overview' && !hasGoal && showEnded && endedResult ? (
+              <EndedChallenge
+                result={endedResult}
+                who={{ name: memberName, avatar: memberAvatar }}
+                play={playIntro}
+                onConfetti={() => { setPhoneItem(doneKey, '1'); setConfettiRun((n) => n + 1); }}
+                onFinished={() => { setPhoneItem(doneKey, '1'); introKeyRef.current = 'done'; }}
+              />
+            ) : activeTab === 'Overview' && !goalSet && league.race_id ? (
+              // A team event (Mockups 80 v3, 85 v2): countdown, event day, results.
+              <TeamEvent
+                teamId={league.id}
+                raceId={league.race_id}
+                onConfetti={() => setConfettiRun((n) => n + 1)}
+                start={league.goal_start_date ?? league.created_at.slice(0, 10)}
+                memberIds={members.map((m) => m.user_id)}
+                me={currentUserId}
+                who={{ name: memberName, avatar: memberAvatar }}
+              />
+            ) : activeTab !== 'Posts' && hasGoal ? (
               <>
                 <View style={styles.heroTextBlock}>
                   <Text style={styles.eyebrow}>Team Challenge</Text>
                   <Text style={styles.heroTitle}>{GOAL_METRIC_LABEL[league.goal_metric!]}</Text>
-                  <Text style={styles.heroSub}>Since {new Date(league.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · Due {new Date(league.goal_target_date! + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
+                  <Text style={styles.heroSub}>Since {new Date(challengeStart(league) + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · Due {new Date(league.goal_target_date! + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</Text>
                 </View>
                 {/* For admins the ring itself opens the challenge for editing —
                     no separate button. Everyone else sees it as display only. */}
@@ -1702,7 +1759,11 @@ export default function TeamHub() {
                 isAdmin={isAdmin}
                 nameFor={memberName}
                 refreshKey={challengesRefresh}
-                teamGoal={league.goal_metric && league.goal_target && league.goal_target_date ? {
+                pastResults={pastResults}
+                recordsAll={recordsAll}
+                recordsYear={recordsYear}
+                memberAvatar={memberAvatar}
+                teamGoal={hasGoal && league.goal_metric && league.goal_target && league.goal_target_date ? {
                   title: GOAL_METRIC_LABEL[league.goal_metric],
                   detail: `${league.goal_target.toLocaleString()} ${GOAL_METRIC_UNIT[league.goal_metric]} · Due ${new Date(league.goal_target_date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`,
                 } : null}
@@ -1744,6 +1805,7 @@ export default function TeamHub() {
           </View>
         </ScrollView>
       </SafeAreaView>
+      <Confetti run={confettiRun} />
 
       {(() => {
         const note = boardPosts.find(bp => bp.id === openNoteId);

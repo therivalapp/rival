@@ -8,6 +8,8 @@ import { notify } from '../../../lib/notify';
 import { formatTeamName } from '../../../lib/identity';
 import { RivalColors, RivalSerifFamily, RivalButtonColors, rivalPhoneVar } from '../../../constants/rivalTheme';
 import { RivalIcon, type RivalIconName } from '../RivalIcon';
+import { TeamRecords, TrophyCase } from './ChallengeResults';
+import type { ChallengeResult, TeamRecord } from '../../../lib/teamChallengeResults';
 import { sheet, sheetPhone } from './sheetStyles';
 import { BusyText } from '../BusyText';
 import { selectAll, inChunks } from '../../../lib/selectAll';
@@ -133,6 +135,10 @@ export function TeamChallengesTab({
   onEditTeamGoal,
   onOpenMembers,
   onEndTeamGoal,
+  pastResults = [],
+  recordsAll = [],
+  recordsYear = [],
+  memberAvatar,
 }: {
   leagueId: string;
   teamName: string;
@@ -147,6 +153,11 @@ export function TeamChallengesTab({
   /** Opens the Members tab, where a teammate is challenged. */
   onOpenMembers?: () => void;
   onEndTeamGoal?: () => void;
+  /** Finished team challenges and records (Mockup 59 v4). */
+  pastResults?: ChallengeResult[];
+  recordsAll?: TeamRecord[];
+  recordsYear?: TeamRecord[];
+  memberAvatar?: (userId: string) => string | null | undefined;
 }) {
   const phone = !sidePageWide(useWindowDimensions().width);
   // Remembered per team (lib/snapState.ts): coming back to the tab shows the
@@ -267,6 +278,9 @@ export function TeamChallengesTab({
           ]}
         />
       )}
+      {/* Finished team challenges: the trophy case, then the records. */}
+      <TrophyCase results={pastResults} who={{ name: nameFor, avatar: memberAvatar ?? (() => null) }} />
+      <TeamRecords all={recordsAll} thisYear={recordsYear} who={{ name: nameFor, avatar: memberAvatar ?? (() => null) }} />
       {/* ---- The team's shared challenge ----
           Managed here, beside the other challenges, rather than from a tap on
           the ring or from Team settings. Admins start, edit and end it;

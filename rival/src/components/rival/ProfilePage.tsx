@@ -22,6 +22,7 @@ import { updatePrefs, usePrefs } from '../../lib/prefs';
 import { notify } from '../../lib/notify';
 import { PROFILE_STAT_KEYS, readProfileStats, type ProfileStatKey } from '../../lib/profileStats';
 import { RivalIcon, activityIconName, type RivalIconName } from './RivalIcon';
+import { GlassPill, GLASS_TEXT } from './GlassPill';
 import { SkyBackdrop } from './SkyBackdrop';
 import { EventSheet } from './EventSheet';
 import { useBlockedIds, openReport, openBlock, unblockMember, firstName } from '../../lib/safety';
@@ -75,7 +76,11 @@ function Label({ children, right, onPress }: { children: string; right?: string;
     <View style={s.lab}>
       <Text style={s.labText}>{children}</Text>
       {right ? (
-        <TouchableOpacity disabled={!onPress} onPress={onPress} activeOpacity={0.7}><Text style={s.labRight}>{right}</Text></TouchableOpacity>
+        // A header that opens a page reads as a link: "See all ›" (Mockup 87 v2 C).
+        <TouchableOpacity disabled={!onPress} onPress={onPress} activeOpacity={0.7} style={s.labLink} accessibilityRole={onPress ? 'link' : undefined}>
+          <Text style={s.labRight}>{right}</Text>
+          {onPress ? <RivalIcon name="chevronRight" size={15} color={RivalColors.accentText} /> : null}
+        </TouchableOpacity>
       ) : null}
     </View>
   );
@@ -114,7 +119,7 @@ function PhotoTile({ a, stamp, title, value, gold, big, onPress, width, height }
         <View style={[s.fill, s.tileArt]}><SkyBackdrop startedAt={a.started_at} /><RivalIcon name={activityIconName(a.activity_type)} size={64} color="rgba(255,255,255,0.16)" /></View>
       )}
       <View style={[s.fill, s.tileShade, { pointerEvents: 'none' }]} />
-      <View style={s.stampWrap}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></View>
+      <View style={s.stampWrap}><GlassPill tone="dark" style={s.stampPill}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></GlassPill></View>
       <View style={s.tileFoot}>
         {big ? null : <Text style={s.tileTitle} numberOfLines={1}>{title}</Text>}
         <Text style={[s.tileValue, big && s.nextValue]} numberOfLines={1}>{value}</Text>
@@ -262,7 +267,7 @@ function GhostTile({ icon, stamp, title, value, width, height, gold, big }: {
   return (
     <View style={[s.tile, s.ghostTile, gold && s.ghostGold, { width, height }]}>
       <View style={[s.fill, s.tileArt, { pointerEvents: 'none' }]}><RivalIcon name={icon} size={64} color="rgba(255,255,255,0.16)" /></View>
-      <View style={s.stampWrap}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></View>
+      <View style={s.stampWrap}><GlassPill tone="dark" style={s.stampPill}><Text style={s.stamp} numberOfLines={1}>{stamp}</Text></GlassPill></View>
       <View style={s.tileFoot}>
         {big ? null : <Text style={s.tileTitle}>{title}</Text>}
         <Text style={[s.tileValue, big && s.nextValue, gold && s.ghostValue]}>{value}</Text>
@@ -620,7 +625,7 @@ export function ProfilePage({
 
           {upcoming.length > 0 || completed.length > 0 || isOwn ? (
             <>
-              <Label right={upcoming.length + past.length > 0 ? `All ${upcoming.length + past.length}` : undefined} onPress={openEvents}>Events</Label>
+              <Label right={upcoming.length + past.length > 0 ? 'See all' : undefined} onPress={openEvents}>Events</Label>
               {upcoming[0] ? (
                 <TouchableOpacity style={s.ticket} activeOpacity={0.85} onPress={openEvents} accessibilityRole="button">
                   <View style={s.ticketMain}>
@@ -657,8 +662,8 @@ export function ProfilePage({
                         <View style={s.eventPanel}>
                           <View style={s.eventTop}>
                             <View style={s.eventTags}>
-                              <View style={s.tag}><RivalIcon name="flag" size={10} color="#2a2116" /><Text style={s.tagText}>{tag}</Text></View>
-                              {pb ? <View style={[s.tag, { backgroundColor: PB_COLOR }]}><RivalIcon name="trophy" size={10} color="#2a2116" /><Text style={s.tagText}>PB</Text></View> : null}
+                              <GlassPill tone="ivory" style={s.tag}><RivalIcon name="flag" size={10} color={GLASS_TEXT.ivory} /><Text style={[s.tagText, { color: GLASS_TEXT.ivory }]}>{tag}</Text></GlassPill>
+                              {pb ? <GlassPill tone="gold" style={s.tag}><RivalIcon name="trophy" size={10} color={GLASS_TEXT.gold} /><Text style={[s.tagText, { color: GLASS_TEXT.gold }]}>PB</Text></GlassPill> : null}
                             </View>
                             <Text style={s.eventWhen}>{monthYear(race.race_date!)}</Text>
                           </View>
@@ -972,6 +977,7 @@ const s = StyleSheet.create({
 
   lab: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: -2, marginHorizontal: 4 },
   labText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: '#A0A0A0' },
+  labLink: { flexDirection: 'row', alignItems: 'center', gap: 1 },
   labRight: { fontSize: 12.5, fontWeight: '700', letterSpacing: 0.3, color: RivalColors.accentText },
   rowScroll: { marginRight: -16 },
   row: { gap: 8, paddingRight: 16 },
@@ -981,7 +987,8 @@ const s = StyleSheet.create({
   tileArt: { alignItems: 'center', justifyContent: 'center' },
   tileShade: Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 40%, rgba(10,9,8,0.85))' } as any : ({ ...webFx({ backgroundImage: 'linear-gradient(180deg, rgba(10,9,8,0) 40%, rgba(10,9,8,0.85))' } as any) } as any),
   stampWrap: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center' },
-  stamp: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: '#fff', paddingHorizontal: 9, paddingVertical: 2, borderRadius: 999, backgroundColor: 'rgba(14,13,12,0.55)', overflow: 'hidden' },
+  stampPill: { paddingHorizontal: 9, paddingVertical: 2 },
+  stamp: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 13, color: '#fff' },
   tileFoot: { position: 'absolute', left: 12, right: 12, bottom: 10 },
   tileTitle: { fontSize: 13, fontWeight: '700', color: '#fff' },
   tileValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, lineHeight: 25, color: '#fff' },

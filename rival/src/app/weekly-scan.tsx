@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { fitPhoto } from '../lib/imageResize';
 import { RivalColors, RivalButtonColors, RivalGhost } from '../constants/rivalTheme';
 import { RivalIcon, RivalBackButton, RivalMobileHeader, RivalWarm, rm, GreyPageHead, GREY_PAGE_BG } from '../components/rival';
+import { GlassPill } from '../components/rival/GlassPill';
 import { sidePageWide } from '../constants/breakpoints';
 import { StyleSheet, TouchableOpacity, View, Text, ScrollView, Image, Platform, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { notify } from '../lib/notify';
@@ -514,7 +515,7 @@ function WeeklyScanScreen() {
                             // Tap the name to rename it, as before.
                             <View style={mx.savedRow}>
                               <Text style={mx.savedName} numberOfLines={1}>{r.name}</Text>
-                              <View style={mx.effortTag}><Text style={mx.effortTagText}>+{r.xp} Effort</Text></View>
+                              <GlassPill tone="salmon" style={mx.effortTag}><Text style={mx.effortTagText}>+{r.xp} Effort</Text></GlassPill>
                             </View>
                           )}
                         </TouchableOpacity>

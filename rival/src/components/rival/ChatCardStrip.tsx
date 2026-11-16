@@ -30,17 +30,21 @@ export function ChatCardStrip({ card, onChip, onClose }: {
           <RivalIcon name="close" size={17} color={RivalColors.textSecondary} />
         </TouchableOpacity>
       </View>
+      {/* A reminder card (a birthday in 2 days) has no replies. */}
+      {card.chips.length === 0 ? <View style={{ height: 12 }} /> : (
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} style={s.chipScroll} keyboardShouldPersistTaps="handled">
         {card.chips.map((chip) => {
           const go = chip.kind === 'rsvp';
           return (
             <TouchableOpacity key={chip.label} onPress={() => onChip(chip)} style={[s.chip, go && s.chipGo]} accessibilityRole="button">
               {chip.kind === 'respect' ? <RivalIcon name="respect" size={17} color={RivalColors.accentText} /> : null}
+              {chip.kind === 'inspired' ? <RivalIcon name="bolt" size={17} color={RivalColors.accentText} /> : null}
               <Text style={[s.chipText, go && s.chipGoText]}>{chip.label}</Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
+      )}
     </View>
   );
 }

@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mockup 62 v2 · Brush ticks, our own drawings in the style Ricky shared (2026-11-15). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:760px;padding-bottom:24px}
+.top{font:italic 700 22px Georgia,serif;text-align:center;padding:18px 0 4px}
+.sub{text-align:center;font-size:12px;color:rgba(255,255,255,.6);padding:0 40px 14px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:0 20px}
+.c{background:#1c1c1c;border-radius:20px;padding:16px 10px 16px;text-align:center}
+.tag{font-size:12px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.nm{font:italic 700 16px Georgia,serif;margin:2px 0 8px}
+.d{font-size:11px;color:rgba(255,255,255,.6);margin-top:8px;line-height:1.4}
+svg{display:block;margin:0 auto}
+.row{display:flex;justify-content:center;align-items:center;gap:18px}
+.small{display:flex;flex-direction:column;gap:10px;align-items:center}
+.small span{font-size:10px;color:rgba(255,255,255,.45)}
+</style></head><body>
+<div class="top">Mockup 62 v2 · Brush ticks</div>
+<div class="sub">Drawn for RIVAL in the style of your examples: a heavy short stroke, a long stroke that thins out. Same gold for now; colour comes next.</div>
+<div class="grid" id="g"></div>
+<script>
+const G='#FFD700';
+const defs=(id,s)=>`<defs><filter id="${id}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="${s}" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="${s>0.5?3:5}"/></filter></defs>`;
+// Bristle streaks that break off the end of the long stroke.
+const streaks=(pts)=>pts.map(([x1,y1,x2,y2,w])=>`<path d="M${x1},${y1} L${x2},${y2}" stroke="${G}" stroke-width="${w}" stroke-linecap="round"/>`).join('');
+const ticks=[
+ ['G','Dry brush','Heavy square start, long stroke that frays into bristle streaks at the tip. Closest to your first example.',
+  `<g filter="url(#fG)"><path d="M44,104 L68,86 Q82,100 92,116 Q122,74 166,38 Q134,84 100,142 Q92,148 86,146 Q66,124 46,104 Z" fill="${G}"/>${streaks([[136,64,168,36,4],[144,66,174,42,3],[130,78,160,52,3],[152,60,176,34,2.2]])}</g>`],
+ ['H','Marker','Rounder and denser, with a short rough tip. Closest to your second example.',
+  `<g filter="url(#fH)"><path d="M56,100 Q62,92 70,94 Q80,108 90,124 Q116,82 152,50 Q156,48 156,52 Q120,94 98,138 Q92,148 86,144 Q70,122 56,100 Z" fill="${G}"/>${streaks([[146,58,160,46,2.4],[150,60,162,50,1.6]])}</g>`],
+ ['I','Clean brush','The same brush shape with smooth edges and a sharp tapered point. Sharper, no texture.',
+  `<path d="M46,104 L68,86 Q82,100 92,116 Q124,76 166,38 Q132,86 100,142 Q92,148 86,146 Q66,124 48,104 Z" fill="${G}"/>`],
+ ['J','Brush through the ring','The dry brush tick, with the long stroke flicking out past the ring.',
+  `<path d="M60,104 L182,20" stroke="#1c1c1c" stroke-width="0"/><g filter="url(#fJ)"><path d="M46,104 L66,90 Q80,104 90,120 Q124,76 186,18 Q126,92 96,140 Q92,148 86,146 Q66,124 46,104 Z" fill="${G}"/>${streaks([[160,44,192,14,3],[166,46,196,18,2],[154,56,186,26,2.2]])}</g>`],
+];
+const ring=(id,inner,s,cut)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200" style="overflow:visible">${defs('f'+id+s,0.9)}<circle cx="100" cy="100" r="86" fill="none" stroke="${G}" stroke-width="14"/>${cut?`<path d="M150,50 L178,22" stroke="#1c1c1c" stroke-width="30"/>`:''}${id==='J'?'':'<g transform="translate(100 100) scale(.8) translate(-104 -92)">'}${inner.replace(/url\(#f[A-Z]\)/g,`url(#f${id}${s})`)}${id==='J'?'':'</g>'}</svg>`;
+document.getElementById('g').innerHTML=ticks.map(([t,n,d,p])=>`<div class="c"><div class="tag">${t}</div><div class="nm">${n}</div><div class="row">${ring(t,p,190,t==='J')}<div class="small">${ring(t,p,48,t==='J')}${ring(t,p,30,t==='J')}<span>trophy size</span></div></div><div class="d">${d}</div></div>`).join('');
+</script></body></html>

@@ -88,8 +88,10 @@ export default function RootLayout() {
   // On the iPhone the layer fades and the pop-up's own sheet rises with a
   // short settle (useSheetRise, Mockup 48 · More motion C). Weekly scan has
   // no sheet of its own, so it keeps the system slide.
+  // The layer fades on the web too; the sheet rises on its own (RoutePopUp),
+  // as on Goals (Ricky 2026-11-15), instead of the whole dark layer sliding.
   const popUp = phone
-    ? { presentation: 'transparentModal' as const, animation: (Platform.OS === 'web' ? 'slide_from_bottom' : 'fade') as 'fade' | 'slide_from_bottom' }
+    ? { presentation: 'transparentModal' as const, animation: 'fade' as const }
     : SIDE_PAGES_USE_PHONE_DESIGN ? { presentation: 'transparentModal' as const, animation: 'fade' as const } : {};
 
   useEffect(() => {
@@ -233,6 +235,9 @@ export default function RootLayout() {
           <Stack.Screen name="join-league" options={popUp} />
           <Stack.Screen name="weekly-scan" options={phone ? { presentation: 'transparentModal', animation: 'slide_from_bottom' } : popUp} />
           <Stack.Screen name="add-workout" options={popUp} />
+          {/* Goals rises over Today as a pop-up sized to what it holds (Mockup 83,
+              Ricky 2026-11-15). Phone only; desktop keeps its page. */}
+          <Stack.Screen name="goals" options={phone ? popUp : {}} />
           <Stack.Screen name="start" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="races" options={({ route }) => (phone && (route.params as { add?: string } | undefined)?.add === 'true' ? { presentation: 'transparentModal', animation: 'none' } : {})} />
         </Stack>

@@ -25,4 +25,4 @@ export { RivalMobileHeader, RivalRowLink, RivalHairline, RivalWarm, rm, RivalShe
 export { RouteMap } from './RouteMap';
 export { FeedbackHost } from './FeedbackHost';
 export { SafetyHost } from './SafetyHost';
-export { GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyArtTile, GreyArtTiles, GreyNote, GreyPrimary, GreyCalendar, RivalActionPill, RivalActionTile, RivalMiniTile, RivalStartTiles, GreyPageHead, GREY_PAGE_BG, rb, GreySegment } from './RivalGreySheet';
+export { GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyField, GreyTiles, GreyArtTile, GreyArtTiles, GreyBigTile, GreyFollow, GreyNote, GreyPrimary, GreyCalendar, RivalActionPill, RivalActionTile, RivalMiniTile, RivalStartTiles, GreyPageHead, GREY_PAGE_BG, rb, GreySegment } from './RivalGreySheet';

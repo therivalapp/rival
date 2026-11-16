@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mockup 62 · Tick shapes for the completed team challenge (2026-11-15). */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:760px;padding-bottom:24px}
+.top{font:italic 700 22px Georgia,serif;text-align:center;padding:18px 0 4px}
+.sub{text-align:center;font-size:12px;color:rgba(255,255,255,.6);padding:0 40px 14px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:0 20px}
+.c{background:#1c1c1c;border-radius:20px;padding:16px 10px 16px;text-align:center}
+.tag{font-size:12px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.nm{font:italic 700 16px Georgia,serif;margin:2px 0 8px}
+.d{font-size:11px;color:rgba(255,255,255,.6);margin-top:8px;line-height:1.4;min-height:30px}
+svg{display:block;margin:0 auto}
+.small{display:flex;justify-content:center;gap:10px;margin-top:8px;align-items:center}
+.small span{font-size:10px;color:rgba(255,255,255,.45)}
+</style></head><body>
+<div class="top">Mockup 62 · Tick shapes</div>
+<div class="sub">Shape only. All in the same gold so you can compare; colour comes next. Small size underneath shows how it reads on the trophy card.</div>
+<div class="grid" id="g"></div>
+<script>
+const G='#FFD700';
+const ring=(inner,s=170)=>`<svg width="${s}" height="${s}" viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="${G}" stroke-width="14"/>${inner}</svg>`;
+const opts=[
+ ['A','Sharp line','Straight strokes, pointed corner, square ends. Crisp and clean.',
+  `<path d="M60,102 L88,130 L142,72" fill="none" stroke="${G}" stroke-width="13" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"/>`],
+ ['B','Thin precise','Same shape, lighter line. Elegant, matches the ring weight below it.',
+  `<path d="M62,102 L88,128 L140,74" fill="none" stroke="${G}" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter"/>`],
+ ['C','Tapered blade','A solid shape, thin at the start, heavy at the corner, sharp point at the end.',
+  `<path d="M58,100 L66,93 L88,114 L143,64 L146,68 L89,134 Z" fill="${G}"/>`],
+ ['D','Bold heavy','Thick and short. Reads instantly, even small.',
+  `<path d="M60,100 L86,126 L140,72" fill="none" stroke="${G}" stroke-width="20" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"/>`],
+ ['E','Solid disc','The ring fills in and the tick is cut out of it.',
+  `<circle cx="100" cy="100" r="70" fill="${G}"/><path d="M68,102 L90,124 L134,78" fill="none" stroke="#1c1c1c" stroke-width="13" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"/>`],
+ ['F','Breaks the ring','A sharp tick whose long arm cuts through the ring at the top right.',
+  `<path d="M58,102 L88,132 L170,40" fill="none" stroke="#1c1c1c" stroke-width="26" stroke-linecap="butt"/><path d="M60,102 L88,130 L166,44" fill="none" stroke="${G}" stroke-width="13" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10"/>`],
+];
+document.getElementById('g').innerHTML=opts.map(([t,n,d,p])=>`<div class="c"><div class="tag">${t}</div><div class="nm">${n}</div>${ring(p)}<div class="small">${ring(p,44)}${ring(p,28)}<span>trophy size</span></div><div class="d">${d}</div></div>`).join('');
+</script></body></html>

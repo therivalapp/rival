@@ -1,0 +1,63 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Mockup 66 · Personal Focus goal complete (2026-11-15). Today's real Focus
+   card (home.tsx mFocusFree): serif title, FOCUS rule, 200px ring, meta row. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;width:1640px;padding-bottom:30px}
+.top{font:italic 700 24px Georgia,serif;text-align:center;padding:18px 0 4px}
+.sub{text-align:center;font-size:12.5px;color:rgba(255,255,255,.6);padding:0 40px 18px}
+.row{display:flex;gap:24px;justify-content:center}
+.col{width:375px}
+.tag{font-size:12px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.desc{font-size:12px;color:rgba(255,255,255,.65);margin:4px 0 10px;line-height:1.45;min-height:52px}
+.ph{position:relative;width:375px;height:660px;border-radius:28px;overflow:hidden;background:#131313;padding:18px 16px;box-sizing:border-box}
+.card{position:relative;border-radius:22px;border:1px solid rgba(255,255,255,.08);background:radial-gradient(120% 60% at 50% 0%,rgba(217,119,87,.16),rgba(40,40,40,0) 60%),#1e1d1c;padding:22px 16px 20px;text-align:center}
+.t{font:italic 700 26px Georgia,serif}
+.fl{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;font-size:11px;font-weight:800;letter-spacing:2px;color:#ffb59e}
+.fl i{display:block;width:34px;height:1px;background:rgba(255,181,158,.4)}
+.ring{width:200px;height:200px;margin:16px auto 0;position:relative}
+.ring svg{position:absolute;inset:0}
+.ri{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.big{font:italic 700 52px Georgia,serif;line-height:1}
+.of{font-size:13px;color:rgba(255,255,255,.65);margin-top:6px}
+.meta{display:flex;justify-content:center;margin-top:18px}
+.mc{width:130px}.mc b{display:block;font:italic 700 26px Georgia,serif}.mc span{font-size:10.5px;font-weight:800;letter-spacing:2px;color:#ffb59e}
+.dv{width:1px;background:rgba(255,181,158,.25)}
+.badge{display:inline-flex;align-items:center;gap:6px;margin-top:16px;padding:6px 12px;border-radius:999px;background:rgba(255,215,0,.14);border:1px solid rgba(255,215,0,.6);font-size:11px;font-weight:800;letter-spacing:1.4px;color:#FFD700}
+.badge svg{width:14px;height:14px}
+.line{font-size:13px;margin-top:10px;color:rgba(255,255,255,.85)}.line b{color:#FFD700}
+.btn{display:inline-block;margin-top:16px;padding:11px 22px;border-radius:999px;background:linear-gradient(135deg,#D97757,#ffb59e);color:#2a1710;font-weight:800;font-size:13.5px}
+.ghost{display:inline-block;margin-top:16px;margin-left:8px;padding:10px 18px;border-radius:999px;border:1px solid rgba(255,181,158,.4);color:#ffb59e;font-weight:800;font-size:13.5px}
+.togo{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:13.5px;color:rgba(255,255,255,.85)}
+.strip{display:flex;align-items:center;gap:12px;border-radius:16px;padding:12px 14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(255,215,0,.22),rgba(255,215,0,.05) 70%);border:1px solid rgba(255,215,0,.55);border-top-color:rgba(255,244,184,.95);text-align:left}
+.strip .k{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#FFD700}
+.strip .n{font:italic 700 17px Georgia,serif;margin-top:1px}
+.strip .v{margin-left:auto;font:italic 700 20px Georgia,serif;color:#ffe27a}
+.conf{position:absolute;inset:0;pointer-events:none}
+.conf i{position:absolute;width:7px;height:11px;border-radius:2px}
+.nav{position:absolute;left:16px;right:16px;bottom:14px;height:52px;border-radius:26px;background:#1c1c1c;border:1px solid rgba(255,255,255,.08)}
+</style></head><body>
+<div class="top">Mockup 66 · Focus goal complete</div>
+<div class="sub">The moment plays once, the first time Today opens after the goal is reached. Then one of A, B or C.</div>
+<div class="row" id="r"></div>
+<script>
+const G='#FFD700',IV='#f4ead8';
+const TICK='M53.6,109.6 L71.2,95.2 Q82.4,106.4 90.4,119.2 Q116,87.2 149.6,56.8 Q122.4,95.2 96.8,140 Q90.4,144.8 85.6,143.2 Q69.6,125.6 53.6,109.6 Z';
+const ring=(pct,col,inner,s=200)=>`<div class="ring" style="width:${s}px;height:${s}px"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="86" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="14"/><circle cx="100" cy="100" r="86" fill="none" stroke="${col}" stroke-width="14" stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="${540.35*pct} 541"/></svg>${inner}</div>`;
+const tick=`<svg viewBox="0 0 200 200"><path d="${TICK}" fill="${IV}"/></svg>`;
+const check='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFD700"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#2a2200" stroke-width="2.4"/></svg>';
+const head=(t)=>`<div class="t">${t}</div><div class="fl"><i></i>FOCUS<i></i></div>`;
+const done=(extra)=>`<div class="card">${head('All activities')}${ring(1,G,tick)}<div class="badge">${check}GOAL COMPLETE</div><div class="line"><b>150 km</b> · finished 12 days early</div>${extra}</div>`;
+let seed=3;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const cols=[G,'#ffb59e','#5edac7','#fff4b8','#D97757','#fff'];
+const conf='<div class="conf">'+Array.from({length:60},(_,i)=>`<i style="left:${rnd()*360}px;top:${rnd()*620}px;background:${cols[i%6]};transform:rotate(${rnd()*360}deg)"></i>`).join('')+'</div>';
+const next=`<div class="card">${head('Run 5 times')}${ring(0.4,'url(#x)','<div class="ri"><div class="big">2</div><div class="of">/ 5 activities</div></div>').replace('url(#x)','#e08a6b')}<div class="meta"><div class="mc"><b>40%</b><span>COMPLETE</span></div><div class="dv"></div><div class="mc"><b>9</b><span>DAYS LEFT</span></div></div></div>`;
+const strip=`<div class="strip"><svg viewBox="0 0 200 200" width="40" height="40"><circle cx="100" cy="100" r="86" fill="none" stroke="${G}" stroke-width="16"/><path d="${TICK}" fill="${IV}"/></svg><div><div class="k">GOAL COMPLETE</div><div class="n">All activities</div></div><div class="v">150<span style="font:700 12px Manrope;color:rgba(255,255,255,.6)"> km</span></div></div>`;
+const P=[
+ ['THE MOMENT','Ring counts 0 to 100% and turns gold, the tick draws in, one pop, confetti down the page. Same motion as the team challenge.', `<div class="card">${head('All activities')}${ring(1,G,tick)}<div class="badge">${check}GOAL COMPLETE</div><div class="line"><b>150 km</b> · finished 12 days early</div></div>${conf}`],
+ ['A · STAYS UNTIL ITS END DATE','The completed ring stays on Today until the goal was due to end. Set next focus starts another.', done('<div><span class="btn">Set next focus</span></div>')],
+ ['B · NEXT FOCUS TAKES OVER','Your next goal moves into the ring straight away. The win stays above it as a gold strip for 3 days.', strip+next],
+ ['C · STAYS FOR TODAY','The completed ring stays for the rest of the day, then the next goal takes the spot. With no other goal, it stays with Set next focus.', done('<div class="togo" style="color:rgba(255,255,255,.6)">Next up tomorrow: Run 5 times</div>')],
+];
+document.getElementById('r').innerHTML=P.map(([t,d,c])=>`<div class="col"><div class="tag">${t}</div><div class="desc">${d}</div><div class="ph">${c}<div class="nav"></div></div></div>`).join('');
+</script></body></html>

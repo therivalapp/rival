@@ -1,0 +1,203 @@
+<!doctype html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"><style>
+/* Mockup 56 · Ended team challenge (Ricky, 2026-11-14). Built on team-hub.tsx's
+   phone Overview: hero photo, crest, tabs, Team Challenge ring and meta row. */
+body{margin:0;background:#0b0b0b;font-family:Manrope,sans-serif;color:#fff;padding:22px 22px 30px}
+.top{font:italic 700 26px Georgia,serif;text-align:center;margin:4px 0 4px}
+.sub{text-align:center;font-size:13px;color:rgba(255,255,255,.55);margin-bottom:20px}
+.row{display:flex;gap:24px;justify-content:center}
+.col{width:375px}
+.tag{font-size:11px;letter-spacing:2px;color:#ffb59e;margin:0 4px 6px;font-weight:800}
+.desc{font-size:12px;color:rgba(255,255,255,.6);margin:0 4px 12px;line-height:17px;min-height:34px}
+.mi{font-family:'Material Icons Round';font-weight:normal;font-style:normal;line-height:1;display:inline-block;vertical-align:middle}
+.ph{position:relative;width:375px;height:812px;border-radius:28px;overflow:hidden;background:#131313}
+.photo{position:absolute;inset:0;background:url(../assets/images/backgrounds/optimized/coastal-highway-triathlete-dusk-3.jpg) center/cover;opacity:.55}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(19,19,19,.15) 0%,rgba(19,19,19,.35) 40%,#131313 78%)}
+.in{position:relative;padding:52px 18px 0;text-align:center}
+.back,.gear{position:absolute;top:50px;width:30px;height:30px;border-radius:15px;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:18px}
+.back{left:16px}.gear{right:16px}
+.crest{width:74px;height:74px;border-radius:18px;margin:6px auto 0;background:#1f3b2c;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:italic 700 13px Georgia,serif;color:#f5d27a}
+.name{font:italic 700 24px Georgia,serif;margin-top:10px}
+.mem{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:2px}
+.tabs{display:flex;gap:4px;margin:12px auto 0;background:rgba(0,0,0,.45);border-radius:999px;padding:3px;width:max-content}
+.tabs div{font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:999px;color:rgba(255,255,255,.65)}.tabs .on{background:rgba(255,255,255,.12);color:#fff}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:1px;color:#ffb59e;margin-top:22px}
+.ht{font:italic 700 24px Georgia,serif;margin-top:4px}
+.hs{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px}
+.ring{width:170px;height:170px;margin:16px auto 0;position:relative}
+.ring svg{position:absolute;inset:0}
+.rv{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rv b{font:italic 700 32px Georgia,serif}.rv span{font-size:11.5px;color:rgba(255,255,255,.6)}
+.meta{display:flex;justify-content:center;gap:16px;margin-top:16px;font-size:13px;color:rgba(255,255,255,.75)}.meta b{color:#fff;font-weight:800}
+.ended{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;font-weight:800;letter-spacing:1.4px;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 11px}
+.who{display:flex;justify-content:center;gap:10px;margin-top:16px}
+.who .p{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:rgba(255,255,255,.7)}
+.who .a{width:38px;height:38px;border-radius:19px;background:#5b4a3e;border:2px solid #ffb59e}
+.who b{font-size:12px;color:#fff}
+.btn{margin:22px auto 0;width:max-content;display:flex;align-items:center;gap:8px;background:rgba(20,20,20,.55);padding:12px 16px;border-radius:14px;border:1px solid rgba(255,181,158,.33);font-size:13.5px;font-weight:700}
+.btn .mi{font-size:17px;color:#ffb59e}
+</style><style>
+.muted circle:nth-child(2){stroke:rgba(255,181,158,.45)}
+.final{font-size:10px;font-weight:800;letter-spacing:1.6px;color:rgba(255,255,255,.55);margin-top:2px}
+.card{margin:16px 0 0;text-align:left;border-radius:16px;border:1px solid rgba(255,181,158,.18);background:rgba(255,209,190,.05);padding:14px 16px}
+.k{font-size:10px;font-weight:800;letter-spacing:1.6px;color:#ffb59e}
+.ct{font:italic 700 22px Georgia,serif;margin-top:4px}
+.cd{font-size:12.5px;color:rgba(255,255,255,.65);margin-top:4px;line-height:18px}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:10px;overflow:hidden}.bar i{display:block;height:6px;width:3%;background:#ffb59e}
+.big{font:italic 700 40px Georgia,serif;margin-top:18px}
+.bigs{font-size:13px;color:rgba(255,255,255,.7)}
+.none{margin-top:26px;font:italic 700 22px Georgia,serif}
+.nones{font-size:12.5px;color:rgba(255,255,255,.6);margin-top:6px}
+.sec{font-size:10px;font-weight:800;letter-spacing:1.6px;color:#A0A0A0;margin:18px 0 8px;text-align:left}
+.tiles{display:flex;gap:8px}.tile{flex:1;height:82px;border-radius:14px;border:1px solid rgba(255,181,158,.2);background:rgba(255,209,190,.05);position:relative;padding:8px;font-size:12px;font-weight:700;display:flex;align-items:flex-end}.tile .mi{position:absolute;right:6px;top:6px;font-size:38px;color:rgba(255,255,255,.1)}.tile.lit{background:linear-gradient(135deg,#D97757,#ffb59e);color:#2a1710;border:0}.tile.lit .mi{color:rgba(42,23,16,.18)}
+.rows{border-radius:14px;border:1px solid rgba(255,181,158,.18);background:rgba(255,209,190,.05);text-align:left}
+.r{display:flex;align-items:center;gap:10px;padding:11px 12px;font-size:13px}.r+.r{border-top:1px solid rgba(255,209,190,.08)}
+.r .mi{font-size:18px;color:#ffb59e}.r .t{flex:1}.r small{display:block;font-size:11px;color:rgba(255,255,255,.5);margin-top:1px}
+.seg{display:flex;background:rgba(255,255,255,.06);border-radius:999px;padding:2px}.seg span{font-size:11px;font-weight:700;padding:5px 9px;border-radius:999px;color:rgba(255,255,255,.55)}.seg .on{background:rgba(255,181,158,.18);color:#ffb59e}
+.lock{font-size:11px;color:rgba(255,255,255,.45)}
+.page{position:relative;padding:52px 18px 0}
+.ptitle{font:italic 700 26px Georgia,serif;text-align:center}.pk{font-size:10px;font-weight:800;letter-spacing:1.6px;color:#ffb59e;text-align:center}
+.note{font-size:11.5px;color:rgba(255,255,255,.5);margin-top:8px;text-align:left;line-height:16px}
+</style></head><body><style>
+.u{font-family:Manrope,sans-serif;font-style:normal;font-weight:600;font-size:.42em;color:rgba(255,255,255,.55);margin-left:1px}
+.kick{font-size:11px;font-weight:800;letter-spacing:1.6px;color:#ffb59e;margin-top:22px}
+.hero{font:italic 700 46px Georgia,serif;margin-top:8px;line-height:1}
+.heros{font-size:13px;color:rgba(255,255,255,.75);margin-top:8px}
+.facts{display:flex;justify-content:center;gap:0;margin-top:16px}
+.fact{padding:0 14px;text-align:center}.fact+.fact{border-left:1px solid rgba(255,255,255,.15)}
+.fact b{display:block;font:italic 700 22px Georgia,serif}.fact span{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.mvp{margin:18px 0 0;border-radius:16px;padding:14px;display:flex;align-items:center;gap:12px;text-align:left;background:linear-gradient(135deg,rgba(255,181,158,.16),rgba(255,181,158,.04));border:1px solid rgba(255,181,158,.4)}
+.mvp .av{width:46px;height:46px;border-radius:23px;background:#5b4a3e;border:2px solid #ffb59e;position:relative}
+.mvp .av .mi{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:18px;color:#ffb59e}
+.mk{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.mn{font:italic 700 20px Georgia,serif;margin-top:2px}
+.ms{font-size:12px;color:rgba(255,255,255,.65);margin-top:2px}
+.rest{display:flex;justify-content:center;gap:22px;margin-top:14px}
+.rest .p{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:rgba(255,255,255,.65)}
+.rest .a{width:34px;height:34px;border-radius:17px;background:#4a4f5b;border:1.5px solid rgba(255,181,158,.5)}
+.rest b{font-size:12.5px;color:#fff}
+.fun{margin-top:14px;font-size:13px;color:rgba(255,255,255,.8)}.fun b{color:#ffb59e}
+.tgt{margin-top:12px;font-size:11.5px;color:rgba(255,255,255,.45)}
+</style><style>
+.ph.tall{height:1000px}
+.in{padding-top:44px}
+.crest{width:64px;height:64px}
+.kick{margin-top:18px}
+.hero{font-size:50px}
+.facts{margin-top:14px}
+.mvp{margin-top:16px}
+.duo{display:flex;gap:8px;margin-top:8px}
+.d{flex:1;display:flex;align-items:center;gap:9px;text-align:left;border-radius:14px;padding:10px;border:1px solid rgba(255,181,158,.2);background:rgba(255,209,190,.05)}
+.d .av{width:32px;height:32px;border-radius:16px;background:#4a4f5b;border:1.5px solid rgba(255,181,158,.55);flex-shrink:0}
+.d .pl{font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:rgba(255,255,255,.55)}
+.d .nm{font-size:13.5px;font-weight:700}.d .vl{font-size:12px;color:rgba(255,255,255,.7)}
+.sm{font-size:.8em;color:rgba(255,255,255,.5);font-weight:600}
+.everyone{margin-top:14px;text-align:left}
+.everyone .lab{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#A0A0A0;margin-bottom:8px}
+.strip{display:flex;gap:14px;overflow:hidden}
+.strip .p{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:rgba(255,255,255,.6);width:44px;flex-shrink:0}
+.strip .a{width:34px;height:34px;border-radius:17px;background:#3f4450}
+.strip b{font-size:12px;color:#fff}
+.more{width:34px;height:34px;border-radius:17px;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:rgba(255,255,255,.7)}
+.list{margin-top:14px;border-radius:14px;border:1px solid rgba(255,181,158,.18);background:rgba(255,209,190,.05);text-align:left}
+.li{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:13px}.li+.li{border-top:1px solid rgba(255,209,190,.07)}
+.li .n{width:16px;font-size:11px;font-weight:800;color:rgba(255,255,255,.45)}
+.li .a{width:26px;height:26px;border-radius:13px;background:#3f4450}
+.li .t{flex:1}.li b{font-weight:700}
+.tgt{margin-top:14px}
+</style><style>
+.c1{margin-top:16px;border-radius:18px;padding:14px 14px 14px 12px;display:flex;align-items:center;gap:14px;text-align:left;
+ background:linear-gradient(135deg,rgba(255,215,0,.22),rgba(255,215,0,.05) 70%);border:1px solid rgba(255,215,0,.55)}
+.wr{position:relative;width:70px;height:70px;flex-shrink:0}
+.wr svg{position:absolute;inset:0}
+.wr .av{position:absolute;left:13px;top:11px;width:44px;height:44px;border-radius:22px;background:#6b5848;border:2px solid #FFD700}
+.pk{font-size:10.5px;font-weight:800;letter-spacing:1.5px}
+.c1 .pk{color:#FFD700}
+.c1 .nm{font:italic 700 24px Georgia,serif;color:#fff;margin-top:1px}
+.c1 .vl{font:italic 700 20px Georgia,serif;color:#fff;margin-top:2px}
+.c1 .vs{font-size:12px;color:#fff;margin-top:2px}
+.unit{font-family:Manrope,sans-serif;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7);margin-left:1px}
+.duo2{display:flex;gap:8px;margin-top:8px}
+.cx{flex:1;display:flex;align-items:center;gap:10px;text-align:left;border-radius:16px;padding:11px}
+.cx .av{width:36px;height:36px;border-radius:18px;background:#4a4f5b;flex-shrink:0}
+.cx .nm{font-size:14.5px;font-weight:800;color:#fff;margin-top:1px}
+.cx .vl{font:italic 700 17px Georgia,serif;color:#fff}
+.c2{background:linear-gradient(135deg,rgba(255,181,158,.22),rgba(255,181,158,.05) 75%);border:1px solid rgba(255,181,158,.55)}.c2 .pk{color:#ffb59e}.c2 .av{border:2px solid #ffb59e}
+.c3{background:linear-gradient(135deg,rgba(94,218,199,.2),rgba(94,218,199,.05) 75%);border:1px solid rgba(94,218,199,.5)}.c3 .pk{color:#5edac7}.c3 .av{border:2px solid #5edac7}
+.also{margin:16px -18px 0 0;text-align:left}
+.also .lab{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#ffb59e;margin-bottom:8px}
+.sw{display:flex;gap:12px;overflow:hidden;padding-right:18px}
+.sw .p{display:flex;flex-direction:column;align-items:center;gap:3px;width:50px;flex-shrink:0}
+.sw .a{width:40px;height:40px;border-radius:20px;background:#3f4450;border:1.5px solid rgba(255,255,255,.25)}
+.sw b{font-size:12.5px;color:#fff}.sw span{font-size:11.5px;color:#fff}
+.trio{display:flex;gap:7px;align-items:flex-end;margin-top:16px}
+.tc{flex:1;border-radius:16px;padding:10px 6px 12px;text-align:center}
+.tc .av{width:40px;height:40px;border-radius:20px;background:#4a4f5b;margin:0 auto}
+.tc .nm{font-size:13.5px;font-weight:800;color:#fff;margin-top:6px}
+.tc .vl{font:italic 700 18px Georgia,serif;color:#fff}
+.tc.c1{display:block;margin-top:0;padding:10px 6px 16px}
+.tc.c1 .wr{margin:0 auto}
+.tc.c1 .vl{font-size:24px}
+</style><style>
+.ph.tall{height:1000px;background:#131313}
+.sec2{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#A0A0A0;margin:20px 0 9px;text-align:left;display:flex;justify-content:space-between}
+.sec2 b{color:#ffb59e}
+.tiles3{display:flex;gap:8px}.t3{flex:1;height:100px;border-radius:14px;border:1px solid rgba(255,181,158,.2);background:rgba(255,209,190,.05);position:relative;overflow:hidden;padding:9px;font-size:12px;font-weight:700;display:flex;align-items:flex-end;text-align:left}
+.t3 .mi{position:absolute;right:-6px;top:-4px;font-size:84px;color:rgba(255,255,255,.09)}.t3.lit{background:linear-gradient(135deg,#D97757,#ffb59e);color:#2a1710;border:0}.t3.lit .mi{color:rgba(42,23,16,.16)}
+.case{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tc2{border-radius:16px;padding:12px 10px 12px;text-align:center;border:1px solid rgba(255,181,158,.2);background:rgba(255,209,190,.05)}
+.tc2 .ty{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#ffb59e}
+.tc2 .when{font-size:11px;color:#fff;margin-top:2px}
+.tc2 .tot{font:italic 700 26px Georgia,serif;margin-top:6px}
+.mini{display:flex;justify-content:center;align-items:flex-end;gap:14px;margin-top:16px}
+.mini .m{display:flex;flex-direction:column;align-items:center;gap:12px;font-size:10.5px;color:#fff;font-weight:700}
+.mini .a{border-radius:50%;background:#5b4a3e;position:relative}
+.mini .a1{width:34px;height:34px;border:2px solid #FFD700}.mini .a2{width:28px;height:28px;border:2px solid #ffb59e}.mini .a3{width:26px;height:26px;border:2px solid #5edac7}
+.tc2.dim{border-color:rgba(255,181,158,.3);background:linear-gradient(180deg,rgba(255,181,158,.10),rgba(255,181,158,.02) 70%)}.tc2.dim .ty{color:#ffb59e}
+.rec{border-radius:16px;border:1px solid rgba(255,181,158,.2);background:rgba(255,209,190,.05);text-align:left}
+.rr{display:flex;align-items:center;gap:8px;padding:10px 14px 10px 10px}.rr+.rr{border-top:1px solid rgba(255,209,190,.08)}
+.rr .a{width:36px;height:36px;border-radius:18px;background:#5b4a3e;border:2px solid #FFD700;flex-shrink:0;position:relative;margin:10px 12px 14px 10px}
+.rr .t{flex:1;text-align:left}.rr .k{font-size:10px;font-weight:800;letter-spacing:1.3px;color:#ffb59e}
+.rr .nm{font-size:14.5px;font-weight:800;color:#fff;margin-top:1px}.rr .sub{font-size:11.5px;color:#fff;opacity:.8;margin-top:1px}
+.rr .v{font:italic 700 22px Georgia,serif;color:#fff;text-align:right}
+.note2{font-size:11.5px;color:#fff;opacity:.7;margin-top:9px;text-align:left}
+.seg2{display:flex;background:rgba(255,255,255,.06);border-radius:999px;padding:3px;margin:0 0 10px}.seg2 span{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:7px 0;border-radius:999px;color:#fff;opacity:.6}.seg2 .on{background:rgba(255,181,158,.18);color:#ffb59e;opacity:1}
+.tc2.sA{border:1.5px solid rgba(255,215,0,.75);background:rgba(255,209,190,.04)}.tc2.sA .ty{color:#FFD700}
+.tc2.sB{position:relative;border:1px solid rgba(255,215,0,.5);border-top:1.5px solid rgba(255,244,184,.95);background:rgba(255,215,0,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}.tc2.sB:before{content:"";position:absolute;inset:3.5px;border-radius:13px;border:1px solid rgba(255,255,255,.08)}.tc2.sB .ty{color:#FFD700}
+.tc2.sC{padding-top:0;overflow:hidden;border:1px solid rgba(255,215,0,.45);background:rgba(255,209,190,.04)}.tc2.sC .ty{margin:0 -10px 8px;padding:6px 0;background:linear-gradient(180deg,#ffe48a,#d9a91c);color:#2a1d05;letter-spacing:1.6px}
+.rc{position:relative;display:flex;align-items:center;gap:6px;border-radius:16px;padding:12px 14px 12px 6px;margin-bottom:8px;text-align:left;border:1px solid rgba(255,215,0,.45);border-top:1.5px solid rgba(255,244,184,.9);background:rgba(255,215,0,.06)}
+.rc:before{content:"";position:absolute;inset:3.5px;border-radius:13px;border:1px solid rgba(255,255,255,.07);pointer-events:none}
+.rc .a{width:40px;height:40px;border-radius:20px;background:#5b4a3e;border:2px solid #FFD700;flex-shrink:0;position:relative;margin:12px 14px 16px 12px}
+.rc .t{flex:1;text-align:left}
+.rc .k{font-size:12px;font-weight:800;letter-spacing:1.5px;color:#FFD700}
+.rc .nm{font:italic 700 23px Georgia,serif;color:#fff;margin-top:2px}
+.rc .v{font:italic 700 32px Georgia,serif;color:#fff;text-align:right;margin-top:14px}
+.rc .dt{position:absolute;top:10px;right:14px;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.7)}
+.rl{border-radius:16px;border:1px solid rgba(255,215,0,.4);border-top:1.5px solid rgba(255,244,184,.85);background:rgba(255,215,0,.05);overflow:hidden}
+.rl .rc{border:0;border-radius:0;margin:0;background:none}.rl .rc:before{display:none}.rl .rc+.rc{border-top:1px solid rgba(255,215,0,.15)}
+</style><div class="top">Mockup 59 v4 · Team records</div><div class="sub">Glass trophies first. Records with the record and the name up front, a big number, and the date tucked in the corner.</div><div class="row"><div class="col"><div class="tag">A · EACH RECORD ITS OWN GLASS CARD</div><div class="desc">Four separate cards, like plates on a records wall.</div><div class="ph tall"><div class="in">
+<div class="back"><span class="mi">chevron_left</span></div>
+<div class="crest">MM</div><div class="name">Mountain Marmots</div><div class="mem">12 members</div>
+<div class="tabs"><div>Overview</div><div>Posts</div><div class="on">Challenges</div><div>Members</div></div>
+<div class="sec2" style="display:none">START</div>
+<div class="sec2">TROPHY CASE <b>4</b></div><div class="case"><div class="tc2 sB"><div class="ty">ELEVATION</div><div class="when">Jul – Oct 2026</div><div class="tot">5,930<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">m</span></div>
+<div class="mini"><div class="m"><div class="a a2"></div>Sam</div><div class="m"><div class="a a1 wreath" data-size="34"></div>Ricky</div><div class="m"><div class="a a3"></div>Tess</div></div></div><div class="tc2 sB"><div class="ty">DISTANCE</div><div class="when">Jun 2026</div><div class="tot">412<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">km</span></div>
+<div class="mini"><div class="m"><div class="a a2"></div>Mia</div><div class="m"><div class="a a1 wreath" data-size="34"></div>Sam</div><div class="m"><div class="a a3"></div>Ricky</div></div></div></div><div style="margin-top:6px"><div class="sec2">TEAM RECORDS</div><div class="seg2"><span class="on">2026</span><span>All time</span></div><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST ELEVATION</div><div class="nm">Ricky</div></div><div class="v">1,240<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">m</span></div><div class="dt">Oct 2026</div></div><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST DISTANCE</div><div class="nm">Sam</div></div><div class="v">142<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">km</span></div><div class="dt">Jun 2026</div></div><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST ACTIVITIES</div><div class="nm">Tess</div></div><div class="v">24</div><div class="dt">May 2026</div></div><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST EFFORT</div><div class="nm">Ricky</div></div><div class="v">1,018</div><div class="dt">Apr 2026</div></div><div class="note2">Resets on 1 January. Beat one in a challenge to take the spot.</div></div></div></div></div><div class="col"><div class="tag">B · ONE GLASS BOARD</div><div class="desc">The same rows in one board, split by thin gold lines.</div><div class="ph tall"><div class="in">
+<div class="back"><span class="mi">chevron_left</span></div>
+<div class="crest">MM</div><div class="name">Mountain Marmots</div><div class="mem">12 members</div>
+<div class="tabs"><div>Overview</div><div>Posts</div><div class="on">Challenges</div><div>Members</div></div>
+<div class="sec2" style="display:none">START</div>
+<div class="sec2">TROPHY CASE <b>4</b></div><div class="case"><div class="tc2 sB"><div class="ty">ELEVATION</div><div class="when">Jul – Oct 2026</div><div class="tot">5,930<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">m</span></div>
+<div class="mini"><div class="m"><div class="a a2"></div>Sam</div><div class="m"><div class="a a1 wreath" data-size="34"></div>Ricky</div><div class="m"><div class="a a3"></div>Tess</div></div></div><div class="tc2 sB"><div class="ty">DISTANCE</div><div class="when">Jun 2026</div><div class="tot">412<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">km</span></div>
+<div class="mini"><div class="m"><div class="a a2"></div>Mia</div><div class="m"><div class="a a1 wreath" data-size="34"></div>Sam</div><div class="m"><div class="a a3"></div>Ricky</div></div></div></div><div style="margin-top:6px"><div class="sec2">TEAM RECORDS</div><div class="seg2"><span class="on">2026</span><span>All time</span></div><div class="rl"><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST ELEVATION</div><div class="nm">Ricky</div></div><div class="v">1,240<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">m</span></div><div class="dt">Oct 2026</div></div><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST DISTANCE</div><div class="nm">Sam</div></div><div class="v">142<span style="font-family:Manrope;font-style:normal;font-weight:700;font-size:.6em;color:rgba(255,255,255,.7)">km</span></div><div class="dt">Jun 2026</div></div><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST ACTIVITIES</div><div class="nm">Tess</div></div><div class="v">24</div><div class="dt">May 2026</div></div><div class="rc"><div class="a wreath" data-size="40"></div><div class="t"><div class="k">MOST EFFORT</div><div class="nm">Ricky</div></div><div class="v">1,018</div><div class="dt">Apr 2026</div></div></div><div class="note2">Resets on 1 January. Beat one in a challenge to take the spot.</div></div></div></div></div></div><script>function laurel(avatarSize){const PAD=26,GAP=5,RANGE=[22,120],PAIRS=9,LEAF_LEN=7.8,LEAF_WID=2.35,SPREAD=28,TAIL=1.55;const f1=n=>n.toFixed(1);
+const size=avatarSize+PAD*2,c=size/2,r=avatarSize/2+GAP;const at=(s,t)=>{const th=((90+s*t)*Math.PI)/180;return{x:c+r*Math.cos(th),y:c+r*Math.sin(th),th}};
+let out='';const fill='url(#lg)';
+for(const side of [-1,1]){const a0=at(side,RANGE[0]),a1=at(side,RANGE[1]);const gx=side*-Math.sin(a0.th),gy=side*Math.cos(a0.th);const cross=(c-a0.x)/-gx;
+out+=`<path d="M${f1(a0.x)},${f1(a0.y)} L${f1(a0.x-gx*cross*TAIL)},${f1(a0.y-gy*cross*TAIL)}" fill="none" stroke="${fill}" stroke-width="1" stroke-linecap="round"/>`;
+out+=`<path d="M${f1(a0.x)},${f1(a0.y)} A${r},${r} 0 0 ${side<0?0:1} ${f1(a1.x)},${f1(a1.y)}" fill="none" stroke="${fill}" stroke-width="1"/>`;
+for(let i=0;i<PAIRS;i++){const f=i/(PAIRS-1);const p=at(side,RANGE[0]+(RANGE[1]-RANGE[0])*f);const base=(Math.atan2(side*Math.cos(p.th),side*-Math.sin(p.th))*180)/Math.PI;const len=LEAF_LEN*(1-f*.45),wid=LEAF_WID*(1-f*.35);
+for(const k of [-1,1]){const wob=Math.sin(i*2.3+k*1.7);const l=len*(1+wob*.08);const bend=-k*side*wid*.9;
+out+=`<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(base+k*(SPREAD+wob*7))})"><path d="M0,0 C${f1(l*.25)},${f1(-wid*1.25)} ${f1(l*.7)},${f1(-wid*1.05+bend*.3)} ${f1(l)},${f1(bend*.55)} C${f1(l*.72)},${f1(wid*.85+bend*.3)} ${f1(l*.28)},${f1(wid*1.05)} 0,0 Z" fill="${fill}" stroke="#7a5a10" stroke-opacity=".55" stroke-width=".45"/><path d="M0.8,0 Q${f1(l*.5)},${f1(bend*.1)} ${f1(l*.8)},${f1(bend*.4)}" fill="none" stroke="#7a5a10" stroke-opacity=".5" stroke-width=".5"/></g>`;}}
+const e=at(side,RANGE[1]+4);const tl=LEAF_LEN*.6;out+=`<g transform="translate(${f1(e.x)} ${f1(e.y)}) rotate(${f1((Math.atan2(side*Math.cos(e.th),side*-Math.sin(e.th))*180)/Math.PI)})"><path d="M0,0 Q${f1(tl*.45)},-2.2 ${f1(tl)},0 Q${f1(tl*.45)},2.2 0,0 Z" fill="${fill}"/></g>`;}
+return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="position:absolute;left:-${PAD}px;top:-${PAD}px;overflow:visible;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.55))"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF4B8"/><stop offset=".5" stop-color="#FFD700"/><stop offset="1" stop-color="#B8860B"/></linearGradient></defs>${out}</svg>`;}
+document.querySelectorAll('.wreath').forEach(w=>w.insertAdjacentHTML('afterbegin',laurel(+w.dataset.size)));
+</script></body></html>

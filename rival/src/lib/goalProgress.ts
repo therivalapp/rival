@@ -74,7 +74,7 @@ export function goalActivityLabel(goal: { goal_type: string; activity_filter: st
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-function matchesFilter(goal: GoalRow, a: ActivityRow): boolean {
+export function matchesFilter(goal: GoalRow, a: ActivityRow): boolean {
   const f = goal.activity_filter ?? (goal.goal_type === 'gym_sessions' ? 'Gym' : null);
   if (!f || f === ALL_ACTIVITIES) return true;
   if (f === 'Gym') return GYM_TYPES.has(a.activity_type);

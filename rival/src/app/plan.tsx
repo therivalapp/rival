@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
 import { formatDisplayName, formatTeamName } from '../lib/identity';
 import { GreyArtTile, RivalIcon, RivalTopNav, RivalPageHeader, RivalBackButton, RivalMobileHeader, RivalWarm, rm, activityIconName, RivalSheet, RivalSheetCard, rb, GreyPageHead, GreySheet, GreyLabel, GreyRows, GreyRow, GreyRowInput, GreyNote, GreyPrimary } from '../components/rival';
+import { GlassPill } from '../components/rival/GlassPill';
 import { activityTypeLabel } from '../components/rival/EffortBreakdownSheet';
 import { goToTab } from '../lib/tabNav';
 import { webFx } from '../lib/webFx';
@@ -293,14 +294,14 @@ export default function PlanScreen() {
                 return (
                   <View key={league.league_id} style={rb.card}>
                     <View style={rm.cardHead}>
-                      <Text style={ms.teamName} numberOfLines={1}>{league.league_name}</Text>
+                      <Text style={ms.teamName} numberOfLines={1}>{formatTeamName(league.league_name)}</Text>
                       {totalPlannedXp > 0 ? (
-                        <View style={[ms.rankPill, moved && ms.rankPillUp]}>
+                        <GlassPill tone={moved ? 'amber' : 'grey'} style={ms.rankPill}>
                           {moved ? <RivalIcon name="trendUp" size={14} color={RivalColors.accentGold} /> : dropped ? <RivalIcon name="trendDown" size={14} color="#f87171" /> : null}
                           <Text style={[ms.rankPillText, moved && { color: RivalColors.accentGold }]}>
                             P{league.currentRank} → P{league.projectedRank}
                           </Text>
-                        </View>
+                        </GlassPill>
                       ) : (
                         <Text style={ms.rankNow}>P{league.currentRank}</Text>
                       )}
@@ -446,7 +447,7 @@ export default function PlanScreen() {
           <RivalBackButton onPress={() => (router.canGoBack() ? router.back() : goToTab('/home'))} color={RivalColors.accentFill} />
         </View>
 
-        <RivalPageHeader title="Weekly Plan" subtitle="Projected team standing." />
+        <RivalPageHeader title="Weekly plan" subtitle="Projected team standing." />
 
         {/* Current vs projected Effort */}
         <View style={styles.xpCard}>
@@ -509,7 +510,7 @@ export default function PlanScreen() {
               return (
                 <View key={league.league_id} style={styles.leagueCard}>
                   <View style={styles.leagueCardHeader}>
-                    <Text style={styles.leagueName}>{league.league_name}</Text>
+                    <Text style={styles.leagueName}>{formatTeamName(league.league_name)}</Text>
                     <View style={styles.rankChangeBlock}>
                       {same && totalPlannedXp === 0 && (
                         <Text style={styles.rankSame}>—</Text>

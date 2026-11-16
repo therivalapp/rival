@@ -18,9 +18,11 @@ import {
 import { RivalAvatar } from '@/components/rival/RivalAvatar';
 import { usePullToRefresh } from '@/components/rival/usePullToRefresh';
 import { RivalBackButton, RivalIcon, RivalTopNav, GreySheet, GreyLabel } from '@/components/rival';
+import { GlassPill } from '@/components/rival/GlassPill';
 import { INBOX_ICON_FOR, goToInboxSubject, inboxTimeAgo } from '@/components/rival/NotificationsMenu';
 import { RivalButtonColors, RivalColors, RivalRadius, RivalSerifFamily, RivalType, RivalGhost } from '@/constants/rivalTheme';
 import { BusyText } from '../components/rival/BusyText';
+import { RoutePopUp } from '../components/rival/RivalModal';
 import { ShortActivityPreview, loadShortActivities, shortActivityLine, type ShortActivity } from '../components/rival/ShortActivityPreview';
 import { goToTab } from '../lib/tabNav';
 import { stravaSharingNeedsAnswer, STRAVA_SHARING_NOTICE } from '../lib/stravaSharing';
@@ -51,14 +53,17 @@ export default function InboxScreen() {
     const rows = await fetchInbox();
     setItems(rows);
     setLoading(false);
-    // Marked read on open, but only the purely informational ones. An item
-    // still waiting for an answer keeps counting until it is answered.
-    const toMark = rows.filter((r) => !r.read_at && !isActionable(r)).map((r) => r.id);
-    if (toMark.length) {
-      await markRead(toMark);
-      setItems((prev) => prev.map((r) => (toMark.includes(r.id) ? { ...r, read_at: new Date().toISOString() } : r)));
-    }
   }, []);
+
+  // An item is read when it is tapped, so the ones not yet looked at keep
+  // their dot (Ricky, 2026-11-15).
+  const openItem = (item: InboxItem) => {
+    if (!item.read_at && !isActionable(item)) {
+      markRead([item.id]);
+      setItems((prev) => prev.map((r) => (r.id === item.id ? { ...r, read_at: new Date().toISOString() } : r)));
+    }
+    goToInboxSubject(item);
+  };
 
   // Not an inbox row: shown while Strava sharing is still unanswered.
   const [stravaPending, setStravaPending] = useState(false);
@@ -135,6 +140,7 @@ export default function InboxScreen() {
     const earlier = unresolvedFirst.filter((i) => !isActionable(i));
     const close = () => (router.canGoBack() ? router.back() : goToTab('/home'));
     return (
+      <RoutePopUp>
       <View style={m.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
         <GreySheet kicker="INBOX" title="Notifications" onClose={close} footer={null}>
@@ -148,7 +154,7 @@ export default function InboxScreen() {
                     <Text style={styles.cardTitle}>{STRAVA_SHARING_NOTICE.title}</Text>
                     <Text style={styles.cardBody} numberOfLines={2}>{STRAVA_SHARING_NOTICE.body}</Text>
                   </View>
-                  <View style={m.tag}><Text style={m.tagText}>Review</Text></View>
+                  <GlassPill tone="salmon" style={m.tag}><Text style={m.tagText}>Review</Text></GlassPill>
                 </View>
               </TouchableOpacity>
             )}
@@ -188,7 +194,7 @@ export default function InboxScreen() {
                 <View style={m.list}>
                   {earlier.map((item, i) => (
                     <View key={item.id} style={[m.row, i > 0 && m.rowRule]}>
-                      <TouchableOpacity style={m.rowMain} activeOpacity={0.7} onPress={() => goToInboxSubject(item)}>
+                      <TouchableOpacity style={m.rowMain} activeOpacity={0.7} onPress={() => openItem(item)}>
                         <View>
                           {personFor(item, 32, 15)}
                           {!item.read_at && <View style={m.dot} />}
@@ -225,6 +231,7 @@ export default function InboxScreen() {
           </View>
         </GreySheet>
       </View>
+      </RoutePopUp>
     );
   }
 
@@ -278,7 +285,7 @@ export default function InboxScreen() {
                   style={styles.cardMain}
                   activeOpacity={open ? 1 : 0.7}
                   disabled={open}
-                  onPress={() => goToInboxSubject(item)}
+                  onPress={() => openItem(item)}
                 >
                   <View style={styles.iconWrap}>
                     <RivalIcon name={INBOX_ICON_FOR[item.kind]} size={17} color={RivalColors.accentText} />

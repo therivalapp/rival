@@ -16,11 +16,12 @@
 // schema and team-hub's hero/standings pick it up as-is.
 import { RivalCalendarGrid } from '../components/rival/RivalCalendarGrid';
 import { formatRaceName } from '../lib/identity';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, getAuthUser } from '../lib/supabase';
+import { archiveChallenge } from '../lib/teamChallengeArchive';
 import { RivalIcon, RivalIconName, RivalBackButton, RivalWarm, GreyArtTile, GreyPageHead, rb } from '../components/rival';
 import { sidePageWide } from '../constants/breakpoints';
 import { RivalColors, RivalRadius, RivalSerifFamily, RivalSpacing, RivalButtonColors, RivalGhost, RivalMainGlow, rivalTextShadow } from '../constants/rivalTheme';
@@ -169,17 +170,22 @@ export default function CreateTeamChallenge() {
   const mob = !sidePageWide(width);
   const sc = (t: string) => (mob ? t.charAt(0) + t.slice(1).toLowerCase() : t);
 
+  const existing = useRef<{ id: string; created_at: string; goal_metric: string | null; goal_target: number | null; goal_target_date: string | null; goal_start_date: string | null; race_id?: string | null } | null>(null);
   const selectedMetric = METRICS.find((m) => m.value === metric)!;
 
   useEffect(() => {
     if (!id) return;
     supabase
       .from('leagues')
-      .select('goal_metric, goal_target, goal_target_date, race_id')
+      .select('id, created_at, goal_metric, goal_target, goal_target_date, goal_start_date, race_id')
       .eq('id', id)
       .maybeSingle()
       .then(({ data }) => {
         if (!data) return;
+        existing.current = data as any;
+        // An ended challenge isn't edited: the form starts a new one, and the
+        // old one moves to the trophy case on save (2026-11-14).
+        if (data.goal_target_date && data.goal_target_date < toIsoDate(new Date())) return;
         if (data.race_id) {
           setEditing(true);
           setMode('race');
@@ -222,9 +228,12 @@ export default function CreateTeamChallenge() {
         return;
       }
       setSaving(true);
+      if (existing.current) await archiveChallenge(existing.current);
       const { error: dbErr } = await supabase
         .from('leagues')
-        .update({ race_id: selectedRaceId, goal_metric: null, goal_target: null, goal_target_date: null })
+        .update({ race_id: selectedRaceId, goal_metric: null, goal_target: null, goal_target_date: null,
+          // Training counts from the day the event is set (km trained on the hub).
+          goal_start_date: existing.current?.race_id === selectedRaceId ? (existing.current?.goal_start_date ?? todayLocalStr()) : todayLocalStr() })
         .eq('id', id);
       setSaving(false);
       if (dbErr) { setError(dbErr.message); return; }
@@ -248,9 +257,16 @@ export default function CreateTeamChallenge() {
     }
 
     setSaving(true);
+    // Editing a running challenge keeps its start; anything else is a new
+    // challenge from today, and the one before goes to the trophy case.
+    const prev = existing.current;
+    const today = toIsoDate(new Date());
+    const running = !!(prev?.goal_metric && prev.goal_target_date && prev.goal_target_date >= today);
+    const keepRunning = running && prev!.goal_metric === metric;
+    if (prev?.goal_metric && !keepRunning) await archiveChallenge(prev);
     const { error: dbErr } = await supabase
       .from('leagues')
-      .update({ goal_metric: metric, goal_target: numTarget, goal_target_date: goalTargetDate, race_id: null })
+      .update({ goal_metric: metric, goal_target: numTarget, goal_target_date: goalTargetDate, race_id: null, goal_start_date: keepRunning ? (prev!.goal_start_date ?? null) : today })
       .eq('id', id);
 
     setSaving(false);

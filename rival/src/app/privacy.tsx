@@ -31,7 +31,7 @@ const SECTIONS: Section[] = [
   },
   {
     title: 'Apple Health',
-    paras: ['This applies once RIVAL’s iPhone app is available. On iPhone, you can let RIVAL read your activities from Apple Health. RIVAL reads activity type, time, duration, distance, elevation, energy and route, and only after you allow it in the Health permission screen. Health data is used only to record your activities, score Effort and show them to your teams. It is never used for advertising or marketing, never sold, never given to data brokers, and never stored in iCloud. RIVAL does not write anything to Apple Health. You can turn access off at any time in the iPhone’s Settings.'],
+    paras: ['This applies once RIVAL’s iPhone app is available. On iPhone, you can let RIVAL read your activities from Apple Health. RIVAL reads activity type, time, duration, distance, elevation, energy and route, and only after you allow it in the Health permission screen. If you set a Steps goal, RIVAL also reads your daily step count. Steps stay on your iPhone to fill that goal: they are not sent to RIVAL’s servers, not shown to your teams and do not count toward Effort. Health data is used only to record your activities, score Effort and show them to your teams. It is never used for advertising or marketing, never sold, never given to data brokers, and never stored in iCloud. RIVAL does not write anything to Apple Health. You can turn access off at any time in the iPhone’s Settings.'],
   },
   {
     title: 'GPS recording',

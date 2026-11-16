@@ -29,10 +29,12 @@ import { getLevel, xpProgressInLevel, LEVELS } from '../../lib/xp';
 import { lifetimePace } from '../../lib/rankPace';
 import { rankSheen, rankTextSheen } from '../../constants/rankSheen';
 import { fetchReactionsOn, impactTotals } from '../../lib/reactions';
+import { readDailySteps } from '../../lib/appleHealth';
+import { stepsProgress, type StepsWeekDay } from '../../lib/steps';
 import { formatValue, gainedText, isPerformance, performanceState, performanceTitle, toGoText, type PerformanceGoal } from '../../lib/goalPerformance';
 import { loadPerformanceData } from '../../lib/goalPerformanceData';
 import { formatWeight } from '../../lib/units';
-import { computeGoalProgress, goalActivityLabel, goalSportSplit, goalToGoLine, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
+import { computeGoalProgress, matchesFilter, goalActivityLabel, goalSportSplit, goalToGoLine, goalUnit, GoalRow, localDay } from '../../lib/goalProgress';
 // Same set as my-activities.tsx/team-hub.tsx's METERS_SPORTS — those short
 // distances read as near-zero once rounded to km ("0.7km" is really "700m").
 // Distance goals always store/compute progress and target in km regardless
@@ -50,6 +52,8 @@ import { arrivedFromTab, getCurrentPath, goToTab, sincePathChange } from '../../
 import { avatarImage } from '../../lib/imageUrl';
 import { webFx } from '../../lib/webFx';
 import * as phoneStore from '../../lib/phoneStore';
+import { FocusComplete, NextFocusSheet, type NextFocus } from '../../components/rival/FocusComplete';
+import { Confetti } from '../../components/rival/team/ChallengeResults';
 
 // Empty podium: a faint wreath round an empty seat over first place.
 // false = the older medal in a ring.
@@ -1141,7 +1145,16 @@ type FeaturedGoal = {
   daysLeft: number;
   /** A distance focus over several sports, split for the ring (Mockup 50 B). */
   sports?: RingSegment[] | null;
+  /** A Steps focus (Mockup 52): this week's days and today's gap. */
+  steps?: { period: 'day' | 'week'; week: StepsWeekDay[]; daysHit: number; daysSoFar: number; toGo: number };
+  /** Reached (Mockup 66 v4): how early, and the other goals lined up. */
+  done?: { daysEarly: number | null; others: NextFocus[]; facts: { activities: number; seconds: number; days: number } };
 };
+
+// A reached goal keeps the Focus spot this long when others are lined up;
+// with none, until a new one is set (looking back at most DONE_LOOKBACK_DAYS).
+const DONE_STAYS_DAYS = 3;
+const DONE_LOOKBACK_DAYS = 30;
 
 function todayLocalStr(): string {
   return dateLocalStr(new Date());
@@ -1601,6 +1614,13 @@ const LeaderCardSlot = memo(function LeaderCardSlot({ leader, first, width, stre
     // Replays only after the card was swiped away sideways. Scrolling the page
     // up and down past the podium leaves it as it is (Ricky, 2026-09-27).
     let swipedAway = false;
+    // The team row that scrolls sideways. A real swipe moves it; a pop-up
+    // opening or closing over Today doesn't, though Safari on the iPhone can
+    // report the card leaving late, as if it had been swiped away (Ricky,
+    // 2026-11-16: the podium replayed after closing Add an activity).
+    let row: HTMLElement | null = el.parentElement;
+    while (row && !(row.scrollWidth > row.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(row).overflowX))) row = row.parentElement;
+    let shownAt = row ? row.scrollLeft : 0;
     // The reset happens as the card leaves, not as it comes back: resetting
     // on return showed the old, risen podium for a moment before it dropped
     // and rose again (Ricky, 2026-10-02). Once fully off screen it goes back
@@ -1615,13 +1635,15 @@ const LeaderCardSlot = memo(function LeaderCardSlot({ leader, first, width, stre
       if (!now && entry.rootBounds) {
         const r = entry.boundingClientRect, root = entry.rootBounds;
         const inRow = r.bottom > root.top && r.top < root.bottom;
-        if (inRow && (r.right <= root.left + r.width * 0.9 || r.left >= root.right - r.width * 0.9)) swipedAway = true;
+        const rowMoved = !row || Math.abs(row.scrollLeft - shownAt) > r.width * 0.5;
+        if (inRow && rowMoved && (r.right <= root.left + r.width * 0.9 || r.left >= root.right - r.width * 0.9)) swipedAway = true;
       }
       if (entry.intersectionRatio === 0 && swipedAway) {
         swipedAway = false;
         setShown(false);
         setVisits((v) => v + 1);
       }
+      if (now && row) shownAt = row.scrollLeft;
       if (now === was) return;
       was = now;
       if (now) setShown(true);
@@ -2154,6 +2176,24 @@ export default function HomeScreen() {
   const heroScrollRef = useRef<ScrollView>(null);
   const legacyScrollRef = useRef<ScrollView>(null);
   const [featuredGoal, setFeaturedGoal] = useSnapState<FeaturedGoal | null>('home.featuredGoal', null);
+  // Focus complete (Mockup 66 v4): the moment plays once per goal.
+  const [nextFocusOpen, setNextFocusOpen] = useState(false);
+  const [focusConfetti, setFocusConfetti] = useState(0);
+  const focusDoneKey = featuredGoal?.done ? `focusDone:${featuredGoal.id}` : null;
+  // Decided once per goal: saving "played" at the confetti must not stop the
+  // moment that is still running (it jumped to the end).
+  const focusPlayRef = useRef<string | null>(null);
+  if (focusDoneKey && featuredGoal && focusPlayRef.current !== featuredGoal.id && phoneStore.getItem(focusDoneKey) == null) focusPlayRef.current = featuredGoal.id;
+  const playFocusDone = !!featuredGoal?.done && focusPlayRef.current === featuredGoal.id;
+  async function pickNextFocus(goalId: string) {
+    setNextFocusOpen(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error: unpinError } = await supabase.from('goals').update({ pinned: false }).eq('user_id', user.id).neq('id', goalId);
+    const { error: pinError } = unpinError ? { error: null } : await supabase.from('goals').update({ pinned: true }).eq('id', goalId);
+    if (unpinError || pinError) { notify("Couldn't set that Goal", (unpinError || pinError)!.message); return; }
+    loadAll();
+  }
   const [focusStarters, setFocusStarters] = useSnapState<{ starters: FocusStarter[]; basis: string | null } | null>('home.focusStarters', null);
   const [startingGoal, setStartingGoal] = useState<string | null>(null);
   const [focusSheetOpen, setFocusSheetOpen] = useState(false);
@@ -2249,7 +2289,7 @@ export default function HomeScreen() {
 
   // What can still be set up from Today, shown in the Add activity pop-up.
   const createOptions: { key: string; icon: RivalIconName; label: string; onPress: () => void }[] = [
-    ...(!featuredGoal ? [{ key: 'focus', icon: 'target' as const, label: 'Set focus', onPress: () => { setCreateOpen(false); router.push({ pathname: '/goals', params: { add: 'true' } }); } }] : []),
+    ...(!featuredGoal ? [{ key: 'focus', icon: 'target' as const, label: 'Set a Goal', onPress: () => { setCreateOpen(false); router.push({ pathname: '/goals', params: { add: 'true' } }); } }] : []),
     ...(!nextRace ? [{ key: 'event', icon: 'flag' as const, label: 'Add event', onPress: () => { setCreateOpen(false); router.push('/races?add=true'); } }] : []),
     ...(leagues.length === 0 ? [{ key: 'team', icon: 'groups' as const, label: 'Join a team', onPress: () => { setCreateOpen(false); router.push('/discover-leagues'); } }] : []),
   ];
@@ -2273,7 +2313,7 @@ export default function HomeScreen() {
     });
     if (error) {
       setStartingGoal(null);
-      notify("Couldn't set that focus", error.message);
+      notify("Couldn't set that Goal", error.message);
       return;
     }
     await loadAll();
@@ -2304,7 +2344,7 @@ export default function HomeScreen() {
       extended_days: endedGoal.extendedDays + added,
     }).eq('id', endedGoal.id);
     setExtending(false);
-    if (error) { notify("Couldn't extend the goal", error.message); return; }
+    if (error) { notify("Couldn't extend the Goal", error.message); return; }
     setExtendOpen(false);
     setEndedGoal(null);
     await loadAll();
@@ -2333,7 +2373,7 @@ export default function HomeScreen() {
       pinned: true,
     });
     setExtending(false);
-    if (error) { notify("Couldn't start the goal again", error.message); return; }
+    if (error) { notify("Couldn't start the Goal again", error.message); return; }
     setEndedGoal(null);
     await loadAll();
   }
@@ -2448,28 +2488,89 @@ export default function HomeScreen() {
     const now = new Date();
     type GoalRowFull = GoalRow & { id: string; target_value: number; period_type: 'week' | 'month' | 'custom'; pinned?: boolean };
     const allGoals = (goalsRes.data ?? []) as GoalRowFull[];
+    // A Steps goal fills from Apple Health on the phone, never from activities.
+    const dailySteps = Platform.OS === 'ios' && allGoals.some((g) => (g.goal_type as string) === 'steps') ? await readDailySteps(8) : {};
+    const stepsFor = (g: GoalRowFull) => stepsProgress(dailySteps, g.target_value, (g.period_type as string) === 'week' ? 'week' : 'day', now);
+    // When a goal was reached: the activity that took it over the target.
+    // Distance, elevation and activity-count goals only; Steps and
+    // Performance goals keep their own card.
+    const reachedAt = (g: GoalRowFull): number | null => {
+      if (!['distance', 'elevation', 'gym_sessions'].includes(g.goal_type as string)) return null;
+      if (!(g.target_value > 0) || computeGoalProgress(g, activities) < g.target_value) return null;
+      const start = localDay(g.start_date).getTime();
+      const sorted = activities.filter((a) => new Date(a.started_at).getTime() >= start).sort((a, b) => a.started_at.localeCompare(b.started_at));
+      for (let i = 0; i < sorted.length; i++) {
+        if (computeGoalProgress(g, sorted.slice(0, i + 1)) >= g.target_value) return new Date(sorted[i].started_at).getTime();
+      }
+      return null;
+    };
+    // What the goal took, up to the activity that reached it (Mockup 74 A1).
+    const doneFacts = (g: GoalRowFull, at: number) => {
+      const start = localDay(g.start_date);
+      const counted = activities.filter((a) => { const t = new Date(a.started_at).getTime(); return t >= start.getTime() && t <= at && matchesFilter(g, a); });
+      const doneDay = new Date(at); doneDay.setHours(0, 0, 0, 0);
+      return {
+        activities: counted.length,
+        seconds: counted.reduce((sum, a) => sum + (a.duration_seconds || 0), 0),
+        days: Math.round((doneDay.getTime() - start.getTime()) / 86400000) + 1,
+      };
+    };
+    const lookback = now.getTime() - DONE_LOOKBACK_DAYS * 86400000;
     const activeGoals = allGoals
-      .filter(g => { const end = localDay(g.end_date); end.setHours(23, 59, 59, 999); return end >= now; })
+      .filter(g => { const end = localDay(g.end_date); end.setHours(23, 59, 59, 999); return end >= now || (end.getTime() >= lookback && reachedAt(g) != null); })
+      .filter(g => (g.goal_type as string) !== 'steps' || Platform.OS === 'ios')
       .map(g => {
-        const progress = computeGoalProgress(g, activities);
+        const progress = (g.goal_type as string) === 'steps' ? stepsFor(g).current : computeGoalProgress(g, activities);
         const end = localDay(g.end_date); end.setHours(23, 59, 59, 999);
         return {
           endMs: end.getTime(),
           goal: g,
           progress,
           pct: g.target_value > 0 ? Math.min(1, progress / g.target_value) : 0,
+          doneAt: reachedAt(g),
         };
       })
       // Pinned goal wins outright, ahead of the nearest-deadline sort —
       // that sort is only the fallback for when nothing's been pinned.
       .sort((a, b) => (b.goal.pinned ? 1 : 0) - (a.goal.pinned ? 1 : 0) || a.endMs - b.endMs || b.pct - a.pct);
-    if (activeGoals.length > 0) {
-      const top = activeGoals[0];
+    // Focus complete (Mockup 66 v4): a reached goal keeps the spot for
+    // DONE_STAYS_DAYS when others are lined up (Next Focus brings one in
+    // sooner by pinning it), and until a new goal is set when there are none.
+    const lined = activeGoals.filter((r) => r.doneAt == null && r.endMs >= now.getTime());
+    let pick = activeGoals[0];
+    if (pick && pick.doneAt != null && lined.length > 0 && (lined.some((r) => r.goal.pinned) || now.getTime() - pick.doneAt >= DONE_STAYS_DAYS * 86400000)) pick = lined[0];
+    const nextLabel = (g: GoalRowFull) => {
+      if ((g.goal_type as string) === 'steps') return `${Math.round(g.target_value).toLocaleString()} steps a ${(g.period_type as string) === 'week' ? 'week' : 'day'}`;
+      if (isPerformance(g.goal_type)) return performanceTitle(g as unknown as PerformanceGoal, formatWeight);
+      if (g.goal_type === 'gym_sessions') return `${goalActivityLabel(g)} ${g.target_value} ${g.target_value === 1 ? 'time' : 'times'}`;
+      const sh = shownGoal(g.goal_type, g.target_value);
+      return `${goalActivityLabel(g)} ${sh.value.toLocaleString()} ${sh.unit}`;
+    };
+    const nextSub = (r: typeof lined[number]) => {
+      const days = Math.max(0, Math.ceil((r.endMs - now.getTime()) / 86400000));
+      const left = `${days} ${days === 1 ? 'day' : 'days'} left`;
+      if ((r.goal.goal_type as string) === 'steps' || isPerformance(r.goal.goal_type)) return left;
+      const p = shownGoal(r.goal.goal_type, r.progress).value, tg = shownGoal(r.goal.goal_type, r.goal.target_value);
+      return `${p.toLocaleString()} of ${tg.value.toLocaleString()}${r.goal.goal_type === 'gym_sessions' ? '' : ` ${tg.unit}`} · ${left}`;
+    };
+    if (pick) {
+      const top = pick;
       const unit = goalUnit(top.goal.goal_type);
       const useMeters = unit === 'km' && top.goal.activity_filter != null && METERS_SPORTS.has(top.goal.activity_filter);
       const topRow = top.goal as unknown as PerformanceGoal & { open_ended?: boolean };
       const perfData = isPerformance(top.goal.goal_type) ? await loadPerformanceData(uId).catch(() => null) : null;
       const perfState = perfData ? performanceState(topRow, perfData.activities, perfData.entries) : null;
+      if ((top.goal.goal_type as string) === 'steps') {
+        const sp = stepsFor(top.goal);
+        const period = (top.goal.period_type as string) === 'week' ? 'week' : 'day';
+        const label = `${Math.round(top.goal.target_value).toLocaleString()} steps a ${period}`;
+        setFeaturedGoal({
+          id: top.goal.id, title: label, activityLabel: label,
+          progress: sp.current, target: Math.round(top.goal.target_value), unit: 'steps', pct: sp.pct,
+          daysLeft: 0, sports: null,
+          steps: { period, week: sp.week, daysHit: sp.daysHit, daysSoFar: sp.daysSoFar, toGo: sp.toGo },
+        });
+      } else
       setFeaturedGoal({
         id: top.goal.id,
         title: perfState ? performanceTitle(topRow, formatWeight) : featuredGoalTitle(top.goal),
@@ -2485,6 +2586,11 @@ export default function HomeScreen() {
           shownGoal('distance', top.goal.target_value).value,
           shownGoal('distance', 0).unit,
         ),
+        done: top.doneAt != null ? {
+          daysEarly: Math.max(0, Math.floor((localDay(top.goal.end_date).getTime() - new Date(new Date(top.doneAt).setHours(0, 0, 0, 0)).getTime()) / 86400000)),
+          others: lined.map((r) => ({ id: r.goal.id, label: nextLabel(r.goal), sub: nextSub(r), pct: r.pct })),
+          facts: doneFacts(top.goal, top.doneAt),
+        } : undefined,
         perf: perfState ? {
           current: formatValue(topRow, perfState.current, formatWeight),
           target: formatValue(topRow, topRow.target_value, formatWeight),
@@ -2503,7 +2609,7 @@ export default function HomeScreen() {
 
     // An unreached goal that ended in the last few days stays on Today with
     // Extend and Start again. Pinned first, then the most recent.
-    if (activeGoals.length === 0) {
+    if (!pick) {
       const graceStart = new Date(now); graceStart.setHours(0, 0, 0, 0); graceStart.setDate(graceStart.getDate() - ENDED_GRACE_DAYS);
       const ended = allGoals
         .filter((g) => !isPerformance(g.goal_type))
@@ -2924,7 +3030,7 @@ export default function HomeScreen() {
                 <View style={styles.mSheetBackdrop}>
                   <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setExtendOpen(false)} />
                   <GreySheet
-                    kicker="FOCUS"
+                    kicker="GOAL"
                     title="Extend"
                     onClose={() => setExtendOpen(false)}
                     footer={<GreyPrimary label={`Extend ${extendDays} ${extendDays === 1 ? 'day' : 'days'}`} busy={extending} onPress={extendFocus} />}
@@ -2966,12 +3072,12 @@ export default function HomeScreen() {
                 <View style={styles.mSheetBackdrop}>
                   <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setFocusSheetOpen(false)} />
                   <GreySheet
-                    kicker="FOCUS"
+                    kicker="GOAL"
                     title="Choose something worth chasing."
                     onClose={() => setFocusSheetOpen(false)}
                     footer={
                       <TouchableOpacity style={styles.mSheetLinkRow} onPress={() => { setFocusSheetOpen(false); router.push({ pathname: '/goals', params: { add: 'true' } }); }}>
-                        <Text style={styles.mFocusViewLink}>Custom goal →</Text>
+                        <Text style={styles.mFocusViewLink}>Custom Goal →</Text>
                       </TouchableOpacity>
                     }
                   >
@@ -3124,7 +3230,7 @@ export default function HomeScreen() {
                   labelStyle={styles.mAddActivityLabel}
                 />
                 {SHOW_ADD_MORE && createOptions.length > 0 && (
-                  <TouchableOpacity style={styles.mAddMore} onPress={() => setCreateOpen(true)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Set up focus, events and teams">
+                  <TouchableOpacity style={styles.mAddMore} onPress={() => setCreateOpen(true)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Set up Goals, events and teams">
                     <RivalIcon name="add" size={22} color={RivalColors.accentText} />
                   </TouchableOpacity>
                 )}
@@ -3149,7 +3255,7 @@ export default function HomeScreen() {
                       {/* Serif and larger, like the rank beside it (Ricky, 2026-10-03). */}
                       {/* The figure is centred on its own; the plus hangs to its left. */}
                       <View>
-                        <GradientText style={[styles.mLegacyStatValue, styles.mEffortTodayValue, styles.mTodayBig]} numberOfLines={1}>{Math.round(todayEffort)}</GradientText>
+                        <GradientText style={[styles.mLegacyStatValue, styles.mEffortTodayValue, styles.mTodayBig]} numberOfLines={1}>{Math.round(todayEffort * 10) / 10}</GradientText>
                         <GradientText style={[styles.mEffortTodayValue, styles.mTodayPlus]}>+</GradientText>
                       </View>
                       <Text style={[styles.mLegacyStatLabel, styles.mLegacyStatLabelLg, styles.mTodayLabel]}>Effort today</Text>
@@ -3245,23 +3351,39 @@ export default function HomeScreen() {
                   team-hub.tsx: content sits directly on the page background
                   rather than boxed in its own tinted card. */}
               {featuredGoal ? (
+              // A completed Focus has its own button, so the card itself is
+              // not one (a button inside a button breaks on the web).
               <TouchableOpacity
                 style={styles.mFocusFree}
                 activeOpacity={0.85}
                 onPress={() => router.push('/goals')}
-                accessibilityRole="button"
-                accessibilityLabel="Open focus"
+                disabled={!!featuredGoal.done}
+                accessibilityRole={featuredGoal.done ? undefined : 'button'}
+                accessibilityLabel={featuredGoal.done ? undefined : 'Open Goal'}
               >
                 {Platform.OS === 'web' && <View style={[styles.mFocusEdge, { pointerEvents: 'none' }]} />}
                   <>
                     <View style={styles.mFocusHead}>
-                      <MHeading title={featuredGoal.activityLabel} subtitle="Focus" />
+                      <MHeading title={featuredGoal.activityLabel} subtitle="Goal" />
                     </View>
                     {/* Same ring used by the Team Challenge card (team-hub.tsx) —
                         Ricky asked for this card to match it. RivalChallengeRing
                         decides decimal-vs-whole-number display from the
                         target's own magnitude (see its formatRingValue) —
                         pass the raw progress, not a pre-rounded one. */}
+                    {featuredGoal.done ? (
+                      <FocusComplete
+                        target={featuredGoal.target}
+                        unit={featuredGoal.unit}
+                        daysEarly={featuredGoal.done.daysEarly}
+                        facts={featuredGoal.done.facts}
+                        hasOthers={featuredGoal.done.others.length > 0}
+                        play={playFocusDone}
+                        onConfetti={() => { if (focusDoneKey) phoneStore.setItem(focusDoneKey, '1'); setFocusConfetti((n) => n + 1); }}
+                        onFinished={() => { if (focusDoneKey) phoneStore.setItem(focusDoneKey, '1'); }}
+                        onNext={() => (featuredGoal.done!.others.length > 0 ? setNextFocusOpen(true) : router.push({ pathname: '/goals', params: { add: 'true' } }))}
+                      />
+                    ) : (<>
                     <FocusRing
                       key={podiumVisit}
                       pct={featuredGoal.pct}
@@ -3277,6 +3399,40 @@ export default function HomeScreen() {
                     {/* Two figures in the brand serif over spaced caps, split
                         by a hairline — the same voice as the section headings,
                         instead of a line of small body text. */}
+                    {featuredGoal.steps ? (
+                      <>
+                        {/* Steps (Mockup 52): today's share, days hit this week,
+                            a bar per day, what's left, and where it comes from. */}
+                        <View style={styles.mFocusRingMetaRow}>
+                          <View style={styles.mFocusMetaCell}>
+                            <Text style={styles.mFocusMetaNumber}>{Math.round(featuredGoal.pct * 100)}%</Text>
+                            <Text style={styles.mFocusMetaLabel}>{featuredGoal.steps.period === 'day' ? 'Today' : 'This week'}</Text>
+                          </View>
+                          <View style={styles.mFocusMetaDivider} />
+                          <View style={styles.mFocusMetaCell}>
+                            <Text style={styles.mFocusMetaNumber}>{featuredGoal.steps.daysHit} of {featuredGoal.steps.daysSoFar}</Text>
+                            <Text style={styles.mFocusMetaLabel}>Days hit</Text>
+                          </View>
+                        </View>
+                        <View style={styles.mStepsWeek}>
+                          {featuredGoal.steps.week.map((d, i) => (
+                            <View key={i} style={styles.mStepsDay}>
+                              <View style={styles.mStepsBar}>
+                                <View style={[styles.mStepsFill, { width: `${Math.round(d.fill * 100)}%` }, d.hit && styles.mStepsFillHit]} />
+                              </View>
+                              <Text style={[styles.mStepsLabel, d.today && styles.mStepsLabelToday]}>{d.label}</Text>
+                            </View>
+                          ))}
+                        </View>
+                        {featuredGoal.steps.toGo > 0 ? (
+                          <View style={styles.mFocusToGo}>
+                            <RivalIcon name="flag" size={15} color={RivalColors.accentText} />
+                            <Text style={styles.mFocusToGoText}>{featuredGoal.steps.toGo.toLocaleString()} to go {featuredGoal.steps.period === 'day' ? 'today' : 'this week'}</Text>
+                          </View>
+                        ) : null}
+                        <Text style={styles.mStepsSource}>From Apple Health</Text>
+                      </>
+                    ) : (<>
                     <View style={styles.mFocusRingMetaRow}>
                       <View style={styles.mFocusMetaCell}>
                         <Text style={styles.mFocusMetaNumber}>{Math.round(featuredGoal.pct * 100)}%</Text>
@@ -3298,6 +3454,8 @@ export default function HomeScreen() {
                         </View>
                       ) : null;
                     })()}
+                    </>)}
+                    </>)}
                     {/* The whole Focus area opens Goals, so no separate link. */}
                   </>
               </TouchableOpacity>
@@ -3305,7 +3463,7 @@ export default function HomeScreen() {
                 <View style={styles.mFocusFree}>
                   {Platform.OS === 'web' && <View style={[styles.mFocusEdge, { pointerEvents: 'none' }]} />}
                   <View style={styles.mFocusHead}>
-                    <MHeading title={endedGoal.activityLabel} subtitle="Focus" />
+                    <MHeading title={endedGoal.activityLabel} subtitle="Goal" />
                   </View>
                   <Text style={styles.mEndedFigure}>
                     {endedGoal.progress.toLocaleString()}<Text style={styles.mEndedOf}> / {endedGoal.target.toLocaleString()} {endedGoal.unit}</Text>
@@ -3336,7 +3494,7 @@ export default function HomeScreen() {
                 // The inline section is kept behind a flag.
                 !SHOW_FOCUS_EMPTY_SECTION ? null : <View style={styles.mFocusEmpty}>
                   <View style={styles.mFocusEmptyHead}>
-                    <MHeading title="Choose something worth chasing." subtitle="Focus" />
+                    <MHeading title="Choose something worth chasing." subtitle="Goal" />
                   </View>
                   {focusStarters?.basis ? <Text style={styles.mStarterBasis}>{focusStarters.basis}</Text> : null}
                   <View style={styles.mStarterRow}>
@@ -3359,7 +3517,7 @@ export default function HomeScreen() {
                     ))}
                   </View>
                   <TouchableOpacity onPress={() => router.push({ pathname: '/goals', params: { add: 'true' } })}>
-                    <Text style={styles.mFocusViewLink}>Custom goal →</Text>
+                    <Text style={styles.mFocusViewLink}>Custom Goal →</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -3373,24 +3531,33 @@ export default function HomeScreen() {
               <View style={styles.mLegacySection}>
                 <Image
                   source={require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
-                  style={[styles.mLegacySmoke, Platform.OS !== 'web' && styles.mSmokeEdgesNative]}
+                  style={[styles.mLegacySmoke, Platform.OS !== 'web' && styles.mSmokeEdgesNative, Platform.OS !== 'web' && styles.mLegacySmokeFullNative]}
                   resizeMode="cover"
                 />
-                {Platform.OS !== 'web' && <View style={[styles.mLegacySmoke, styles.mSmokeEdgesNative, styles.mLegacyFadeNative, { pointerEvents: 'none' }]} />}
+                {Platform.OS !== 'web' && <View style={[styles.mLegacySmoke, styles.mSmokeEdgesNative, styles.mLegacySmokeFullNative, styles.mLegacyFadeNative, { pointerEvents: 'none' }]} />}
                 <View style={{ marginTop: 8 }}>
-                  <MHeading title="Legacy" subtitle={heroPage === 0 ? `${seasonYear}` : "Lifetime of Effort"} />
+                  <MHeading title="Totals" subtitle={heroPage === 0 ? `${seasonYear}` : "Lifetime of Effort"} />
                 </View>
 
                 {/* Two figures you can swipe between: everything ever earned,
                     and this year's — the number rank is built on. */}
-                <View style={{ marginTop: 44 }} onLayout={(e) => setHeroWidth(Math.round(e.nativeEvent.layout.width))}>
+                <View style={{ marginTop: 44 }} onLayout={(e) => setHeroWidth(e.nativeEvent.layout.width)}>
                   <ScrollView
                     ref={heroScrollRef}
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
+                    // Pages are the exact width (not rounded), so a swipe lands
+                    // without a last-frame nudge; on iPhone the dot and heading
+                    // change once the page has landed, not mid-swipe, which
+                    // redrew all of Today during the glide (Ricky, 2026-11-14).
                     scrollEventThrottle={16}
-                    onScroll={(e) => {
+                    onScroll={Platform.OS === 'web' ? (e) => {
+                      if (!heroWidth) return;
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / heroWidth);
+                      setHeroPage((cur) => (cur === idx ? cur : idx));
+                    } : undefined}
+                    onMomentumScrollEnd={(e) => {
                       if (!heroWidth) return;
                       const idx = Math.round(e.nativeEvent.contentOffset.x / heroWidth);
                       setHeroPage((cur) => (cur === idx ? cur : idx));
@@ -3467,7 +3634,7 @@ export default function HomeScreen() {
                     or neither, never leaving an empty strip on one. */}
                 <View
                   style={[styles.mLegacyStatBox, styles.mLegacyCarouselBox, styles.mFocusLit, { marginTop: 30 }]}
-                  onLayout={(e) => setLegacyBoxWidth(Math.round(e.nativeEvent.layout.width) - 2)}
+                  onLayout={(e) => setLegacyBoxWidth(e.nativeEvent.layout.width - 2)}
                 >
                   <ScrollView
                     ref={legacyScrollRef}
@@ -3476,7 +3643,12 @@ export default function HomeScreen() {
                     scrollEnabled={hasImpact}
                     showsHorizontalScrollIndicator={false}
                     scrollEventThrottle={16}
-                    onScroll={(e) => {
+                    onScroll={Platform.OS === 'web' ? (e) => {
+                      if (!legacyBoxWidth) return;
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / legacyBoxWidth);
+                      setLegacyPage((cur) => (cur === idx ? cur : idx));
+                    } : undefined}
+                    onMomentumScrollEnd={(e) => {
                       if (!legacyBoxWidth) return;
                       const idx = Math.round(e.nativeEvent.contentOffset.x / legacyBoxWidth);
                       setLegacyPage((cur) => (cur === idx ? cur : idx));
@@ -3616,7 +3788,7 @@ export default function HomeScreen() {
               {/* Everything not set up yet, as tiles at the bottom of Today —
                   out of the podium's way. Each tile leaves once it's set up. */}
               <View style={styles.mStartBottom}>
-                <RivalStartTiles art artLit={false} tiles={createOptions.map((o) => ({ ...o, onPress: () => o.onPress() }))} />
+                <RivalStartTiles art artLit={false} tiles={createOptions.map((o) => ({ ...o, breathe: o.key === 'focus', onPress: () => o.onPress() }))} />
               </View>
             </>
           ) : (
@@ -4230,6 +4402,16 @@ export default function HomeScreen() {
 
         </ScrollView>
     </SafeAreaView>
+    <Confetti run={focusConfetti} />
+    {featuredGoal?.done ? (
+      <NextFocusSheet
+        visible={nextFocusOpen}
+        others={featuredGoal.done.others}
+        onPick={pickNextFocus}
+        onAdd={() => { setNextFocusOpen(false); router.push({ pathname: '/goals', params: { add: 'true' } }); }}
+        onClose={() => setNextFocusOpen(false)}
+      />
+    ) : null}
     </View>
   );
 }
@@ -4543,7 +4725,16 @@ const styles = StyleSheet.create({
   mFocusRingMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28, marginTop: 18, marginBottom: 14 },
   mFocusMetaCell: { alignItems: 'center', minWidth: 84 },
   mFocusToGo: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: -2, marginBottom: 14 },
-  mFocusToGoText: { fontFamily: RivalFontFamily, fontSize: 13.5, fontWeight: '600', color: '#fff' },
+  // Steps focus week (Mockup 52): seven short bars, filled on days hit.
+  mStepsWeek: { flexDirection: 'row', gap: 6, alignSelf: 'center', width: 230, marginTop: 4, marginBottom: 16 },
+  mStepsDay: { flex: 1, alignItems: 'center', gap: 6 },
+  mStepsBar: { alignSelf: 'stretch', height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  mStepsFill: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,181,158,0.45)' },
+  mStepsFillHit: { backgroundColor: RivalColors.accentText },
+  mStepsLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+  mStepsLabelToday: { color: '#fff' },
+  mStepsSource: { fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: -6, marginBottom: 14 },
+  mFocusToGoText: { fontFamily: RivalFontFamily, fontSize: 13.5, fontWeight: '800', color: '#fff' },
   // White, so the card isn't all one colour: the ring and labels carry the salmon.
   mFocusMetaNumber: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 28, fontWeight: '700', lineHeight: 32, color: '#ffffff' },
   mFocusMetaLabel: { fontFamily: RivalFontFamily, fontSize: 10.5, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 4 },
@@ -4736,6 +4927,10 @@ const styles = StyleSheet.create({
   // iPhone ignored the negative side margin that pulls the photo to the card's
   // edge, leaving a strip down the left: pin it to both edges instead.
   mSmokeEdgesNative: { left: 0, right: 0, width: 'auto', marginLeft: 0, marginRight: 0 },
+  // Legacy's smoke runs the full height of the section on iPhone, so its fade
+  // ends at the section's edge, not partway down over the warm glow, where it
+  // left a hard line above the stat box (Ricky, 2026-11-14).
+  mLegacySmokeFullNative: { top: -26, bottom: 0, height: 'auto', marginTop: 0 },
   mSmokeFadeNative: { opacity: 1, experimental_backgroundImage: 'linear-gradient(to bottom, rgba(22,19,19,0) 0%, rgba(22,19,19,0) 60%, #161313 100%)' } as any,
   mLeaderBgFadeNative: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 140, experimental_backgroundImage: 'linear-gradient(to bottom, rgba(19,19,19,0) 0%, #131313 100%)' } as any,
   mLegacyFadeNative: { opacity: 1, experimental_backgroundImage: 'linear-gradient(to bottom, #131313 0%, rgba(19,19,19,0) 35%, rgba(19,19,19,0) 55%, #131313 100%)' } as any,

@@ -1,5 +1,5 @@
 import { Children, createContext, Fragment, isValidElement, useContext, useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps, Pressable } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View, type TextInputProps, Pressable } from 'react-native';
 import { useSheetMotion, useSheetRise } from './RivalModal';
 import { useScreenHeight } from '../../lib/keyboard';
 import { RivalButtonColors, RivalColors, RivalGhost, RivalMainGlow, RivalSerifFamily, rivalPhoneVar } from '../../constants/rivalTheme';
@@ -125,6 +125,37 @@ function useTileFollow() {
   return [{ translateY: y }, { scale: k }];
 }
 
+/** Any block in a pop-up that should follow it in like its tiles do
+ *  (the Goal cards, Ricky 2026-11-15). Outside a fresh pop-up it just shows. */
+export function GreyFollow({ children, style }: { children: ReactNode; style?: any }) {
+  const follow = useTileFollow();
+  return <Animated.View style={[style, { transform: follow }]}>{children}</Animated.View>;
+}
+
+/** Breathe (Mockup 82 B): every few seconds the tile swells a little and its
+ *  edge warms, then settles. Off with reduce motion. Returns 0..1. */
+function useBreathe(on: boolean) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!on) return;
+    let loop: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().catch(() => false).then((reduce) => {
+      if (cancelled || reduce) return;
+      const nd = Platform.OS !== 'web';
+      loop = Animated.loop(Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 1050, easing: Easing.inOut(Easing.cubic), useNativeDriver: nd }),
+        Animated.timing(v, { toValue: 0, duration: 1050, easing: Easing.inOut(Easing.cubic), useNativeDriver: nd }),
+        Animated.delay(1400),
+      ]));
+      loop.start();
+    });
+    return () => { cancelled = true; loop?.stop(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on]);
+  return v;
+}
+
 export function GreyLabel({ children }: { children: ReactNode }) {
   return <Text style={g.label}>{children}</Text>;
 }
@@ -244,8 +275,10 @@ export function GreyPrimary({ label, busy, disabled, onPress, tone }: { label: s
 
 /** One tile in the Log an activity look. `all` is the dashed See all tile. */
 export function GreyArtTile({
-  label, icon, on, all, style, onPress, tone,
+  label, icon, on, all, style, onPress, tone, breathe,
 }: {
+  /** Draws the eye with a slow breath (Set a Goal on Today, Mockup 82 B). */
+  breathe?: boolean;
   label: string;
   icon: RivalIconName;
   on?: boolean;
@@ -256,21 +289,43 @@ export function GreyArtTile({
   onPress: () => void;
 }) {
   const follow = useTileFollow();
+  const b = useBreathe(!!breathe && !on);
   return (
     <AnimatedTouchable
-      style={[g.artTile, on ? (tone === 'warn' ? g.artTileWarn : g.artTileOn) : all ? g.artTileAll : g.artTileGhost, style, { transform: follow }]}
+      style={[g.artTile, on ? (tone === 'warn' ? g.artTileWarn : g.artTileOn) : all ? g.artTileAll : g.artTileGhost, style, { transform: breathe ? [...follow, { scale: b.interpolate({ inputRange: [0, 1], outputRange: [1, 1.045] }) }] : follow }]}
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: !!on }}
     >
+      {breathe && !on ? <Animated.View style={[g.breatheEdge, { opacity: b, pointerEvents: 'none' }]} /> : null}
       <View style={[g.artIcon, { pointerEvents: 'none' }]}>
         <RivalIcon name={icon} size={56} color={on ? (tone === 'warn' ? 'rgba(42,26,5,0.22)' : 'rgba(255,255,255,0.32)') : 'rgba(255,181,158,0.2)'} />
       </View>
       {/* One line, never a cut-off ellipsis. */}
       <Text style={[g.artLabel, on && g.artLabelOn, on && tone === 'warn' && g.warnText, all && !on && g.artLabelAll]} {...(Platform.OS === 'web' ? {} : { numberOfLines: 1 })}>{label}</Text>
     </AnimatedTouchable>
+  );
+}
+
+/** A big action tile in the Add an activity look (Mockup 86 B, Ricky
+ *  2026-11-15): the icon large and faint behind a title and a short line,
+ *  lit in the button gradient for the main action, warm outline otherwise. */
+/** `serif`: the title in the serif italic, for an empty-state tile (Mockup 89 C). */
+export function GreyBigTile({ icon, title, sub, lit, serif, onPress }: {
+  icon: RivalIconName; title: string; sub: string; lit?: boolean; serif?: boolean; onPress: () => void;
+}) {
+  const ink = lit ? RivalButtonColors.label(RivalColors.onAccentFill) : undefined;
+  return (
+    <TouchableOpacity style={[g.bigTile, lit ? g.bigTileLit : g.bigTileGhost]} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={title}>
+      <View style={[g.bigTileArt, { pointerEvents: 'none' }]}>
+        <RivalIcon name={icon} size={118} color={lit ? 'rgba(255,255,255,0.32)' : 'rgba(255,181,158,0.24)'} />
+      </View>
+      <View style={[g.bigTileArt, lit ? g.bigTileFadeLit : g.bigTileFadeGhost, { pointerEvents: 'none' }]} />
+      <Text style={[g.bigTileTitle, serif && g.bigTileSerif, ink ? { color: ink } : null]}>{title}</Text>
+      <Text style={[g.bigTileSub, ink ? { color: ink, opacity: 0.75 } : null]}>{sub}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -492,11 +547,23 @@ const g = StyleSheet.create({
     borderWidth: 1, borderColor: RivalGhost.border,
   },
   tileShort: { paddingVertical: 12 },
+  // GreyBigTile: the Add an activity tiles (add-workout.tsx ms.tile*).
+  bigTile: { flex: 1, minHeight: 132, borderRadius: 18, padding: 16, justifyContent: 'flex-end', gap: 3, overflow: 'hidden' },
+  bigTileLit: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  bigTileGhost: { borderWidth: 1, borderColor: 'rgba(255,181,158,0.35)', backgroundColor: 'rgba(255,209,190,0.05)' },
+  bigTileArt: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  bigTileFadeLit: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(223,124,92,0.55), rgba(223,124,92,0) 55%)' }),
+  bigTileFadeGhost: webFx({ backgroundImage: 'linear-gradient(0deg, rgba(35,33,32,0.75), rgba(35,33,32,0) 60%)' }),
+  bigTileTitle: { fontSize: 17, fontWeight: '800', color: RivalColors.textPrimary },
+  bigTileSerif: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 22 },
+  bigTileSub: { fontSize: 12, fontWeight: '500', color: RivalColors.textSecondary },
   artTile: { height: 78, borderRadius: 16, paddingHorizontal: 10, paddingBottom: 9, justifyContent: 'flex-end', overflow: 'hidden' },
   artTileGhost: { borderWidth: 1, borderColor: 'rgba(255,181,158,0.3)', backgroundColor: RivalGhost.fill },
   artTileAll: { borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,181,158,0.45)', backgroundColor: 'rgba(255,209,190,0.03)' },
   artTileOn: { backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
   artIcon: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  // The warm edge and wash the breath fades in (Mockup 82 B).
+  breatheEdge: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,181,158,0.85)', backgroundColor: 'rgba(255,181,158,0.07)' },
   artLabel: { fontSize: 12.5, fontWeight: '800', color: RivalColors.textPrimary, ...(Platform.OS === 'web' ? { whiteSpace: 'nowrap' } as any : {}) },
   artLabelAll: { color: RivalColors.accentText },
   artLabelOn: { color: RivalButtonColors.label(RivalColors.onAccentFill) },
@@ -670,7 +737,7 @@ const mt = StyleSheet.create({
 export function RivalStartTiles({
   tiles, title = "What's next", ghost, art, artLit = true, titleStyle,
 }: {
-  tiles: { key: string; icon: RivalIconName; label: string; onPress: () => void }[];
+  tiles: { key: string; icon: RivalIconName; label: string; onPress: () => void; breathe?: boolean }[];
   title?: string;
   titleStyle?: any;
   /** The Add an activity look (warm outline), for pages that aren't main tabs. */
@@ -685,7 +752,7 @@ export function RivalStartTiles({
     <View style={st.wrap}>
       <Text style={[st.title, titleStyle]}>{title}</Text>
       <View style={st.row}>
-        {art ? tiles.map((t, i) => <GreyArtTile key={t.key} label={t.label} icon={t.icon} on={artLit && i === 0} style={st.artTile} onPress={t.onPress} />) : tiles.map((t) => (
+        {art ? tiles.map((t, i) => <GreyArtTile key={t.key} label={t.label} icon={t.icon} on={artLit && i === 0} breathe={t.breathe} style={st.artTile} onPress={t.onPress} />) : tiles.map((t) => (
           <TouchableOpacity key={t.key} style={[st.tile, ghost && st.tileGhost]} onPress={t.onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.label}>
             <View style={st.badge}>
               <RivalIcon name={t.icon} size={15} color={RivalColors.surfaceLowest} />
