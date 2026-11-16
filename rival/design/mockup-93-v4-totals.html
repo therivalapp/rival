@@ -1,0 +1,82 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Material+Symbols+Rounded" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d0d;font-family:Manrope,-apple-system,sans-serif;color:#fff;padding:28px}
+h1{font-family:Georgia,serif;font-style:italic;font-size:26px;margin-bottom:6px}
+.sub{color:rgba(255,255,255,.55);font-size:13px;margin-bottom:22px}
+.row{display:flex;gap:26px}
+.col{width:375px}
+.lab{font-size:13px;font-weight:800;letter-spacing:2px;color:#ffb59e;margin-bottom:10px;text-transform:uppercase}
+.lab small{color:rgba(255,255,255,.5);letter-spacing:0;font-weight:600;text-transform:none;margin-left:6px}
+.phone{width:375px;height:640px;background:#131313;border-radius:28px;overflow:hidden;position:relative;padding:0 16px}
+.goal{background:#282828 radial-gradient(70% 55% at 50% 0%,rgba(217,119,87,.17),rgba(217,119,87,.035) 60%,transparent 85%);border-radius:0 0 22px 22px;height:56px;margin:0 0 0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:16px;font-size:13px;font-weight:700}
+.goal span{color:#ffb59e;margin-right:6px}
+.serif{font-family:Georgia,serif;font-style:italic;font-weight:700}
+.head{text-align:center}
+.head .t{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:22px}
+.head .k{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;font-size:10.5px;font-weight:800;letter-spacing:2px;color:#ffb59e}
+.head .k i{display:block;width:44px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,181,158,.45))}
+.head .k i:last-child{transform:scaleX(-1)}
+.hero{font-family:Georgia,serif;font-style:italic;font-weight:700;background:linear-gradient(180deg,#fff 0%,#D97757 150%);-webkit-background-clip:text;color:transparent;padding:0 8px;text-align:center}
+.hl{font-size:11px;font-weight:800;letter-spacing:2px;color:#ffb59e;text-align:center;text-transform:uppercase}
+.rank{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px}
+.rank .n{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:17px;letter-spacing:1.4px;background:linear-gradient(180deg,#ffffff 10%,#d8d3cc 120%);-webkit-background-clip:text;color:transparent}
+.rank .d{width:3px;height:3px;border-radius:2px;background:rgba(255,255,255,.35)}
+.rank .l{font-size:12px;font-weight:600;color:rgba(255,255,255,.55)}
+.ms{font-family:'Material Symbols Rounded';font-size:16px;color:#d8d3cc;font-weight:400}
+.dots{display:flex;gap:6px;justify-content:center}
+.dots b{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.25)}
+.dots b.on{width:16px;background:#ffb59e}
+.card{background:#282828;border:1px solid rgba(255,209,190,.10);border-radius:22px}
+.lit{background:#282828 radial-gradient(70% 55% at 50% 0%,rgba(217,119,87,.17),rgba(217,119,87,.035) 60%,transparent 85%);border-top-color:rgba(255,209,190,.26)}
+.tiles{display:flex;gap:8px;padding:0 10px}
+.tile{flex:1;text-align:center;padding:10px 4px 9px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,209,190,.08)}
+.tile .v{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:29px;line-height:31px}
+.tile .v small{font-family:Manrope;font-style:normal;font-size:13px;font-weight:600;color:rgba(255,255,255,.5);margin-left:2px}
+.tile .c{font-size:9.5px;font-weight:800;letter-spacing:1.4px;color:rgba(255,255,255,.5);margin-top:4px}
+.mile{border-top:1px solid rgba(255,255,255,.07);margin-top:16px;padding:14px 16px 0}
+.mile .h{display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.55)}
+.mile .h b{letter-spacing:0;font-size:12px;color:#fff}
+.mile .ti{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:17px;margin-top:5px;display:flex;justify-content:space-between}
+.mile .ti span{font-family:'Material Symbols Rounded';font-style:normal;font-weight:400;color:rgba(255,255,255,.45);font-size:18px}
+.bar{height:5px;border-radius:3px;background:rgba(255,255,255,.08);margin:10px 0 16px}
+.bar i{display:block;height:5px;border-radius:3px;width:90%;background:linear-gradient(90deg,rgba(255,255,255,.45),#fff)}
+.smoke{position:absolute;left:0;right:0;background:url('file:///Users/rickjamesbitch/Desktop/CLAUDE%20FOLDER/rival/assets/images/backgrounds/optimized/podium-smoke.jpg') center/cover;opacity:.55;-webkit-mask-image:linear-gradient(180deg,transparent,#000 25%,#000 70%,transparent)}
+.note{color:rgba(255,255,255,.6);font-size:12.5px;line-height:1.45;margin-top:12px;width:375px}
+
+.head2 .t{font-size:27px}
+.head2 .k{font-size:12.5px;letter-spacing:2.6px;color:#ffb59e;margin-top:9px}
+.head2 .k i{width:56px;height:1.5px;background:linear-gradient(90deg,transparent,rgba(255,181,158,.85))}
+.card2{background:#2b2a29;border:1px solid rgba(255,209,190,.14);border-top-color:rgba(255,209,190,.24);border-radius:22px}
+.card2 .tile{background:rgba(255,255,255,.065);border-color:rgba(255,209,190,.11)}
+
+.pace{font-size:13px;font-weight:600;color:rgba(255,255,255,.6);margin-top:12px;text-align:center}
+.pace b{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:16px;color:#fff}
+.chip{display:flex;align-items:center;gap:5px;margin:12px auto 0;width:max-content;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,181,158,.3);background:rgba(255,181,158,.06);font-size:12px;font-weight:700;color:#ffb59e}
+.chip span{font-family:'Material Symbols Rounded';font-size:14px;font-weight:400}
+</style></head><body>
+<h1>Mockup 93 v4 · Totals A3, both pages</h1><div class="sub">The number swipes between this year and lifetime. Both pages on the A3 card.</div>
+<div class="row">
+<div class="col"><div class="lab">Page 1 <small>This year</small></div><div class="phone"><div class="goal"><span>⚑</span>144.8 km to go · 5.4 km a day</div>
+<div class="card2" style="margin-top:20px;padding-top:24px;position:relative;overflow:hidden">
+<div class="smoke" style="top:40px;height:220px;opacity:.38"></div>
+<div style="position:relative"><div class="head head2"><div class="t">Totals</div><div class="k"><i></i>2026<i></i></div></div>
+<div class="hero" style="font-size:68px;line-height:76px;margin-top:14px">578</div>
+<div class="hl" style="margin-top:6px">Effort · since January 1</div>
+<div class="rank"><span class="ms">psychiatry</span><span class="n">ROOKIE</span><span class="d"></span><span class="l">46 days left</span></div>
+<div class="dots" style="margin:14px 0 18px"><b class="on"></b><b></b></div>
+<div class="tiles"><div class="tile"><div class="v">9</div><div class="c">ACTIVITIES</div></div><div class="tile"><div class="v">107<small>km</small></div><div class="c">DISTANCE</div></div><div class="tile"><div class="v">620<small>m</small></div><div class="c">ELEVATION</div></div></div><div class="mile"><div class="h">NEXT MILESTONE<b>1 to go</b></div><div class="ti">10 activities<span>chevron_right</span></div><div class="bar"><i></i></div></div></div></div>
+</div><div class="note">2026 Effort with the rank and days left.</div></div>
+<div class="col"><div class="lab">Page 2 <small>Swiped: lifetime</small></div><div class="phone"><div class="goal"><span>⚑</span>144.8 km to go · 5.4 km a day</div>
+<div class="card2" style="margin-top:20px;padding-top:24px;position:relative;overflow:hidden">
+<div class="smoke" style="top:40px;height:220px;opacity:.38"></div>
+<div style="position:relative"><div class="head head2"><div class="t">Totals</div><div class="k"><i></i>LIFETIME OF EFFORT<i></i></div></div>
+<div class="hero" style="font-size:68px;line-height:76px;margin-top:14px">2,431</div>
+<div class="hl" style="margin-top:6px">Total Effort · since March 2026</div>
+<div class="pace">On pace for <b>3,000</b> by 18 January</div>
+<div class="chip"><span>trending_up</span>+55 this week</div>
+<div class="dots" style="margin:14px 0 18px"><b></b><b class="on"></b></div>
+<div class="tiles"><div class="tile"><div class="v">9</div><div class="c">ACTIVITIES</div></div><div class="tile"><div class="v">107<small>km</small></div><div class="c">DISTANCE</div></div><div class="tile"><div class="v">620<small>m</small></div><div class="c">ELEVATION</div></div></div><div class="mile"><div class="h">NEXT MILESTONE<b>1 to go</b></div><div class="ti">10 activities<span>chevron_right</span></div><div class="bar"><i></i></div></div></div></div>
+</div><div class="note">Lifetime Effort, the pace to the next round number and this week's gain, as the app shows them now. The kicker reads Lifetime of Effort; the tiles and milestone stay put.</div></div>
+</div></body></html>
