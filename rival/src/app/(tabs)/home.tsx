@@ -1563,16 +1563,16 @@ function LegacyTile({ label, value, unit, gain, quiet }: { label: string; value:
   );
 }
 
-function MHeading({ title, subtitle, icon, onTitlePress, oneLine }: { title?: string; subtitle?: string | null; icon?: RivalIconName; onTitlePress?: () => void; oneLine?: boolean }) {
+function MHeading({ title, subtitle, icon, onTitlePress, oneLine, big }: { title?: string; subtitle?: string | null; icon?: RivalIconName; onTitlePress?: () => void; oneLine?: boolean; /** Larger title and kicker (Totals, Mockup 93 v4). */ big?: boolean }) {
   return (
     <View style={styles.mHeading}>
-      {title ? <Text style={styles.mStatusHeadline} numberOfLines={oneLine ? 1 : undefined} onPress={onTitlePress} accessibilityRole={onTitlePress ? 'link' : undefined}>{title}</Text> : null}
+      {title ? <Text style={[styles.mStatusHeadline, big && styles.mHeadingBigTitle]} numberOfLines={oneLine ? 1 : undefined} onPress={onTitlePress} accessibilityRole={onTitlePress ? 'link' : undefined}>{title}</Text> : null}
       {subtitle ? (
         <View style={styles.mStatusCountdown}>
-          <View style={[styles.mStatusRule, styles.mStatusRuleLeft]} />
+          <View style={[styles.mStatusRule, styles.mStatusRuleLeft, big && styles.mHeadingBigRule, big && styles.mHeadingBigRuleLeft]} />
           {icon ? <RivalIcon name={icon} size={12} color={RivalColors.accentText} /> : null}
-          <Text style={styles.mStatusCountdownText}>{subtitle}</Text>
-          <View style={[styles.mStatusRule, styles.mStatusRuleRight]} />
+          <Text style={[styles.mStatusCountdownText, big && styles.mHeadingBigKicker]}>{subtitle}</Text>
+          <View style={[styles.mStatusRule, styles.mStatusRuleRight, big && styles.mHeadingBigRule, big && styles.mHeadingBigRuleRight]} />
         </View>
       ) : null}
     </View>
@@ -3528,20 +3528,21 @@ export default function HomeScreen() {
                   section shares that card's paddingHorizontal:16, which is
                   what mPodiumSmoke's baked-in bleed margins are sized for. */}
               <RiseIn index={4}>
-              <View style={styles.mLegacySection}>
+              {/* One card, like Goal, with the smoke behind the number
+                  (Mockup 93 v4 · A3, Ricky 2026-11-16: it read as a section
+                  floating on its own). */}
+              <View style={styles.mTotalsCard}>
                 <Image
                   source={require('../../../assets/images/backgrounds/optimized/podium-smoke.jpg')}
-                  style={[styles.mLegacySmoke, Platform.OS !== 'web' && styles.mSmokeEdgesNative, Platform.OS !== 'web' && styles.mLegacySmokeFullNative]}
+                  style={styles.mTotalsSmoke}
                   resizeMode="cover"
                 />
-                {Platform.OS !== 'web' && <View style={[styles.mLegacySmoke, styles.mSmokeEdgesNative, styles.mLegacySmokeFullNative, styles.mLegacyFadeNative, { pointerEvents: 'none' }]} />}
-                <View style={{ marginTop: 8 }}>
-                  <MHeading title="Totals" subtitle={heroPage === 0 ? `${seasonYear}` : "Lifetime of Effort"} />
-                </View>
+                {Platform.OS !== 'web' && <View style={[styles.mTotalsSmoke, styles.mTotalsSmokeFadeNative, { pointerEvents: 'none' }]} />}
+                <MHeading big title="Totals" subtitle={heroPage === 0 ? `${seasonYear}` : "Lifetime of Effort"} />
 
                 {/* Two figures you can swipe between: everything ever earned,
                     and this year's — the number rank is built on. */}
-                <View style={{ marginTop: 44 }} onLayout={(e) => setHeroWidth(e.nativeEvent.layout.width)}>
+                <View style={{ marginTop: 14 }} onLayout={(e) => setHeroWidth(e.nativeEvent.layout.width)}>
                   <ScrollView
                     ref={heroScrollRef}
                     horizontal
@@ -3633,7 +3634,7 @@ export default function HomeScreen() {
                     the same number of lines: the "this week" line shows on both
                     or neither, never leaving an empty strip on one. */}
                 <View
-                  style={[styles.mLegacyStatBox, styles.mLegacyCarouselBox, styles.mFocusLit, { marginTop: 30 }]}
+                  style={[styles.mLegacyStatBox, styles.mLegacyCarouselBox, styles.mTotalsStats]}
                   onLayout={(e) => setLegacyBoxWidth(e.nativeEvent.layout.width - 2)}
                 >
                   <ScrollView
@@ -3711,6 +3712,9 @@ export default function HomeScreen() {
                     );
                   })()}
                 </View>
+
+
+              </View>
                 {hasImpact && (
                   <View style={[styles.mLeaderDots, { marginTop: 12 }]}>
                     {[0, 1].map((i) => (
@@ -3725,9 +3729,6 @@ export default function HomeScreen() {
                     ))}
                   </View>
                 )}
-
-
-              </View>
               </RiseIn>
 
               {/* Next Event — only when a race is booked; races are added from
@@ -5130,6 +5131,33 @@ const styles = StyleSheet.create({
   // Legacy borderless section
   // Mockup bleeds this section edge-to-edge (`margin:0 -16px` against its
   // 16px-padded parent) — the ScrollView content pads 24px, so cancel that.
+  mTotalsCard: {
+    marginHorizontal: -8, marginTop: 20, paddingTop: 24, overflow: 'hidden',
+    backgroundColor: '#2b2a29', borderRadius: 22, borderWidth: 1,
+    borderColor: 'rgba(255,209,190,0.14)', borderTopColor: 'rgba(255,209,190,0.24)',
+  },
+  // The smoke from the Totals section, inside the card behind the number.
+  mTotalsSmoke: {
+    position: 'absolute', left: 0, right: 0, top: 40, height: 220, width: '100%', opacity: 0.38,
+    ...(Platform.OS === 'web'
+      ? ({
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 70%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 70%, transparent 100%)',
+        } as any)
+      : {}),
+  },
+  mTotalsSmokeFadeNative: { opacity: 1, experimental_backgroundImage: 'linear-gradient(to bottom, #2b2a29 0%, rgba(43,42,41,0) 25%, rgba(43,42,41,0) 70%, #2b2a29 100%)' } as any,
+  // The tiles and milestone sit in the Totals card, not a card of their own.
+  mTotalsStats: { marginTop: 18, backgroundColor: 'transparent', borderWidth: 0, borderRadius: 0 },
+  mHeadingBigTitle: { fontSize: 27 },
+  mHeadingBigKicker: { fontSize: 12.5, letterSpacing: 2.6 },
+  mHeadingBigRule: { width: 56, height: 1.5 },
+  mHeadingBigRuleLeft: Platform.OS === 'web'
+    ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.85) 100%)' } as any)
+    : ({ experimental_backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0) 0%, rgba(255,181,158,0.85) 100%)' } as any),
+  mHeadingBigRuleRight: Platform.OS === 'web'
+    ? ({ backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.85) 0%, rgba(255,181,158,0) 100%)' } as any)
+    : ({ experimental_backgroundImage: 'linear-gradient(90deg, rgba(255,181,158,0.85) 0%, rgba(255,181,158,0) 100%)' } as any),
   mLegacySection: {
     marginHorizontal: -24, paddingTop: 40, paddingHorizontal: 16, paddingBottom: 30,
     // Web: gradient-only, no flat backgroundColor underneath — a flat color
@@ -5247,13 +5275,13 @@ const styles = StyleSheet.create({
   mLegacyHeroNumber: {
     // Large on purpose: the lifetime number is the point of Legacy. The side
     // padding keeps the italic's last digit inside the gradient clip.
-    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 76, lineHeight: 84, paddingHorizontal: 8, fontWeight: '700', color: RivalColors.accentFill,
+    fontFamily: RivalSerifFamily, fontStyle: 'italic', fontSize: 68, lineHeight: 76, paddingHorizontal: 8, fontWeight: '700', color: RivalColors.accentFill,
     ...(webFx({
       backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)',
       backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent',
     })),
   },
-  mLegacyHeroLabel: { ...RivalType.labelCaps, fontSize: 11, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText, textAlign: 'center', marginTop: 10 },
+  mLegacyHeroLabel: { ...RivalType.labelCaps, fontSize: 11, fontWeight: '800', letterSpacing: 2, color: RivalColors.accentText, textAlign: 'center', marginTop: 6 },
   mLegacyDivider: { width: 1, height: 56, alignSelf: 'center', backgroundColor: RivalColors.accentFill, opacity: 0.4, marginTop: 8, marginBottom: 6 },
   // Half the Legacy divider's length — leads the eye down toward the Add
   // Activity button below the empty-state card instead of just floating copy.
