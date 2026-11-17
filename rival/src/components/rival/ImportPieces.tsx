@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily, rivalWordmark } from '../../constants/rivalTheme';
+import { RivalIcon, type RivalIconName } from './RivalIcon';
+import { GradientText } from './GradientText';
+import { webFx } from '../../lib/webFx';
 
 // The import pages' shared pieces: the loader and the fact rows, used by
 // Import an archive and Apple Health (Mockup 29, 2026-11-10).
@@ -65,6 +68,40 @@ export function Fact({ label, value, first }: { label: string; value: string; fi
   );
 }
 
+
+/** Ready to import (Mockup 94 v2): the new count large and centred, a caps
+ *  line and the date range, then detail tiles. */
+export function ReadyHead({ count, caption, span }: { count: number; caption: string; span?: string }) {
+  return (
+    <View style={r.head}>
+      <GradientText style={r.num}>{count.toLocaleString()}</GradientText>
+      <Text style={r.cap}>{caption}</Text>
+      {span ? <Text style={r.span}>{span}</Text> : null}
+    </View>
+  );
+}
+
+/** A detail tile on Ready to import: a faint icon behind, words bottom left. */
+export function ReadyTile({ icon, value, label }: { icon: RivalIconName; value: number; label: string }) {
+  return (
+    <View style={r.tile}>
+      <View style={r.tileIcon}><RivalIcon name={icon} size={52} color="rgba(255,255,255,0.06)" /></View>
+      <Text style={r.tileValue}>{value.toLocaleString()}</Text>
+      <Text style={r.tileLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const r = StyleSheet.create({
+  head: { alignItems: 'center', paddingTop: 16 },
+  num: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 72, lineHeight: 80, paddingHorizontal: 8, color: RivalColors.accentText, ...webFx({ backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' }) },
+  cap: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 2, textAlign: 'center' },
+  span: { fontFamily: RivalFontFamily, fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)', marginTop: 6, textAlign: 'center' },
+  tile: { flex: 1, height: 86, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,209,190,0.08)', overflow: 'hidden', justifyContent: 'flex-end', paddingHorizontal: 11, paddingBottom: 10 },
+  tileIcon: { position: 'absolute', right: -6, top: -4 },
+  tileValue: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 26, color: '#fff' },
+  tileLabel: { fontFamily: RivalFontFamily, fontSize: 9, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+});
 
 const s = StyleSheet.create({
   card: { borderRadius: 22, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, padding: 16, gap: 10 },

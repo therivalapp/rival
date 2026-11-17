@@ -78,6 +78,7 @@ Can wait until after submitting (instant updates): new features, polish, image s
 - [ ] New Focus types: fastest time, pace, lift first, then longest distance, event time, weekly rhythm, variety, time earned, Effort, total reps, total weight (mock: design/focus-types-mockup.png; goal_types.sql run 2026-10-31. Fastest time, pace, lift and the 3 Volume + 3 Performance limit built, uncommitted; saving a real goal still to test)
 
 ## Before beta
+- [ ] Milestone confetti needs work (Ricky, 2026-11-16): the confetti when a milestone is reached doesn't look right yet. Banked for before beta; mock first
 - [ ] Ask every beta tester which devices and apps they use (watch, bike computer, ring, other fitness apps) and which they would like connected to RIVAL (Ricky, 2026-11-15). Ask in the setup questions after sign-up (nothing extra at sign-up itself), so the next integrations follow what testers actually use. Mock the question first; keep it optional
 - [x] Triathlon card on Activity shows T1 and T2 on one line under the legs (Mockup 16 B). LIVE 2026-11-10 (PR #17 merged); website Activity screenshot retaken
 - [ ] NEXT after the website (Ricky, 2026-11-10): a personal distance Focus counts walking, running, riding and swimming, so show it as a ring split by activity type, like the team challenge's Distance ring (each sport's share of the total). Mock first
@@ -105,7 +106,7 @@ Can wait until after submitting (instant updates): new features, polish, image s
 - [ ] Decide on the charity page
 - [ ] Spec the text-behind-you share image
 - [ ] Setup questions for new members: ask their usual activities so Start and the tiles fit from day one (Ricky 2026-11-01); mock first
-- [ ] Ricky: move sign-in emails off Resend's test sender: therivalapp.com is now set up in Resend (2026-11-10); change the sender in Supabase Auth's SMTP settings to hello@therivalapp.com. DMARC record ADDED and verified live 2026-11-10 (TXT _dmarc, v=DMARC1; p=none;)
+- [x] (Done, Ricky confirmed 2026-11-16) Ricky: move sign-in emails off Resend's test sender: therivalapp.com is now set up in Resend (2026-11-10); change the sender in Supabase Auth's SMTP settings to hello@therivalapp.com. DMARC record ADDED and verified live 2026-11-10 (TXT _dmarc, v=DMARC1; p=none;)
 - [ ] Daily cap on the Add Race search (it calls the Anthropic API with no limit today)
 - [ ] Ricky: merge the work branch (shared-activities) into main when ready
 - [ ] Photo filters for activity photos (Ricky asked 2026-10-24): spec first (which looks, per photo or per activity, video too), then mock, then build

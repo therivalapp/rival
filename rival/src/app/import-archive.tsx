@@ -6,7 +6,9 @@ import { RivalButtonColors, RivalColors, RivalFontFamily, RivalGhost, RivalSerif
 import { sidePageWide } from '../constants/breakpoints';
 import { GreyPageHead, GREY_PAGE_BG, RivalIcon } from '../components/rival';
 import { HistoryReveal } from '../components/rival/HistoryReveal';
-import { LoaderCard, Fact } from '../components/rival/ImportPieces';
+import { LoaderCard, ReadyHead, ReadyTile } from '../components/rival/ImportPieces';
+import { GreySheet } from '../components/rival/RivalGreySheet';
+import { RoutePopUp } from '../components/rival/RivalModal';
 import { getAuthUser } from '../lib/supabase';
 import { goToTab } from '../lib/tabNav';
 import { invalidateActivityCache } from '../lib/fetchAllActivities';
@@ -156,19 +158,23 @@ export default function ImportArchiveScreen() {
     if (!added.length) {
       // Only photos were added to activities already in RIVAL.
       return (
-        <SafeAreaView style={[s.page, !phone && s.pageWide]} edges={['top', 'left', 'right']}>
-          <ScrollView contentContainerStyle={s.content}>
-            <GreyPageHead kicker="CONNECTED DEVICES" title="Import an archive" onBack={back} />
-            <View style={s.card}>
-              <Text style={s.label}>Photos added</Text>
-              <Text style={s.bigNum}>{(prog.photos + prog.videos).toLocaleString()}</Text>
-              <Text style={s.body}>To activities already in RIVAL.</Text>
-            </View>
-            <TouchableOpacity style={s.primary} onPress={() => goToTab('/my-activities')} activeOpacity={0.85}>
-              <Text style={s.primaryText}>See the journal</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
+        <RoutePopUp>
+          <View style={s.backdrop}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={back} accessibilityLabel="Close" />
+            <GreySheet
+              kicker="CONNECTED DEVICES"
+              title="Import an archive"
+              onClose={back}
+              footer={
+                <TouchableOpacity style={s.primary} onPress={() => goToTab('/my-activities')} activeOpacity={0.85}>
+                  <Text style={s.primaryText}>See the journal</Text>
+                </TouchableOpacity>
+              }
+            >
+              <ReadyHead count={prog.photos + prog.videos} caption="Photos added" span="To activities already in RIVAL." />
+            </GreySheet>
+          </View>
+        </RoutePopUp>
       );
     }
     const photoUrls = added.filter((i) => read!.photos.has(i.key)).slice(0, 6).map((i) => {
@@ -188,10 +194,32 @@ export default function ImportArchiveScreen() {
     );
   }
 
+  // A pop-up over Connected devices, like Apple Health (Mockup 94, Ricky
+  // 2026-11-16). It can't be closed while a file opens, reads or imports.
+  const busy = opening || step === 'reading' || step === 'importing';
+  const close = () => { if (!busy) back(); };
+  const footer = step === 'preview' ? (
+    runTotal ? (
+      <View style={{ gap: 10 }}>
+        <TouchableOpacity style={s.primary} onPress={start} activeOpacity={0.85}>
+          <Text style={s.primaryText}>{fresh.length ? `Import ${fresh.length.toLocaleString()} ${fresh.length === 1 ? 'activity' : 'activities'}` : 'Add photos'}</Text>
+        </TouchableOpacity>
+        {linked > 0 && fresh.length ? <Text style={s.keepOpen}>{`${linked.toLocaleString()} already in RIVAL ${linked === 1 ? 'is' : 'are'} linked, not added twice.`}</Text> : null}
+      </View>
+    ) : (
+      <TouchableOpacity style={s.ghost} onPress={back}><Text style={s.ghostText}>Done</Text></TouchableOpacity>
+    )
+  ) : step === 'reading' || step === 'importing' ? (
+    // Closing the app part way stops it (Ricky, 2026-11-16).
+    <Text style={s.keepOpen}>Keep RIVAL open until this finishes.</Text>
+  ) : null;
+
   return (
-    <SafeAreaView style={[s.page, !phone && s.pageWide]} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={s.content}>
-        <GreyPageHead kicker="CONNECTED DEVICES" title="Import an archive" onBack={back} />
+    <RoutePopUp>
+    <View style={s.backdrop}>
+      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+      <GreySheet kicker="CONNECTED DEVICES" title="Import an archive" onClose={close} footer={footer}>
+      <View style={s.content}>
 
         {step === 'choose' || step === 'error' ? (
           <>
@@ -251,30 +279,23 @@ export default function ImportArchiveScreen() {
           />
         ) : step === 'preview' ? (
           <>
-            <View style={s.fileRow}><RivalIcon name="archive" size={16} color={RivalColors.accentText} /><Text style={s.fileName} numberOfLines={1}>{fileName}</Text></View>
-            <View style={s.card}>
-              <Text style={s.label}>{fresh.length ? 'Ready to import' : fill.length ? 'Photos to add' : 'Nothing new'}</Text>
-              <View style={s.coinRow}>
-                <View style={s.coin}><RivalIcon name="archive" size={20} color={RivalButtonColors.label(RivalColors.onAccentFill)} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.bigNum}>{(fresh.length || (fill.length ? photos + videos : 0)).toLocaleString()}</Text>
-                  <Text style={s.body}>{fresh.length ? `new activities, ${span}` : fill.length ? 'For activities already in RIVAL.' : 'Everything in this archive is already in RIVAL.'}</Text>
-                </View>
-              </View>
-              <View style={s.facts}>
-                {linked > 0 ? <Fact label="Already in RIVAL" value={linked.toLocaleString()} first /> : null}
-                <Fact label="Photos" value={photos.toLocaleString()} first={linked === 0} />
-                {videos > 0 ? <Fact label="Videos" value={videos.toLocaleString()} /> : null}
-                <Fact label="Routes" value={routes.toLocaleString()} />
-              </View>
-            </View>
-            {runTotal ? (
-              <TouchableOpacity style={s.primary} onPress={start} activeOpacity={0.85}>
-                <Text style={s.primaryText}>{fresh.length ? `Import ${fresh.length.toLocaleString()} ${fresh.length === 1 ? 'activity' : 'activities'}` : 'Add photos'}</Text>
-              </TouchableOpacity>
+            {fresh.length ? (
+              <ReadyHead count={fresh.length} caption={fresh.length === 1 ? 'New activity' : 'New activities'} span={span} />
+            ) : fill.length ? (
+              <ReadyHead count={photos + videos} caption="Photos to add" span="For activities already in RIVAL." />
             ) : (
-              <TouchableOpacity style={s.ghost} onPress={back}><Text style={s.ghostText}>Done</Text></TouchableOpacity>
+              <View style={{ alignItems: 'center', gap: 6, paddingTop: 12 }}>
+                <Text style={s.serif}>Nothing new</Text>
+                <Text style={[s.body, { textAlign: 'center' }]}>Everything in this archive is already in RIVAL.</Text>
+              </View>
             )}
+            {runTotal ? (
+              <View style={s.readyTiles}>
+                <ReadyTile icon="image" value={photos + videos} label={videos ? 'Photos, videos' : 'Photos'} />
+                <ReadyTile icon="map" value={routes} label="Routes" />
+                <ReadyTile icon="check" value={linked} label="In RIVAL" />
+              </View>
+            ) : null}
           </>
         ) : (
           <LoaderCard
@@ -288,10 +309,10 @@ export default function ImportArchiveScreen() {
             ]}
           />
         )}
-        {/* Closing the app part way stops it (Ricky, 2026-11-16). */}
-        {step === 'reading' || step === 'importing' ? <Text style={s.keepOpen}>Keep RIVAL open until this finishes.</Text> : null}
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+      </GreySheet>
+    </View>
+    </RoutePopUp>
   );
 }
 
@@ -338,9 +359,11 @@ function sizeOf(n: number, like = n): string {
 }
 
 const s = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  readyTiles: { flexDirection: 'row', gap: 8, marginTop: 20 },
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
   pageWide: { backgroundColor: RivalColors.surfaceContainer },
-  content: { maxWidth: 560, width: '100%', alignSelf: 'center', paddingHorizontal: 16, paddingBottom: 120, gap: 12 },
+  content: { gap: 12, paddingTop: 12 },
   cardError: { borderColor: 'rgba(255,92,92,0.45)' },
   card: { borderRadius: 22, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, padding: 16, gap: 10 },
   label: { fontFamily: RivalFontFamily, fontSize: 10, fontWeight: '800', letterSpacing: 1.7, textTransform: 'uppercase', color: RivalColors.accentText },

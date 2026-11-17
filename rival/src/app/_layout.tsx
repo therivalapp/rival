@@ -235,6 +235,9 @@ export default function RootLayout() {
           <Stack.Screen name="join-league" options={popUp} />
           <Stack.Screen name="weekly-scan" options={phone ? { presentation: 'transparentModal', animation: 'slide_from_bottom' } : popUp} />
           <Stack.Screen name="add-workout" options={popUp} />
+          <Stack.Screen name="apple-health" options={popUp} />
+          <Stack.Screen name="garmin" options={popUp} />
+          <Stack.Screen name="import-archive" options={popUp} />
           {/* Goals rises over Today as a pop-up sized to what it holds (Mockup 83,
               Ricky 2026-11-15). Phone only; desktop keeps its page. */}
           <Stack.Screen name="goals" options={phone ? popUp : {}} />
