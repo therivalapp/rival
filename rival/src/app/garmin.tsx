@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../constants/rivalTheme';
-import { sidePageWide } from '../constants/breakpoints';
-import { GreyPageHead, GREY_PAGE_BG, RivalIcon } from '../components/rival';
-import { GreyPrimary } from '../components/rival/RivalGreySheet';
+import { GreyPrimary, GreySheet } from '../components/rival/RivalGreySheet';
+import { RoutePopUp } from '../components/rival/RivalModal';
 import { goBack } from '../lib/tabNav';
 import { connectGarmin, disconnectGarmin, garminStatus } from '../lib/garmin';
 
@@ -22,7 +20,6 @@ const STEPS = [
 ];
 
 export default function GarminScreen() {
-  const phone = !sidePageWide(useWindowDimensions().width);
   const params = useLocalSearchParams<{ garmin?: string }>();
   const [connected, setConnected] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<'connect' | 'disconnect' | null>(null);
@@ -65,55 +62,65 @@ export default function GarminScreen() {
     </View>
   );
 
-  return (
-    <SafeAreaView style={[s.page, !phone && s.pageWide]} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={s.content}>
-        <GreyPageHead kicker="CONNECTED DEVICES" title="Garmin" sub={connected ? 'Connected' : undefined} onBack={() => goBack()} />
+  // A pop-up over Connected devices, like Apple Health (Mockup 94, Ricky
+  // 2026-11-16: the full page left empty space at the bottom).
+  const close = () => { if (!busy) goBack(); };
+  const footer = connected ? (
+    <View style={{ gap: 8 }}>
+      <GreyPrimary label="Import Garmin history" onPress={() => router.push('/import-archive')} />
+      <Pressable onPress={disconnect} disabled={!!busy} style={s.quiet}>
+        <Text style={s.quietText}>{busy === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}</Text>
+      </Pressable>
+    </View>
+  ) : (
+    <View style={{ gap: 10 }}>
+      <GreyPrimary label="Connect" busy={busy === 'connect'} disabled={connected === null || !!busy} onPress={connect} />
+      <Text style={s.note}>RIVAL only reads activities. Nothing is written to Garmin.</Text>
+    </View>
+  );
 
-        {connected ? (
-          <>
-            <View style={s.card}>
-              <Text style={s.label}>From now on</Text>
-              <Text style={s.body}>Each activity your Garmin records arrives within minutes of syncing to Garmin Connect.</Text>
-            </View>
-            {history}
-            <View style={{ height: 12 }} />
-            <GreyPrimary label="Import Garmin history" onPress={() => router.push('/import-archive')} />
-            <GreyPrimary label="Done" tone="ghost" onPress={() => goBack()} />
-            <Pressable onPress={disconnect} disabled={!!busy} style={s.quiet}>
-              <Text style={s.quietText}>{busy === 'disconnect' ? 'Disconnecting…' : 'Disconnect'}</Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <View style={[s.card, s.hero]}>
-              <View style={s.badge}><Text style={s.badgeText}>GARMIN</Text></View>
-              <Text style={s.heroTitle}>Every activity, as it happens</Text>
-              <Text style={[s.body, { textAlign: 'center' }]}>
-                New activities from your Garmin device arrive in RIVAL on their own, with routes, heart rate, pace and splits.
-              </Text>
-            </View>
-            <View style={s.card}>
-              <Text style={s.label}>Past activities</Text>
-              <Text style={s.body}>Garmin sends activities recorded after you connect. To bring in your history, import Garmin's data download after connecting.</Text>
-            </View>
-            <View style={{ height: 12 }} />
-            <GreyPrimary label="Connect" busy={busy === 'connect'} disabled={connected === null || !!busy} onPress={connect} />
-            <Text style={s.note}>RIVAL only reads activities. Nothing is written to Garmin.</Text>
-          </>
-        )}
-        {note ? <Text style={[s.note, { color: RivalColors.accentText }]}>{note}</Text> : null}
-      </ScrollView>
-    </SafeAreaView>
+  return (
+    <RoutePopUp>
+      <View style={s.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+        <GreySheet kicker="CONNECTED DEVICES" title="Garmin" sub={connected ? 'Connected' : undefined} onClose={close} footer={footer}>
+          <View style={s.content}>
+            {connected ? (
+              <>
+                <View style={s.card}>
+                  <Text style={s.label}>From now on</Text>
+                  <Text style={s.body}>Each activity your Garmin records arrives within minutes of syncing to Garmin Connect.</Text>
+                </View>
+                {history}
+              </>
+            ) : (
+              <>
+                <View style={s.hero}>
+                  <View style={s.badge}><Text style={s.badgeText}>GARMIN</Text></View>
+                  <Text style={s.heroTitle}>Every activity, as it happens</Text>
+                  <Text style={[s.body, { textAlign: 'center' }]}>
+                    New activities from your Garmin device arrive in RIVAL on their own, with routes, heart rate, pace and splits.
+                  </Text>
+                </View>
+                <View style={s.card}>
+                  <Text style={s.label}>Past activities</Text>
+                  <Text style={s.body}>Garmin sends activities recorded after you connect. To bring in your history, import Garmin's data download after connecting.</Text>
+                </View>
+              </>
+            )}
+            {note ? <Text style={[s.note, { color: RivalColors.accentText }]}>{note}</Text> : null}
+          </View>
+        </GreySheet>
+      </View>
+    </RoutePopUp>
   );
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: GREY_PAGE_BG },
-  pageWide: { backgroundColor: RivalColors.surfaceContainer },
-  content: { maxWidth: 560, width: '100%', alignSelf: 'center', paddingHorizontal: 16, paddingBottom: 120, gap: 12 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  content: { gap: 12, paddingTop: 12 },
   card: { borderRadius: 22, backgroundColor: RivalGhost.fill, borderWidth: 1, borderColor: RivalGhost.border, padding: 16, gap: 10 },
-  hero: { alignItems: 'center', paddingTop: 26, paddingBottom: 18 },
+  hero: { alignItems: 'center', gap: 8, paddingTop: 6, paddingBottom: 4 },
   badge: { width: 64, height: 64, borderRadius: 18, backgroundColor: '#000', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, color: '#fff' },
   heroTitle: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 21, color: '#fff', marginTop: 4, textAlign: 'center' },

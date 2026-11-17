@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { RivalButtonColors, RivalColors, RivalFontFamily, RivalGhost, RivalSerifFamily } from '../constants/rivalTheme';
 import { sidePageWide } from '../constants/breakpoints';
-import { GreyPageHead, GREY_PAGE_BG, RivalIcon } from '../components/rival';
+import { GREY_PAGE_BG, RivalIcon } from '../components/rival';
+import { GreySheet } from '../components/rival/RivalGreySheet';
+import { GradientText } from '../components/rival/GradientText';
+import { RoutePopUp } from '../components/rival/RivalModal';
+import { ReadyHead, ReadyTile } from '../components/rival/ImportPieces';
+import { webFx } from '../lib/webFx';
 import { HistoryReveal } from '../components/rival/HistoryReveal';
-import { LoaderCard, Fact } from '../components/rival/ImportPieces';
 import { getAuthUser } from '../lib/supabase';
 import { goToTab } from '../lib/tabNav';
 import { fetchYearEffort } from '../lib/archive';
@@ -32,6 +35,9 @@ export default function AppleHealthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [found, setFound] = useState(0);
   const [read, setRead] = useState({ done: 0, total: 0 });
+  // Then each workout is checked against RIVAL, which took 15 s with the bar
+  // already full (Ricky, 2026-11-16): the bar now covers both steps.
+  const [checked, setChecked] = useState(0);
   const [all, setAll] = useState<HealthItem[]>([]);
   const [anchor, setAnchor] = useState('');
   const [fresh, setFresh] = useState<HealthItem[]>([]);
@@ -46,12 +52,13 @@ export default function AppleHealthScreen() {
       return;
     }
     setStep('reading');
+    setChecked(0);
     try {
       const r = await readHealth((done, total) => setRead({ done, total }));
       setFound(r.found);
       setAll(r.items);
       setAnchor(r.anchor);
-      const newKeys = r.items.length ? await previewHealth(r.items) : new Set<string>();
+      const newKeys = r.items.length ? await previewHealth(r.items, setChecked) : new Set<string>();
       setFresh(r.items.filter((i) => newKeys.has(i.key)));
       setStep('preview');
     } catch {
@@ -109,87 +116,95 @@ export default function AppleHealthScreen() {
     );
   }
 
-  return (
-    <SafeAreaView style={[s.page, !phone && s.pageWide]} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={s.content}>
-        <GreyPageHead kicker="CONNECTED DEVICES" title="Apple Health" onBack={back} />
+  // Loading can't be closed by tapping outside or pulling down: the import
+  // would stop part way (Mockup 94, Ricky 2026-11-16).
+  const busy = step === 'reading' || step === 'importing';
+  const close = () => { if (!busy) back(); };
+  const loadPct = step === 'reading'
+    ? (read.total ? 4 + Math.round((read.done / read.total) * 46) + Math.round((checked / read.total) * 50) : 4)
+    : (fresh.length ? Math.max(3, Math.round((prog.done / fresh.length) * 100)) : 0);
+  const loadCount = step === 'reading' ? read.done : prog.done;
+  const loadOf = step === 'reading' ? read.total : fresh.length;
 
-        {!healthAvailable ? (
-          <View style={s.card}>
-            <Text style={s.label}>iPhone app</Text>
-            <Text style={s.body}>Apple Health connects in the RIVAL iPhone app.</Text>
-          </View>
-        ) : step === 'connect' || step === 'error' ? (
-          <>
-            <View style={[s.card, s.hero]}>
-              <View style={s.heart}><RivalIcon name="health" size={38} color="#ff375f" /></View>
-              <Text style={s.heroTitle}>Every activity, in one place</Text>
-              <Text style={[s.body, { textAlign: 'center' }]}>Past and new activities from Apple Health come into Rival, with routes, heart rate and calories.</Text>
-            </View>
-            <View style={s.card}>
-              <Text style={s.label}>Included</Text>
-              <Text style={s.body}>Activities from Apple Watch and other apps that save to Apple Health.</Text>
-            </View>
-            {error ? <Text style={s.error}>{error}</Text> : null}
-            <TouchableOpacity style={s.primary} onPress={connect} activeOpacity={0.85}>
-              <Text style={s.primaryText}>Connect</Text>
-            </TouchableOpacity>
-            <Text style={s.note}>RIVAL only reads from Apple Health.</Text>
-          </>
-        ) : step === 'reading' ? (
-          <LoaderCard
-            fileName="Apple Health"
-            pct={read.total ? 4 + Math.round((read.done / read.total) * 96) : 4}
-            rows={[{ label: 'Activities', value: read.done, of: read.total || undefined }]}
-          />
-        ) : step === 'preview' ? (
-          <>
-            <View style={s.fileRow}>
-              <RivalIcon name="health" size={16} color={RivalColors.accentText} />
-              <Text style={s.fileName} numberOfLines={1}>Apple Health · {found.toLocaleString()} {found === 1 ? 'workout' : 'workouts'} found</Text>
-            </View>
-            <View style={s.card}>
-              <Text style={s.label}>{fresh.length ? 'Ready to import' : 'Nothing new'}</Text>
-              <View style={s.coinRow}>
-                <View style={s.coin}><RivalIcon name="health" size={20} color={RivalButtonColors.label(RivalColors.onAccentFill)} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.bigNum}>{fresh.length.toLocaleString()}</Text>
-                  <Text style={s.body}>{fresh.length ? `new activities, ${span}` : 'Every activity in Apple Health is already in Rival.'}</Text>
-                </View>
-              </View>
-              <View style={s.facts}>
-                <Fact label="Already in RIVAL" value={linked.toLocaleString()} first />
-                <Fact label="Routes" value={routes.toLocaleString()} />
-                <Fact label="Heart rate" value={withHr.toLocaleString()} />
-              </View>
-            </View>
-            {fresh.length ? (
-              <TouchableOpacity style={s.primary} onPress={start} activeOpacity={0.85}>
-                <Text style={s.primaryText}>Import {fresh.length.toLocaleString()} {fresh.length === 1 ? 'activity' : 'activities'}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={s.ghost} onPress={finishEmpty}><Text style={s.ghostText}>Done</Text></TouchableOpacity>
-            )}
-          </>
-        ) : (
-          <>
-            <LoaderCard
-              fileName="Apple Health"
-              pct={fresh.length ? Math.max(3, Math.round((prog.done / fresh.length) * 100)) : 0}
-              rows={[
-                { label: 'Activities', value: prog.done, of: fresh.length },
-                ...(routes ? [{ label: 'Routes', value: prog.routes, of: routes }] : []),
-              ]}
-            />
-            <Text style={s.note}>Keep RIVAL open until this finishes.</Text>
-          </>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+  const button = (label: string, onPress: () => void) => (
+    <TouchableOpacity style={s.primary} onPress={onPress} activeOpacity={0.85} accessibilityRole="button">
+      <Text style={s.primaryText}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  let body: React.ReactNode = null;
+  let footer: React.ReactNode = null;
+  if (!healthAvailable) {
+    body = <Text style={[s.body, { textAlign: 'center', marginVertical: 18 }]}>Apple Health connects in the RIVAL iPhone app.</Text>;
+  } else if (step === 'connect' || step === 'error') {
+    body = (
+      <View style={s.connect}>
+        <View style={s.heart}><RivalIcon name="health" size={38} color="#ff375f" /></View>
+        <Text style={s.heroTitle}>Every activity, in one place</Text>
+        <Text style={[s.body, { textAlign: 'center' }]}>Past and new activities from Apple Health come into RIVAL, with routes, heart rate and calories.</Text>
+        <View style={s.card}>
+          <Text style={s.label}>Included</Text>
+          <Text style={s.body}>Activities from Apple Watch and other apps that save to Apple Health.</Text>
+        </View>
+        {error ? <Text style={s.error}>{error}</Text> : null}
+      </View>
+    );
+    footer = <View style={{ gap: 10 }}>{button('Connect', connect)}<Text style={s.note}>RIVAL only reads from Apple Health.</Text></View>;
+  } else if (step === 'reading' || step === 'importing') {
+    body = (
+      <View style={s.loading}>
+        <GradientText style={s.loadNum}>{loadCount.toLocaleString()}</GradientText>
+        <Text style={s.loadOf}>{loadOf ? `of ${loadOf.toLocaleString()} ${loadOf === 1 ? 'activity' : 'activities'}` : 'Activities'}</Text>
+        <View style={s.track}><View style={[s.fill, { width: `${loadPct}%` }]} /></View>
+      </View>
+    );
+    footer = <Text style={s.note}>Keep RIVAL open until this finishes.</Text>;
+  } else if (step === 'preview') {
+    body = fresh.length ? (
+      <View style={s.loading}>
+        <ReadyHead count={fresh.length} caption={fresh.length === 1 ? 'New activity' : 'New activities'} span={span} />
+        <View style={s.tiles}>
+          <ReadyTile icon="map" value={routes} label="Routes" />
+          <ReadyTile icon="health" value={withHr} label="Heart rate" />
+          <ReadyTile icon="check" value={linked} label="In RIVAL" />
+        </View>
+      </View>
+    ) : (
+      <View style={s.loading}>
+        <Text style={s.heroTitle}>Nothing new</Text>
+        <Text style={[s.body, { textAlign: 'center' }]}>Every activity in Apple Health is already in RIVAL. New ones arrive on their own from now on.</Text>
+      </View>
+    );
+    footer = fresh.length ? (
+      <View style={{ gap: 10 }}>
+        {button(`Import ${fresh.length.toLocaleString()} ${fresh.length === 1 ? 'activity' : 'activities'}`, start)}
+        {linked ? <Text style={s.note}>{`${linked.toLocaleString()} already in RIVAL ${linked === 1 ? 'is' : 'are'} linked, not added twice.`}</Text> : null}
+      </View>
+    ) : button('Done', finishEmpty);
+  }
+
+  return (
+    <RoutePopUp>
+      <View style={s.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={close} accessibilityLabel="Close" />
+        <GreySheet kicker="CONNECTED DEVICES" title="Apple Health" onClose={close} footer={footer}>
+          {body}
+        </GreySheet>
+      </View>
+    </RoutePopUp>
   );
 }
 
+
 const s = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  connect: { alignItems: 'stretch', gap: 8, paddingTop: 14 },
+  loading: { alignItems: 'center', paddingTop: 16, paddingBottom: 6 },
+  loadNum: { fontFamily: RivalSerifFamily, fontStyle: 'italic', fontWeight: '700', fontSize: 56, lineHeight: 64, paddingHorizontal: 8, color: RivalColors.accentText, ...webFx({ backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #D97757 150%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' }) },
+  loadOf: { fontFamily: RivalFontFamily, fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', color: RivalColors.accentText, marginTop: 2 },
+  track: { alignSelf: 'stretch', height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 22, overflow: 'hidden' },
+  fill: { height: 6, borderRadius: 3, backgroundColor: RivalButtonColors.fill, ...RivalButtonColors.gradient },
+  tiles: { alignSelf: 'stretch', flexDirection: 'row', gap: 8, marginTop: 20 },
   page: { flex: 1, backgroundColor: GREY_PAGE_BG },
   pageWide: { backgroundColor: RivalColors.surfaceContainer },
   content: { maxWidth: 560, width: '100%', alignSelf: 'center', paddingHorizontal: 16, paddingBottom: 120, gap: 12 },

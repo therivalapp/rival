@@ -69,6 +69,13 @@ function markSeen() {
   } catch {}
 }
 
+function clearSeen() {
+  try {
+    if (Platform.OS === 'web') globalThis.localStorage?.removeItem(SEEN_KEY);
+    else AsyncStorage.removeItem(SEEN_KEY).catch(() => {});
+  } catch {}
+}
+
 function prefersReducedMotion(): boolean {
   return Platform.OS === 'web' && typeof window !== 'undefined'
     && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -127,7 +134,9 @@ export function DailyQuoteSplash() {
         // never shown on top of the form it just submitted.
         setTimeout(() => maybeShow(session.user.id), 400);
       }
-      if (event === 'SIGNED_OUT') checked.current = false;
+      // Signing out clears today's mark, so signing back in opens with the
+      // quote again (Ricky, 2026-11-16).
+      if (event === 'SIGNED_OUT') { checked.current = false; clearSeen(); }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
